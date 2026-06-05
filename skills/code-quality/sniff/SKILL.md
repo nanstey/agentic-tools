@@ -18,8 +18,8 @@ checklist with practical remediation direction.
 
 The smell taxonomy is maintained in the shared code-quality knowledge layer:
 
-- `skills/code-quality/_knowledge/smells/index.json` for lookup.
-- `skills/code-quality/_knowledge/smells/<category>/<smell-id>.md` for
+- `../_knowledge/smells/index.json` for lookup.
+- `../_knowledge/smells/<category>/<smell-id>.md` for
   per-smell details.
 
 Treat `CLAUDE.md` and `AGENTS.md` in the target repository as authoritative. If
@@ -33,7 +33,7 @@ Gather or infer:
 2. Language and framework context for the code under review.
 3. Target strictness (`quick high-signal` vs `deeper sweep`).
 4. Whether to use only canonical smells from
-   `skills/code-quality/_knowledge/smells/index.json` (default).
+   `../_knowledge/smells/index.json` (default).
 
 ## Workflow
 
@@ -45,10 +45,10 @@ Gather or infer:
 
 ### 2. Load smell hierarchy
 
-1. Read `skills/code-quality/_knowledge/smells/index.json`.
+1. Read `../_knowledge/smells/index.json`.
 2. Resolve candidate smell names to canonical smell IDs.
 3. For each selected smell, read
-   `skills/code-quality/_knowledge/smells/<category>/<smell-id>.md`.
+   `../_knowledge/smells/<category>/<smell-id>.md`.
 
 Stop-and-ask gate: if a candidate finding does not map cleanly to a canonical
 smell ID, ask before introducing a custom label.
@@ -95,7 +95,7 @@ the requested review, pause and ask before proposing implementation work.
 - Never demand broad refactors when a localized fix addresses the risk.
 - Never force category coverage; report only smells that actually appear.
 - Never invent canonical smell IDs outside
-  `skills/code-quality/_knowledge/smells/index.json` without user approval.
+  `../_knowledge/smells/index.json` without user approval.
 
 ## Output Style
 

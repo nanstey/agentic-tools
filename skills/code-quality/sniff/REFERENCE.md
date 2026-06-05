@@ -7,12 +7,12 @@ every smell inline in `SKILL.md`.
 
 ## Dataset Layout
 
-- `skills/code-quality/_knowledge/smells/index.json`
+- `../_knowledge/smells/index.json`
   - canonical smell IDs
   - category grouping
   - path lookup for each smell file
   - related refactoring IDs
-- `skills/code-quality/_knowledge/smells/<category>/<smell-id>.md`
+- `../_knowledge/smells/<category>/<smell-id>.md`
   - signs and symptoms
   - reasons for the problem
   - treatment summary and techniques
@@ -30,7 +30,7 @@ every smell inline in `SKILL.md`.
 ## Maintenance Workflow
 
 1. Edit individual smell markdown files for content changes.
-2. Keep `skills/code-quality/_knowledge/smells/index.json` in sync for
+2. Keep `../_knowledge/smells/index.json` in sync for
    new/renamed smell entries.
 3. Prefer one-smell-at-a-time updates for reviewable diffs.
 

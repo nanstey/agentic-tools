@@ -3,7 +3,7 @@
 ## Purpose
 
 `refactor` orchestrates the refactor-planning flow and relies on the shared
-knowledge layer at `skills/code-quality/_knowledge/`. It complements
+knowledge layer at `../_knowledge/`. It complements
 `fresh-air`:
 
 - `fresh-air`: choose *which* technique to apply for one smell finding.
@@ -12,13 +12,13 @@ knowledge layer at `skills/code-quality/_knowledge/`. It complements
 
 ## Dataset Layout
 
-- `_knowledge/refactor-techniques/index.json` — canonical lookup table:
+- `../_knowledge/refactor-techniques/index.json` — canonical lookup table:
   - categories
   - techniques
   - technique file paths
   - related IDs (`anti_refactoring`, `similar_refactoring`,
     `helps_refactoring`, `eliminates_smell`)
-- `_knowledge/refactor-techniques/techniques/<category>/<technique-id>.md` —
+- `../_knowledge/refactor-techniques/techniques/<category>/<technique-id>.md` —
   full details per technique:
   - problem
   - solution
@@ -57,8 +57,8 @@ knowledge layer at `skills/code-quality/_knowledge/`. It complements
 ## Maintenance Workflow
 
 1. Edit individual technique files under
-   `_knowledge/refactor-techniques/techniques/<category>/`.
-2. Keep `_knowledge/refactor-techniques/index.json` in sync for
+   `../_knowledge/refactor-techniques/techniques/<category>/`.
+2. Keep `../_knowledge/refactor-techniques/index.json` in sync for
    new/renamed techniques and relationships.
 3. Prefer one-technique-at-a-time updates for clean review diffs.
 

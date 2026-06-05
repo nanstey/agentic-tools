@@ -1,0 +1,346 @@
+{
+  "meta": {
+    "version": 1,
+    "source": "https://medium.com/@bartoszkrajka/principle-of-software-development-principles-f0143d6f405",
+    "notes": "Curated static hierarchy. Edit principle markdown files directly."
+  },
+  "categories": [
+    {
+      "id": "delivery-foundations",
+      "name": "Delivery Foundations",
+      "principles": [
+        {
+          "id": "make-it-work",
+          "name": "Make It Work",
+          "path": "delivery-foundations/make-it-work.md"
+        },
+        {
+          "id": "yagni",
+          "name": "YAGNI",
+          "path": "delivery-foundations/yagni.md"
+        },
+        {
+          "id": "principle-of-least-surprise",
+          "name": "Principle of Least Surprise",
+          "path": "delivery-foundations/principle-of-least-surprise.md"
+        }
+      ]
+    },
+    {
+      "id": "code-shape",
+      "name": "Code Shape",
+      "principles": [
+        {
+          "id": "kiss",
+          "name": "KISS",
+          "path": "code-shape/kiss.md"
+        },
+        {
+          "id": "be-consistent",
+          "name": "Be Consistent",
+          "path": "code-shape/be-consistent.md"
+        },
+        {
+          "id": "dry",
+          "name": "DRY",
+          "path": "code-shape/dry.md"
+        },
+        {
+          "id": "clean-code",
+          "name": "Clean Code",
+          "path": "code-shape/clean-code.md"
+        }
+      ]
+    },
+    {
+      "id": "design-principles",
+      "name": "Design Principles",
+      "principles": [
+        {
+          "id": "single-responsibility",
+          "name": "Single Responsibility (SRP)",
+          "path": "design-principles/single-responsibility.md"
+        },
+        {
+          "id": "open-closed",
+          "name": "Open/Closed Principle (OCP)",
+          "path": "design-principles/open-closed.md"
+        },
+        {
+          "id": "composition-over-inheritance",
+          "name": "Composition over Inheritance",
+          "path": "design-principles/composition-over-inheritance.md"
+        },
+        {
+          "id": "separation-of-concerns",
+          "name": "Separation of Concerns",
+          "path": "design-principles/separation-of-concerns.md"
+        },
+        {
+          "id": "solid",
+          "name": "SOLID",
+          "path": "design-principles/solid.md"
+        }
+      ]
+    },
+    {
+      "id": "process-and-optimization",
+      "name": "Process and Optimization",
+      "principles": [
+        {
+          "id": "design-patterns-if-necessary",
+          "name": "Design Patterns (If Necessary)",
+          "path": "process-and-optimization/design-patterns-if-necessary.md"
+        },
+        {
+          "id": "agile-practices",
+          "name": "Agile Practices",
+          "path": "process-and-optimization/agile-practices.md"
+        },
+        {
+          "id": "boy-scout-rule",
+          "name": "Boy Scout Rule",
+          "path": "process-and-optimization/boy-scout-rule.md"
+        },
+        {
+          "id": "make-it-fast",
+          "name": "Make It Fast",
+          "path": "process-and-optimization/make-it-fast.md"
+        }
+      ]
+    }
+  ],
+  "principles": [
+    {
+      "id": "make-it-work",
+      "name": "Make It Work",
+      "category_id": "delivery-foundations",
+      "path": "delivery-foundations/make-it-work.md",
+      "source_url": "https://medium.com/@bartoszkrajka/principle-of-software-development-principles-f0143d6f405",
+      "priority_level": 1,
+      "related_principles": [
+        "make-it-fast",
+        "boy-scout-rule"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "yagni",
+      "name": "YAGNI",
+      "category_id": "delivery-foundations",
+      "path": "delivery-foundations/yagni.md",
+      "source_url": "https://medium.com/@bartoszkrajka/principle-of-software-development-principles-f0143d6f405",
+      "priority_level": 2,
+      "related_principles": [
+        "agile-practices",
+        "design-patterns-if-necessary"
+      ],
+      "aliases": [
+        "you-arent-gonna-need-it"
+      ]
+    },
+    {
+      "id": "principle-of-least-surprise",
+      "name": "Principle of Least Surprise",
+      "category_id": "delivery-foundations",
+      "path": "delivery-foundations/principle-of-least-surprise.md",
+      "source_url": "https://en.wikipedia.org/wiki/Principle_of_least_astonishment",
+      "priority_level": 3,
+      "related_principles": [
+        "kiss",
+        "be-consistent"
+      ],
+      "aliases": [
+        "least-astonishment"
+      ]
+    },
+    {
+      "id": "kiss",
+      "name": "KISS",
+      "category_id": "code-shape",
+      "path": "code-shape/kiss.md",
+      "source_url": "https://en.wikipedia.org/wiki/KISS_principle",
+      "priority_level": 4,
+      "related_principles": [
+        "design-patterns-if-necessary",
+        "dry"
+      ],
+      "aliases": [
+        "keep-it-simple"
+      ]
+    },
+    {
+      "id": "be-consistent",
+      "name": "Be Consistent",
+      "category_id": "code-shape",
+      "path": "code-shape/be-consistent.md",
+      "source_url": "https://en.wikipedia.org/wiki/Consistency_(logic)",
+      "priority_level": 5,
+      "related_principles": [
+        "boy-scout-rule",
+        "principle-of-least-surprise"
+      ],
+      "aliases": [
+        "consistency"
+      ]
+    },
+    {
+      "id": "dry",
+      "name": "DRY",
+      "category_id": "code-shape",
+      "path": "code-shape/dry.md",
+      "source_url": "https://en.wikipedia.org/wiki/Don%27t_repeat_yourself",
+      "priority_level": 6,
+      "related_principles": [
+        "kiss",
+        "single-responsibility"
+      ],
+      "aliases": [
+        "dont-repeat-yourself"
+      ]
+    },
+    {
+      "id": "clean-code",
+      "name": "Clean Code",
+      "category_id": "code-shape",
+      "path": "code-shape/clean-code.md",
+      "source_url": "https://www.oreilly.com/library/view/clean-code/9780136083238/",
+      "priority_level": 7,
+      "related_principles": [
+        "solid",
+        "separation-of-concerns"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "single-responsibility",
+      "name": "Single Responsibility (SRP)",
+      "category_id": "design-principles",
+      "path": "design-principles/single-responsibility.md",
+      "source_url": "https://en.wikipedia.org/wiki/Single-responsibility_principle",
+      "priority_level": 8,
+      "related_principles": [
+        "solid",
+        "separation-of-concerns"
+      ],
+      "aliases": [
+        "srp"
+      ]
+    },
+    {
+      "id": "open-closed",
+      "name": "Open/Closed Principle (OCP)",
+      "category_id": "design-principles",
+      "path": "design-principles/open-closed.md",
+      "source_url": "https://en.wikipedia.org/wiki/Open%E2%80%93closed_principle",
+      "priority_level": 8,
+      "related_principles": [
+        "solid",
+        "kiss"
+      ],
+      "aliases": [
+        "ocp"
+      ]
+    },
+    {
+      "id": "composition-over-inheritance",
+      "name": "Composition over Inheritance",
+      "category_id": "design-principles",
+      "path": "design-principles/composition-over-inheritance.md",
+      "source_url": "https://en.wikipedia.org/wiki/Composition_over_inheritance",
+      "priority_level": 8,
+      "related_principles": [
+        "solid",
+        "open-closed"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "separation-of-concerns",
+      "name": "Separation of Concerns",
+      "category_id": "design-principles",
+      "path": "design-principles/separation-of-concerns.md",
+      "source_url": "https://en.wikipedia.org/wiki/Separation_of_concerns",
+      "priority_level": 7,
+      "related_principles": [
+        "single-responsibility",
+        "clean-code"
+      ],
+      "aliases": [
+        "soc"
+      ]
+    },
+    {
+      "id": "solid",
+      "name": "SOLID",
+      "category_id": "design-principles",
+      "path": "design-principles/solid.md",
+      "source_url": "https://en.wikipedia.org/wiki/SOLID",
+      "priority_level": 8,
+      "related_principles": [
+        "single-responsibility",
+        "open-closed",
+        "composition-over-inheritance"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "design-patterns-if-necessary",
+      "name": "Design Patterns (If Necessary)",
+      "category_id": "process-and-optimization",
+      "path": "process-and-optimization/design-patterns-if-necessary.md",
+      "source_url": "https://medium.com/@bartoszkrajka/principle-of-software-development-principles-f0143d6f405",
+      "priority_level": 9,
+      "related_principles": [
+        "kiss",
+        "yagni"
+      ],
+      "aliases": [
+        "design-patterns"
+      ]
+    },
+    {
+      "id": "agile-practices",
+      "name": "Agile Practices",
+      "category_id": "process-and-optimization",
+      "path": "process-and-optimization/agile-practices.md",
+      "source_url": "https://agilemanifesto.org/",
+      "priority_level": 10,
+      "related_principles": [
+        "yagni",
+        "make-it-work"
+      ],
+      "aliases": [
+        "agility"
+      ]
+    },
+    {
+      "id": "boy-scout-rule",
+      "name": "Boy Scout Rule",
+      "category_id": "process-and-optimization",
+      "path": "process-and-optimization/boy-scout-rule.md",
+      "source_url": "https://en.wikipedia.org/wiki/Boy_Scout_Rule_(software_development)",
+      "priority_level": 11,
+      "related_principles": [
+        "be-consistent",
+        "make-it-work"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "make-it-fast",
+      "name": "Make It Fast",
+      "category_id": "process-and-optimization",
+      "path": "process-and-optimization/make-it-fast.md",
+      "source_url": "https://wiki.c2.com/?MakeItWorkMakeItRightMakeItFast",
+      "priority_level": 12,
+      "related_principles": [
+        "make-it-work",
+        "kiss"
+      ],
+      "aliases": [
+        "performance"
+      ]
+    }
+  ]
+}

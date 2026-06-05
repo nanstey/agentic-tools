@@ -2,7 +2,7 @@
 
 ## Graph Schema
 
-`_knowledge/maps/smell-to-technique.json` contains:
+`../_knowledge/maps/smell-to-technique.json` contains:
 
 - `meta`
   - `generated_at`

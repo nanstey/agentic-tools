@@ -14,7 +14,7 @@ incoming smell findings, fans out one smell at a time to `fresh-air`,
 aggregates per-smell recommendations, and then hands the merged package to
 `dev/speclist` to write the final plan file.
 
-Canonical domain data lives under `skills/code-quality/_knowledge/`. This skill
+Canonical domain data lives under `../_knowledge/`. This skill
 does not maintain its own parallel hierarchy.
 
 Treat `CLAUDE.md` and `AGENTS.md` in the target repository as authoritative. If

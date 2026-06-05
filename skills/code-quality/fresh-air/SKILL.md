@@ -11,7 +11,7 @@ disable-model-invocation: false
 
 Use this skill as a single-smell worker. It takes one smell finding (usually
 from `sniff`), then maps that smell to technique candidates from the canonical
-knowledge layer under `skills/code-quality/_knowledge/`.
+knowledge layer under `../_knowledge/`.
 
 `fresh-air` does not write final plan files. It recommends one primary
 technique for one smell and returns a structured handoff payload for
@@ -42,11 +42,11 @@ location, pause and request a single-smell payload.
 
 ### 2. Load canonical candidates
 
-1. Read `skills/code-quality/_knowledge/maps/smell-to-technique.json`.
+1. Read `../_knowledge/maps/smell-to-technique.json`.
 2. Pull candidate technique IDs for the smell.
 3. Hydrate candidate details from:
-   - `skills/code-quality/_knowledge/refactor-techniques/index.json`
-   - `skills/code-quality/_knowledge/refactor-techniques/techniques/<category>/<technique-id>.md`
+   - `../_knowledge/refactor-techniques/index.json`
+   - `../_knowledge/refactor-techniques/techniques/<category>/<technique-id>.md`
 
 Stop-and-ask gate: if the smell has no mapped techniques, ask the user whether
 to proceed with nearest related techniques from smell metadata.
