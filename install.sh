@@ -22,7 +22,8 @@ fm_name() {
 # Skills: directories with a SKILL.md under skills/. Emits "linkname<TAB>srcdir".
 collect_skills() {
   [ -d "$REPO_ROOT/skills" ] || return 0
-  find "$REPO_ROOT/skills" -type f -name SKILL.md -not -path '*/.git/*' -printf '%h\n' | sort -u |
+  # `-exec dirname` instead of GNU-only `-printf '%h\n'` so this works on BSD/macOS find too.
+  find "$REPO_ROOT/skills" -type f -name SKILL.md -not -path '*/.git/*' -exec dirname {} \; | sort -u |
   while read -r d; do
     n="$(fm_name "$d/SKILL.md")"; [ -n "$n" ] || n="$(basename "$d")"
     printf '%s\t%s\n' "$n" "$(cd "$d" && pwd)"
