@@ -1,0 +1,499 @@
+{
+  "meta": {
+    "version": 1,
+    "source": "https://refactoring.guru/refactoring/smells",
+    "notes": "Curated static hierarchy. Edit smell markdown files directly."
+  },
+  "categories": [
+    {
+      "id": "bloaters",
+      "name": "Bloaters",
+      "smells": [
+        {
+          "id": "data-clumps",
+          "name": "Data Clumps",
+          "path": "bloaters/data-clumps.md"
+        },
+        {
+          "id": "large-class",
+          "name": "Large Class",
+          "path": "bloaters/large-class.md"
+        },
+        {
+          "id": "long-method",
+          "name": "Long Method",
+          "path": "bloaters/long-method.md"
+        },
+        {
+          "id": "long-parameter-list",
+          "name": "Long Parameter List",
+          "path": "bloaters/long-parameter-list.md"
+        },
+        {
+          "id": "primitive-obsession",
+          "name": "Primitive Obsession",
+          "path": "bloaters/primitive-obsession.md"
+        }
+      ]
+    },
+    {
+      "id": "object-orientation-abusers",
+      "name": "Object-Orientation Abusers",
+      "smells": [
+        {
+          "id": "alternative-classes-with-different-interfaces",
+          "name": "Alternative Classes with Different Interfaces",
+          "path": "object-orientation-abusers/alternative-classes-with-different-interfaces.md"
+        },
+        {
+          "id": "refused-bequest",
+          "name": "Refused Bequest",
+          "path": "object-orientation-abusers/refused-bequest.md"
+        },
+        {
+          "id": "switch-statements",
+          "name": "Switch Statements",
+          "path": "object-orientation-abusers/switch-statements.md"
+        },
+        {
+          "id": "temporary-field",
+          "name": "Temporary Field",
+          "path": "object-orientation-abusers/temporary-field.md"
+        }
+      ]
+    },
+    {
+      "id": "change-preventers",
+      "name": "Change Preventers",
+      "smells": [
+        {
+          "id": "divergent-change",
+          "name": "Divergent Change",
+          "path": "change-preventers/divergent-change.md"
+        },
+        {
+          "id": "parallel-inheritance-hierarchies",
+          "name": "Parallel Inheritance Hierarchies",
+          "path": "change-preventers/parallel-inheritance-hierarchies.md"
+        },
+        {
+          "id": "shotgun-surgery",
+          "name": "Shotgun Surgery",
+          "path": "change-preventers/shotgun-surgery.md"
+        }
+      ]
+    },
+    {
+      "id": "dispensables",
+      "name": "Dispensables",
+      "smells": [
+        {
+          "id": "comments",
+          "name": "Comments",
+          "path": "dispensables/comments.md"
+        },
+        {
+          "id": "data-class",
+          "name": "Data Class",
+          "path": "dispensables/data-class.md"
+        },
+        {
+          "id": "dead-code",
+          "name": "Dead Code",
+          "path": "dispensables/dead-code.md"
+        },
+        {
+          "id": "duplicate-code",
+          "name": "Duplicate Code",
+          "path": "dispensables/duplicate-code.md"
+        },
+        {
+          "id": "lazy-class",
+          "name": "Lazy Class",
+          "path": "dispensables/lazy-class.md"
+        },
+        {
+          "id": "speculative-generality",
+          "name": "Speculative Generality",
+          "path": "dispensables/speculative-generality.md"
+        }
+      ]
+    },
+    {
+      "id": "couplers",
+      "name": "Couplers",
+      "smells": [
+        {
+          "id": "feature-envy",
+          "name": "Feature Envy",
+          "path": "couplers/feature-envy.md"
+        },
+        {
+          "id": "inappropriate-intimacy",
+          "name": "Inappropriate Intimacy",
+          "path": "couplers/inappropriate-intimacy.md"
+        },
+        {
+          "id": "incomplete-library-class",
+          "name": "Incomplete Library Class",
+          "path": "couplers/incomplete-library-class.md"
+        },
+        {
+          "id": "message-chains",
+          "name": "Message Chains",
+          "path": "couplers/message-chains.md"
+        },
+        {
+          "id": "middle-man",
+          "name": "Middle Man",
+          "path": "couplers/middle-man.md"
+        }
+      ]
+    }
+  ],
+  "smells": [
+    {
+      "id": "alternative-classes-with-different-interfaces",
+      "name": "Alternative Classes with Different Interfaces",
+      "category_id": "object-orientation-abusers",
+      "path": "object-orientation-abusers/alternative-classes-with-different-interfaces.md",
+      "source_url": "https://refactoring.guru/smells/alternative-classes-with-different-interfaces",
+      "related_refactorings": [
+        "rename-method",
+        "move-method",
+        "add-parameter",
+        "parameterize-method",
+        "extract-superclass"
+      ],
+      "related_smells": [],
+      "aliases": []
+    },
+    {
+      "id": "comments",
+      "name": "Comments",
+      "category_id": "dispensables",
+      "path": "dispensables/comments.md",
+      "source_url": "https://refactoring.guru/smells/comments",
+      "related_refactorings": [
+        "extract-variable",
+        "extract-method",
+        "rename-method",
+        "introduce-assertion"
+      ],
+      "related_smells": [],
+      "aliases": []
+    },
+    {
+      "id": "data-class",
+      "name": "Data Class",
+      "category_id": "dispensables",
+      "path": "dispensables/data-class.md",
+      "source_url": "https://refactoring.guru/smells/data-class",
+      "related_refactorings": [
+        "encapsulate-field",
+        "encapsulate-collection",
+        "move-method",
+        "extract-method",
+        "remove-setting-method",
+        "hide-method"
+      ],
+      "related_smells": [],
+      "aliases": []
+    },
+    {
+      "id": "data-clumps",
+      "name": "Data Clumps",
+      "category_id": "bloaters",
+      "path": "bloaters/data-clumps.md",
+      "source_url": "https://refactoring.guru/smells/data-clumps",
+      "related_refactorings": [
+        "extract-class",
+        "introduce-parameter-object",
+        "preserve-whole-object"
+      ],
+      "related_smells": [],
+      "aliases": []
+    },
+    {
+      "id": "dead-code",
+      "name": "Dead Code",
+      "category_id": "dispensables",
+      "path": "dispensables/dead-code.md",
+      "source_url": "https://refactoring.guru/smells/dead-code",
+      "related_refactorings": [
+        "inline-class",
+        "collapse-hierarchy",
+        "remove-parameter"
+      ],
+      "related_smells": [],
+      "aliases": []
+    },
+    {
+      "id": "divergent-change",
+      "name": "Divergent Change",
+      "category_id": "change-preventers",
+      "path": "change-preventers/divergent-change.md",
+      "source_url": "https://refactoring.guru/smells/divergent-change",
+      "related_refactorings": [
+        "extract-class",
+        "extract-superclass",
+        "extract-subclass"
+      ],
+      "related_smells": [],
+      "aliases": []
+    },
+    {
+      "id": "duplicate-code",
+      "name": "Duplicate Code",
+      "category_id": "dispensables",
+      "path": "dispensables/duplicate-code.md",
+      "source_url": "https://refactoring.guru/smells/duplicate-code",
+      "related_refactorings": [
+        "extract-method",
+        "pull-up-field",
+        "pull-up-constructor-body",
+        "form-template-method",
+        "substitute-algorithm",
+        "extract-superclass",
+        "extract-class",
+        "consolidate-conditional-expression",
+        "consolidate-duplicate-conditional-fragments"
+      ],
+      "related_smells": [],
+      "aliases": []
+    },
+    {
+      "id": "feature-envy",
+      "name": "Feature Envy",
+      "category_id": "couplers",
+      "path": "couplers/feature-envy.md",
+      "source_url": "https://refactoring.guru/smells/feature-envy",
+      "related_refactorings": [
+        "move-method",
+        "extract-method"
+      ],
+      "related_smells": [],
+      "aliases": []
+    },
+    {
+      "id": "inappropriate-intimacy",
+      "name": "Inappropriate Intimacy",
+      "category_id": "couplers",
+      "path": "couplers/inappropriate-intimacy.md",
+      "source_url": "https://refactoring.guru/smells/inappropriate-intimacy",
+      "related_refactorings": [
+        "move-method",
+        "move-field",
+        "extract-class",
+        "hide-delegate",
+        "change-bidirectional-association-to-unidirectional",
+        "replace-delegation-with-inheritance"
+      ],
+      "related_smells": [],
+      "aliases": []
+    },
+    {
+      "id": "incomplete-library-class",
+      "name": "Incomplete Library Class",
+      "category_id": "couplers",
+      "path": "couplers/incomplete-library-class.md",
+      "source_url": "https://refactoring.guru/smells/incomplete-library-class",
+      "related_refactorings": [
+        "introduce-foreign-method",
+        "introduce-local-extension"
+      ],
+      "related_smells": [],
+      "aliases": []
+    },
+    {
+      "id": "large-class",
+      "name": "Large Class",
+      "category_id": "bloaters",
+      "path": "bloaters/large-class.md",
+      "source_url": "https://refactoring.guru/smells/large-class",
+      "related_refactorings": [
+        "extract-class",
+        "extract-subclass",
+        "extract-interface",
+        "duplicate-observed-data"
+      ],
+      "related_smells": [],
+      "aliases": []
+    },
+    {
+      "id": "lazy-class",
+      "name": "Lazy Class",
+      "category_id": "dispensables",
+      "path": "dispensables/lazy-class.md",
+      "source_url": "https://refactoring.guru/smells/lazy-class",
+      "related_refactorings": [
+        "inline-class",
+        "collapse-hierarchy"
+      ],
+      "related_smells": [],
+      "aliases": []
+    },
+    {
+      "id": "long-method",
+      "name": "Long Method",
+      "category_id": "bloaters",
+      "path": "bloaters/long-method.md",
+      "source_url": "https://refactoring.guru/smells/long-method",
+      "related_refactorings": [
+        "extract-method",
+        "replace-temp-with-query",
+        "introduce-parameter-object",
+        "preserve-whole-object",
+        "replace-method-with-method-object",
+        "decompose-conditional"
+      ],
+      "related_smells": [],
+      "aliases": []
+    },
+    {
+      "id": "long-parameter-list",
+      "name": "Long Parameter List",
+      "category_id": "bloaters",
+      "path": "bloaters/long-parameter-list.md",
+      "source_url": "https://refactoring.guru/smells/long-parameter-list",
+      "related_refactorings": [
+        "replace-parameter-with-method-call",
+        "preserve-whole-object",
+        "introduce-parameter-object"
+      ],
+      "related_smells": [],
+      "aliases": []
+    },
+    {
+      "id": "message-chains",
+      "name": "Message Chains",
+      "category_id": "couplers",
+      "path": "couplers/message-chains.md",
+      "source_url": "https://refactoring.guru/smells/message-chains",
+      "related_refactorings": [
+        "hide-delegate",
+        "extract-method",
+        "move-method"
+      ],
+      "related_smells": [],
+      "aliases": []
+    },
+    {
+      "id": "middle-man",
+      "name": "Middle Man",
+      "category_id": "couplers",
+      "path": "couplers/middle-man.md",
+      "source_url": "https://refactoring.guru/smells/middle-man",
+      "related_refactorings": [
+        "remove-middle-man"
+      ],
+      "related_smells": [],
+      "aliases": []
+    },
+    {
+      "id": "parallel-inheritance-hierarchies",
+      "name": "Parallel Inheritance Hierarchies",
+      "category_id": "change-preventers",
+      "path": "change-preventers/parallel-inheritance-hierarchies.md",
+      "source_url": "https://refactoring.guru/smells/parallel-inheritance-hierarchies",
+      "related_refactorings": [
+        "move-method",
+        "move-field"
+      ],
+      "related_smells": [],
+      "aliases": []
+    },
+    {
+      "id": "primitive-obsession",
+      "name": "Primitive Obsession",
+      "category_id": "bloaters",
+      "path": "bloaters/primitive-obsession.md",
+      "source_url": "https://refactoring.guru/smells/primitive-obsession",
+      "related_refactorings": [
+        "replace-data-value-with-object",
+        "introduce-parameter-object",
+        "preserve-whole-object",
+        "replace-type-code-with-class",
+        "replace-type-code-with-subclasses",
+        "replace-type-code-with-state-strategy",
+        "replace-array-with-object"
+      ],
+      "related_smells": [],
+      "aliases": []
+    },
+    {
+      "id": "refused-bequest",
+      "name": "Refused Bequest",
+      "category_id": "object-orientation-abusers",
+      "path": "object-orientation-abusers/refused-bequest.md",
+      "source_url": "https://refactoring.guru/smells/refused-bequest",
+      "related_refactorings": [
+        "replace-inheritance-with-delegation",
+        "extract-superclass"
+      ],
+      "related_smells": [],
+      "aliases": []
+    },
+    {
+      "id": "shotgun-surgery",
+      "name": "Shotgun Surgery",
+      "category_id": "change-preventers",
+      "path": "change-preventers/shotgun-surgery.md",
+      "source_url": "https://refactoring.guru/smells/shotgun-surgery",
+      "related_refactorings": [
+        "move-method",
+        "move-field",
+        "inline-class"
+      ],
+      "related_smells": [],
+      "aliases": []
+    },
+    {
+      "id": "speculative-generality",
+      "name": "Speculative Generality",
+      "category_id": "dispensables",
+      "path": "dispensables/speculative-generality.md",
+      "source_url": "https://refactoring.guru/smells/speculative-generality",
+      "related_refactorings": [
+        "collapse-hierarchy",
+        "inline-class",
+        "inline-method",
+        "remove-parameter"
+      ],
+      "related_smells": [],
+      "aliases": []
+    },
+    {
+      "id": "switch-statements",
+      "name": "Switch Statements",
+      "category_id": "object-orientation-abusers",
+      "path": "object-orientation-abusers/switch-statements.md",
+      "source_url": "https://refactoring.guru/smells/switch-statements",
+      "related_refactorings": [
+        "extract-method",
+        "move-method",
+        "replace-type-code-with-subclasses",
+        "replace-type-code-with-state-strategy",
+        "replace-conditional-with-polymorphism",
+        "replace-parameter-with-explicit-methods",
+        "introduce-null-object"
+      ],
+      "related_smells": [],
+      "aliases": []
+    },
+    {
+      "id": "temporary-field",
+      "name": "Temporary Field",
+      "category_id": "object-orientation-abusers",
+      "path": "object-orientation-abusers/temporary-field.md",
+      "source_url": "https://refactoring.guru/smells/temporary-field",
+      "related_refactorings": [
+        "extract-class",
+        "replace-method-with-method-object",
+        "introduce-null-object"
+      ],
+      "related_smells": [],
+      "aliases": []
+    }
+  ]
+}

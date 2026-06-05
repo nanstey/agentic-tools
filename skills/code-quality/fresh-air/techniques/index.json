@@ -1,0 +1,523 @@
+{
+  "meta": {
+    "version": 1,
+    "notes": "Mapping-only technique index for fresh-air. Contains compact metadata for ranking and reporting.",
+    "generated_from": [
+      "fresh-air/technique-map/smell-to-technique.json"
+    ]
+  },
+  "families": [
+    {
+      "id": "composing-methods",
+      "name": "Composing Methods",
+      "url": "https://refactoring.guru/refactoring/techniques/composing-methods",
+      "description": "Refactor method bodies to improve readability and reduce duplication.",
+      "technique_ids": [
+        "extract-method",
+        "inline-method",
+        "extract-variable",
+        "inline-temp",
+        "replace-temp-with-query",
+        "split-temporary-variable",
+        "remove-assignments-to-parameters",
+        "replace-method-with-method-object",
+        "substitute-algorithm"
+      ]
+    },
+    {
+      "id": "moving-features-between-objects",
+      "name": "Moving Features between Objects",
+      "url": "https://refactoring.guru/refactoring/techniques/moving-features-between-objects",
+      "description": "Move behavior and data to more cohesive object boundaries.",
+      "technique_ids": [
+        "move-method",
+        "move-field",
+        "extract-class",
+        "inline-class",
+        "hide-delegate",
+        "remove-middle-man",
+        "introduce-foreign-method",
+        "introduce-local-extension"
+      ]
+    },
+    {
+      "id": "organizing-data",
+      "name": "Organizing Data",
+      "url": "https://refactoring.guru/refactoring/techniques/organizing-data",
+      "description": "Reshape and encapsulate data structures for clearer models.",
+      "technique_ids": [
+        "change-value-to-reference",
+        "change-reference-to-value",
+        "duplicate-observed-data",
+        "self-encapsulate-field",
+        "replace-data-value-with-object",
+        "replace-array-with-object",
+        "change-unidirectional-association-to-bidirectional",
+        "change-bidirectional-association-to-unidirectional",
+        "encapsulate-field",
+        "encapsulate-collection",
+        "replace-magic-number-with-symbolic-constant",
+        "replace-type-code-with-class",
+        "replace-type-code-with-subclasses",
+        "replace-type-code-with-state-strategy",
+        "replace-subclass-with-fields"
+      ]
+    },
+    {
+      "id": "simplifying-conditional-expressions",
+      "name": "Simplifying Conditional Expressions",
+      "url": "https://refactoring.guru/refactoring/techniques/simplifying-conditional-expressions",
+      "description": "Reduce branching complexity in conditional logic.",
+      "technique_ids": [
+        "consolidate-conditional-expression",
+        "consolidate-duplicate-conditional-fragments",
+        "decompose-conditional",
+        "replace-conditional-with-polymorphism",
+        "remove-control-flag",
+        "replace-nested-conditional-with-guard-clauses",
+        "introduce-null-object",
+        "introduce-assertion"
+      ]
+    },
+    {
+      "id": "simplifying-method-calls",
+      "name": "Simplifying Method Calls",
+      "url": "https://refactoring.guru/refactoring/techniques/simplifying-method-calls",
+      "description": "Simplify and clarify method signatures and invocation patterns.",
+      "technique_ids": [
+        "add-parameter",
+        "remove-parameter",
+        "rename-method",
+        "separate-query-from-modifier",
+        "parameterize-method",
+        "introduce-parameter-object",
+        "preserve-whole-object",
+        "remove-setting-method",
+        "replace-parameter-with-explicit-methods",
+        "replace-parameter-with-method-call",
+        "hide-method",
+        "replace-constructor-with-factory-method",
+        "replace-error-code-with-exception",
+        "replace-exception-with-test"
+      ]
+    },
+    {
+      "id": "dealing-with-generalization",
+      "name": "Dealing with Generalization",
+      "url": "https://refactoring.guru/refactoring/techniques/dealing-with-generalization",
+      "description": "Refactor class hierarchies and abstractions.",
+      "technique_ids": [
+        "pull-up-field",
+        "pull-up-method",
+        "pull-up-constructor-body",
+        "push-down-field",
+        "push-down-method",
+        "extract-subclass",
+        "extract-superclass",
+        "extract-interface",
+        "collapse-hierarchy",
+        "form-template-method",
+        "replace-inheritance-with-delegation",
+        "replace-delegation-with-inheritance"
+      ]
+    }
+  ],
+  "techniques": [
+    {
+      "id": "add-parameter",
+      "name": "Add Parameter",
+      "url": "https://refactoring.guru/add-parameter",
+      "family_id": "simplifying-method-calls"
+    },
+    {
+      "id": "change-bidirectional-association-to-unidirectional",
+      "name": "Change Bidirectional Association to Unidirectional",
+      "url": "https://refactoring.guru/change-bidirectional-association-to-unidirectional",
+      "family_id": "organizing-data"
+    },
+    {
+      "id": "change-reference-to-value",
+      "name": "Change Reference to Value",
+      "url": "https://refactoring.guru/change-reference-to-value",
+      "family_id": "organizing-data"
+    },
+    {
+      "id": "change-unidirectional-association-to-bidirectional",
+      "name": "Change Unidirectional Association to Bidirectional",
+      "url": "https://refactoring.guru/change-unidirectional-association-to-bidirectional",
+      "family_id": "organizing-data"
+    },
+    {
+      "id": "change-value-to-reference",
+      "name": "Change Value to Reference",
+      "url": "https://refactoring.guru/change-value-to-reference",
+      "family_id": "organizing-data"
+    },
+    {
+      "id": "collapse-hierarchy",
+      "name": "Collapse Hierarchy",
+      "url": "https://refactoring.guru/collapse-hierarchy",
+      "family_id": "dealing-with-generalization"
+    },
+    {
+      "id": "consolidate-conditional-expression",
+      "name": "Consolidate Conditional Expression",
+      "url": "https://refactoring.guru/consolidate-conditional-expression",
+      "family_id": "simplifying-conditional-expressions"
+    },
+    {
+      "id": "consolidate-duplicate-conditional-fragments",
+      "name": "Consolidate Duplicate Conditional Fragments",
+      "url": "https://refactoring.guru/consolidate-duplicate-conditional-fragments",
+      "family_id": "simplifying-conditional-expressions"
+    },
+    {
+      "id": "decompose-conditional",
+      "name": "Decompose Conditional",
+      "url": "https://refactoring.guru/decompose-conditional",
+      "family_id": "simplifying-conditional-expressions"
+    },
+    {
+      "id": "duplicate-observed-data",
+      "name": "Duplicate Observed Data",
+      "url": "https://refactoring.guru/duplicate-observed-data",
+      "family_id": "organizing-data"
+    },
+    {
+      "id": "encapsulate-collection",
+      "name": "Encapsulate Collection",
+      "url": "https://refactoring.guru/encapsulate-collection",
+      "family_id": "organizing-data"
+    },
+    {
+      "id": "encapsulate-field",
+      "name": "Encapsulate Field",
+      "url": "https://refactoring.guru/encapsulate-field",
+      "family_id": "organizing-data"
+    },
+    {
+      "id": "extract-class",
+      "name": "Extract Class",
+      "url": "https://refactoring.guru/extract-class",
+      "family_id": "moving-features-between-objects"
+    },
+    {
+      "id": "extract-interface",
+      "name": "Extract Interface",
+      "url": "https://refactoring.guru/extract-interface",
+      "family_id": "dealing-with-generalization"
+    },
+    {
+      "id": "extract-method",
+      "name": "Extract Method",
+      "url": "https://refactoring.guru/extract-method",
+      "family_id": "composing-methods"
+    },
+    {
+      "id": "extract-subclass",
+      "name": "Extract Subclass",
+      "url": "https://refactoring.guru/extract-subclass",
+      "family_id": "dealing-with-generalization"
+    },
+    {
+      "id": "extract-superclass",
+      "name": "Extract Superclass",
+      "url": "https://refactoring.guru/extract-superclass",
+      "family_id": "dealing-with-generalization"
+    },
+    {
+      "id": "extract-variable",
+      "name": "Extract Variable",
+      "url": "https://refactoring.guru/extract-variable",
+      "family_id": "composing-methods"
+    },
+    {
+      "id": "form-template-method",
+      "name": "Form Template Method",
+      "url": "https://refactoring.guru/form-template-method",
+      "family_id": "dealing-with-generalization"
+    },
+    {
+      "id": "hide-delegate",
+      "name": "Hide Delegate",
+      "url": "https://refactoring.guru/hide-delegate",
+      "family_id": "moving-features-between-objects"
+    },
+    {
+      "id": "hide-method",
+      "name": "Hide Method",
+      "url": "https://refactoring.guru/hide-method",
+      "family_id": "simplifying-method-calls"
+    },
+    {
+      "id": "inline-class",
+      "name": "Inline Class",
+      "url": "https://refactoring.guru/inline-class",
+      "family_id": "moving-features-between-objects"
+    },
+    {
+      "id": "inline-method",
+      "name": "Inline Method",
+      "url": "https://refactoring.guru/inline-method",
+      "family_id": "composing-methods"
+    },
+    {
+      "id": "inline-temp",
+      "name": "Inline Temp",
+      "url": "https://refactoring.guru/inline-temp",
+      "family_id": "composing-methods"
+    },
+    {
+      "id": "introduce-assertion",
+      "name": "Introduce Assertion",
+      "url": "https://refactoring.guru/introduce-assertion",
+      "family_id": "simplifying-conditional-expressions"
+    },
+    {
+      "id": "introduce-foreign-method",
+      "name": "Introduce Foreign Method",
+      "url": "https://refactoring.guru/introduce-foreign-method",
+      "family_id": "moving-features-between-objects"
+    },
+    {
+      "id": "introduce-local-extension",
+      "name": "Introduce Local Extension",
+      "url": "https://refactoring.guru/introduce-local-extension",
+      "family_id": "moving-features-between-objects"
+    },
+    {
+      "id": "introduce-null-object",
+      "name": "Introduce Null Object",
+      "url": "https://refactoring.guru/introduce-null-object",
+      "family_id": "simplifying-conditional-expressions"
+    },
+    {
+      "id": "introduce-parameter-object",
+      "name": "Introduce Parameter Object",
+      "url": "https://refactoring.guru/introduce-parameter-object",
+      "family_id": "simplifying-method-calls"
+    },
+    {
+      "id": "move-field",
+      "name": "Move Field",
+      "url": "https://refactoring.guru/move-field",
+      "family_id": "moving-features-between-objects"
+    },
+    {
+      "id": "move-method",
+      "name": "Move Method",
+      "url": "https://refactoring.guru/move-method",
+      "family_id": "moving-features-between-objects"
+    },
+    {
+      "id": "parameterize-method",
+      "name": "Parameterize Method",
+      "url": "https://refactoring.guru/parameterize-method",
+      "family_id": "simplifying-method-calls"
+    },
+    {
+      "id": "preserve-whole-object",
+      "name": "Preserve Whole Object",
+      "url": "https://refactoring.guru/preserve-whole-object",
+      "family_id": "simplifying-method-calls"
+    },
+    {
+      "id": "pull-up-constructor-body",
+      "name": "Pull Up Constructor Body",
+      "url": "https://refactoring.guru/pull-up-constructor-body",
+      "family_id": "dealing-with-generalization"
+    },
+    {
+      "id": "pull-up-field",
+      "name": "Pull Up Field",
+      "url": "https://refactoring.guru/pull-up-field",
+      "family_id": "dealing-with-generalization"
+    },
+    {
+      "id": "pull-up-method",
+      "name": "Pull Up Method",
+      "url": "https://refactoring.guru/pull-up-method",
+      "family_id": "dealing-with-generalization"
+    },
+    {
+      "id": "push-down-field",
+      "name": "Push Down Field",
+      "url": "https://refactoring.guru/push-down-field",
+      "family_id": "dealing-with-generalization"
+    },
+    {
+      "id": "push-down-method",
+      "name": "Push Down Method",
+      "url": "https://refactoring.guru/push-down-method",
+      "family_id": "dealing-with-generalization"
+    },
+    {
+      "id": "remove-assignments-to-parameters",
+      "name": "Remove Assignments to Parameters",
+      "url": "https://refactoring.guru/remove-assignments-to-parameters",
+      "family_id": "composing-methods"
+    },
+    {
+      "id": "remove-control-flag",
+      "name": "Remove Control Flag",
+      "url": "https://refactoring.guru/remove-control-flag",
+      "family_id": "simplifying-conditional-expressions"
+    },
+    {
+      "id": "remove-middle-man",
+      "name": "Remove Middle Man",
+      "url": "https://refactoring.guru/remove-middle-man",
+      "family_id": "moving-features-between-objects"
+    },
+    {
+      "id": "remove-parameter",
+      "name": "Remove Parameter",
+      "url": "https://refactoring.guru/remove-parameter",
+      "family_id": "simplifying-method-calls"
+    },
+    {
+      "id": "remove-setting-method",
+      "name": "Remove Setting Method",
+      "url": "https://refactoring.guru/remove-setting-method",
+      "family_id": "simplifying-method-calls"
+    },
+    {
+      "id": "rename-method",
+      "name": "Rename Method",
+      "url": "https://refactoring.guru/rename-method",
+      "family_id": "simplifying-method-calls"
+    },
+    {
+      "id": "replace-array-with-object",
+      "name": "Replace Array with Object",
+      "url": "https://refactoring.guru/replace-array-with-object",
+      "family_id": "organizing-data"
+    },
+    {
+      "id": "replace-conditional-with-polymorphism",
+      "name": "Replace Conditional with Polymorphism",
+      "url": "https://refactoring.guru/replace-conditional-with-polymorphism",
+      "family_id": "simplifying-conditional-expressions"
+    },
+    {
+      "id": "replace-constructor-with-factory-method",
+      "name": "Replace Constructor with Factory Method",
+      "url": "https://refactoring.guru/replace-constructor-with-factory-method",
+      "family_id": "simplifying-method-calls"
+    },
+    {
+      "id": "replace-data-value-with-object",
+      "name": "Replace Data Value with Object",
+      "url": "https://refactoring.guru/replace-data-value-with-object",
+      "family_id": "organizing-data"
+    },
+    {
+      "id": "replace-delegation-with-inheritance",
+      "name": "Replace Delegation with Inheritance",
+      "url": "https://refactoring.guru/replace-delegation-with-inheritance",
+      "family_id": "dealing-with-generalization"
+    },
+    {
+      "id": "replace-error-code-with-exception",
+      "name": "Replace Error Code with Exception",
+      "url": "https://refactoring.guru/replace-error-code-with-exception",
+      "family_id": "simplifying-method-calls"
+    },
+    {
+      "id": "replace-exception-with-test",
+      "name": "Replace Exception with Test",
+      "url": "https://refactoring.guru/replace-exception-with-test",
+      "family_id": "simplifying-method-calls"
+    },
+    {
+      "id": "replace-inheritance-with-delegation",
+      "name": "Replace Inheritance with Delegation",
+      "url": "https://refactoring.guru/replace-inheritance-with-delegation",
+      "family_id": "dealing-with-generalization"
+    },
+    {
+      "id": "replace-magic-number-with-symbolic-constant",
+      "name": "Replace Magic Number with Symbolic Constant",
+      "url": "https://refactoring.guru/replace-magic-number-with-symbolic-constant",
+      "family_id": "organizing-data"
+    },
+    {
+      "id": "replace-method-with-method-object",
+      "name": "Replace Method with Method Object",
+      "url": "https://refactoring.guru/replace-method-with-method-object",
+      "family_id": "composing-methods"
+    },
+    {
+      "id": "replace-nested-conditional-with-guard-clauses",
+      "name": "Replace Nested Conditional with Guard Clauses",
+      "url": "https://refactoring.guru/replace-nested-conditional-with-guard-clauses",
+      "family_id": "simplifying-conditional-expressions"
+    },
+    {
+      "id": "replace-parameter-with-explicit-methods",
+      "name": "Replace Parameter with Explicit Methods",
+      "url": "https://refactoring.guru/replace-parameter-with-explicit-methods",
+      "family_id": "simplifying-method-calls"
+    },
+    {
+      "id": "replace-parameter-with-method-call",
+      "name": "Replace Parameter with Method Call",
+      "url": "https://refactoring.guru/replace-parameter-with-method-call",
+      "family_id": "simplifying-method-calls"
+    },
+    {
+      "id": "replace-subclass-with-fields",
+      "name": "Replace Subclass with Fields",
+      "url": "https://refactoring.guru/replace-subclass-with-fields",
+      "family_id": "organizing-data"
+    },
+    {
+      "id": "replace-temp-with-query",
+      "name": "Replace Temp with Query",
+      "url": "https://refactoring.guru/replace-temp-with-query",
+      "family_id": "composing-methods"
+    },
+    {
+      "id": "replace-type-code-with-class",
+      "name": "Replace Type Code with Class",
+      "url": "https://refactoring.guru/replace-type-code-with-class",
+      "family_id": "organizing-data"
+    },
+    {
+      "id": "replace-type-code-with-state-strategy",
+      "name": "Replace Type Code with State/Strategy",
+      "url": "https://refactoring.guru/replace-type-code-with-state-strategy",
+      "family_id": "organizing-data"
+    },
+    {
+      "id": "replace-type-code-with-subclasses",
+      "name": "Replace Type Code with Subclasses",
+      "url": "https://refactoring.guru/replace-type-code-with-subclasses",
+      "family_id": "organizing-data"
+    },
+    {
+      "id": "self-encapsulate-field",
+      "name": "Self Encapsulate Field",
+      "url": "https://refactoring.guru/self-encapsulate-field",
+      "family_id": "organizing-data"
+    },
+    {
+      "id": "separate-query-from-modifier",
+      "name": "Separate Query from Modifier",
+      "url": "https://refactoring.guru/separate-query-from-modifier",
+      "family_id": "simplifying-method-calls"
+    },
+    {
+      "id": "split-temporary-variable",
+      "name": "Split Temporary Variable",
+      "url": "https://refactoring.guru/split-temporary-variable",
+      "family_id": "composing-methods"
+    },
+    {
+      "id": "substitute-algorithm",
+      "name": "Substitute Algorithm",
+      "url": "https://refactoring.guru/substitute-algorithm",
+      "family_id": "composing-methods"
+    }
+  ]
+}

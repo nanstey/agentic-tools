@@ -2,68 +2,58 @@
 
 ## Purpose
 
-`refactor` orchestrates the refactor-planning flow and relies on the shared
-knowledge layer at `../_knowledge/`. It complements
-`fresh-air`:
+`refactor` orchestrates the refactor-planning flow and validates canonical
+smell IDs from local datasets. It complements `fresh-air`:
 
 - `fresh-air`: choose *which* technique to apply for one smell finding.
-- `refactor`: aggregate recommendations and hand off final plan writing to
-  `dev/speclist`.
+- `refactor`: aggregate recommendations and author the final implementation
+  plan directly.
 
 ## Dataset Layout
 
-- `../_knowledge/refactor-techniques/index.json` — canonical lookup table:
-  - categories
-  - techniques
-  - technique file paths
-  - related IDs (`anti_refactoring`, `similar_refactoring`,
-    `helps_refactoring`, `eliminates_smell`)
-- `../_knowledge/refactor-techniques/techniques/<category>/<technique-id>.md` —
-  full details per technique:
-  - problem
-  - solution
-  - when to apply
-  - why refactor
-  - how to apply
-  - benefits
-  - tradeoffs
-  - validation checks
-  - relationships
-  - source link
+- `./smells/index.json` — canonical smell lookup for validation:
+  - canonical smell IDs
+  - category grouping
+  - per-smell paths
+  - related refactoring IDs
+- `./techniques/index.json` — compact technique lookup:
+  - canonical technique IDs
+  - names, families, and URLs
+- `./technique-map/smell-to-technique.json` — relationship graph used for
+  sequencing consistency checks across recommendations
 
-## Index Schema
+## Validation and Fast Path Schema
 
 - `meta`
   - `version`
-  - `generated_from`
-- `categories[]`
-  - `id`
-  - `name`
-  - `description`
-  - `techniques[]` (`id`, `name`, `path`)
-- `techniques[]`
+  - `source`
+- `smells[]`
   - `id`
   - `name`
   - `category_id`
   - `path`
-  - `aliases[]`
-  - `source_url`
-  - `related`
-    - `anti_refactoring[]`
-    - `similar_refactoring[]`
-    - `helps_refactoring[]`
-    - `eliminates_smell[]`
+  - `related_refactorings[]`
+
+Fast-path entries supplied to `refactor` should include:
+
+- canonical smell ID
+- one concrete evidence location
+- concrete constraints
+- explicit technique recommendations (canonical IDs)
 
 ## Maintenance Workflow
 
-1. Edit individual technique files under
-   `../_knowledge/refactor-techniques/techniques/<category>/`.
-2. Keep `../_knowledge/refactor-techniques/index.json` in sync for
-   new/renamed techniques and relationships.
-3. Prefer one-technique-at-a-time updates for clean review diffs.
+1. Keep `./smells/index.json` synced with canonical smell IDs used by
+   `sniff` and `fresh-air`.
+2. Keep `./techniques/index.json` and `./technique-map/smell-to-technique.json`
+   in sync with `fresh-air`.
+3. Ensure fast-path validation checks reject non-canonical or underspecified
+   entries.
+4. Prefer one-smell-at-a-time updates for clean review diffs.
 
 ## Notes
 
-- This repo treats the hierarchy as curated static content, not a live scraper output.
-- When adding new techniques, keep IDs/paths stable to avoid breaking
-  `fresh-air` lookups.
+- `refactor` uses lightweight technique metadata and mapping edges; it does not
+  require technique markdown files.
+- It uses `fresh-air` outputs or validated direct user context, then writes the
+  final implementation plan itself.

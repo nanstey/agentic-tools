@@ -2,17 +2,17 @@
 
 ## Purpose
 
-`sniff` uses the shared code-quality knowledge dataset instead of embedding
+`sniff` uses a local smell dataset instead of embedding
 every smell inline in `SKILL.md`.
 
 ## Dataset Layout
 
-- `../_knowledge/smells/index.json`
+- `./smells/index.json`
   - canonical smell IDs
   - category grouping
   - path lookup for each smell file
   - related refactoring IDs
-- `../_knowledge/smells/<category>/<smell-id>.md`
+- `./smells/<category>/<smell-id>.md`
   - signs and symptoms
   - reasons for the problem
   - treatment summary and techniques
@@ -30,7 +30,7 @@ every smell inline in `SKILL.md`.
 ## Maintenance Workflow
 
 1. Edit individual smell markdown files for content changes.
-2. Keep `../_knowledge/smells/index.json` in sync for
+2. Keep `./smells/index.json` in sync for
    new/renamed smell entries.
 3. Prefer one-smell-at-a-time updates for reviewable diffs.
 

@@ -1,6 +1,6 @@
 ---
 name: fresh-air
-description: Analyze one canonical smell finding at a time and recommend the best-fit refactoring technique from shared code-quality knowledge, including a concrete code-improvement suggestion, fallback option, and confidence. Use when a single smell needs a scoped refactoring decision before broader planning.
+description: Analyze one or more canonical smell findings and recommend best-fit refactoring techniques from local mapping and technique detail datasets, including compact per-smell suggestions, optional fallbacks, and confidence. Use when smell findings need fast, scoped refactoring decisions before broader planning.
 user-invocable: true
 disable-model-invocation: false
 ---
@@ -9,13 +9,14 @@ disable-model-invocation: false
 
 ## Core Contract
 
-Use this skill as a single-smell worker. It takes one smell finding (usually
-from `sniff`), then maps that smell to technique candidates from the canonical
-knowledge layer under `../_knowledge/`.
+Use this skill as a smell-to-technique recommendation worker. It takes one or
+more smell findings (usually from `sniff`), maps each smell to candidate
+techniques, then performs deeper technique-level reasoning before recommending a
+primary and optional fallback choice per smell.
 
 `fresh-air` does not write final plan files. It recommends one primary
-technique for one smell and returns a structured handoff payload for
-aggregation by `refactor`.
+technique per smell and returns a compact structured handoff payload for
+aggregation by `refactor` (or direct use).
 
 Treat `CLAUDE.md` and `AGENTS.md` in the target repository as authoritative. If
 they conflict with this skill, follow those files.
@@ -24,34 +25,41 @@ they conflict with this skill, follow those files.
 
 Gather or infer:
 
-1. Exactly one smell finding with canonical smell ID.
-2. Exactly one evidence location for that smell (file/symbol/snippet reference).
-3. Scope constraints (risk tolerance, compatibility limits, time budget).
+1. One or more smell findings with canonical smell IDs.
+2. One evidence location per smell (file/symbol/snippet reference).
+3. Shared scope constraints (risk tolerance, compatibility limits, time budget).
 4. Any hard boundaries (for example, "no API changes").
 
-Stop-and-ask gate: if input includes multiple smells or no concrete evidence
-location, pause and request a single-smell payload.
+Stop-and-ask gate: if any smell lacks concrete evidence location, pause and
+request only the missing evidence fields (do not reject the whole batch).
 
 ## Workflow
 
-### 1. Validate single-smell payload
+### 1. Validate smell batch payload
 
-1. Confirm the smell ID exists in `_knowledge/smells/index.json`.
-2. Confirm one evidence location is present.
-3. Confirm constraints are explicit enough for ranking.
+1. Normalize input into smell instances: `{smell_id, evidence_location}`.
+2. Confirm each smell ID exists in `./smells/index.json`.
+3. Confirm each smell has one evidence location.
+4. Confirm constraints are explicit enough for ranking.
 
 ### 2. Load canonical candidates
 
-1. Read `../_knowledge/maps/smell-to-technique.json`.
-2. Pull candidate technique IDs for the smell.
-3. Hydrate candidate details from:
-   - `../_knowledge/refactor-techniques/index.json`
-   - `../_knowledge/refactor-techniques/techniques/<category>/<technique-id>.md`
+1. Read shared datasets once per invocation:
+   - `./smells/index.json`
+   - `./technique-map/smell-to-technique.json`
+2. For each smell, pull candidate technique IDs from the smell's
+   `related_refactorings`.
+3. Hydrate candidate metadata from:
+   - `./techniques/index.json`
+4. For top candidates per smell, load detailed technique cards from:
+   - `./techniques/<category>/<technique-id>.md`
+5. Use map edge types (`helps_refactoring`, `similar_refactoring`) as ranking
+   signals.
 
-Stop-and-ask gate: if the smell has no mapped techniques, ask the user whether
-to proceed with nearest related techniques from smell metadata.
+Stop-and-ask gate: if a smell has no mapped techniques, ask whether to proceed
+with nearest related techniques from smell metadata for that smell only.
 
-### 3. Rank and select
+### 3. Rank and select per smell
 
 Score candidates by:
 
@@ -62,29 +70,42 @@ Score candidates by:
 
 Return one primary and at most one fallback technique.
 
-### 4. Produce single-smell recommendation
+### 4. Produce compact batch recommendation
 
 Return:
 
-1. Primary technique and rationale.
-2. Optional fallback technique and when to use it.
-3. One specific code-improvement suggestion tied to the evidence.
-4. Confidence (`high`, `medium`, `low`) with uncertainty notes.
-5. Clarification question when ambiguity remains.
+1. A compact block per smell:
+   - Smell ID + evidence location
+   - Primary technique + short rationale
+   - Optional fallback + when to use
+   - One specific code-improvement suggestion
+   - Confidence (`high`, `medium`, `low`) + uncertainty note only if needed
+2. One shared assumptions/constraints line for the entire batch.
+3. One targeted clarification question only when unresolved ambiguity would
+   materially change recommendation quality.
 
 ## Implementation Notes
 
-- Keep output narrowly scoped to one smell instance.
+- Process each smell independently, but deduplicate repeated rationale where
+  possible.
 - Prefer deterministic dataset matches over free-form guesses.
 - Highlight smallest safe first step for implementation.
-- Hand off to `refactor` for aggregation and to `dev/speclist` for final plan
-  artifact authoring.
+- Use technique markdown details to ground tradeoffs and recommendation quality.
+- Hand off to `refactor` for aggregation and final implementation-plan authoring.
+- Keep output compact and chain-friendly:
+  - Target 4-6 lines per smell.
+  - Avoid repeating full preambles per smell.
+  - Put shared constraints once at the top.
 
 ## Safety Rules
 
-- Never process multiple smell findings in one invocation.
+- Never drop smells silently; if capacity is exceeded, process in explicit
+  chunks and report remaining count.
 - Never recommend techniques without canonical mapping evidence unless user
   explicitly approves a fallback strategy.
+- Never skip loading technique detail files for top candidates when they exist.
+- If a required technique detail file is missing, state reduced confidence and
+  ask whether to proceed with metadata-only ranking.
 - Never hide low confidence; call it out and ask a targeted clarifying question.
 - Never produce architecture-wide recommendations when a local technique is
   sufficient.
@@ -93,7 +114,6 @@ Return:
 
 When finishing, report:
 
-1. Smell ID and evidence location handled.
-2. Primary technique, optional fallback, and rationale.
-3. Concrete code-improvement suggestion.
-4. Confidence and any clarification prompt.
+1. Shared assumptions/constraints once.
+2. Compact per-smell recommendations in stable order.
+3. Confidence per smell and one optional clarification question at end.
