@@ -64,6 +64,7 @@ the source of truth.
 | --- | --- |
 | [`deep-review`](skills/code-quality/deep-review/SKILL.md) | An extremely strict maintainability review focused on abstraction quality, giant files, and spaghetti-condition growth, pushing for ambitious "code judo" restructurings over local cleanups. Manually invoked (`disable-model-invocation`). Complements the bug-hunting `code-reviewer` agent. |
 | [`dry`](skills/code-quality/dry/SKILL.md) | Read-only hunt for code duplication, DRY violations, and simplification opportunities over a chosen scope, ranking findings and proposing concrete consolidations - including new small reusable files. Distinguishes true duplication from incidental similarity that should stay separate. Hand off to `simplify` to apply. |
+| [`principles`](skills/code-quality/principles/SKILL.md) | Remind the agent to apply core software design principles during design, implementation, and review with a concise checklist that explains meaning, applies context, and good-vs-bad reference patterns. |
 
 ### Skill authoring (project skills)
 
