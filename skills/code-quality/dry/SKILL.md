@@ -19,11 +19,9 @@ Keep `CLAUDE.md` and `AGENTS.md` in the target repo as the source of truth. If t
 
 Before scanning, settle:
 
-1. **Scope** — always confirm at the start of a run. Offer the choices:
-   - the current working-tree diff / branch delta (fast, PR-focused),
-   - a named directory or set of files,
-   - the whole repository (broad cleanup sweep — warn it is slower).
-   If the user already named a scope in their request, confirm it and proceed without re-asking.
+1. **Scope** — always confirm at the start of a run via the `scope` skill. If
+   the user already named a scope in their request, confirm it and proceed
+   without re-asking.
 2. **Languages / file types** in scope, so detection ignores generated code, vendored dependencies, lockfiles, and build output.
 3. **Appetite** — a quick high-signal pass (top few opportunities) vs. an exhaustive sweep. Default: high-signal, ranked, with a clear bottom line.
 
@@ -31,7 +29,10 @@ Before scanning, settle:
 
 ### 1. Confirm scope
 
-Ask which scope to scan (see Required Inputs) unless the user already specified it. Establish the repo's existing conventions for shared code: look for `lib/`, `utils/`, `common/`, `shared/`, `helpers/`, or equivalent, and note the prevailing module/file naming style so proposals fit in.
+Use the `scope` skill to confirm the scan scope unless the user already
+specified it. Establish the repo's existing conventions for shared code: look
+for `lib/`, `utils/`, `common/`, `shared/`, `helpers/`, or equivalent, and note
+the prevailing module/file naming style so proposals fit in.
 
 ### 2. Gather the candidate set
 
