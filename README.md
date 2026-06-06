@@ -36,7 +36,7 @@ bash install.sh
 
 | Skill | Description |
 | --- | --- |
-| [`terse`](skills/agent/terse/SKILL.md) | Keep responses concise, outcome-first, and high signal. |
+| [`terse`](skills/writing/terse/SKILL.md) | Keep responses concise, outcome-first, and high signal. |
 
 ### Pull Requests
 
