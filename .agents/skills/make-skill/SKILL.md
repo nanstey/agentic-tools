@@ -14,6 +14,34 @@ Default location is `skills/<category>/<name>/SKILL.md`; use `.agents/skills/` o
 Start with a brief plan and explicit assumptions.
 Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
+## SKILL.md Contract
+
+`SKILL.md` must include required frontmatter keys:
+
+```yaml
+name: skill-name
+description: One terse sentence describing the desired outcome of this skill. Second sentence describing conditions that should invoke this skill.
+user-invocable: true
+disable-model-invocation: false
+```
+
+- `name`: lowercase-hyphenated and must match the skill directory name.
+- `description`: third person, outcome-first, ends with `Use when ...`.
+- `user-invocable`: default `true` unless explicitly constrained.
+- `disable-model-invocation`: default `false` unless explicitly constrained.
+
+Body sections should use this default order when relevant:
+
+1. `# Title`
+2. `## Core Contract` (include scope/tools; target repo `CLAUDE.md` or `AGENTS.md` overrides on conflict)
+3. `## Required Inputs`
+4. `## Workflow` (numbered, with stop-and-ask gates)
+5. `## <Platform> Implementation Notes` (concrete commands)
+6. `## Safety Rules` (`Never ...` constraints)
+7. `## Output Style`
+
+Omit irrelevant sections rather than adding filler.
+
 ## Required Inputs
 
 1. Skill purpose/workflow.
