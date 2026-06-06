@@ -1,6 +1,6 @@
 ---
 name: code-reviewer
-description: Reviews a code change (working-tree diff, staged diff, or a named commit range) for correctness bugs, regressions, and clear quality problems, then reports findings ranked by severity with file:line references. Read-only — it never edits, commits, or pushes. Delegate when you want an independent review pass on a diff before it ships.
+description: Reviews diffs for correctness bugs, regressions, and clear quality issues with ranked findings. Delegate when you want an independent pre-ship review.
 tools: Read, Grep, Glob, Bash
 model: inherit
 ---

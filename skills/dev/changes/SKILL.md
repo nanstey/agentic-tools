@@ -1,83 +1,31 @@
 ---
 name: changes
-description: Inspect the current staged and unstaged working-tree changes and summarize them as logical groupings, using the current branch's history for context and flagging anything unrelated, incidental, or problematic. Use when the user wants to understand or review what they have changed before committing.
+description: Inspects staged and unstaged changes and groups them into coherent change sets. Use when reviewing what changed before committing.
 ---
 
 # Changes
 
 ## Core Contract
 
-Use this skill when the user wants a read-only summary of their current working-tree changes, organized into logical groups, with anything out-of-place called out.
-
-Always inspect the actual diff. Read the current branch's history to understand the intended purpose of the work, then judge each change against that intent.
-
-If `CLAUDE.md` or `AGENTS.md` exists in the target repository, treat them as policy sources. If this skill conflicts with them, follow those files.
-
-This skill is **read-only**. It does not stage, commit, push, discard, or otherwise modify anything. When the user is ready to commit, hand off to the `commit` skill.
+Read-only change review: group current edits by intent and flag out-of-place items.
+Always inspect real diffs and branch intent.
+Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 ## Required Inputs
 
-Gather or infer:
-
-1. The current git branch and its base (`main`/`develop` or other default).
-2. Scope: all changes, or specific paths the user named.
-3. The intent of the branch — from its commit history, name, and any linked PR.
-4. The level of detail wanted (quick overview vs. per-group breakdown). Default: per-group breakdown.
+1. Current branch and base.
+2. Requested scope (all or paths).
+3. Branch intent from history/name/PR.
+4. Detail level (default: grouped breakdown).
 
 ## Workflow
 
-### 1. Capture the current state
-
-1. Run `git status --porcelain` to enumerate staged, unstaged, and untracked files.
-2. Run `git diff` (unstaged) and `git diff --staged` to see the actual content.
-3. For each untracked file, inspect its content instead of only listing its path.
-4. For each untracked file, decide whether it is:
-   - a **relocation/rename-style move** (often paired with a deleted tracked file of the same or near-identical content),
-   - a **net-new addition**, or
-   - a **follow-on edit** to an already moved/copied artifact.
-5. Mark whether untracked items are independent changes or part of the same unit of work; do not assume one bucket just because all are untracked.
-6. If the working tree is clean, report that there is nothing to summarize and stop.
-
-### 2. Establish branch context
-
-1. Identify the base branch and run `git log --oneline <base>..HEAD` to see what this branch already does.
-2. Read the branch name and, if present, the PR title/description for stated intent.
-3. Form a one-line hypothesis of the branch's purpose. The working-tree changes should extend that purpose; deviations are what you flag.
-
-### 3. Group the changes logically
-
-- Cluster files and hunks by the unit of work they serve (feature, fix, refactor, test, config, docs), not by directory.
-- A single file may contribute hunks to more than one group; split at the hunk level when that is clearer.
-- Untracked files must be grouped by intent and provenance (move vs net-new), not as a single "untracked" group.
-- If repository policy defines artifact-level commit granularity (for example,
-  one artifact per commit), default to treating each changed artifact as its own
-  independent group. Mark groups as lock-step coupled only when there is clear
-  coupling (direct cross-reference, shared contract/schema change, or a broken
-  intermediate state if shipped separately).
-- Name each group by its purpose, list the files/hunks in it, and describe what it does in one or two sentences.
-
-### 4. Flag what is unrelated or problematic
-
-Call out, per item, with `file:line` references:
-
-- **Unrelated** — changes that do not serve the branch's stated purpose (a drive-by fix, an unrelated refactor, a stray formatting sweep).
-- **Incidental** — debug prints, commented-out code, `TODO`/`FIXME`, leftover scaffolding, version bumps, whitespace-only churn.
-- **Risky** — secrets, credentials, `.env` values, hardcoded tokens, large or binary artifacts, generated files checked in by hand.
-- **Inconsistent** — changes that contradict the branch history, partially-applied edits, or a change made in one place but missed in a sibling.
-
-For each, say *why* it stands out and suggest whether it belongs in this change, a separate commit, or should be reverted. Do not act on the suggestion — surface it.
-
-### 5. Report
-
-Present the grouped summary followed by the flagged items. Offer an appropriate next step if the user wants to proceed toward committing.
-
-## Implementation Notes
-
-- Useful commands: `git status --porcelain`, `git diff`, `git diff --staged`, `git diff --stat`, `git log --oneline <base>..HEAD`, `git diff <base>...HEAD` for the full branch delta.
-- Untracked files do not appear in `git diff`; read them directly to judge their content and purpose.
-- To identify relocation-like changes, compare untracked files against deleted/renamed tracked files (path, filename, and substantive content similarity), then report confidence as explicit reasoning.
-- Detect the base branch from the repo default (`git remote show origin`, or `gh repo view --json defaultBranchRef`) or a `develop` convention.
-- For a large change set, lead with `git diff --stat` to scope groups before reading full hunks.
+1. Capture state with `git status --porcelain`, `git diff`, and `git diff --staged`.
+2. Read branch context with `git log --oneline <base>..HEAD` and PR metadata.
+3. Group changes by unit of work (feature/fix/refactor/test/docs), splitting hunks when needed.
+4. Classify untracked files as relocation, net-new, or follow-on edits.
+5. Flag unrelated/incidental/risky/inconsistent items with `file:line` references.
+6. If the tree is clean, report and stop.
 
 ## Safety Rules
 
@@ -88,16 +36,4 @@ Present the grouped summary followed by the flagged items. Offer an appropriate 
 
 ## Output Style
 
-When finishing, report:
-
-1. The branch and its base, plus the one-line purpose you inferred.
-2. The logical groups — each with a name, its files/hunks, and what it does.
-3. For changed artifacts covered by repository commit policy, an explicit commit
-   recommendation (`separate commit` vs `lock-step bundle`) with the coupling
-   reason.
-4. For untracked files, an explicit classification (`relocation` vs `net-new`
-   vs `follow-on`) and whether each is independent or coupled.
-5. Flagged items — unrelated, incidental, risky, or inconsistent — with
-   `file:line` and why.
-6. A short bottom line: does the change set look cohesive, or does it need
-   splitting before commit.
+Report branch/base, inferred purpose, logical groups, untracked classifications, flagged items with `file:line`, and whether splitting is recommended before commit.

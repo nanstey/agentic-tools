@@ -1,6 +1,6 @@
 ---
 name: make-skill
-description: Create a new repo-native skill by planning first, declaring assumptions, asking focused clarifying questions, validating the skill name with check-skill-name, and then scaffolding a convention-compliant SKILL.md plus catalog entry. Use when creating a new skill in this repository.
+description: Creates new repo-native skills from plan to scaffolded `SKILL.md` and catalog entry. Use when adding a skill to this repository.
 user-invocable: true
 disable-model-invocation: true
 ---
@@ -9,73 +9,30 @@ disable-model-invocation: true
 
 ## Core Contract
 
-Use this skill to create a new skill in this repository, defaulting to `skills/<category>/<name>/SKILL.md` (global). Use `.agents/skills/<name>/SKILL.md` only when the user explicitly asks for a repo-local helper.
-
-Default scope: one new skill at a time, including a compliant `SKILL.md` and a `README.md` catalog entry.
-
-Always start with a short implementation plan and explicit assumptions before authoring files. Then run a focused clarifying-question loop to confirm high-impact decisions.
-
-Treat `CLAUDE.md` / `AGENTS.md` in the target repository as authoritative. If they conflict with this skill, follow them.
+Create one new skill in this repository, including compliant `SKILL.md` and `README.md` catalog entry.
+Default location is `skills/<category>/<name>/SKILL.md`; use `.agents/skills/` only when explicitly requested.
+Start with a brief plan and explicit assumptions.
+Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 ## Required Inputs
 
-Gather or infer:
-
-1. The requested skill purpose and primary workflow.
-2. Target category under `skills/` (for example `dev`, `code-quality`, `pull-requests`).
-3. Proposed skill name, if provided.
-4. Any required tools, constraints, and safety rules.
-5. Desired output style and verification/reporting expectations.
-
-If critical context is missing, proceed with clearly labeled assumptions and ask only clarifying questions that materially affect behavior, tooling, or safety.
+1. Skill purpose/workflow.
+2. Target category.
+3. Proposed name (if any).
+4. Required tools, constraints, and safety rules.
+5. Output/reporting expectations.
 
 ## Workflow
 
-1. **Intake and plan**
-   - Restate the requested outcome.
-   - Draft a compact implementation plan for the new skill (sections, behavior, and files to touch).
-   - Stop-and-ask gate: if the request spans multiple unrelated skills, ask whether to split the work.
+1. Restate request and produce a compact creation plan.
+2. List assumptions (`safe default` vs `needs confirmation`).
+3. Ask only high-impact clarifying questions.
+4. Normalize/derive name and validate with `check-skill-name`.
+5. Create `SKILL.md` in confirmed location with required conventions.
+6. Add concise `README.md` catalog entry.
+7. Verify naming alignment and section/policy compliance.
 
-2. **State assumptions**
-   - List assumptions explicitly (target location defaults to global unless explicitly requested otherwise, category if applicable, invocation defaults, expected level of strictness, output style, and scope boundaries).
-   - Mark each assumption as either "safe default" or "needs confirmation."
-
-3. **Run clarifying-question loop**
-   - Ask only high-impact questions first, in sequence, not as a large batch.
-   - Confirm in/out-of-scope behavior, mandatory tooling, and non-negotiable safety constraints.
-   - Do not ask to confirm target location by default; assume `skills/` for repo/content-agnostic global skills.
-   - Use `.agents/skills/` only when the user directly requests a repo-opinionated local helper following this repo's `AGENTS.md`.
-   - Stop-and-ask gate: if answers materially change behavior, revise assumptions and re-confirm.
-
-4. **Derive and validate the skill name**
-   - If the user provided a name, normalize it (lowercase, hyphenated, no spaces/underscores) and validate.
-   - If no name is provided, infer from purpose and suggest the shortest reasonable candidate (prefer one word, allow two words when clarity requires).
-   - Run `check-skill-name` before scaffolding.
-   - If verdict is `CONFLICT` or `RISKY`, propose 3-5 short alternatives and re-check until a `CLEAR` name is chosen.
-   - Stop-and-ask gate: do not create files until the name is `CLEAR`.
-
-5. **Author the new skill**
-   - Create the `SKILL.md` at the confirmed target location.
-   - If target is `skills/`, ensure the content is repository- and content-agnostic.
-   - If target is `.agents/skills/`, allow repo-specific conventions and workflows from this repo's `AGENTS.md`.
-   - Enforce frontmatter and required section order from repository conventions.
-   - Ensure description is third person and ends with "Use when ...".
-   - Include explicit stop-and-ask gates in the new skill's workflow.
-
-6. **Update catalog**
-   - Add the new skill to the correct section of `README.md` with a concise description.
-
-7. **Verify and report**
-   - Verify naming alignment (`name` equals directory name).
-   - Verify required sections and policy compliance.
-   - Report final outputs and include a short "Assumed vs Confirmed" summary.
-
-## Implementation Notes
-
-- For name validation, invoke `.agents/skills/check-skill-name/SKILL.md` workflow rather than ad-hoc checks.
-- Favor defaults for low-impact details to keep momentum; ask questions only where answers change the final skill behavior.
-- Keep generated `SKILL.md` concise but complete; avoid unbounded optional sections unless requested.
-- Reference existing repo patterns (for example `skills/dev/commit/SKILL.md`) when shaping structure and tone.
+Stop and ask if request spans multiple skills, name is not `CLEAR`, or ambiguity changes behavior/safety.
 
 ## Safety Rules
 
@@ -88,10 +45,4 @@ If critical context is missing, proceed with clearly labeled assumptions and ask
 
 ## Output Style
 
-When finishing, report:
-
-1. Chosen category and final skill name (including name-check verdict).
-2. Files created/updated.
-3. Key assumptions made and which were later confirmed.
-4. Any notable defaults applied.
-5. Remaining optional improvements the user may choose next.
+Report final category/name and name-check verdict, files changed, assumptions confirmed, defaults applied, and optional next improvements.
