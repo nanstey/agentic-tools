@@ -1,6 +1,6 @@
 ---
 name: principles
-description: Applies a canonical software-principles checklist to design and code decisions. Use when making non-trivial architecture, implementation, or review choices.
+description: Runs a prioritized principles check for non-trivial design, implementation, and review decisions.
 user-invocable: true
 disable-model-invocation: false
 ---
@@ -9,9 +9,9 @@ disable-model-invocation: false
 
 ## Core Contract
 
-Run a lightweight, evidence-based principles pass for design/implementation/review decisions.
-Use canonical local datasets: `principles/index.json` and per-principle markdown files.
-Prefer pragmatic outcomes over dogmatic application.
+Run a short, evidence-based principles pass.
+Use `principles/index.json` and per-principle markdown files.
+Prefer practical outcomes over rigid rule-following.
 Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 ## Required Inputs
@@ -23,26 +23,37 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 ## Workflow
 
-1. Confirm scope (use `scope` unless already explicit).
-2. Frame the decision and main failure risk.
-3. Load `principles/index.json`, then select 3-5 high-impact principles.
-4. Evaluate each selected principle with pass/fail evidence.
-5. Resolve conflicts using `priority_level` tie-break and record guardrails.
-6. Propose minimal remediations and explicit accepted exceptions.
+1. Confirm scope (use `scope` if needed).
+2. Define the decision and the main failure risk.
+3. Load `principles/index.json`; use `principles[]` order as hierarchy.
+   - `priority_level` must match that order.
+4. Evaluate in hierarchy order.
+   - Check foundational principles before advanced ones.
+   - Report the first 3-5 materially relevant principles in order.
+   - If a higher-priority principle fails, make lower-priority recommendations conditional.
+5. Resolve conflicts by preserving higher-priority intent and recording exception guardrails.
+6. Propose minimal remediations and explicit exceptions.
 
 ## Safety Rules
 
-- Never apply principles mechanically when constraints require a pragmatic exception.
+- Never apply principles mechanically when constraints require exceptions.
 - Never add speculative abstractions solely to satisfy a principle.
-- Never report "best practice" claims without concrete context.
-- Never invent non-canonical principle IDs/labels without explicit user approval.
-- Never force broad refactors without user approval when localized fixes are sufficient.
+- Never claim "best practice" without concrete context.
+- Never invent out-of-list principle IDs or labels without explicit user approval.
+- Never force broad refactors without user approval if local fixes are enough.
 
 ## Output Style
 
-Use five sections:
-1. Review Frame (`Type`, `Scope`, `Why`).
-2. Principle Outcomes (3-5 canonical IDs with verdict + evidence).
-3. Priority Conflict Log (detected conflicts, tie-break, guardrail).
-4. Accepted Exceptions (or `None identified`).
-5. Action Queue (highest impact first).
+Use three sections:
+1. Review Frame
+  - Scope
+  - What
+  - Why
+2. Principle Outcomes
+   - Present 3-5 IDs in hierarchy order.
+   - Prefix each item with: `✅` pass, `⚠️` warning, `❌` fail.
+   - Include relevance and concise evidence for each.
+3. Recommended Changes (highest impact first).
+   - List concrete file paths.
+   - For each file, state the specific change needed and why it addresses the principle finding.
+   - Keep each item implementation-ready (no vague "improve/refactor" wording).

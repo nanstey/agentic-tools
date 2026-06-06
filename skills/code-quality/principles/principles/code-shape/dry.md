@@ -1,11 +1,11 @@
+---
+id: dry
+category: Code Shape
+category_id: code-shape
+priority_level: 6
+---
+
 # DRY
-
-## Metadata
-
-- `id`: `dry`
-- `category`: `Code Shape` (`code-shape`)
-- `source`: https://en.wikipedia.org/wiki/Don%27t_repeat_yourself
-- `priority_level`: `6`
 
 ## What It Means
 
@@ -25,6 +25,13 @@ Keep shared behavior and rules in one authoritative place to reduce drift and du
 
 - Common conflict: `dry` vs `kiss`.
 - Tie-break default: do not abstract repetition until behavior has stabilized and shared intent is clear.
+
+## Actionable Playbook
+
+- Track repeated changes: if one rule change touches 3+ places, investigate abstraction.
+- Extract shared logic only when invariants are truly identical and likely to stay aligned.
+- Keep the abstraction narrowly scoped and named by business intent, not mechanics.
+- Re-run original call sites after extraction to confirm behavior and readability both improved.
 
 ## References
 

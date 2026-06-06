@@ -1,11 +1,11 @@
+---
+id: make-it-fast
+category: Process and Optimization
+category_id: process-and-optimization
+priority_level: 12
+---
+
 # Make It Fast
-
-## Metadata
-
-- `id`: `make-it-fast`
-- `category`: `Process and Optimization` (`process-and-optimization`)
-- `source`: https://wiki.c2.com/?MakeItWorkMakeItRightMakeItFast
-- `priority_level`: `12`
 
 ## What It Means
 
@@ -25,6 +25,13 @@ Optimize performance after correctness and quality are validated, and based on m
 
 - Can conflict with `make-it-work` and `kiss`.
 - Tie-break default: defer optimization until instrumentation confirms impact.
+
+## Actionable Playbook
+
+- Define the performance objective first (latency, throughput, memory, cost).
+- Measure baseline and identify the dominant bottleneck before changing code.
+- Optimize the hotspot with behavior-preserving tests and benchmark comparisons.
+- Stop when objective is met or gains flatten; avoid complexity beyond target value.
 
 ## References
 

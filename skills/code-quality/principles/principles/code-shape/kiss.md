@@ -1,11 +1,11 @@
+---
+id: kiss
+category: Code Shape
+category_id: code-shape
+priority_level: 4
+---
+
 # KISS
-
-## Metadata
-
-- `id`: `kiss`
-- `category`: `Code Shape` (`code-shape`)
-- `source`: https://en.wikipedia.org/wiki/KISS_principle
-- `priority_level`: `4`
 
 ## What It Means
 
@@ -25,6 +25,13 @@ Choose the simplest implementation that solves current requirements with accepta
 
 - Common conflict: `kiss` vs `design-patterns-if-necessary`.
 - Tie-break default: start simple; add patterns only when repeated pain is visible.
+
+## Actionable Playbook
+
+- Start with a direct implementation that a new teammate can explain in one pass.
+- Limit indirection: avoid new abstractions until duplication or variation is proven.
+- Prefer plain data flow and explicit branching over framework cleverness.
+- Before merge, remove any layer that does not reduce measurable complexity.
 
 ## References
 

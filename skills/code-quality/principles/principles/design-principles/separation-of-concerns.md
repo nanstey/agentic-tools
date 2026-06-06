@@ -1,11 +1,11 @@
+---
+id: separation-of-concerns
+category: Design Principles
+category_id: design-principles
+priority_level: 7
+---
+
 # Separation of Concerns
-
-## Metadata
-
-- `id`: `separation-of-concerns`
-- `category`: `Design Principles` (`design-principles`)
-- `source`: https://en.wikipedia.org/wiki/Separation_of_concerns
-- `priority_level`: `7`
 
 ## What It Means
 
@@ -25,6 +25,13 @@ Separate domain behavior from infrastructure concerns such as transport, storage
 
 - Can conflict with `make-it-work` under urgent bug fixes.
 - Tie-break default: preserve behavior now, then isolate concerns in targeted follow-ups.
+
+## Actionable Playbook
+
+- Keep domain decisions pure; push IO, framework, and transport details to adapters.
+- Define clear boundaries (domain, application, infrastructure) and enforce import direction.
+- Avoid mixing orchestration, validation, persistence, and formatting in one unit.
+- Add boundary tests that validate business rules independently from external systems.
 
 ## References
 

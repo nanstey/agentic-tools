@@ -1,11 +1,11 @@
+---
+id: agile-practices
+category: Process and Optimization
+category_id: process-and-optimization
+priority_level: 10
+---
+
 # Agile Practices
-
-## Metadata
-
-- `id`: `agile-practices`
-- `category`: `Process and Optimization` (`process-and-optimization`)
-- `source`: https://agilemanifesto.org/
-- `priority_level`: `10`
 
 ## What It Means
 
@@ -25,6 +25,13 @@ Prefer short feedback loops, iterative delivery, and adaptation to validated lea
 
 - Can conflict with `yagni` when teams over-interpret agility as prediction-heavy architecture.
 - Tie-break default: in uncertain contexts, keep implementation minimal and defer speculative framework work.
+
+## Actionable Playbook
+
+- Break work into increments that produce testable user value each iteration.
+- Run short feedback loops with stakeholders and adjust scope from observed outcomes.
+- Keep backlog items sliced by user-facing behavior, not technical layers alone.
+- Reserve capacity each iteration for quality work (tests, refactor, reliability fixes).
 
 ## References
 

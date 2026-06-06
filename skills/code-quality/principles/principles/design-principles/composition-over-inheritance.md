@@ -1,11 +1,11 @@
+---
+id: composition-over-inheritance
+category: Design Principles
+category_id: design-principles
+priority_level: 8
+---
+
 # Composition over Inheritance
-
-## Metadata
-
-- `id`: `composition-over-inheritance`
-- `category`: `Design Principles` (`design-principles`)
-- `source`: https://en.wikipedia.org/wiki/Composition_over_inheritance
-- `priority_level`: `8`
 
 ## What It Means
 
@@ -25,6 +25,13 @@ Build behavior by composing focused collaborators instead of relying on deep inh
 
 - Can conflict with `kiss` if composition introduces unnecessary indirection.
 - Tie-break default: use the simplest shape that avoids known hierarchy brittleness.
+
+## Actionable Playbook
+
+- Use inheritance only for stable "is-a" relationships with substitutable behavior.
+- Prefer composing capabilities via collaborators for cross-cutting or optional behavior.
+- Inject dependencies through interfaces to enable testing and runtime substitution.
+- Flatten deep hierarchies when base-class changes repeatedly break downstream code.
 
 ## References
 

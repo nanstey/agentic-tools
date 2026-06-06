@@ -1,11 +1,11 @@
+---
+id: single-responsibility
+category: Design Principles
+category_id: design-principles
+priority_level: 8
+---
+
 # Single Responsibility (SRP)
-
-## Metadata
-
-- `id`: `single-responsibility`
-- `category`: `Design Principles` (`design-principles`)
-- `source`: https://en.wikipedia.org/wiki/Single-responsibility_principle
-- `priority_level`: `8`
 
 ## What It Means
 
@@ -25,6 +25,13 @@ A unit of code should have one primary reason to change.
 
 - Can conflict with `dry` when premature extraction creates weak ownership.
 - Tie-break default: preserve cohesion first; deduplicate only when shared responsibility is real.
+
+## Actionable Playbook
+
+- Identify stakeholders for a module; if multiple unrelated groups drive changes, split it.
+- Separate orchestration from business rules and infrastructure adapters.
+- Keep public APIs aligned to one concept, not a mixed utility surface.
+- Validate with commit history: files that always change together may share one responsibility.
 
 ## References
 

@@ -1,11 +1,11 @@
+---
+id: yagni
+category: Delivery Foundations
+category_id: delivery-foundations
+priority_level: 2
+---
+
 # YAGNI
-
-## Metadata
-
-- `id`: `yagni`
-- `category`: `Delivery Foundations` (`delivery-foundations`)
-- `source`: https://medium.com/@bartoszkrajka/principle-of-software-development-principles-f0143d6f405
-- `priority_level`: `2`
 
 ## What It Means
 
@@ -25,6 +25,13 @@ Do not build capability before a real requirement exists. Keep extension points 
 
 - Conflicts most often with `agile-practices` and `design-patterns-if-necessary`.
 - Tie-break default: if work is speculative, `yagni` wins; if upcoming iteration is committed and imminent, allow minimal prep.
+
+## Actionable Playbook
+
+- Ask: "Which current ticket or signed-off roadmap item requires this now?"
+- Reject abstractions that have zero active callers or no concrete near-term scenario.
+- Keep seams lightweight (clear interfaces, TODO notes) instead of full frameworks.
+- Promote speculative code only after repeated demand is observed in production work.
 
 ## References
 

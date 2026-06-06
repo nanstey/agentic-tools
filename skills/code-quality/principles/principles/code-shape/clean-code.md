@@ -1,11 +1,11 @@
+---
+id: clean-code
+category: Code Shape
+category_id: code-shape
+priority_level: 7
+---
+
 # Clean Code
-
-## Metadata
-
-- `id`: `clean-code`
-- `category`: `Code Shape` (`code-shape`)
-- `source`: https://www.oreilly.com/library/view/clean-code/9780136083238/
-- `priority_level`: `7`
 
 ## What It Means
 
@@ -25,6 +25,13 @@ Use meaningful names, focused methods, and clear structure so the code communica
 
 - Can conflict with `make-it-work` under urgent delivery pressure.
 - Tie-break default: preserve correctness first, then improve readability in constrained increments.
+
+## Actionable Playbook
+
+- Rename unclear identifiers to expose domain intent before adding new logic.
+- Keep functions focused: one responsibility, minimal branching, explicit inputs/outputs.
+- Replace comments that explain "what" with code that makes intent obvious.
+- With every change, improve one local readability issue (name, extraction, dead code, test).
 
 ## References
 

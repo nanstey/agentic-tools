@@ -13,7 +13,8 @@ Paths in this reference are relative to the skill directory
 - `./principles/index.json`
   - canonical principle IDs and categories
   - path lookup for each principle markdown file
-  - priority ordering for conflict tie-breaks
+  - canonical evaluation order (`principles[]` array order)
+  - `priority_level` as validation + conflict tie-break metadata
   - related principle links
 - `./principles/<category>/<principle-id>.md`
   - what the principle means
@@ -53,7 +54,8 @@ Paths in this reference are relative to the skill directory
 2. Keep `index.json` in sync for
    new/renamed principles and category placement.
 3. Preserve stable, lowercase, hyphenated principle IDs.
-4. Prefer one-principle-at-a-time updates for reviewable diffs.
+4. Keep `principles[]` in the intended canonical order; do not rely on runtime sorting.
+5. Prefer one-principle-at-a-time updates for reviewable diffs.
 
 ## Conflict Resolution Rule
 

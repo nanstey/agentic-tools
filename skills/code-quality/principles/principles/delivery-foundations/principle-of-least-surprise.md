@@ -1,11 +1,11 @@
+---
+id: principle-of-least-surprise
+category: Delivery Foundations
+category_id: delivery-foundations
+priority_level: 3
+---
+
 # Principle of Least Surprise
-
-## Metadata
-
-- `id`: `principle-of-least-surprise`
-- `category`: `Delivery Foundations` (`delivery-foundations`)
-- `source`: https://en.wikipedia.org/wiki/Principle_of_least_astonishment
-- `priority_level`: `3`
 
 ## What It Means
 
@@ -25,6 +25,13 @@ Prefer designs and naming that match reader expectations. Familiar code is easie
 
 - Can conflict with `kiss` when a simple local shortcut is globally surprising.
 - In tie-breaks, prioritize reducing surprise first, then simplify without hiding behavior.
+
+## Actionable Playbook
+
+- Use names that match existing domain and language conventions in the repository.
+- Make side effects explicit in method names, docs, and call sites.
+- Avoid hidden defaults that change behavior; prefer explicit parameters.
+- In review, ask a teammate unfamiliar with the code to predict behavior from names alone.
 
 ## References
 

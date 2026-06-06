@@ -1,11 +1,11 @@
+---
+id: open-closed
+category: Design Principles
+category_id: design-principles
+priority_level: 8
+---
+
 # Open/Closed Principle (OCP)
-
-## Metadata
-
-- `id`: `open-closed`
-- `category`: `Design Principles` (`design-principles`)
-- `source`: https://en.wikipedia.org/wiki/Open%E2%80%93closed_principle
-- `priority_level`: `8`
 
 ## What It Means
 
@@ -25,6 +25,13 @@ Core behavior should be open to extension but closed to risky edits in stable pa
 
 - Can conflict with `kiss` if abstraction is introduced before variation is proven.
 - Tie-break default: introduce extension seams only after at least one real variation is visible.
+
+## Actionable Playbook
+
+- Locate unstable variation points (provider differences, policy rules, channel-specific behavior).
+- Isolate variation behind small interfaces with behavior-focused contracts.
+- Add new behavior by implementing a new strategy/policy, not editing core dispatch logic.
+- Protect extension points with tests that assert old implementations remain unchanged.
 
 ## References
 
