@@ -10,7 +10,7 @@ disable-model-invocation: false
 ## Core Contract
 
 Set analysis scope before scanning so work stays bounded and reproducible.
-Default to current branch when scope is missing.
+Default to current branch delta vs base (`base...HEAD`) when scope is missing.
 If user already set scope, confirm and proceed.
 Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
@@ -24,10 +24,11 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 ## Workflow
 
 1. Check for explicit scope; confirm and proceed.
-2. If missing, default to current branch without extra questions.
-3. For branch scope, review `base...HEAD`; include working-tree deltas when present or requested.
-4. Restate final scope and exclusions.
-5. If module boundaries are unclear, ask once; if still unclear, default to current branch and state the assumption.
+2. If missing, default to branch-delta scope (`base...HEAD`) without extra questions.
+3. Resolve base branch automatically (`main`, then `develop`, then tracked upstream merge-base); ask only if unresolved.
+4. For branch scope, review `base...HEAD`; include working-tree deltas when present or requested.
+5. Restate final scope and exclusions.
+6. If module boundaries are unclear, ask once; if still unclear, keep branch-delta scope and state the assumption.
 
 ## Safety Rules
 
