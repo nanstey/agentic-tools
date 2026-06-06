@@ -28,10 +28,10 @@ Keep shared behavior and rules in one authoritative place to reduce drift and du
 
 ## Actionable Playbook
 
-- Track repeated changes: if one rule change touches 3+ places, investigate abstraction.
-- Extract shared logic only when invariants are truly identical and likely to stay aligned.
-- Keep the abstraction narrowly scoped and named by business intent, not mechanics.
-- Re-run original call sites after extraction to confirm behavior and readability both improved.
+- Check repeated-change evidence: if one rule change touches 3+ places, investigate abstraction.
+- Approve extraction only when invariants are truly identical and likely to remain aligned.
+- Verify abstractions are narrowly scoped and named by business intent, not mechanics.
+- Confirm call sites still preserve behavior and readability after deduplication.
 
 ## References
 

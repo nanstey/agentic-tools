@@ -28,10 +28,10 @@ Use meaningful names, focused methods, and clear structure so the code communica
 
 ## Actionable Playbook
 
-- Rename unclear identifiers to expose domain intent before adding new logic.
-- Keep functions focused: one responsibility, minimal branching, explicit inputs/outputs.
-- Replace comments that explain "what" with code that makes intent obvious.
-- With every change, improve one local readability issue (name, extraction, dead code, test).
+- Verify identifiers expose domain intent before additional logic is introduced.
+- Check function focus: one responsibility, minimal branching, explicit inputs/outputs.
+- Flag comments that compensate for unclear code; prefer code that makes intent obvious.
+- Expect at least one local readability improvement in touched scope (name, extraction, dead code, or test).
 
 ## References
 

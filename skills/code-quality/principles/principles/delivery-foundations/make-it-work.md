@@ -28,10 +28,10 @@ Ship correct behavior first. All quality and design improvements depend on havin
 
 ## Actionable Playbook
 
-- Define the smallest acceptance criteria that proves user value end-to-end.
-- Implement the thinnest working slice first (happy path + one key failure path).
-- Add tests that lock behavior before any cleanup or optimization work.
-- If a shortcut is taken, open a scoped follow-up task in the same area before merge.
+- Verify the artifact demonstrates the smallest acceptance criteria that proves end-to-end user value.
+- Confirm the proposed or implemented slice covers a happy path plus at least one key failure path.
+- Check that behavior is locked with tests or explicit validation before cleanup/optimization claims.
+- If a shortcut is taken, require a scoped follow-up task in the same area before approval.
 
 ## References
 

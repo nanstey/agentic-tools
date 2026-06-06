@@ -28,10 +28,10 @@ Separate domain behavior from infrastructure concerns such as transport, storage
 
 ## Actionable Playbook
 
-- Keep domain decisions pure; push IO, framework, and transport details to adapters.
-- Define clear boundaries (domain, application, infrastructure) and enforce import direction.
-- Avoid mixing orchestration, validation, persistence, and formatting in one unit.
-- Add boundary tests that validate business rules independently from external systems.
+- Verify domain decisions stay pure while IO/framework/transport details sit in adapters.
+- Check boundary clarity (domain, application, infrastructure) and import direction.
+- Flag units mixing orchestration, validation, persistence, and formatting responsibilities.
+- Require boundary tests that validate business rules independently from external systems.
 
 ## References
 

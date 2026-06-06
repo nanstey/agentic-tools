@@ -29,9 +29,9 @@ Core behavior should be open to extension but closed to risky edits in stable pa
 ## Actionable Playbook
 
 - Locate unstable variation points (provider differences, policy rules, channel-specific behavior).
-- Isolate variation behind small interfaces with behavior-focused contracts.
-- Add new behavior by implementing a new strategy/policy, not editing core dispatch logic.
-- Protect extension points with tests that assert old implementations remain unchanged.
+- Verify variation is isolated behind small, behavior-focused contracts.
+- Prefer extension through new strategy/policy implementations over repeated edits to core dispatch.
+- Require tests that show existing implementations remain unchanged when adding variants.
 
 ## References
 

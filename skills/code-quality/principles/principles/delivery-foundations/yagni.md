@@ -28,10 +28,10 @@ Do not build capability before a real requirement exists. Keep extension points 
 
 ## Actionable Playbook
 
-- Ask: "Which current ticket or signed-off roadmap item requires this now?"
-- Reject abstractions that have zero active callers or no concrete near-term scenario.
-- Keep seams lightweight (clear interfaces, TODO notes) instead of full frameworks.
-- Promote speculative code only after repeated demand is observed in production work.
+- Ask: "Which current ticket or committed near-term roadmap item requires this now?"
+- Flag abstractions with zero active callers or no concrete near-term scenario.
+- Prefer lightweight seams (clear interfaces, TODO notes) over full frameworks when evidence is thin.
+- Approve speculative structure only when repeated demand is already visible in real work.
 
 ## References
 

@@ -28,10 +28,10 @@ A unit of code should have one primary reason to change.
 
 ## Actionable Playbook
 
-- Identify stakeholders for a module; if multiple unrelated groups drive changes, split it.
-- Separate orchestration from business rules and infrastructure adapters.
-- Keep public APIs aligned to one concept, not a mixed utility surface.
-- Validate with commit history: files that always change together may share one responsibility.
+- Identify stakeholder pressure: if unrelated groups drive changes, flag mixed responsibility.
+- Verify orchestration is separated from business rules and infrastructure adapters.
+- Check public APIs align to one concept, not a mixed utility surface.
+- Use commit/change history as evidence: files that always change together may represent one responsibility.
 
 ## References
 

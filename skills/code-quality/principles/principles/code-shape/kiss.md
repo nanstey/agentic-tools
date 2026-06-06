@@ -28,10 +28,10 @@ Choose the simplest implementation that solves current requirements with accepta
 
 ## Actionable Playbook
 
-- Start with a direct implementation that a new teammate can explain in one pass.
-- Limit indirection: avoid new abstractions until duplication or variation is proven.
-- Prefer plain data flow and explicit branching over framework cleverness.
-- Before merge, remove any layer that does not reduce measurable complexity.
+- Verify the solution can be explained in one pass by a teammate new to the area.
+- Flag new indirection unless duplication or variation is already demonstrated.
+- Prefer plain data flow and explicit branching over framework cleverness when outcomes are equivalent.
+- Require justification for every added layer; remove layers that do not reduce measurable complexity.
 
 ## References
 

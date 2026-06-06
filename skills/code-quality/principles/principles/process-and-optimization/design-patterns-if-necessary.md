@@ -28,10 +28,10 @@ Use design patterns to address recurring, concrete pain, not as default structur
 
 ## Actionable Playbook
 
-- Name the specific recurring problem before naming a pattern.
-- Prove repetition or fragility in at least two places before pattern extraction.
-- Choose the smallest pattern shape that removes the pain point.
-- Document the tradeoff and expected benefit in the PR for future maintainers.
+- Require the recurring problem to be named before selecting a pattern.
+- Ask for evidence of repetition or fragility in at least two places before pattern extraction.
+- Prefer the smallest pattern shape that removes the proven pain point.
+- Verify tradeoff and expected benefit are documented in plan/PR context.
 
 ## References
 

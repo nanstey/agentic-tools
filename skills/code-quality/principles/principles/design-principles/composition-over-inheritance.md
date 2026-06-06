@@ -28,10 +28,10 @@ Build behavior by composing focused collaborators instead of relying on deep inh
 
 ## Actionable Playbook
 
-- Use inheritance only for stable "is-a" relationships with substitutable behavior.
-- Prefer composing capabilities via collaborators for cross-cutting or optional behavior.
-- Inject dependencies through interfaces to enable testing and runtime substitution.
-- Flatten deep hierarchies when base-class changes repeatedly break downstream code.
+- Approve inheritance only for stable "is-a" relationships with substitutable behavior.
+- Prefer collaborator composition for cross-cutting or optional behavior.
+- Verify dependencies are injected via interfaces where testing or runtime substitution matters.
+- Flag deep hierarchies when base-class changes repeatedly break downstream code.
 
 ## References
 

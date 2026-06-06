@@ -28,10 +28,10 @@ Use consistent conventions in naming, structure, and patterns so code is easier 
 
 ## Actionable Playbook
 
-- Match existing local conventions for naming, file layout, and error handling first.
-- If introducing a new convention, apply it consistently in the touched scope only.
-- Use formatters and linters as the source of truth for style-level decisions.
-- Document intentional deviations in the PR description with rationale.
+- Verify local conventions for naming, file layout, and error handling are followed first.
+- If a new convention is introduced, confirm it is applied consistently within touched scope.
+- Use formatter/linter outputs as the source of truth for style-level decisions.
+- Require explicit rationale for intentional deviations in PR description or plan notes.
 
 ## References
 

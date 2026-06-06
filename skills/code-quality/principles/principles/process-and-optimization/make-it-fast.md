@@ -28,10 +28,10 @@ Optimize performance after correctness and quality are validated, and based on m
 
 ## Actionable Playbook
 
-- Define the performance objective first (latency, throughput, memory, cost).
-- Measure baseline and identify the dominant bottleneck before changing code.
-- Optimize the hotspot with behavior-preserving tests and benchmark comparisons.
-- Stop when objective is met or gains flatten; avoid complexity beyond target value.
+- Require a clear performance objective first (latency, throughput, memory, or cost).
+- Verify baseline measurement and dominant bottleneck identification before optimization.
+- Check hotspot optimizations include behavior-preserving tests and benchmark comparison.
+- Treat optimization as complete when target is met or gains flatten; flag added complexity beyond target value.
 
 ## References
 

@@ -28,10 +28,10 @@ Leave touched code a little cleaner than you found it, without turning every tas
 
 ## Actionable Playbook
 
-- When touching a file, make one safe improvement beyond the task requirement.
-- Prefer low-risk cleanups: names, dead code removal, tiny extraction, missing tests.
-- Keep cleanup in the same changed area; avoid broad refactors in feature PRs.
-- If deeper cleanup is needed, capture it as a separate tracked task.
+- Verify touched scope includes at least one safe improvement beyond strict task minimum.
+- Prefer low-risk cleanups: names, dead code removal, tiny extraction, or missing tests.
+- Confirm cleanup stays local to changed area; flag broad refactors inside feature PRs.
+- If deeper cleanup is needed, require a separate tracked follow-up task.
 
 ## References
 

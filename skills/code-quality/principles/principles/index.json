@@ -67,6 +67,21 @@
           "path": "design-principles/open-closed.md"
         },
         {
+          "id": "liskov-substitution",
+          "name": "Liskov Substitution Principle (LSP)",
+          "path": "design-principles/liskov-substitution.md"
+        },
+        {
+          "id": "interface-segregation",
+          "name": "Interface Segregation Principle (ISP)",
+          "path": "design-principles/interface-segregation.md"
+        },
+        {
+          "id": "dependency-inversion",
+          "name": "Dependency Inversion Principle (DIP)",
+          "path": "design-principles/dependency-inversion.md"
+        },
+        {
           "id": "composition-over-inheritance",
           "name": "Composition over Inheritance",
           "path": "design-principles/composition-over-inheritance.md"
@@ -75,11 +90,6 @@
           "id": "separation-of-concerns",
           "name": "Separation of Concerns",
           "path": "design-principles/separation-of-concerns.md"
-        },
-        {
-          "id": "solid",
-          "name": "SOLID",
-          "path": "design-principles/solid.md"
         }
       ]
     },
@@ -207,51 +217,8 @@
       "source_url": "https://www.oreilly.com/library/view/clean-code/9780136083238/",
       "priority_level": 7,
       "related_principles": [
-        "solid",
+        "single-responsibility",
         "separation-of-concerns"
-      ],
-      "aliases": []
-    },
-    {
-      "id": "single-responsibility",
-      "name": "Single Responsibility (SRP)",
-      "category_id": "design-principles",
-      "path": "design-principles/single-responsibility.md",
-      "source_url": "https://en.wikipedia.org/wiki/Single-responsibility_principle",
-      "priority_level": 8,
-      "related_principles": [
-        "solid",
-        "separation-of-concerns"
-      ],
-      "aliases": [
-        "srp"
-      ]
-    },
-    {
-      "id": "open-closed",
-      "name": "Open/Closed Principle (OCP)",
-      "category_id": "design-principles",
-      "path": "design-principles/open-closed.md",
-      "source_url": "https://en.wikipedia.org/wiki/Open%E2%80%93closed_principle",
-      "priority_level": 8,
-      "related_principles": [
-        "solid",
-        "kiss"
-      ],
-      "aliases": [
-        "ocp"
-      ]
-    },
-    {
-      "id": "composition-over-inheritance",
-      "name": "Composition over Inheritance",
-      "category_id": "design-principles",
-      "path": "design-principles/composition-over-inheritance.md",
-      "source_url": "https://en.wikipedia.org/wiki/Composition_over_inheritance",
-      "priority_level": 8,
-      "related_principles": [
-        "solid",
-        "open-closed"
       ],
       "aliases": []
     },
@@ -271,16 +238,90 @@
       ]
     },
     {
-      "id": "solid",
-      "name": "SOLID",
+      "id": "single-responsibility",
+      "name": "Single Responsibility (SRP)",
       "category_id": "design-principles",
-      "path": "design-principles/solid.md",
-      "source_url": "https://en.wikipedia.org/wiki/SOLID",
+      "path": "design-principles/single-responsibility.md",
+      "source_url": "https://en.wikipedia.org/wiki/Single-responsibility_principle",
       "priority_level": 8,
       "related_principles": [
-        "single-responsibility",
+        "liskov-substitution",
+        "separation-of-concerns"
+      ],
+      "aliases": [
+        "srp"
+      ]
+    },
+    {
+      "id": "open-closed",
+      "name": "Open/Closed Principle (OCP)",
+      "category_id": "design-principles",
+      "path": "design-principles/open-closed.md",
+      "source_url": "https://en.wikipedia.org/wiki/Open%E2%80%93closed_principle",
+      "priority_level": 8,
+      "related_principles": [
+        "dependency-inversion",
+        "kiss"
+      ],
+      "aliases": [
+        "ocp"
+      ]
+    },
+    {
+      "id": "liskov-substitution",
+      "name": "Liskov Substitution Principle (LSP)",
+      "category_id": "design-principles",
+      "path": "design-principles/liskov-substitution.md",
+      "source_url": "https://en.wikipedia.org/wiki/Liskov_substitution_principle",
+      "priority_level": 8,
+      "related_principles": [
         "open-closed",
-        "composition-over-inheritance"
+        "interface-segregation"
+      ],
+      "aliases": [
+        "lsp"
+      ]
+    },
+    {
+      "id": "interface-segregation",
+      "name": "Interface Segregation Principle (ISP)",
+      "category_id": "design-principles",
+      "path": "design-principles/interface-segregation.md",
+      "source_url": "https://en.wikipedia.org/wiki/Interface_segregation_principle",
+      "priority_level": 8,
+      "related_principles": [
+        "liskov-substitution",
+        "dependency-inversion"
+      ],
+      "aliases": [
+        "isp"
+      ]
+    },
+    {
+      "id": "dependency-inversion",
+      "name": "Dependency Inversion Principle (DIP)",
+      "category_id": "design-principles",
+      "path": "design-principles/dependency-inversion.md",
+      "source_url": "https://en.wikipedia.org/wiki/Dependency_inversion_principle",
+      "priority_level": 8,
+      "related_principles": [
+        "open-closed",
+        "interface-segregation"
+      ],
+      "aliases": [
+        "dip"
+      ]
+    },
+    {
+      "id": "composition-over-inheritance",
+      "name": "Composition over Inheritance",
+      "category_id": "design-principles",
+      "path": "design-principles/composition-over-inheritance.md",
+      "source_url": "https://en.wikipedia.org/wiki/Composition_over_inheritance",
+      "priority_level": 8,
+      "related_principles": [
+        "liskov-substitution",
+        "open-closed"
       ],
       "aliases": []
     },

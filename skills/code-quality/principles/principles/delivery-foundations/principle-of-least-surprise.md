@@ -28,10 +28,10 @@ Prefer designs and naming that match reader expectations. Familiar code is easie
 
 ## Actionable Playbook
 
-- Use names that match existing domain and language conventions in the repository.
-- Make side effects explicit in method names, docs, and call sites.
-- Avoid hidden defaults that change behavior; prefer explicit parameters.
-- In review, ask a teammate unfamiliar with the code to predict behavior from names alone.
+- Verify names match existing domain and language conventions in the repository.
+- Check that side effects are explicit in method names, docs, and call sites.
+- Flag hidden defaults that materially change behavior; prefer explicit parameters.
+- Use a predictability check: can a reviewer unfamiliar with the area infer behavior from names alone?
 
 ## References
 
