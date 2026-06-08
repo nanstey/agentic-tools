@@ -6,12 +6,14 @@ REPO_ROOT="$(cd "$(git -C "$(dirname "${BASH_SOURCE[0]:-$PWD}")" rev-parse --sho
 # Each harness declares: name | detect_dir | binaries | type:dir;type:dir;...
 # A harness installs only the artifact types it lists. Add a "type:dir" pair to
 # teach a harness about a new type; add a row to support a new harness.
+# A dir may be a glob (e.g. one skills dir per hermes profile): it expands to
+# every existing match, so a single pair can fan out to many destinations.
 HARNESSES=(
   "claude|$HOME/.claude|claude|skills:$HOME/.claude/skills;agents:$HOME/.claude/agents"
   "codex|$HOME/.codex|codex|skills:$HOME/.codex/skills"
   "cursor|$HOME/.cursor|cursor,cursor-agent|skills:$HOME/.cursor/skills"
   "openclaw|$HOME/.openclaw|openclaw|skills:$HOME/.openclaw/skills"
-  "hermes|$HOME/.hermes|hermes|skills:$HOME/.hermes/skills"
+  "hermes|$HOME/.hermes|hermes|skills:$HOME/.hermes/skills;skills:$HOME/.hermes/profiles/*/skills"
 )
 
 # Extract the `name:` value from a file's YAML frontmatter.
@@ -47,16 +49,18 @@ present() {
   return 1
 }
 
-# Idempotent linker shared by all types (file or directory source).
+# Idempotent linker shared by all types (file or directory source). Prints a
+# single category word (ok|repoint|link|conflict) so callers can tally rather
+# than emit a line per artifact.
 link_one() {
   local link="$1" src="$2"
   if [ -L "$link" ]; then
-    if [ "$(readlink -f "$link")" = "$src" ]; then echo "  ok       $(basename "$link")"
-    else ln -sfn "$src" "$link"; echo "  repoint  $(basename "$link")"; fi
+    if [ "$(readlink -f "$link")" = "$src" ]; then echo ok
+    else ln -sfn "$src" "$link"; echo repoint; fi
   elif [ -e "$link" ]; then
-    echo "  CONFLICT $(basename "$link") (real path exists, left untouched)"
+    echo conflict
   else
-    ln -s "$src" "$link"; echo "  link     $(basename "$link")"
+    ln -s "$src" "$link"; echo link
   fi
 }
 
@@ -66,17 +70,42 @@ for entry in "${HARNESSES[@]}"; do
   echo "== $name"
   IFS=';' read -ra pairs <<<"$typemap"
   for pair in "${pairs[@]}"; do
-    type="${pair%%:*}"; dir="${pair#*:}"
+    type="${pair%%:*}"; pattern="${pair#*:}"
     case "$type" in
       skills) collector=collect_skills ;;
       agents) collector=collect_agents ;;
       *) echo "  [$type] unknown type, skipping"; continue ;;
     esac
-    echo "  [$type] -> $dir"
-    mkdir -p "$dir"
-    while IFS=$'\t' read -r linkname src; do
-      [ -n "$linkname" ] || continue
-      link_one "$dir/$linkname" "$src"
-    done < <($collector)
+    # The dir may be a glob; nullglob makes a non-matching pattern expand to
+    # nothing rather than to itself.
+    shopt -s nullglob; dirs=( $pattern ); shopt -u nullglob
+    if [ "${#dirs[@]}" -eq 0 ]; then
+      # No matches: a literal path installs anyway (creating it), but an unmatched
+      # glob has no destination — e.g. a harness with no profiles yet — so skip it.
+      case "$pattern" in
+        *[*?[]*) echo "  [$type] no match for $pattern, skipping"; continue ;;
+        *) dirs=( "$pattern" ) ;;
+      esac
+    fi
+    for dir in "${dirs[@]}"; do
+      mkdir -p "$dir"
+      ok=0; linked=0; repointed=0; conflicts=()
+      while IFS=$'\t' read -r linkname src; do
+        [ -n "$linkname" ] || continue
+        case "$(link_one "$dir/$linkname" "$src")" in
+          ok)       ok=$((ok+1)) ;;
+          link)     linked=$((linked+1)) ;;
+          repoint)  repointed=$((repointed+1)) ;;
+          conflict) conflicts+=("$linkname") ;;
+        esac
+      done < <($collector)
+      # One summary line per destination; conflicts also listed since they need a fix.
+      summary="$ok ok"
+      [ "$linked" -gt 0 ] && summary="$summary, $linked linked"
+      [ "$repointed" -gt 0 ] && summary="$summary, $repointed repointed"
+      [ "${#conflicts[@]}" -gt 0 ] && summary="$summary, ${#conflicts[@]} conflict"
+      echo "  [$type] -> $dir ($summary)"
+      for c in "${conflicts[@]}"; do echo "      CONFLICT $c (real path exists, left untouched)"; done
+    done
   done
 done
