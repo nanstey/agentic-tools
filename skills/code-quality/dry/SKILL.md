@@ -1,6 +1,8 @@
 ---
 name: dry
 description: Finds and ranks meaningful duplication and DRY violations in a chosen scope. Use when deciding what repeated logic should be consolidated.
+user-invocable: true
+disable-model-invocation: false
 ---
 
 # Dry

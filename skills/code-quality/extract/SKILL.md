@@ -1,4 +1,3 @@
-
 ---
 name: extract
 description: Identifies extraction opportunities from DRY and SRP findings and proposes reusable boundaries. Use when planning concrete code extractions in a chosen scope.

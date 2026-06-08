@@ -1,6 +1,8 @@
 ---
 name: srp
 description: Evaluates Single Responsibility Principle violations in a chosen scope and recommends cohesive boundaries. Use when reviewing mixed responsibilities in files, classes, or modules.
+user-invocable: true
+disable-model-invocation: false
 ---
 
 # SRP
