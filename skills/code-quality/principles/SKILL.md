@@ -47,6 +47,12 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 ## Output Style
 
+Canonical status emoji mapping:
+- `pass` -> `✅`
+- `warning` -> `⚠️`
+- `fail` -> `❌`
+- Never use alternate fail symbols (`✖`, `✗`, `❎`, `🚫`, or text like `FAIL`) in `Report` or `Details` headings.
+
 Use three sections in this exact order:
 1. Scope
    - Clearly identify what was evaluated.
@@ -54,12 +60,12 @@ Use three sections in this exact order:
    - Keep this section concise and specific.
 2. Report
    - Include every principle in `principles[]` hierarchy order (highest importance first).
-   - Each list item must contain only: status emoji + principle name.
+   - Each list item must contain only: status emoji + principle name using the canonical mapping above.
    - Allowed format: `✅ <principle name>`, `⚠️ <principle name>`, or `❌ <principle name>`.
    - Do not include IDs, rationale, evidence, or extra text in this section.
 3. Details
    - Include only principles with `warning` or `fail` outcomes.
-   - Order items by outcome severity first (`fail` before `warning`), then by hierarchy importance. Title status emoji + name.
+   - Order items by outcome severity first (`fail` before `warning`), then by hierarchy importance. Title status emoji + name using the canonical mapping above.
    - If all principles pass, include `Details` with `No warnings or failures.`
    - Give each principle its own subsection using this exact structure:
 
