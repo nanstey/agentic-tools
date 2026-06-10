@@ -2,6 +2,7 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(git -C "$(dirname "${BASH_SOURCE[0]:-$PWD}")" rev-parse --show-toplevel 2>/dev/null || echo "$PWD")" && pwd)"
+PI_AGENT_DIR="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}"
 
 # Each harness declares: name | detect_dir | binaries | type:dir;type:dir;...
 # A harness installs only the artifact types it lists. Add a "type:dir" pair to
@@ -10,6 +11,7 @@ REPO_ROOT="$(cd "$(git -C "$(dirname "${BASH_SOURCE[0]:-$PWD}")" rev-parse --sho
 # every existing match, so a single pair can fan out to many destinations.
 HARNESSES=(
   "claude|$HOME/.claude|claude|skills:$HOME/.claude/skills;agents:$HOME/.claude/agents"
+  "pi|$PI_AGENT_DIR|pi|skills:$PI_AGENT_DIR/skills;agents:$PI_AGENT_DIR/agents"
   "codex|$HOME/.codex|codex|skills:$HOME/.codex/skills"
   "cursor|$HOME/.cursor|cursor,cursor-agent|skills:$HOME/.cursor/skills"
   "openclaw|$HOME/.openclaw|openclaw|skills:$HOME/.openclaw/skills"
