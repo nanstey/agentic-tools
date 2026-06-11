@@ -25,7 +25,7 @@ Default tool is `gh`. Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 5. Validate touched areas before commit.
 6. Commit and push when code changed and validation passed.
 7. Resolve/reply to each thread only after branch state is final.
-8. Leave genuinely unresolved threads open and report blockers.
+8. Leave unresolved threads open and report blockers.
 
 Stop and ask when feedback implies product/architecture decisions or high-risk trade-offs.
 
@@ -33,7 +33,7 @@ Stop and ask when feedback implies product/architecture decisions or high-risk t
 
 - Never assume the current branch has a unique open PR; discover and verify it.
 - Never resolve comments before the branch state is finalized.
-- Never create an empty commit just to mark review progress.
+- Never create an empty commit to mark review progress.
 - Never push or resolve threads if validation is failing.
 - Never force-push unless explicitly requested.
 - Never overwrite or revert unrelated user changes.

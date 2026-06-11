@@ -29,8 +29,8 @@ Although it was planned to use a field universally for all classes, in reality t
 
 ## Benefits
 
-- Improves internal class coherency. A field is located where it’s actually used.
-- When moving to several subclasses simultaneously, you can develop the fields independently of each other. This does create code duplication, yes, so push down fields only when you really do intend to use the fields in different ways.
+- Improves internal class coherency. A field is located where it’s used.
+- When moving to several subclasses simultaneously, you can develop the fields independently of each other. This does create code duplication, yes, so push down fields only when you do intend to use the fields in different ways.
 
 ## Tradeoffs
 

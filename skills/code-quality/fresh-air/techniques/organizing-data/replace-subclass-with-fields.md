@@ -16,11 +16,11 @@ Replace the methods with fields in the parent class and delete the subclasses.
 
 ## When To Apply
 
-You have subclasses differing only in their (constant-returning) methods. Sometimes refactoring is just the ticket for avoiding type code.
+You have subclasses differing only in their (constant-returning) methods. Sometimes refactoring is the right approach for avoiding type code.
 
 ## Why Refactor
 
-Sometimes refactoring is just the ticket for avoiding type code.
+Sometimes refactoring is the right approach for avoiding type code.
 
 ## How To Apply
 

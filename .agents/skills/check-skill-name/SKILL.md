@@ -40,9 +40,9 @@ Follow repo naming rules from `CLAUDE.md` / `AGENTS.md`.
 
 ## Safety Rules
 
-- Never create the skill directory or any skill files — this skill only validates a name. Creating the skill is a separate step the user takes after a clear verdict.
+- Never create the skill directory or any skill files. This skill only validates a name; creating the skill is a separate step the user takes after a clear verdict.
 - The only file this skill may write is `known-names.json`, and only in update mode. Do not edit it during a check.
-- In update mode, never blank out a source on a failed fetch — leave its existing names intact and report the failure.
+- In update mode, never blank out a source on a failed fetch; leave its existing names intact and report the failure.
 - Do not invent names as "reserved" without a source; every reserved name traces to `known-names.json`.
 
 ## Output Style

@@ -22,7 +22,7 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 ## Workflow
 
-1. Validate findings and canonical IDs.
+1. Validate findings and reference IDs.
 2. Choose path:
    - standard: call `fresh-air` per smell,
    - fast path: accept direct technique input only if fully validated.

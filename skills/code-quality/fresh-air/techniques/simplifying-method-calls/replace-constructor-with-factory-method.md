@@ -8,7 +8,7 @@
 
 ## Problem
 
-You have a complex constructor that does something more than just setting parameter values in object fields.
+You have a complex constructor that does something more than setting parameter values in object fields.
 
 ## Solution
 
@@ -16,7 +16,7 @@ Create a factory method and use it to replace constructor calls.
 
 ## When To Apply
 
-You have a complex constructor that does something more than just setting parameter values in object fields. The most obvious reason for using this refactoring technique is related to Replace Type Code with Subclasses .
+You have a complex constructor that does something more than setting parameter values in object fields. The most obvious reason for using this refactoring technique is related to Replace Type Code with Subclasses .
 
 ## Why Refactor
 

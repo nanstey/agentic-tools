@@ -16,11 +16,11 @@ Replace calls to the method with the method’s content and delete the method it
 
 ## When To Apply
 
-When a method body is more obvious than the method itself, use this technique. A method simply delegates to another method.
+When a method body is more obvious than the method itself, use this technique. A method delegates to another method.
 
 ## Why Refactor
 
-A method simply delegates to another method.
+A method delegates to another method.
 
 ## How To Apply
 

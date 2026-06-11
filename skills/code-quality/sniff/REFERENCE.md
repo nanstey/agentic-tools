@@ -8,7 +8,7 @@ every smell inline in `SKILL.md`.
 ## Dataset Layout
 
 - `./smells/index.json`
-  - canonical smell IDs
+  - reference smell IDs
   - category grouping
   - path lookup for each smell file
   - related refactoring IDs

@@ -33,7 +33,7 @@ One of the most common reasons for type code is working with databases, when a d
 
 ## Benefits
 
-- We want to turn sets of primitive values—which is what coded types are—into full-fledged classes with all the benefits that object-oriented programming has to offer.
+- We want to turn sets of primitive values (which is what coded types are) into full-fledged classes with all the benefits that object-oriented programming has to offer.
 - By replacing type code with classes, we allow type hinting for values passed to methods and fields at the level of the programming language. For example, while the compiler previously didn’t see difference between your numeric constant and some arbitrary number when a value is passed to a method, now when data that doesn’t fit the indicated type class is passed, you’re warned of the error inside your IDE.
 - Thus we make it possible to move code to the classes of the type. If you needed to perform complex manipulations with type values throughout the whole program, now this code can “live” inside one or multiple type classes.
 

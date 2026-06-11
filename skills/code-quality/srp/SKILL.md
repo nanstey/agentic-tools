@@ -34,7 +34,7 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 ## Safety Rules
 
 - Never edit, create, move, stage, or commit files. This skill only reads and reports.
-- Do not fragment cohesive logic into tiny pieces just to satisfy SRP wording; preserve readability and local reasoning.
+- Do not fragment cohesive logic into tiny pieces to satisfy SRP wording; preserve readability and local reasoning.
 - Do not recommend extraction when responsibilities are tightly coupled and changed together for the same business reason.
 - Do not confuse layering with SRP: a unit can be small and still violate SRP if it serves unrelated stakeholders.
 - Prefer stable seams (domain vs adapters, policy vs IO) over speculative abstractions.

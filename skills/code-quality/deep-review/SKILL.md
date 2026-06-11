@@ -13,7 +13,7 @@ Run an aggressive maintainability review focused on structural simplification.
 1. Prefer designs that delete complexity, not move it.
 2. Treat new spaghetti branching and ad-hoc flags as design problems.
 3. Flag file-size explosions (especially crossing ~1000 lines) unless justified.
-4. Push logic toward the canonical layer and reuse existing helpers.
+4. Push logic toward the appropriate layer and reuse existing helpers.
 5. Prefer explicit type/boundary contracts over cast-heavy or optionality-heavy flow.
 6. Call out unnecessary indirection, wrappers, and magic abstractions.
 7. Prefer simpler, more atomic orchestration when obvious.

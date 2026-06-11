@@ -24,7 +24,7 @@ If you have similar methods, you probably have duplicate code, with all the cons
 
 ## How To Apply
 
-- Create a new method with a parameter and move it to the code that’s the same for all classes, by applying Extract Method . Note that sometimes only a certain part of methods is actually the same. In this case, refactoring consists of extracting only the same part to a new method.
+- Create a new method with a parameter and move it to the code that’s the same for all classes, by applying Extract Method . Note that sometimes only a certain part of methods is the same. In this case, refactoring consists of extracting only the same part to a new method.
 - In the code of the new method, replace the special/differing value with a parameter.
 - For each old method, find the places where it’s called, replacing these calls with calls to the new method that include a parameter. Then delete the old method.
 

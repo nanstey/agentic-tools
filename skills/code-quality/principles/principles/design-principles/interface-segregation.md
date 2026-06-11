@@ -9,7 +9,7 @@ priority_level: 8
 
 ## What It Means
 
-Clients should depend only on the smallest interface that matches what they actually use.
+Clients should depend only on the smallest interface that matches what they use.
 
 ## Apply When
 

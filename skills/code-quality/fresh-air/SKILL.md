@@ -1,6 +1,6 @@
 ---
 name: fresh-air
-description: Recommends best-fit refactoring techniques for canonical smell findings with confidence. Use when smell findings need scoped refactoring direction.
+description: Recommends best-fit refactoring techniques for smell findings with confidence. Use when smell findings need scoped refactoring direction.
 user-invocable: true
 disable-model-invocation: false
 ---
@@ -23,7 +23,7 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 ## Workflow
 
 1. Validate each smell entry (`smell_id`, `evidence_location`, constraints).
-2. Load canonical mappings (`smells`, `technique-map`, `techniques` datasets).
+2. Load reference mappings (`smells`, `technique-map`, `techniques` datasets).
 3. Rank techniques by evidence fit, constraints, risk, and reversibility.
 4. Return per-smell recommendation block:
    - primary technique + rationale,
@@ -37,8 +37,8 @@ Stop and ask when evidence is missing or no mapped technique exists.
 
 - Never drop smells silently; if capacity is exceeded, process in explicit
   chunks and report remaining count.
-- Never recommend techniques without canonical mapping evidence unless user
-  explicitly approves a fallback strategy.
+- Never recommend techniques without mapping evidence unless the user
+  approves a fallback strategy.
 - Never skip loading technique detail files for top candidates when they exist.
 - If a required technique detail file is missing, state reduced confidence and
   ask whether to proceed with metadata-only ranking.

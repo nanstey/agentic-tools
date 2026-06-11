@@ -28,7 +28,9 @@ Avoid binary contrasts ("Not X. Y."), negative listings ("Not a X. Not a Y. A Z.
 
 ### 3. Remove AI tells
 
-Cut telltale words and moves: magic adverbs, "delve," "serves as," fake ranges, inflated stakes, and invented labels.
+Cut telltale words and moves: magic adverbs, "serves as," fake ranges, inflated stakes, and invented labels.
+
+Always replace these high-frequency vocabulary tells, even when they read as natural: "delve," "canonical" (use: standard, reference, definitive), "tapestry," "nuanced," "robust," "leverage," "landscape" (when it means "field"). Scan the text against [references/phrases.md](references/phrases.md) on every pass; do not skip it.
 
 ### 4. Prefer active voice and real actors
 
@@ -64,10 +66,22 @@ State the point directly. Skip hand-holding, fake vulnerability, and repeated re
 - Vague claims? Add concrete details.
 - Formula endings ("In conclusion," "Despite these challenges")? Rewrite.
 - Repeated metaphor or repeated point? Trim.
+- Final pass: run `scripts/deslop-lint.sh` over the edited text (or paths). Every flagged candidate (e.g. "canonical," "delve," "serves as") is a miss; replace it or justify keeping it.
+
+## Lint Script
+
+`scripts/deslop-lint.sh` greps text for the vocabulary tells and signature phrases in `references/phrases.md` and prints each candidate with a suggested replacement. Run it as a final check; exit code 1 means candidates remain.
+
+```bash
+scripts/deslop-lint.sh draft.md          # scan a file
+echo "$text" | scripts/deslop-lint.sh    # scan stdin
+```
+
+The term list lives at the top of the script and mirrors `references/phrases.md`; update both together.
 
 ## Reference Files
 
-Use the full catalogs when you need detailed guidance:
+Consult [references/phrases.md](references/phrases.md) on every deslop pass; it is the source of truth for words and phrases to remove. Use the rest when you need detailed guidance:
 
 - [references/phrases.md](references/phrases.md)
 - [references/structures.md](references/structures.md)

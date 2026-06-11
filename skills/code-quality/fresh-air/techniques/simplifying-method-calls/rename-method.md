@@ -16,11 +16,11 @@ Rename the method.
 
 ## When To Apply
 
-The name of a method doesn’t explain what the method does. Perhaps a method was poorly named from the very beginning—for example, someone created the method in a rush and didn’t give proper care to naming it well.
+The name of a method doesn’t explain what the method does. Perhaps a method was poorly named from the very beginning. For example, someone created the method in a rush and didn’t give proper care to naming it well.
 
 ## Why Refactor
 
-Perhaps a method was poorly named from the very beginning—for example, someone created the method in a rush and didn’t give proper care to naming it well.
+Perhaps a method was poorly named from the very beginning. For example, someone created the method in a rush and didn’t give proper care to naming it well.
 
 ## How To Apply
 
