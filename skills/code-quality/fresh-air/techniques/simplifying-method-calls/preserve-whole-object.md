@@ -31,7 +31,7 @@ The problem is that each time before your method is called, the methods of the f
 ## Benefits
 
 - Instead of a hodgepodge of parameters, you see a single object with a comprehensible name.
-- If the method needs more data from an object, you won’t need to rewrite all the places where the method is used—merely inside the method itself.
+- If the method needs more data from an object, you won’t need to rewrite all the places where the method is used, merely inside the method itself.
 
 ## Tradeoffs
 

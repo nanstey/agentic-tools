@@ -35,7 +35,7 @@ Stop and ask before risky architecture/product decisions or ambiguous trade-offs
 - Never assume the current branch has a unique open PR; discover and verify it.
 - Never rely only on check summaries when logs are available.
 - Never treat duplicate failed jobs as separate root causes without evidence.
-- Never create an empty commit just to mark CI progress.
+- Never create an empty commit to mark CI progress.
 - Never push if validation is failing.
 - Never force-push unless explicitly requested.
 - Never overwrite or revert unrelated user changes.

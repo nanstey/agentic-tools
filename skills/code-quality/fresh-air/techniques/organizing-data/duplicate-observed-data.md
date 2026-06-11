@@ -31,7 +31,7 @@ You want to have multiple interface views for the same data (for example, you ha
 - In the GUI class , create a field for storing references to the domain class as well as the update() method, which will be reacting to changes in the object and update the values of fields in the GUI class . Note that value updates should be established directly in the method, in order to avoid recursion.
 - In the GUI class constructor, create an instance of domain class and save it in the field you have created. Register the GUI object as an observer in the domain object .
 - In the setters for domain class fields, call the method for notifying the observer (in other words, method for updating in the GUI class ), in order to pass the new values to the GUI.
-- Change the setters of the GUI class fields so that they set new values in the domain object directly. Watch out to make sure that values aren’t set through a domain class setter—otherwise infinite recursion will result.
+- Change the setters of the GUI class fields so that they set new values in the domain object directly. Watch out to make sure that values aren’t set through a domain class setter. Otherwise infinite recursion will result.
 
 ## Benefits
 

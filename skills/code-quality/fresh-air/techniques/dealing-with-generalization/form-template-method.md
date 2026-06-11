@@ -32,7 +32,7 @@ Subclasses are developed in parallel, sometimes by different people, which leads
 
 ## Benefits
 
-- Code duplication doesn’t always refer to cases of simple copy/paste. Often duplication occurs at a higher level, such as when you have a method for sorting numbers and a method for sorting object collections that are differentiated only by the comparison of elements. Creating a template method eliminates this duplication by merging the shared algorithm steps in a superclass and leaving just the differences in the subclasses.
+- Code duplication doesn’t always refer to cases of simple copy/paste. Often duplication occurs at a higher level, such as when you have a method for sorting numbers and a method for sorting object collections that are differentiated only by the comparison of elements. Creating a template method eliminates this duplication by merging the shared algorithm steps in a superclass and leaving the differences in the subclasses.
 - Forming a template method is an example of the Open/Closed Principle in action. When a new algorithm version appears, you need only to create a new subclass; no changes to existing code are required.
 
 ## Tradeoffs

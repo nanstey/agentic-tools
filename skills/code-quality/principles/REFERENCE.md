@@ -11,9 +11,9 @@ Paths in this reference are relative to the skill directory
 ## Dataset Layout
 
 - `./principles/index.json`
-  - canonical principle IDs and categories
+  - reference principle IDs and categories
   - path lookup for each principle markdown file
-  - canonical evaluation order (`principles[]` array order)
+  - reference evaluation order (`principles[]` array order)
   - `priority_level` as validation + conflict tie-break metadata
   - related principle links
 - `./principles/<category>/<principle-id>.md`
@@ -54,7 +54,7 @@ Paths in this reference are relative to the skill directory
 2. Keep `index.json` in sync for
    new/renamed principles and category placement.
 3. Preserve stable, lowercase, hyphenated principle IDs.
-4. Keep `principles[]` in the intended canonical order; do not rely on runtime sorting.
+4. Keep `principles[]` in the intended reference order; do not rely on runtime sorting.
 5. Prefer one-principle-at-a-time updates for reviewable diffs.
 
 ## Conflict Resolution Rule

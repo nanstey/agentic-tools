@@ -31,7 +31,7 @@ If no operation is active, report and stop. If a resolution is ambiguous, stop a
 ## Safety Rules
 
 - Never blindly accept one side; resolve by meaning and intent.
-- Ask the user when a resolution is genuinely ambiguous after using available context.
+- Ask the user when a resolution is ambiguous after using available context.
 - Never leave conflict markers in committed files.
 - Only abort the operation if the user requests it.
 - Do not push as part of this skill unless explicitly asked.

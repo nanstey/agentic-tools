@@ -32,7 +32,7 @@ Originally the classes had a unidirectional association.
 
 ## Benefits
 
-- If a class needs a reverse association, you can simply calculate it. But if these calculations are complex, it’s better to keep the reverse association.
+- If a class needs a reverse association, you can calculate it. But if these calculations are complex, it’s better to keep the reverse association.
 
 ## Tradeoffs
 

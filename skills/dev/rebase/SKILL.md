@@ -33,7 +33,7 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 - Never run on, or force-push, protected base branches.
 - Never rebase with a dirty working tree; commit or stash first (ask the user).
 - Use `--force-with-lease`, never plain `--force`.
-- Do not resolve conflicts inline — delegate to `conflicts`.
+- Do not resolve conflicts inline; delegate to `conflicts`.
 - Only abort the rebase if the user asks.
 - If `--force-with-lease` is rejected, stop and reconcile rather than overwriting.
 - In transplant mode, never guess `old_base_tip`; require explicit input from the caller or ask.

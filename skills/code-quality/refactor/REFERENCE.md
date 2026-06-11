@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`refactor` orchestrates the refactor-planning flow and validates canonical
+`refactor` orchestrates the refactor-planning flow and validates reference
 smell IDs from local datasets. It complements `fresh-air`:
 
 - `fresh-air`: choose *which* technique to apply for one smell finding.
@@ -11,15 +11,15 @@ smell IDs from local datasets. It complements `fresh-air`:
 
 ## Dataset Layout
 
-- `./smells/index.json` — canonical smell lookup for validation:
-  - canonical smell IDs
+- `./smells/index.json`, reference smell lookup for validation:
+  - reference smell IDs
   - category grouping
   - per-smell paths
   - related refactoring IDs
-- `./techniques/index.json` — compact technique lookup:
-  - canonical technique IDs
+- `./techniques/index.json`, compact technique lookup:
+  - reference technique IDs
   - names, families, and URLs
-- `./technique-map/smell-to-technique.json` — relationship graph used for
+- `./technique-map/smell-to-technique.json`, relationship graph used for
   sequencing consistency checks across recommendations
 
 ## Validation and Fast Path Schema
@@ -36,18 +36,18 @@ smell IDs from local datasets. It complements `fresh-air`:
 
 Fast-path entries supplied to `refactor` should include:
 
-- canonical smell ID
+- reference smell ID
 - one concrete evidence location
 - concrete constraints
-- explicit technique recommendations (canonical IDs)
+- explicit technique recommendations (reference IDs)
 
 ## Maintenance Workflow
 
-1. Keep `./smells/index.json` synced with canonical smell IDs used by
+1. Keep `./smells/index.json` synced with reference smell IDs used by
    `sniff` and `fresh-air`.
 2. Keep `./techniques/index.json` and `./technique-map/smell-to-technique.json`
    in sync with `fresh-air`.
-3. Ensure fast-path validation checks reject non-canonical or underspecified
+3. Ensure fast-path validation checks reject unrecognized or underspecified
    entries.
 4. Prefer one-smell-at-a-time updates for clean review diffs.
 

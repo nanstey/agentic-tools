@@ -30,7 +30,7 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 ## Safety Rules
 
 - Never stage, commit, push, amend, stash, reset, or discard. This skill only reads and reports.
-- Never run `git add` — not even to inspect.
+- Never run `git add`, not even to inspect.
 - Do not edit files to "clean up" what you flag; report it and let the user decide.
 - If you spot a secret or credential, flag it prominently and do not echo its value in full.
 

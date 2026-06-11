@@ -16,11 +16,11 @@ Someone was motivated to create inheritance between classes only by the desire t
 
 ## Treatment Summary
 
-If inheritance makes no sense and the subclass really does have nothing in common with the superclass, eliminate inheritance in favor of Replace Inheritance with Delegation .
+If inheritance makes no sense and the subclass has nothing in common with the superclass, eliminate inheritance in favor of Replace Inheritance with Delegation .
 
 ## Treatment Techniques
 
-- If inheritance makes no sense and the subclass really does have nothing in common with the superclass, eliminate inheritance in favor of Replace Inheritance with Delegation .
+- If inheritance makes no sense and the subclass has nothing in common with the superclass, eliminate inheritance in favor of Replace Inheritance with Delegation .
 - If inheritance is appropriate, get rid of unneeded fields and methods in the subclass. Extract all fields and methods needed by the subclass from the parent class, put them in a new superclass, and set both classes to inherit from it ( Extract Superclass ).
 
 ## Payoff

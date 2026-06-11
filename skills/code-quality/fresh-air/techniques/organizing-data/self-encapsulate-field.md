@@ -16,11 +16,11 @@ Create a getter and setter for the field, and use only them for accessing the fi
 
 ## When To Apply
 
-You use direct access to private fields inside a class. Sometimes directly accessing a private field inside a class just isn’t flexible enough.
+You use direct access to private fields inside a class. Sometimes directly accessing a private field inside a class isn’t flexible enough.
 
 ## Why Refactor
 
-Sometimes directly accessing a private field inside a class just isn’t flexible enough.
+Sometimes directly accessing a private field inside a class isn’t flexible enough.
 
 ## How To Apply
 
@@ -30,7 +30,7 @@ Sometimes directly accessing a private field inside a class just isn’t flexibl
 ## Benefits
 
 - Indirect access to fields is when a field is acted on via access methods (getters and setters). This approach is much more flexible than direct access to fields . First, you can perform complex operations when data in the field is set or received. Lazy initialization and validation of field values are easily implemented inside field getters and setters.
-- Second and more crucially, you can redefine getters and setters in subclasses.
+- Second, you can redefine getters and setters in subclasses.
 - You have the option of not implementing a setter for a field at all. The field value will be specified only in the constructor, thus making the field unchangeable throughout the entire object lifespan.
 
 ## Tradeoffs

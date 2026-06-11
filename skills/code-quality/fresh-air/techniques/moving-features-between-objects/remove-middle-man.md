@@ -8,7 +8,7 @@
 
 ## Problem
 
-A class has too many methods that simply delegate to other objects.
+A class has too many methods that delegate to other objects.
 
 ## Solution
 
@@ -16,7 +16,7 @@ Delete these methods and force the client to call the end methods directly.
 
 ## When To Apply
 
-A class has too many methods that simply delegate to other objects. To describe this technique, we’ll use the terms from Hide Delegate , which are: Server is the object to which the client has direct access.
+A class has too many methods that delegate to other objects. To describe this technique, we’ll use the terms from Hide Delegate , which are: Server is the object to which the client has direct access.
 
 ## Why Refactor
 

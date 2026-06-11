@@ -19,7 +19,7 @@ Use consistent conventions in naming, structure, and patterns so code is easier 
 ## Good vs Bad
 
 - Good: follow local conventions unless they meaningfully harm readability or simplicity.
-- Bad: oscillate style in nearby files or force ecosystem idioms that reduce clarity.
+- Bad: oscillate style in nearby files or force foreign idioms that reduce clarity.
 
 ## Tradeoffs and Conflicts
 

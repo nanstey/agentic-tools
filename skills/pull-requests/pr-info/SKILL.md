@@ -27,7 +27,7 @@ Stop and ask if no PR, multiple matches, branch mismatch, or PR is closed/merged
 
 ## Safety Rules
 
-- Never assume the current branch has exactly one open PR — discover and verify it.
+- Never assume the current branch has exactly one open PR; discover and verify it.
 - Never return a PR whose head branch does not match the current branch without flagging it.
 - Never edit code, git state, or the PR; this skill only reads and reports.
 - If unexpected repository or branch state appears, stop and ask the user how to proceed.

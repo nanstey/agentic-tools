@@ -31,7 +31,7 @@ Often this technique is needed after the features of one class are “transplant
 
 ## Benefits
 
-- Eliminating needless classes frees up operating memory on the computer—and bandwidth in your head.
+- Eliminating needless classes frees up operating memory on the computer, and bandwidth in your head.
 
 ## Tradeoffs
 

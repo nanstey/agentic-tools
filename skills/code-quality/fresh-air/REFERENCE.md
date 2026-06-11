@@ -32,7 +32,7 @@
 
 ## Local Dataset Layout
 
-- `./smells/index.json` for canonical smell ID validation.
+- `./smells/index.json` for reference smell ID validation.
 - Candidate techniques come from each smell entry's `related_refactorings`.
 - `./technique-map/smell-to-technique.json` for relationship graph edges.
 - `./techniques/index.json` for technique metadata lookup.
