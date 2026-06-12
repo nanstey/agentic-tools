@@ -11,7 +11,7 @@ PI_AGENT_DIR="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}"
 # every existing match, so a single pair can fan out to many destinations.
 HARNESSES=(
   "claude|$HOME/.claude|claude|skills:$HOME/.claude/skills;agents:$HOME/.claude/agents"
-  "pi|$PI_AGENT_DIR|pi|skills:$PI_AGENT_DIR/skills;agents:$PI_AGENT_DIR/agents;config:$PI_AGENT_DIR::$REPO_ROOT/pi;config:$PI_AGENT_DIR/extensions::$REPO_ROOT/pi/extensions"
+  "pi|$PI_AGENT_DIR|pi|skills:$PI_AGENT_DIR/skills;agents:$PI_AGENT_DIR/agents;config:$PI_AGENT_DIR::$REPO_ROOT/pi;config:$PI_AGENT_DIR/extensions::$REPO_ROOT/pi/extensions;hoist:$PI_AGENT_DIR/npm::$REPO_ROOT/pi/settings.json"
   "codex|$HOME/.codex|codex|skills:$HOME/.codex/skills"
   "cursor|$HOME/.cursor|cursor,cursor-agent|skills:$HOME/.cursor/skills"
   "openclaw|$HOME/.openclaw|openclaw|skills:$HOME/.openclaw/skills"
@@ -73,6 +73,38 @@ install_config() {
   echo "  [config] -> $dest_dir ($summary)"
 }
 
+# First element of settings.json's npmCommand[] (the package manager pi shells
+# out to), or empty if unset. Collapses newlines so a multi-line array parses.
+pi_pkg_manager() {
+  [ -f "$1" ] || return 0
+  tr -d '\n' <"$1" | sed -n 's/.*"npmCommand"[[:space:]]*:[[:space:]]*\[[[:space:]]*"\([^"]*\)".*/\1/p'
+}
+
+# pnpm's default isolated node_modules only exposes a package's own dependencies
+# via symlinks reachable from its real path in the store. pi loads extensions
+# through the top-level alias without resolving that real path, so a transitive
+# dep like @shikijs/cli (a dependency of @heyhuynhgiabuu/pi-diff) is invisible
+# and the extension fails with "Cannot find module". A hoisted layout puts those
+# deps at the top level where they resolve through the alias too. This only
+# applies to pnpm — npm/yarn/bun lay out flat already — so gate on npmCommand and
+# skip otherwise. Changing the linker means the existing isolated store must be
+# discarded so pnpm, which pi re-runs on launch, rebuilds it flat.
+install_pnpm_hoist() {
+  local npm_dir="$1" settings="$2"
+  local pm; pm="$(pi_pkg_manager "$settings")"
+  if [ "$pm" != "pnpm" ]; then
+    echo "  [hoist] -> skip (npmCommand=${pm:-unset}, hoisting is pnpm-only)"; return
+  fi
+  local rc="$npm_dir/.npmrc" line="node-linker=hoisted"
+  mkdir -p "$npm_dir"
+  if [ -f "$rc" ] && grep -qxF "$line" "$rc"; then
+    echo "  [hoist] -> $rc (ok)"; return
+  fi
+  printf '%s\n' "$line" >>"$rc"          # keep any other settings already present
+  rm -rf "$npm_dir/node_modules" "$npm_dir/pnpm-lock.yaml"
+  echo "  [hoist] -> $rc (set, store reset for flat reinstall)"
+}
+
 # Present if the home dir exists or any listed binary is on PATH.
 present() {
   [ -d "$1" ] && return 0
@@ -81,15 +113,16 @@ present() {
 }
 
 # Idempotent linker shared by all types (file or directory source). Prints a
-# single category word (ok|repoint|link|conflict) so callers can tally rather
-# than emit a line per artifact.
+# single category word (ok|repoint|link|overwrite) so callers can tally rather
+# than emit a line per artifact. The repo is the source of truth, so a real
+# (non-symlink) path occupying a managed name is replaced with the symlink.
 link_one() {
   local link="$1" src="$2"
   if [ -L "$link" ]; then
     if [ "$(readlink -f "$link")" = "$src" ]; then echo ok
     else ln -sfn "$src" "$link"; echo repoint; fi
   elif [ -e "$link" ]; then
-    echo conflict
+    rm -rf "$link"; ln -s "$src" "$link"; echo overwrite
   else
     ln -s "$src" "$link"; echo link
   fi
@@ -106,6 +139,10 @@ for entry in "${HARNESSES[@]}"; do
     # copied rather than symlinked, so they bypass the shared linker loop.
     if [ "$type" = "config" ]; then
       install_config "${pattern%%::*}" "${pattern##*::}"; continue
+    fi
+    # hoist pairs encode NPMDIR::SETTINGS; they bypass the linker loop too.
+    if [ "$type" = "hoist" ]; then
+      install_pnpm_hoist "${pattern%%::*}" "${pattern##*::}"; continue
     fi
     case "$type" in
       skills) collector=collect_skills ;;
@@ -125,23 +162,22 @@ for entry in "${HARNESSES[@]}"; do
     fi
     for dir in "${dirs[@]}"; do
       mkdir -p "$dir"
-      ok=0; linked=0; repointed=0; conflicts=()
+      ok=0; linked=0; repointed=0; overwritten=0
       while IFS=$'\t' read -r linkname src; do
         [ -n "$linkname" ] || continue
         case "$(link_one "$dir/$linkname" "$src")" in
-          ok)       ok=$((ok+1)) ;;
-          link)     linked=$((linked+1)) ;;
-          repoint)  repointed=$((repointed+1)) ;;
-          conflict) conflicts+=("$linkname") ;;
+          ok)        ok=$((ok+1)) ;;
+          link)      linked=$((linked+1)) ;;
+          repoint)   repointed=$((repointed+1)) ;;
+          overwrite) overwritten=$((overwritten+1)) ;;
         esac
       done < <($collector)
-      # One summary line per destination; conflicts also listed since they need a fix.
+      # One summary line per destination.
       summary="$ok ok"
       [ "$linked" -gt 0 ] && summary="$summary, $linked linked"
       [ "$repointed" -gt 0 ] && summary="$summary, $repointed repointed"
-      [ "${#conflicts[@]}" -gt 0 ] && summary="$summary, ${#conflicts[@]} conflict"
+      [ "$overwritten" -gt 0 ] && summary="$summary, $overwritten overwritten"
       echo "  [$type] -> $dir ($summary)"
-      for c in "${conflicts[@]}"; do echo "      CONFLICT $c (real path exists, left untouched)"; done
     done
   done
 done
