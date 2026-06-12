@@ -11,7 +11,7 @@ PI_AGENT_DIR="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}"
 # every existing match, so a single pair can fan out to many destinations.
 HARNESSES=(
   "claude|$HOME/.claude|claude|skills:$HOME/.claude/skills;agents:$HOME/.claude/agents"
-  "pi|$PI_AGENT_DIR|pi|skills:$PI_AGENT_DIR/skills;agents:$PI_AGENT_DIR/agents"
+  "pi|$PI_AGENT_DIR|pi|skills:$PI_AGENT_DIR/skills;agents:$PI_AGENT_DIR/agents;config:$PI_AGENT_DIR::$REPO_ROOT/pi;config:$PI_AGENT_DIR/extensions::$REPO_ROOT/pi/extensions"
   "codex|$HOME/.codex|codex|skills:$HOME/.codex/skills"
   "cursor|$HOME/.cursor|cursor,cursor-agent|skills:$HOME/.cursor/skills"
   "openclaw|$HOME/.openclaw|openclaw|skills:$HOME/.openclaw/skills"
@@ -44,6 +44,35 @@ collect_agents() {
   done
 }
 
+# Config files are copied (not symlinked) because the harness may rewrite them
+# locally (e.g. pi updates lastChangelogVersion). Copies the top-level files of
+# src_dir into dest_dir, skipping dotfiles and subdirs. Reports ok|copy|update.
+copy_one() {
+  local dest="$1" src="$2"
+  if [ -e "$dest" ] && cmp -s "$dest" "$src"; then echo ok
+  elif [ -e "$dest" ]; then cp "$src" "$dest"; echo update
+  else cp "$src" "$dest"; echo copy; fi
+}
+
+install_config() {
+  local dest_dir="$1" src_dir="$2"
+  if [ ! -d "$src_dir" ]; then echo "  [config] no source $src_dir, skipping"; return; fi
+  mkdir -p "$dest_dir"
+  local ok=0 copied=0 updated=0
+  while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    case "$(copy_one "$dest_dir/$(basename "$f")" "$f")" in
+      ok)     ok=$((ok+1)) ;;
+      copy)   copied=$((copied+1)) ;;
+      update) updated=$((updated+1)) ;;
+    esac
+  done < <(find "$src_dir" -maxdepth 1 -type f -not -name '.*')
+  local summary="$ok ok"
+  [ "$copied" -gt 0 ] && summary="$summary, $copied copied"
+  [ "$updated" -gt 0 ] && summary="$summary, $updated updated"
+  echo "  [config] -> $dest_dir ($summary)"
+}
+
 # Present if the home dir exists or any listed binary is on PATH.
 present() {
   [ -d "$1" ] && return 0
@@ -73,6 +102,11 @@ for entry in "${HARNESSES[@]}"; do
   IFS=';' read -ra pairs <<<"$typemap"
   for pair in "${pairs[@]}"; do
     type="${pair%%:*}"; pattern="${pair#*:}"
+    # config pairs encode both destination and source as DEST::SRC and are
+    # copied rather than symlinked, so they bypass the shared linker loop.
+    if [ "$type" = "config" ]; then
+      install_config "${pattern%%::*}" "${pattern##*::}"; continue
+    fi
     case "$type" in
       skills) collector=collect_skills ;;
       agents) collector=collect_agents ;;

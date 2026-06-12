@@ -19,6 +19,29 @@ Install or update the tools:
 bash install.sh
 ```
 
+## Portable pi config
+
+`pi/` holds the portable, non-secret pi configuration that `install.sh` copies
+into `~/.pi/agent` (it is **copied**, not symlinked, because pi rewrites these
+files locally):
+
+| File | Purpose |
+| --- | --- |
+| `pi/settings.json` | Defaults + the `packages` list (the extension manifest). |
+| `pi/extensions/*.json` | Per-extension config. |
+
+Secrets and machine-local state (`auth.json`, `auth-profiles/`, `web-search.json`,
+`trust.json`, sessions, run history) are git-ignored and never travel — re-auth
+per machine with `/login`.
+
+### New machine bootstrap
+```sh
+git clone git@github.com:nanstey/agentic-tools.git ~/Code/skills
+cd ~/Code/skills && bash install.sh   # links skills + agents, copies pi config
+pi                                     # installs packages from settings.json
+/login anthropic                       # re-auth (secrets are never synced)
+```
+
 ## Skills
 
 ### Dev

@@ -1,0 +1,71 @@
+{
+  "autoApprove": false,
+  "diffColorMode": "default",
+  "showDiffRail": true,
+  "expandableLayout": false,
+  "collapsedHeight": "30%",
+  "expandedHeight": "100%",
+  "expandedWidth": "100%",
+  "keybindings": {
+    "approve": [
+      "Enter",
+      "a",
+      "y"
+    ],
+    "reject": [
+      "Escape",
+      "r"
+    ],
+    "steer": [
+      "s"
+    ],
+    "editInline": [
+      "e",
+      "E"
+    ],
+    "autoApprove": [
+      "A"
+    ],
+    "scrollUp": [
+      "up"
+    ],
+    "scrollDown": [
+      "down"
+    ],
+    "pageUp": [
+      "pageUp"
+    ],
+    "pageDown": [
+      "pageDown"
+    ],
+    "scrollTop": [
+      "home"
+    ],
+    "scrollBottom": [
+      "end"
+    ],
+    "nextHunk": [
+      "n"
+    ],
+    "prevHunk": [
+      "p"
+    ],
+    "toggleMode": [
+      "Tab"
+    ],
+    "toggleWrap": [
+      "w"
+    ],
+    "toggleExpand": [
+      "ctrl+f"
+    ],
+    "contextMore": [
+      "right",
+      "]"
+    ],
+    "contextLess": [
+      "left",
+      "["
+    ]
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "defaultProvider": "anthropic",
+  "defaultModel": "claude-opus-4-8",
+  "defaultThinkingLevel": "medium",
+  "npmCommand": [
+    "pnpm"
+  ],
+  "packages": [
+    "npm:pi-subagents",
+    "npm:pi-observational-memory",
+    "npm:pi-observability",
+    "npm:pi-web-access",
+    "npm:pi-interactive-shell",
+    "npm:@plannotator/pi-extension",
+    "npm:@heyhuynhgiabuu/pi-diff",
+    "npm:@nanstey/pi-auth-profiles",
+    "npm:@gotgenes/pi-anthropic-auth"
+  ]
+}
