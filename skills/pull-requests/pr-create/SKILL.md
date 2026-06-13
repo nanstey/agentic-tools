@@ -24,9 +24,9 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 1. Resolve PR state via `pr-info`; if a PR already exists, report it and stop.
 2. Confirm the branch is pushed; push with `git push -u origin <branch>` if needed.
 3. Determine base branch (explicit input > repo convention > `develop`).
-4. Analyze `base...HEAD` diff (`git log`, `git diff --stat`, `git diff`) to draft title and body.
-5. Write a concise body (typically `Summary`, `What Changed`, optional `Testing`/`Open Questions`); do not write from commit messages alone.
-6. Create the PR with `gh pr create --draft --base <base> --title ... --body ...`.
+4. Analyze `base...HEAD` diff (`git log`, `git diff --stat`, `git diff`) to draft a title and a placeholder body.
+5. Create the PR with `gh pr create --draft --base <base> --title ... --body ...`.
+6. Run `pr-description` to write the full body from the diff.
 7. Verify by re-reading the PR and report the URL.
 
 Stop and ask if the branch has no commits ahead of base, the base is ambiguous, or push fails.
@@ -35,7 +35,7 @@ Stop and ask if the branch has no commits ahead of base, the base is ambiguous, 
 
 - Never create a second PR when one already exists for the branch.
 - Never force-push or rewrite history; pushing the branch is the only allowed git mutation.
-- Never base the description only on commit titles when the diff is available.
+- Never write the final body inline; delegate it to `pr-description`.
 - Never mark the PR ready-for-review unless explicitly asked.
 - If unexpected working tree changes appear while you are working, stop and ask the user how to proceed.
 
