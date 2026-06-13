@@ -19,7 +19,7 @@ Default behavior is to update the PR directly once rewritten.
 ## Workflow
 
 1. Resolve PR via `pr-info`.
-2. If no PR exists, create a draft PR (default base `develop`) and continue.
+2. If no PR exists, stop and suggest `pr-create`.
 3. Read current body and metadata.
 4. Analyze `base...HEAD` diff (`git log`, `git diff --stat`, `git diff`).
 5. Identify drift: missing changes, stale bullets, stale/complete checklist items.
@@ -42,4 +42,4 @@ Do not write from commit messages alone; use the diff.
 
 ## Output Style
 
-Report PR updated/created, base used for drift analysis, major drift found, and what sections were rewritten/preserved/checked/removed.
+Report PR updated, base used for drift analysis, major drift found, and what sections were rewritten/preserved/checked/removed.
