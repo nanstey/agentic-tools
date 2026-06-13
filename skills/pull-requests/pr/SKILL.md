@@ -21,14 +21,14 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 ## Workflow
 
 Run in order, skipping steps the user excluded.
-Batch all local work before the first push so CI and review agents trigger once, not per step:
+Fix everything against the already-pushed state, then push once at the end so CI and review agents retrigger a single time:
 
-1. `pr-info`: resolve and verify the PR; if none exists, run `pr-create`.
-2. `pr-rebase`: rebase onto the latest base locally; instruct it to **defer the force-push**.
-3. `pr-comments` (fix pass): apply fixes for unresolved threads locally; instruct it to **defer push and thread replies**.
-4. Push once with `--force-with-lease`. This triggers a single fresh CI run and review-agent pass.
-5. `pr-ci`: wait for the fresh run, then diagnose and fix failed jobs until green or blocked (its fix loop may push again).
-6. `pr-comments` (follow-up pass): reply to and resolve the threads fixed in step 3, and triage any new comments from the retriggered review agent.
+1. `pr-info`: resolve and verify the PR.
+2. `pr-create`: if no PR exists, create one.
+3. `pr-ci`: diagnose existing failed CI jobs and apply fixes locally; instruct it to **defer push**.
+4. `pr-comments`: apply fixes for unresolved threads locally; instruct it to **defer push and thread replies**.
+5. `pr-rebase`: rebase onto the latest base and force-push with lease. This single push carries all fixes and triggers one fresh CI run and review-agent pass.
+6. Follow up: confirm the fresh CI run is green (loop back to `pr-ci` if not), then reply to and resolve the threads fixed in step 4.
 7. `pr-description`: sync the PR body with the final changeset.
 
 After each step, report its outcome before continuing.
@@ -36,8 +36,7 @@ Stop and ask when any step hits its own stop gate, fails, or leaves the branch i
 
 ## Safety Rules
 
-- Never reorder destructive steps: rebase must complete before CI fixes and comment resolution.
-- Never push between steps 2-3; deferred pushes exist to avoid retriggering CI and review agents on intermediate states.
+- Never push during steps 3-4; the rebase push exists to avoid retriggering CI and review agents on intermediate states.
 - Never resolve threads before their fix commit is pushed.
 - Never continue past a failed step without user approval.
 - Never duplicate work a sub-skill owns; delegate instead of reimplementing.
