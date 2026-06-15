@@ -59,6 +59,21 @@ For supported types, installer changes are not needed. Re-run `install.sh` to
 link. When renaming a tool, rename both path and `name:`, then re-run install
 and remove stale links.
 
+## Catalog (README) policy
+
+`README.md` is the catalog and must stay in sync with the tools on disk. Any
+change that **adds**, **renames**, or **removes** a skill or agent must update
+`README.md` in the same change:
+
+- **Add**: insert a catalog row under the correct section, linking the tool's
+  path and using its frontmatter `description`.
+- **Rename**: update the row's name, link path, and description together.
+- **Remove**: delete the corresponding row.
+
+Keep section placement aligned with the tool's location/category, and keep the
+row `description` consistent with the tool's frontmatter. A change to a skill or
+agent is not complete until the catalog reflects it.
+
 ## Commit granularity policy
 
 Default: one skill per commit (`skills/.../<name>/SKILL.md` or
