@@ -70,6 +70,7 @@ Stop and ask if request spans multiple skills, name is not `CLEAR`, or ambiguity
 - Never skip clarifying questions when ambiguity affects behavior, tooling, or safety (excluding default location).
 - Never violate required repository conventions for frontmatter and section ordering.
 - Never silently broaden scope beyond one requested skill without user approval.
+- Never leave `README.md` out of sync after adding, renaming, or removing a skill.
 
 ## Output Style
 

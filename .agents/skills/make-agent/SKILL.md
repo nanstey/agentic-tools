@@ -59,7 +59,8 @@ Body contract:
 4. Normalize/derive agent name and validate repo uniqueness.
 5. Create `agents/<name>.md` with compliant frontmatter and prompt body.
 6. Ensure prompt includes stop-and-ask gates and override rule.
-7. Verify naming alignment (`name`, filename, and references).
+7. Add a concise `README.md` catalog entry under the Agents section.
+8. Verify naming alignment (`name`, filename, and references) and catalog sync.
 
 Stop and ask if request spans multiple agents, name conflicts with existing tools/agents, or ambiguity changes behavior/safety.
 
@@ -70,6 +71,7 @@ Stop and ask if request spans multiple agents, name conflicts with existing tool
 - Never hide assumptions; label and confirm high-impact ones.
 - Never skip clarifications when ambiguity affects behavior, safety, or permissions.
 - Never silently broaden scope beyond one requested agent without user approval.
+- Never leave `README.md` out of sync after adding, renaming, or removing an agent.
 
 ## Output Style
 
