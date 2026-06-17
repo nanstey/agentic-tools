@@ -21,15 +21,23 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 ## Workflow
 
 Run in order, skipping steps the user excluded.
-Fix everything against the already-pushed state, then push once at the end so CI and review agents retrigger a single time:
 
-1. `pr-info`: resolve and verify the PR.
-2. `pr-create`: if no PR exists, create one.
-3. `pr-ci`: diagnose existing failed CI jobs and apply fixes locally; instruct it to **defer push**.
-4. `pr-comments`: apply fixes for unresolved threads locally; instruct it to **defer push and thread replies**.
-5. `pr-rebase`: rebase onto the latest base and force-push with lease. This single push carries all fixes and triggers one fresh CI run and review-agent pass.
-6. Follow up: confirm the fresh CI run is green (loop back to `pr-ci` if not), then reply to and resolve the threads fixed in step 4.
-7. `pr-description`: sync the PR body with the final changeset.
+### 0. Pre-check
+  - `changes`: check for uncommitted changes and report them; if any, stop and ask the user to commit/stash them before proceeding.
+
+### 1. Check for existing PR status
+  - `pr-info`: resolve and verify the PR.
+
+### 2a. If PR exists, check comments and CI
+  - `pr-comments`: diagnose existing failed CI jobs and apply fixes locally; instruct it to **defer push**.
+  - `pr-ci`: apply fixes for unresolved threads locally; instruct it to **defer push and thread replies**.
+
+### 2b. If PR doesn't exist, create one
+  - `pr-create`: create a new PR.
+
+### 3. Update the PR
+  - `pr-rebase`: rebase onto the latest base and force-push with lease. This single push carries all fixes and triggers one fresh CI run and review-agent pass.
+  - `pr-description`: sync the PR body with the final changeset.
 
 After each step, report its outcome before continuing.
 Stop and ask when any step hits its own stop gate, fails, or leaves the branch in an unexpected state.
