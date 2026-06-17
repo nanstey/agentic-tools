@@ -9,9 +9,12 @@ disable-model-invocation: false
 
 ## Core Contract
 
-Execute one cohesive change as a sequence of individually verifiable phases, each with edits and validation.
+Execute one cohesive change using subagents as a sequence of individually verifiable phases, each with edits and validation.
+
 Define success criteria before editing and advance only when the current phase's criteria pass.
 Follow `CLAUDE.md` / `AGENTS.md` on conflict.
+
+Protect the context window of your main thread by delegating to subagents wherever possible. Run subagents in parallel where possible. Choose an appropriate model per task.
 
 ## Required Inputs
 
@@ -28,8 +31,8 @@ If no actionable target or intent exists, stop and ask.
 1. Classify input, restate objective, and define behavioural success criteria up front.
 2. Assess branch fitness: if the current branch is unsuitable or the tree is dirty, run `/branch` or `/worktree` before editing.
 3. Confirm validation tooling is available and runnable; acquire or flag missing tooling before relying on it.
-4. Decompose into individually verifiable phases; plan delegation of decomposable or parallel work to subagents, choosing a model per subtask and protecting main-thread context.
-5. For each phase: implement in small focused edits, validate its success criteria, update speclist checkboxes only after validation, then run `/commit`.
+4. Decompose into individually verifiable phases.
+5. For each phase: implement focused edits, and validate its success criteria, update speclist checkboxes only after validation, then run `/commit`.
 6. When all phases pass, run `/pr`.
 7. Summarize changes, validation, assumptions, and risks.
 
