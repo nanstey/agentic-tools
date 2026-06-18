@@ -27,7 +27,14 @@ Default behavior is to update the PR directly once rewritten.
 7. Preserve still-relevant links/issues/related PR refs.
 8. Update PR body via `gh` and verify by re-reading PR.
 
-Do not write from commit messages alone; use the diff.
+## Guidelines
+
+- Do not write from commit messages alone; use the diff.
+- Do not credit agents (Claude Code, Codex, etc.) for writing the description.
+- Do not reference filepaths in the summary.
+- Do not reference uncommitted plan files.
+- Do not structure the content according to implementation order.
+- Use appropriate subsections in `What changed` section
 
 ## Safety Rules
 
