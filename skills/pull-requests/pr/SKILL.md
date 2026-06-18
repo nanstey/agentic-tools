@@ -23,7 +23,9 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 Run in order, skipping steps the user excluded.
 
 ### 0. Pre-check
-  - `changes`: check for uncommitted changes and report them; if any, stop and ask the user to commit/stash them before proceeding.
+  - IF uncommitted `changes`:
+    - IF on main/develop: create a new `branch`, and `commit`, then proceed to step 2b.
+    - ELSE: `commit`
 
 ### 1. Check for existing PR status
   - `pr-info`: resolve and verify the PR.
