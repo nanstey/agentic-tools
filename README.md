@@ -55,7 +55,13 @@ pi                                     # installs packages from settings.json
 | [`conflicts`](skills/dev/conflicts/SKILL.md) | Resolve merge/rebase/cherry-pick/revert conflicts and continue the stopped operation. |
 | [`branch`](skills/dev/branch/SKILL.md) | Create a new branch for current/proposed changes, deriving a conventional `<type>/<slug>` name when none is given. |
 | [`worktree`](skills/dev/worktree/SKILL.md) | Create or reuse a git worktree for a branch (local, remote-only, or new) and report its path. |
-| [`speclist`](skills/dev/speclist/SKILL.md) | Convert reports into ordered implementation checklists with blockers and validation steps. |
+
+### Planning
+
+| Skill | Description |
+| --- | --- |
+| [`proposal`](skills/planning/proposal/SKILL.md) | Run discovery and uncertainty resolution for a change, then write a terse plan document covering purpose, behaviour, validation, architecture, and phased vertical slices. Read-only. |
+| [`speclist`](skills/planning/speclist/SKILL.md) | Convert reports into ordered implementation checklists with blockers and validation steps. |
 
 ### Agent
 
