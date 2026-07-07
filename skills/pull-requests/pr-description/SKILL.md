@@ -36,6 +36,11 @@ Default behavior is to update the PR directly once rewritten.
 - Do not structure the content according to implementation order.
 - Use appropriate subsections in `What changed` section
 
+## Implementation Notes
+
+- If `gh pr edit --body-file <file>` fails on the deprecated `projectCards` GraphQL field (`repository.pullRequest.projectCards`), it does **not** update the body. Fall back to the REST API: `gh api -X PATCH repos/<owner>/<repo>/pulls/<number> -F body=@<file>` (resolve `<owner>/<repo>` via `gh repo view --json nameWithOwner -q .nameWithOwner`).
+- Always verify by re-reading the body afterward: `gh pr view <number> --json body -q .body`.
+
 ## Safety Rules
 
 - Never assume the current branch has exactly one PR without verifying it.
