@@ -28,7 +28,7 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 5. For each, classify the gap: missing tool, incomplete workflow step, unclear instruction, missing safety rule, or absent script/automation.
 6. Propose the smallest durable change per gap (edit a skill step, add a safety rule, add a script, clarify a doc), citing the file path.
 7. Present the ranked proposals and stop for approval.
-8. On approval, apply changes following the matching authoring skill (`make-skill` / `make-agent`) and repo conventions, keeping README in sync.
+8. On approval, apply changes following existing repo conventions, keeping README and other reference docs in sync.
 
 Stop and ask before implementing edits, when a fix spans multiple skills, or when a proposal changes tool behavior or safety.
 
