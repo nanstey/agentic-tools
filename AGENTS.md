@@ -11,7 +11,7 @@ This repo stores reusable **agentic tools**:
 - **Loops**: one `LOOP.md` runbook per directory under `loops/`, paired with a
   `SKILL.md` entrypoint shim; agent-driven runbooks that orchestrate agents and
   skills (trigger → iterate → verifiable goal/brake). The shim makes each loop a
-  searchable `skill:<name>` command that reads and runs its `LOOP.md`.
+  searchable `skill:loop-<name>` command that reads and runs its `LOOP.md`.
 
 Tools are installed by **symlink**. Editing here updates linked harnesses.
 `README.md` is the catalog. `INSTALL.md` performs linking.
@@ -64,7 +64,8 @@ Use the matching authoring skill instead of copying conventions from here:
 - **Loop:** add `loops/<name>/LOOP.md` plus a `SKILL.md` shim; use
   `.agents/skills/make-loop/SKILL.md`. Loops install into the **skills** dir of
   harnesses that also receive agents (pi, claude), so each is discoverable as a
-  `skill:<name>` command; the shim reads and runs the sibling `LOOP.md`.
+  `skill:loop-<name>` command (the `loop-` prefix groups loops under a `loop`
+  search); the shim reads and runs the sibling `LOOP.md`.
 
 For supported types, installer changes are not needed. Re-run `install.sh` to
 link. When renaming a tool, rename both path and `name:`, then re-run install

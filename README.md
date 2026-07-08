@@ -147,7 +147,7 @@ Claude Code subagents for focused delegated work.
 Agent-driven runbooks that orchestrate agents and skills (trigger → iterate →
 verifiable goal/brake). Each loop ships a `SKILL.md` entrypoint shim and installs
 into the skills dir of agent-capable harnesses (pi, claude), so it is searchable
-as a `skill:<name>` command that reads and runs the loop's `LOOP.md`.
+as a `skill:loop-<name>` command that reads and runs the loop's `LOOP.md`.
 
 | Loop | Description |
 | --- | --- |

@@ -1,5 +1,5 @@
 ---
-name: green-ci
+name: loop-green-ci
 description: Runs the green-ci loop — iterate fix-and-verify on the current branch until CI is green or a brake trips. Use when a branch has failing CI that should be driven to green without step-by-step prompting.
 user-invocable: true
 disable-model-invocation: false

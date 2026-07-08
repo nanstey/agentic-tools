@@ -116,6 +116,6 @@ not exist.
 ## Output Style
 
 Report final loop name and name-check verdict, files changed (`LOOP.md` and
-`SKILL.md`), how it is invoked (`skill:<name>`), the verifiable goal and brakes,
+`SKILL.md`), how it is invoked (`skill:loop-<name>`), the verifiable goal and brakes,
 agents/skills composed, assumptions confirmed, defaults applied, and the
 reminder to re-run `install.sh`.
