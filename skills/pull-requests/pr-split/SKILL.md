@@ -1,11 +1,11 @@
 ---
-name: split
+name: pr-split
 description: Splits a large branch or PR into smaller, independently reviewable units by grouping changes and proposing parallel PRs or a stacked series. Use when a changeset is too big to review well and should be broken up.
 user-invocable: true
 disable-model-invocation: false
 ---
 
-# Split
+# PR Split
 
 ## Core Contract
 
