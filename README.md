@@ -6,6 +6,7 @@ Reusable tools for real engineering work across machines and projects.
 | --- | --- |
 | **Skills** | Portable `SKILL.md` workflows for reliable end-to-end tasks. |
 | **Agent profiles** | Claude Code subagents I can delegate focused work to. |
+| **Loops** | `LOOP.md` runbooks that orchestrate agents and skills into iterative, self-verifying processes. |
 
 ## Quick Start
 
@@ -140,3 +141,12 @@ Claude Code subagents for focused delegated work.
 | [`context-builder`](agents/context-builder.md) | Analyzes requirements and codebase; generates `context.md` and `meta-prompt.md` for planning and subagent handoffs. |
 | [`oracle`](agents/oracle.md) | High-context decision-consistency oracle that protects inherited state and prevents drift. Read-only. |
 | [`delegate`](agents/delegate.md) | Lightweight subagent that inherits the parent model with no default reads. General-purpose delegated execution. |
+
+## Loops
+
+Agent-driven runbooks that orchestrate agents and skills (trigger → iterate →
+verifiable goal/brake). Installed into agent-capable harnesses (pi, claude).
+
+| Loop | Description |
+| --- | --- |
+| [`green-ci`](loops/green-ci/LOOP.md) | Iterate fix-and-verify cycles on the current branch until CI is green or a brake trips. |
