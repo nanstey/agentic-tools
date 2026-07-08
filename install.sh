@@ -10,8 +10,8 @@ PI_AGENT_DIR="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}"
 # A dir may be a glob (e.g. one skills dir per hermes profile): it expands to
 # every existing match, so a single pair can fan out to many destinations.
 HARNESSES=(
-  "claude|$HOME/.claude|claude|skills:$HOME/.claude/skills;agents:$HOME/.claude/agents"
-  "pi|$PI_AGENT_DIR|pi|skills:$PI_AGENT_DIR/skills;agents:$PI_AGENT_DIR/agents;config:$PI_AGENT_DIR::$REPO_ROOT/pi;config:$PI_AGENT_DIR/extensions::$REPO_ROOT/pi/extensions;hoist:$PI_AGENT_DIR/npm::$REPO_ROOT/pi/settings.json"
+  "claude|$HOME/.claude|claude|skills:$HOME/.claude/skills;agents:$HOME/.claude/agents;loops:$HOME/.claude/loops"
+  "pi|$PI_AGENT_DIR|pi|skills:$PI_AGENT_DIR/skills;agents:$PI_AGENT_DIR/agents;loops:$PI_AGENT_DIR/loops;config:$PI_AGENT_DIR::$REPO_ROOT/pi;config:$PI_AGENT_DIR/extensions::$REPO_ROOT/pi/extensions;hoist:$PI_AGENT_DIR/npm::$REPO_ROOT/pi/settings.json"
   "codex|$HOME/.codex|codex|skills:$HOME/.codex/skills"
   "cursor|$HOME/.cursor|cursor,cursor-agent|skills:$HOME/.cursor/skills"
   "openclaw|$HOME/.openclaw|openclaw|skills:$HOME/.openclaw/skills"
@@ -41,6 +41,17 @@ collect_agents() {
   while read -r f; do
     n="$(fm_name "$f")"; [ -n "$n" ] || n="$(basename "${f%.md}")"
     printf '%s.md\t%s\n' "$n" "$(cd "$(dirname "$f")" && pwd)/$(basename "$f")"
+  done
+}
+
+# Loops: directories with a LOOP.md under loops/. Emits "linkname<TAB>srcdir".
+# Linked as directory symlinks like skills, so a loop can carry aux files.
+collect_loops() {
+  [ -d "$REPO_ROOT/loops" ] || return 0
+  find "$REPO_ROOT/loops" -type f -name LOOP.md -not -path '*/.git/*' -exec dirname {} \; | sort -u |
+  while read -r d; do
+    n="$(fm_name "$d/LOOP.md")"; [ -n "$n" ] || n="$(basename "$d")"
+    printf '%s\t%s\n' "$n" "$(cd "$d" && pwd)"
   done
 }
 
@@ -147,6 +158,7 @@ for entry in "${HARNESSES[@]}"; do
     case "$type" in
       skills) collector=collect_skills ;;
       agents) collector=collect_agents ;;
+      loops)  collector=collect_loops ;;
       *) echo "  [$type] unknown type, skipping"; continue ;;
     esac
     # The dir may be a glob; nullglob makes a non-matching pattern expand to
