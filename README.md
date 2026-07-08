@@ -31,14 +31,13 @@ files locally):
 | `pi/extensions/*.json` | Per-extension config. |
 | `pi/command-shortcuts.json` | Command shortcut bindings. |
 | `pi/keybindings.json` | Custom keybindings. |
-| `pi/SYNC.md` | Runbook to capture live `~/.pi/agent` config back into `pi/`. |
 
 Secrets and machine-local state (`auth.json`, `auth-profiles/`, `web-search.json`,
 `trust.json`, sessions, run history) are git-ignored and never travel — re-auth
 per machine with `/login`.
 
-To pull live config changes back into the repo, follow the allowlist-based
-runbook in [`pi/SYNC.md`](pi/SYNC.md) (it never reads or copies secrets).
+To pull live config changes back into the repo, use the [`pi-sync`](.agents/skills/pi-sync/SKILL.md)
+skill (allowlist-based; it never reads or copies secrets).
 
 ### New machine bootstrap
 ```sh
@@ -121,6 +120,7 @@ pi                                     # installs packages from settings.json
 | Skill | Description |
 | --- | --- |
 | [`check-skill-name`](.agents/skills/check-skill-name/SKILL.md) | Check skill names for collisions and return CLEAR/CONFLICT/RISKY plus safe alternatives. |
+| [`pi-sync`](.agents/skills/pi-sync/SKILL.md) | Capture portable, non-secret pi config from a live `~/.pi/agent` into `pi/` and commit it, without touching secrets. |
 | [`make-skill`](.agents/skills/make-skill/SKILL.md) | Plan and scaffold a convention-compliant repo skill, including name validation. |
 | [`make-agent`](.agents/skills/make-agent/SKILL.md) | Plan and scaffold a convention-compliant repo agent profile and align the catalog. |
 
