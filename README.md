@@ -124,6 +124,7 @@ pi                                     # installs packages from settings.json
 | [`pi-sync`](.agents/skills/pi-sync/SKILL.md) | Capture portable, non-secret pi config from a live `~/.pi/agent` into `pi/` and commit it, without touching secrets. |
 | [`make-skill`](.agents/skills/make-skill/SKILL.md) | Plan and scaffold a convention-compliant repo skill, including name validation. |
 | [`make-agent`](.agents/skills/make-agent/SKILL.md) | Plan and scaffold a convention-compliant repo agent profile and align the catalog. |
+| [`make-loop`](.agents/skills/make-loop/SKILL.md) | Plan and scaffold a convention-compliant loop runbook (`LOOP.md`) and align the catalog. |
 
 ## Agents
 
