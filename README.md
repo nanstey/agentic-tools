@@ -29,10 +29,16 @@ files locally):
 | --- | --- |
 | `pi/settings.json` | Defaults + the `packages` list (the extension manifest). |
 | `pi/extensions/*.json` | Per-extension config. |
+| `pi/command-shortcuts.json` | Command shortcut bindings. |
+| `pi/keybindings.json` | Custom keybindings. |
+| `pi/SYNC.md` | Runbook to capture live `~/.pi/agent` config back into `pi/`. |
 
 Secrets and machine-local state (`auth.json`, `auth-profiles/`, `web-search.json`,
 `trust.json`, sessions, run history) are git-ignored and never travel — re-auth
 per machine with `/login`.
+
+To pull live config changes back into the repo, follow the allowlist-based
+runbook in [`pi/SYNC.md`](pi/SYNC.md) (it never reads or copies secrets).
 
 ### New machine bootstrap
 ```sh

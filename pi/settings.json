@@ -14,6 +14,10 @@
     "npm:@plannotator/pi-extension",
     "npm:@heyhuynhgiabuu/pi-diff",
     "npm:@nanstey/pi-auth-profiles",
-    "npm:@gotgenes/pi-anthropic-auth"
-  ]
+    "npm:@gotgenes/pi-anthropic-auth",
+    "npm:@juicesharp/rpiv-voice",
+    "npm:@tmustier/pi-raw-paste",
+    "npm:@nanstey/pi-command-shortcuts"
+  ],
+  "theme": "dark"
 }
