@@ -8,8 +8,10 @@ This repo stores reusable **agentic tools**:
 
 - **Skills**: one `SKILL.md` per directory under `skills/` (portable).
 - **Agent profiles**: Claude Code subagents under `agents/`.
-- **Loops**: one `LOOP.md` per directory under `loops/`; agent-driven runbooks
-  that orchestrate agents and skills (trigger → iterate → verifiable goal/brake).
+- **Loops**: one `LOOP.md` runbook per directory under `loops/`, paired with a
+  `SKILL.md` entrypoint shim; agent-driven runbooks that orchestrate agents and
+  skills (trigger → iterate → verifiable goal/brake). The shim makes each loop a
+  searchable `skill:<name>` command that reads and runs its `LOOP.md`.
 
 Tools are installed by **symlink**. Editing here updates linked harnesses.
 `README.md` is the catalog. `INSTALL.md` performs linking.
@@ -59,8 +61,10 @@ Use the matching authoring skill instead of copying conventions from here:
   `.agents/skills/make-skill/SKILL.md` or `.agents/skills/make-agent/SKILL.md`.
 - **Agent:** add `agents/<name>.md`; mirror `agents/reviewer.md` and use
   `.agents/skills/make-agent/SKILL.md`.
-- **Loop:** add `loops/<name>/LOOP.md`; use `.agents/skills/make-loop/SKILL.md`.
-  Loops install only into harnesses that also receive agents (pi, claude).
+- **Loop:** add `loops/<name>/LOOP.md` plus a `SKILL.md` shim; use
+  `.agents/skills/make-loop/SKILL.md`. Loops install into the **skills** dir of
+  harnesses that also receive agents (pi, claude), so each is discoverable as a
+  `skill:<name>` command; the shim reads and runs the sibling `LOOP.md`.
 
 For supported types, installer changes are not needed. Re-run `install.sh` to
 link. When renaming a tool, rename both path and `name:`, then re-run install

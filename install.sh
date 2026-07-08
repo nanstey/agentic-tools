@@ -10,8 +10,8 @@ PI_AGENT_DIR="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}"
 # A dir may be a glob (e.g. one skills dir per hermes profile): it expands to
 # every existing match, so a single pair can fan out to many destinations.
 HARNESSES=(
-  "claude|$HOME/.claude|claude|skills:$HOME/.claude/skills;agents:$HOME/.claude/agents;loops:$HOME/.claude/loops"
-  "pi|$PI_AGENT_DIR|pi|skills:$PI_AGENT_DIR/skills;agents:$PI_AGENT_DIR/agents;loops:$PI_AGENT_DIR/loops;config:$PI_AGENT_DIR::$REPO_ROOT/pi;config:$PI_AGENT_DIR/extensions::$REPO_ROOT/pi/extensions;hoist:$PI_AGENT_DIR/npm::$REPO_ROOT/pi/settings.json"
+  "claude|$HOME/.claude|claude|skills:$HOME/.claude/skills;agents:$HOME/.claude/agents;loops:$HOME/.claude/skills"
+  "pi|$PI_AGENT_DIR|pi|skills:$PI_AGENT_DIR/skills;agents:$PI_AGENT_DIR/agents;loops:$PI_AGENT_DIR/skills;config:$PI_AGENT_DIR::$REPO_ROOT/pi;config:$PI_AGENT_DIR/extensions::$REPO_ROOT/pi/extensions;hoist:$PI_AGENT_DIR/npm::$REPO_ROOT/pi/settings.json"
   "codex|$HOME/.codex|codex|skills:$HOME/.codex/skills"
   "cursor|$HOME/.cursor|cursor,cursor-agent|skills:$HOME/.cursor/skills"
   "openclaw|$HOME/.openclaw|openclaw|skills:$HOME/.openclaw/skills"
@@ -45,7 +45,9 @@ collect_agents() {
 }
 
 # Loops: directories with a LOOP.md under loops/. Emits "linkname<TAB>srcdir".
-# Linked as directory symlinks like skills, so a loop can carry aux files.
+# Linked as directory symlinks into the harness skills dir: each loop dir also
+# carries a SKILL.md entrypoint shim, so the harness discovers it as a command
+# (`skill:<name>`) that reads and runs the sibling LOOP.md runbook.
 collect_loops() {
   [ -d "$REPO_ROOT/loops" ] || return 0
   find "$REPO_ROOT/loops" -type f -name LOOP.md -not -path '*/.git/*' -exec dirname {} \; | sort -u |

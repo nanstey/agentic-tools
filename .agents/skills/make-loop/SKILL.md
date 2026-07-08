@@ -9,8 +9,8 @@ disable-model-invocation: true
 
 ## Core Contract
 
-Create one new loop in this repository as `loops/<name>/LOOP.md`, plus a
-`README.md` catalog entry.
+Create one new loop in this repository as `loops/<name>/LOOP.md`, paired with a
+`loops/<name>/SKILL.md` entrypoint shim, plus a `README.md` catalog entry.
 
 A **loop** is an agent-driven runbook: a trigger starts it, an agent iterates
 (observe → decide → act → verify) over orchestrated agents and skills, and it
@@ -56,6 +56,20 @@ Body sections use this default order; omit one only when it does not apply:
 
 Reference an existing loop under `loops/` for the house style.
 
+### Entrypoint shim (`SKILL.md`)
+
+Each loop dir also carries a thin `SKILL.md` beside its `LOOP.md`. Harnesses
+only discover files named `SKILL.md`, so the shim is what makes a loop a
+searchable `skill:<name>` command; `install.sh` links the loop dir into the
+harness skills dir. The shim must:
+
+- use skill frontmatter with `name` == the loop name (== directory name) and a
+  `description` that ends with `Use when ...`;
+- have a body that instructs the agent to read the sibling `LOOP.md` and execute
+  it exactly per its contract, without skipping the brakes or verification gate.
+
+Keep the shim mechanical: the runbook substance lives in `LOOP.md`, not the shim.
+
 ## Required Inputs
 
 1. Loop purpose and the outcome it drives toward.
@@ -74,10 +88,13 @@ Reference an existing loop under `loops/` for the house style.
    a fuzzy goal or missing brake is a stop-and-ask.
 5. Normalize/derive the name and validate with `check-skill-name`.
 6. Create `loops/<name>/LOOP.md` with required conventions.
-7. Add a concise `README.md` catalog row under the Loops section.
-8. Verify naming alignment (`name` == directory) and section/policy compliance.
-9. Note that `install.sh` links loops into agent-capable harnesses (pi, claude);
-   re-run it to install.
+7. Create the `loops/<name>/SKILL.md` entrypoint shim beside it.
+8. Add a concise `README.md` catalog row under the Loops section.
+9. Verify naming alignment (`name` == directory across `LOOP.md` and `SKILL.md`)
+   and section/policy compliance.
+10. Note that `install.sh` links loops into the skills dir of agent-capable
+    harnesses (pi, claude), exposing each as a `skill:<name>` command; re-run it
+    to install.
 
 Stop and ask if the request spans multiple loops, the name is not `CLEAR`, the
 goal is not verifiable, brakes are undefined, or a referenced agent/skill does
@@ -90,12 +107,15 @@ not exist.
   undefined; an unbounded loop is a token furnace, not a tool.
 - Never reference agents or skills that do not exist in this repository.
 - Never hide assumptions; label them and confirm high-impact ones.
-- Never conflate types: a loop is a `LOOP.md` under `loops/`, never a skill or
-  an agent.
+- Never conflate types: a loop is a `LOOP.md` under `loops/` (its `SKILL.md` is
+  only a mechanical entrypoint shim), never a standalone skill or an agent.
+- Never ship a loop without its `SKILL.md` shim; without it the loop is invisible
+  to harnesses and cannot be triggered.
 - Never leave `README.md` out of sync after adding, renaming, or removing a loop.
 
 ## Output Style
 
-Report final loop name and name-check verdict, files changed, the verifiable
-goal and brakes, agents/skills composed, assumptions confirmed, defaults
-applied, and the reminder to re-run `install.sh`.
+Report final loop name and name-check verdict, files changed (`LOOP.md` and
+`SKILL.md`), how it is invoked (`skill:<name>`), the verifiable goal and brakes,
+agents/skills composed, assumptions confirmed, defaults applied, and the
+reminder to re-run `install.sh`.
