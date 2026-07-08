@@ -68,6 +68,7 @@ pi                                     # installs packages from settings.json
 | Skill | Description |
 | --- | --- |
 | [`context-engineering`](skills/agent/context-engineering/SKILL.md) | Audit a scope (skill, system prompt, tool set, CLAUDE.md, project) against context engineering best practices and apply improvements. |
+| [`context-tree`](skills/agent/context-tree/SKILL.md) | Generate, maintain, and traverse a co-located tree of `CONTEXT.md` indexes and single-concept knowledge files (loosely OKF) to surface minimal subsystem context. |
 | [`scope`](skills/agent/scope/SKILL.md) | Confirm and normalize analysis scope, then return clear scope assumptions before scanning files. |
 
 ### Writing

@@ -18,7 +18,7 @@ Protect the context window of your main thread by delegating to subagents wherev
 
 ## Required Inputs
 
-1. Source: `context`, `plan`, or `speclist` (inline or filepath). If absent, derive a minimal plan from intent.
+1. Source: `context`, `plan`, `proposal`, or `speclist` (inline or filepath). If absent, derive a minimal plan from intent.
 2. Outcome and boundaries.
 3. Success criteria stated as observable behaviour (BDD/TDD), not implementation details.
 4. Required validation and the tooling/methods it depends on.
