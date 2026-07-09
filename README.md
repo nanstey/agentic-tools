@@ -68,6 +68,9 @@ pi                                     # installs packages from settings.json
 | --- | --- |
 | [`proposal`](skills/planning/proposal/SKILL.md) | Run discovery and uncertainty resolution for a change, then write a terse plan document covering purpose, behaviour, validation, architecture, and phased vertical slices. Read-only. |
 | [`speclist`](skills/planning/speclist/SKILL.md) | Convert reports into ordered implementation checklists with blockers and validation steps. |
+| [`wayfinder`](skills/planning/wayfinder/SKILL.md) | Chart an oversized effort as a shared map of investigation tickets — backed by an issue tracker or a markdown sub-folder — and resolve them one at a time until the route to the destination is clear. |
+| [`grilling`](skills/planning/grilling/SKILL.md) | Interrogate the user one question at a time to stress-test a plan or design until a shared understanding is reached. |
+| [`research`](skills/planning/research/SKILL.md) | Investigate a question against high-trust primary sources and capture the findings as a cited Markdown file in the repo. |
 
 ### Agent
 
