@@ -1,5 +1,5 @@
 {
   "app.session.rename": "f2",
   "tui.input.newLine": ["enter", "shift+enter"],
-  "tui.input.submit": ["ctrl+enter", "ctrl+j"]
+  "tui.input.submit": ["alt+enter", "ctrl+j"]
 }
