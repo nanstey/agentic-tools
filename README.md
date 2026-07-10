@@ -82,6 +82,7 @@ pi                                     # installs packages from settings.json
 | Skill | Description |
 | --- | --- |
 | [`terse`](skills/writing/terse/SKILL.md) | Keep responses concise, outcome-first, and high signal. |
+| [`write-docs`](skills/writing/write-docs/SKILL.md) | Write clear, precise project documentation that describes behaviour and relationships in plain language. |
 | [`deslop`](skills/writing/deslop/SKILL.md) | Remove AI writing patterns, tells, and formulaic slop from prose. |
 
 ### Pull Requests
