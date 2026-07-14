@@ -31,8 +31,8 @@ Run in order, skipping steps the user excluded.
   - `pr-info`: resolve and verify the PR.
 
 ### 2a. If PR exists, check comments and CI
-  - `pr-comments`: diagnose existing failed CI jobs and apply fixes locally; instruct it to **defer push**.
-  - `pr-ci`: apply fixes for unresolved threads locally; instruct it to **defer push and thread replies**.
+  - `pr-comments`: apply fixes for unresolved threads locally; instruct it to **defer push and thread replies**.
+  - `pr-ci`: diagnose existing failed CI jobs and apply fixes locally; instruct it to **defer push**.
 
 ### 2b. If PR doesn't exist, create one
   - `pr-create`: create a new PR.
@@ -46,7 +46,7 @@ Stop and ask when any step hits its own stop gate, fails, or leaves the branch i
 
 ## Safety Rules
 
-- Never push during steps 3-4; the rebase push exists to avoid retriggering CI and review agents on intermediate states.
+- Never push during step 3; the rebase push exists to avoid retriggering CI and review agents on intermediate states.
 - Never resolve threads before their fix commit is pushed.
 - Never continue past a failed step without user approval.
 - Never duplicate work a sub-skill owns; delegate instead of reimplementing.
