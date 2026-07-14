@@ -21,7 +21,7 @@ Default behavior is to update the PR directly once rewritten.
 1. Resolve PR via `pr-info`.
 2. If no PR exists, stop and suggest `pr-create`.
 3. Read current title, body, and metadata.
-4. Analyze `base...HEAD` diff (`git log`, `git diff --stat`, `git diff`).
+4. Analyze the branch's own changes with the three-dot merge-base diff: `git diff base...HEAD` and `git diff --stat base...HEAD` (use `git log base..HEAD` for the commit list). If the diff shows files unrelated to the branch's commits, the base has advanced past the merge-base — trust the three-dot diff, not `base..HEAD`.
 5. Identify drift: stale title, missing changes, stale bullets, stale/complete checklist items.
 6. Rewrite concise body (typically `Summary`, `What Changed`, optional `Testing`/`Open Questions`).
 7. If the title no longer summarizes the changeset, rewrite it (concise, imperative, matching repo convention such as Conventional Commits when in use).
