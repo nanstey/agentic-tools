@@ -59,7 +59,7 @@ Load the companion [`playwright-cli`](../../tools/playwright-cli/SKILL.md) skill
 1. Preflight (above): load the companion `playwright-cli` skill and resolve its tool; if neither the binary nor the npx package is available, stop and ask before installing.
 2. Pick the medium from the table above; state the choice and why.
 3. Confirm the site is reachable at the base URL/port; if not, stop and ask (never capture an error page).
-4. Resolve the per-branch capture dir `$CAP` (reuse this branch's existing dir, else create a new timestamped one — see Recipes), then open a named session and fix capture settings (viewport, theme, device). Reuse the same session across pages.
+4. Resolve the per-branch capture dir by running the bundled `scripts/capture-dir.sh` and reading its printed path into `$CAP` (deterministic — reuses this branch's dir or creates a new timestamped one), then open a named session and fix capture settings (viewport, theme, device). Reuse the same session across pages.
 5. Capture:
    - Screenshots — full page and/or component crops.
    - GIFs — record native video across the interaction, then encode to `.gif`.
@@ -72,13 +72,11 @@ Stop-and-ask gates: `playwright-cli` tool absent (and install not yet approved),
 
 ## playwright-cli Recipes
 
-These use the companion `playwright-cli` skill's commands; see it for full semantics. Recipes write `playwright-cli` for brevity — if Preflight resolved the npx form, substitute `npx playwright cli` (`$PW`). All commands share one named session (`-s=capture`) so state and viewport persist across pages, and write into a per-branch capture dir `$CAP` resolved once up front:
+These use the companion `playwright-cli` skill's commands; see it for full semantics. Recipes write `playwright-cli` for brevity — if Preflight resolved the npx form, substitute `npx playwright cli` (`$PW`). All commands share one named session (`-s=capture`) so state and viewport persist across pages, and write into a per-branch capture dir `$CAP`. Resolve `$CAP` deterministically by running the bundled `scripts/capture-dir.sh` (path relative to this skill's directory) and reading its printed path — it reuses this branch's existing dir or creates a new timestamped one, so the agent never picks the path by hand:
 
 ```bash
-BRANCH_SLUG=$(git rev-parse --abbrev-ref HEAD | tr '/' '-' | tr -cs 'A-Za-z0-9-' '-')
-CAP=$(ls -1d captures/*-"$BRANCH_SLUG" 2>/dev/null | sort | tail -1)   # reuse this branch's latest dir
-[ -n "$CAP" ] || CAP="captures/$(date +%Y%m%d-%H%M%S)-$BRANCH_SLUG"    # else start a new timestamped one
-mkdir -p "$CAP" "$CAP/components"
+CAP="$(bash scripts/capture-dir.sh)"   # e.g. captures/20260713-142530-feat-visual-capture
+mkdir -p "$CAP/components"
 ```
 
 Screenshots (full page and component crop). Use `snapshot`/`find` to get an element ref, then screenshot it; `highlight` to emphasize a component before the shot:
@@ -137,7 +135,7 @@ Responsive/mobile: `playwright-cli -s=capture open "$BASE_URL" --device="iPhone 
 
 ## Output Layout
 
-Captures are scoped per branch so runs on different branches never mix. Each dir is `<timestamp>-<branch-slug>`; the timestamp prefix sorts newest-last for easy "most recent" lookup, and re-running on the same branch reuses its existing dir (see the `$CAP` resolver in Recipes).
+Captures are scoped per branch so runs on different branches never mix. Each dir is `<timestamp>-<branch-slug>`; the timestamp prefix sorts newest-last for easy "most recent" lookup, and re-running on the same branch reuses its existing dir. `scripts/capture-dir.sh` computes the path (branch via git, slugified) and is the single source of truth — the agent runs it rather than choosing a directory.
 
 ```
 captures/                                  # gitignored; add to the target repo's .gitignore
