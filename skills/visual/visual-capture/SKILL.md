@@ -29,18 +29,24 @@ Follow the target repo's `CLAUDE.md` / `AGENTS.md` on conflict.
 
 ## Preflight — resolve the tool
 
-Run this first and reuse the resolved command (shown as `playwright-cli` in the recipes):
+Run the bundled `scripts/resolve-tool.sh` (path relative to this skill's directory) to get the invocation; it prints `playwright-cli` or `npx playwright cli`, or exits non-zero when neither is available:
 
 ```bash
-if command -v playwright-cli >/dev/null 2>&1; then PW="playwright-cli";
-elif npx --no-install playwright --version >/dev/null 2>&1; then PW="npx playwright cli";
-else PW=""; fi
-echo "${PW:-MISSING}"
+PW="$(bash scripts/resolve-tool.sh)" || { echo "playwright-cli not found"; exit 1; }
 ```
 
-- Global binary found → use `playwright-cli`.
-- Only the local package found → use `npx playwright cli` for every command.
-- Neither → **stop and ask** before installing. Offer `npm install -g @playwright/cli@latest` (global) or a project-local `@playwright/cli` dev dependency; do not install without approval.
+- Printed command → use it as `$PW` for every playwright-cli call.
+- Non-zero exit (neither binary nor npx package) → **stop and ask** before installing. Offer `npm install -g @playwright/cli@latest` (global) or a project-local `@playwright/cli` dev dependency; do not install without approval.
+
+## Bundled scripts
+
+Deterministic helpers so the agent reads a result instead of choosing (paths relative to this skill's directory):
+
+| Script | Purpose |
+| --- | --- |
+| `scripts/resolve-tool.sh` | Print the playwright-cli invocation (`playwright-cli` or `npx playwright cli`); non-zero exit when absent. |
+| `scripts/capture-dir.sh` | Print the per-branch capture dir, reusing or creating `captures/<timestamp>-<slug>`. |
+| `scripts/encode-gif.sh <in> <out.gif> [fps] [width]` | Encode a recording to a PR-friendly GIF (gifski, else ffmpeg palette). |
 
 Load the companion [`playwright-cli`](../../tools/playwright-cli/SKILL.md) skill before capturing — it documents every command used below, plus `references/video-recording.md` (GIF source) and `references/session-management.md` (named sessions).
 
@@ -56,7 +62,7 @@ Load the companion [`playwright-cli`](../../tools/playwright-cli/SKILL.md) skill
 
 ## Workflow
 
-1. Preflight (above): load the companion `playwright-cli` skill and resolve its tool; if neither the binary nor the npx package is available, stop and ask before installing.
+1. Preflight (above): load the companion `playwright-cli` skill and resolve its tool via `scripts/resolve-tool.sh`; if it exits non-zero (neither binary nor npx package), stop and ask before installing.
 2. Pick the medium from the table above; state the choice and why.
 3. Confirm the site is reachable at the base URL/port; if not, stop and ask (never capture an error page).
 4. Resolve the per-branch capture dir by running the bundled `scripts/capture-dir.sh` and reading its printed path into `$CAP` (deterministic — reuses this branch's dir or creates a new timestamped one), then open a named session and fix capture settings (viewport, theme, device). Reuse the same session across pages.
@@ -110,13 +116,10 @@ playwright-cli -s=capture video-stop
 playwright-cli -s=capture close
 ```
 
-Encode `.webm` → `.gif` (high-quality ffmpeg palette; keep width ~800–1100, fps 8–15):
+Encode `.webm` → `.gif` with `scripts/encode-gif.sh` (prefers gifski, falls back to a two-pass ffmpeg palette; args: input, output, fps, width — keep width ~800–1100, fps 8–15):
 
 ```bash
-ffmpeg -i "$CAP/tour.webm" -vf "fps=12,scale=1000:-1:flags=lanczos,palettegen" "$CAP/palette.png"
-ffmpeg -i "$CAP/tour.webm" -i "$CAP/palette.png" \
-  -lavfi "fps=12,scale=1000:-1:flags=lanczos[x];[x][1:v]paletteuse" "$CAP/tour.gif"
-# gifski alternative (higher quality, larger): gifski --fps 12 --width 1000 -o "$CAP/tour.gif" "$CAP/tour.webm"
+bash scripts/encode-gif.sh "$CAP/tour.webm" "$CAP/tour.gif" 12 1000
 ```
 
 Before/after pair (identical settings both runs):
