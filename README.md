@@ -91,6 +91,12 @@ pi                                     # installs packages from settings.json
 | --- | --- |
 | [`visual-capture`](skills/visual/visual-capture/SKILL.md) | Capture screenshots and GIFs of a running site (before/after PR evidence, component crops, multi-page or scroll tours) by driving the `playwright-cli` skill. |
 
+### Tools
+
+| Skill | Description |
+| --- | --- |
+| [`playwright-cli`](skills/tools/playwright-cli/SKILL.md) | Drive a browser from the CLI — navigate, interact, snapshot, screenshot, record video, mock network, and run/generate Playwright tests. Vendored from `microsoft/playwright-cli` (Apache-2.0). |
+
 ### Pull Requests
 
 | Skill | Description |
