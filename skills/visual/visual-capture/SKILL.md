@@ -107,8 +107,8 @@ GIF via recorded video. **Record at a size equal to the viewport** — bare `vid
 Common case — a smooth full-page scroll — use the bundled helper (it sizes the video to the viewport and scrolls at a constant, relaxed speed regardless of page length; lower `px_per_sec` for an even slower pace):
 
 ```bash
-bash scripts/scroll-capture.sh "$BASE_URL/pricing" "$CAP/tour.webm"          # 1280x800 @ 550 px/s
-# slower/faster: pass px/s as the 5th arg, e.g. ... "$CAP/tour.webm" 1280 800 400
+bash scripts/scroll-capture.sh "$BASE_URL/pricing" "$CAP/tour.webm"          # 1280x800 @ 400 px/s
+# slower/faster: pass px/s as the 5th arg, e.g. ... "$CAP/tour.webm" 1280 800 300
 ```
 
 Richer tours (clicks, chapters, highlights): write your own hero script that calls `page.screencast.start({ path, size: { width, height } })` with size == viewport, paces with `waitForTimeout`/`pressSequentially({ delay })` and a time-based scroll, then `page.screencast.stop()`; run it via `playwright-cli run-code --filename=...`. `run-code` has no `process`/env and no `require`/`import`, so bake values into the script.

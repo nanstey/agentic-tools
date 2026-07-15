@@ -5,13 +5,13 @@
 # runs it via `playwright-cli run-code` in its own session, then prints the path.
 #
 # Usage: scroll-capture.sh <url> <out.webm> [width] [height] [px_per_sec] [settle_ms] [end_ms]
-#   px_per_sec  default 550 (constant scroll speed; lower = more relaxed)
+#   px_per_sec  default 400 (constant scroll speed; lower = more relaxed)
 set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 url="${1:?usage: scroll-capture.sh <url> <out.webm> [width] [height] [px_per_sec] [settle_ms] [end_ms]}"
 out="${2:?usage: scroll-capture.sh <url> <out.webm> [width] [height] [px_per_sec] [settle_ms] [end_ms]}"
-w="${3:-1280}"; h="${4:-800}"; px_per_sec="${5:-550}"; settle_ms="${6:-1200}"; end_ms="${7:-800}"
+w="${3:-1280}"; h="${4:-800}"; px_per_sec="${5:-400}"; settle_ms="${6:-1200}"; end_ms="${7:-800}"
 
 PW="$(bash "$here/resolve-tool.sh")" || { echo "scroll-capture: playwright-cli not found" >&2; exit 3; }
 read -r -a pw <<<"$PW"   # PW may be "npx playwright cli" (multiple words)
