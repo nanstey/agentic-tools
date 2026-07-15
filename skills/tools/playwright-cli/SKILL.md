@@ -7,7 +7,7 @@ disable-model-invocation: false
 
 # Browser Automation with playwright-cli
 
-> Vendored from [microsoft/playwright-cli](https://github.com/microsoft/playwright-cli/blob/main/skills/playwright-cli/SKILL.md) at commit `eee5a18` (Apache-2.0, see [LICENSE](LICENSE)). Changes: frontmatter adapted to this repo's conventions (`allowed-tools` replaced with `user-invocable`/`disable-model-invocation`, description expanded); body and `references/` unchanged. Re-sync from upstream rather than editing the body.
+> Vendored from [microsoft/playwright-cli](https://github.com/microsoft/playwright-cli/blob/main/skills/playwright-cli/SKILL.md) at commit `eee5a18` ([Apache-2.0](https://github.com/microsoft/playwright-cli/blob/main/LICENSE)). Changes: frontmatter adapted to this repo's conventions (`allowed-tools` replaced with `user-invocable`/`disable-model-invocation`, description expanded); body and `references/` unchanged. Re-sync from upstream rather than editing the body.
 
 ## Quick start
 
