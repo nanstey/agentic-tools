@@ -1,0 +1,140 @@
+---
+name: visual-capture
+description: Capture screenshots and GIFs of a running site to document UI work — before/after PR evidence, component crops, and multi-page or scroll tours — by driving the playwright-cli skill. Use when the user wants to show what a UI change looks like, capture before/after evidence for a PR, record a walkthrough, or crop a component.
+user-invocable: true
+disable-model-invocation: false
+---
+
+# Visual Capture
+
+## Core Contract
+
+Produce visual artifacts of a running site to document UI, primarily before/after evidence for PRs.
+This skill is the orchestration and decision layer; every browser action goes through the `playwright-cli` skill — never Playwright MCP, `@playwright/test`, or Puppeteer.
+Choose the medium by change type: static change → screenshot; interaction, scroll, or multi-page flow → GIF.
+Follow the target repo's `CLAUDE.md` / `AGENTS.md` on conflict.
+
+## Required Inputs
+
+1. Base URL of the running site and the routes/selectors of interest.
+2. What changed, so the medium and framing fit the change.
+3. Before/after scope: which git refs or states to compare (skip for a plain capture).
+4. Output/publish target (default `captures/`; a project asset dir when embedding).
+5. Viewport/theme/device preferences (defaults: desktop `1280x800`, project default theme).
+
+## Prerequisites
+
+- `playwright-cli` on PATH, or `npx playwright cli`; install with `npm install -g @playwright/cli@latest`. Verify via the `playwright-cli` skill before capturing.
+- For GIFs: `gifski` (preferred) or `ffmpeg` to convert recorded `.webm` to `.gif`.
+
+## Medium Decision
+
+| Situation | Medium |
+| --- | --- |
+| Static change: layout, color, spacing, copy, single state | Screenshot (full page) |
+| Isolating one element for review or marketing | Screenshot (component crop) |
+| Hover/click/form interaction, animation, transition | GIF |
+| Scroll to reveal a long page | GIF |
+| Walking a flow across multiple pages | GIF |
+
+## Workflow
+
+1. Pick the medium from the table above; state the choice and why.
+2. Confirm the site is reachable at the base URL/port; if not, stop and ask (never capture an error page).
+3. Open a named `playwright-cli` session and fix capture settings (viewport, theme, device). Reuse the same session across pages.
+4. Capture:
+   - Screenshots — full page and/or component crops.
+   - GIFs — record native video across the interaction, then encode to `.gif`.
+5. Before/after — capture each state with **identical** settings and label old/new. Prefer a base-ref `worktree` (see `worktree` skill) running its own dev server, or a deployed preview, so you don't rebuild in place.
+6. Encode and size for the target; keep PR GIFs small.
+7. Organize outputs under `captures/` and produce ready-to-paste PR markdown.
+8. Close the session — always, including on error (`trap 'playwright-cli -s=capture close' EXIT`).
+
+Stop-and-ask gates: site unreachable, ambiguous before/after refs, `playwright-cli` missing, or an artifact would land in the repo root.
+
+## playwright-cli Recipes
+
+Screenshots (full page and component crop):
+
+```bash
+playwright-cli -s=capture open "$BASE_URL" --browser=chrome
+playwright-cli -s=capture resize 1280 800
+playwright-cli -s=capture goto "$BASE_URL/pricing"
+playwright-cli -s=capture screenshot --filename=captures/pricing.png
+playwright-cli -s=capture screenshot "header nav" --filename=captures/nav.png   # element crop
+playwright-cli -s=capture close
+```
+
+GIF via native video (interaction / scroll / multi-page):
+
+```bash
+playwright-cli -s=capture open "$BASE_URL" --browser=chrome
+playwright-cli -s=capture resize 1280 800
+playwright-cli -s=capture video-start captures/tour.webm
+playwright-cli -s=capture video-show-actions --duration=600   # optional action callouts
+playwright-cli -s=capture click e15                           # refs come from `snapshot`
+playwright-cli -s=capture run-code "async page => { for (let y=0; y<3000; y+=400){ await page.mouse.wheel(0,400); await page.waitForTimeout(120); } }"
+playwright-cli -s=capture goto "$BASE_URL/features"
+playwright-cli -s=capture video-stop
+playwright-cli -s=capture close
+```
+
+Encode `.webm` → `.gif` (high-quality ffmpeg palette; keep width ~800–1100, fps 8–15):
+
+```bash
+ffmpeg -i captures/tour.webm -vf "fps=12,scale=1000:-1:flags=lanczos,palettegen" captures/palette.png
+ffmpeg -i captures/tour.webm -i captures/palette.png \
+  -lavfi "fps=12,scale=1000:-1:flags=lanczos[x];[x][1:v]paletteuse" captures/tour.gif
+# gifski alternative (higher quality, larger): gifski --fps 12 --width 1000 -o captures/tour.gif captures/tour.webm
+```
+
+Before/after pair (identical settings both runs):
+
+```bash
+# BEFORE — base ref in a parallel worktree on its own port
+playwright-cli -s=capture goto "$BEFORE_URL/pricing"
+playwright-cli -s=capture screenshot --filename=captures/before/pricing.png
+# AFTER — current branch
+playwright-cli -s=capture goto "$AFTER_URL/pricing"
+playwright-cli -s=capture screenshot --filename=captures/after/pricing.png
+```
+
+Responsive/mobile: `playwright-cli -s=capture open "$BASE_URL" --device="iPhone 15"` (or `--mobile`).
+
+## Output Layout
+
+```
+captures/            # gitignored; add to the target repo's .gitignore
+├── before/          # before/after pairs
+├── after/
+├── <route>.png      # full-page screenshots
+├── components/      # element crops
+├── tour.webm        # raw recording (delete when done)
+└── tour.gif         # encoded, PR-ready
+```
+
+## PR Integration
+
+- Emit a ready-to-paste block for the PR body (hand off to `pr-description`):
+  - Before/after in a two-column table, or wrapped in `<details><summary>Screenshots</summary>…</details>`.
+- Reference committed asset paths, not local absolute paths. To render in a PR body, either commit small assets under the project's asset dir (e.g. `public/`, `docs/assets/`) and link them, or attach via the GitHub UI.
+- Keep each asset well under GitHub's per-file limit; target a few MB or less for GIFs so they render smoothly.
+
+## Composition
+
+- Pair with the `worktree` skill to run the base ref for the "before" state without disturbing the working tree.
+- Feed the emitted markdown to `pr-description`; within the `pr` workflow, capture before pushing so the description carries the evidence.
+
+## Safety Rules
+
+- Never commit captured artifacts to the repo root or leave large frame/video dumps tracked; write to a gitignored `captures/` dir.
+- Never leave an orphaned browser; close the session at the end and on error.
+- Never vary viewport, theme, or device between before and after — mismatched settings invalidate the comparison.
+- Never fabricate a state; capture the actual before and after.
+- Never bypass the `playwright-cli` skill with ad-hoc Puppeteer, `@playwright/test`, or MCP.
+- Never commit oversized assets; downscale and trim to PR-friendly sizes.
+- If the site or a route is unreachable, stop and ask rather than capturing a blank or error page.
+
+## Output Style
+
+Report the medium chosen and why, per-artifact paths, the viewport/theme/device used, before/after mapping, encoded GIF size(s), the ready-to-paste PR markdown, and confirmation the session was closed.
