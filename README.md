@@ -89,7 +89,7 @@ pi                                     # installs packages from settings.json
 
 | Skill | Description |
 | --- | --- |
-| [`visual-capture`](skills/visual/visual-capture/SKILL.md) | Capture screenshots and GIFs of a running site (before/after PR evidence, component crops, multi-page or scroll tours) by driving the `playwright-cli` skill. |
+| [`visual-capture`](skills/visual/visual-capture/SKILL.md) | Capture screenshots and GIFs of a running site (before/after PR evidence, component crops, multi-page or scroll tours) by driving the `playwright-cli` tool. |
 
 ### Tools
 

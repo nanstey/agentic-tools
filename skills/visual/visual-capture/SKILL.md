@@ -1,6 +1,6 @@
 ---
 name: visual-capture
-description: Capture screenshots and GIFs of a running site to document UI work — before/after PR evidence, component crops, and multi-page or scroll tours — by driving the playwright-cli skill. Use when the user wants to show what a UI change looks like, capture before/after evidence for a PR, record a walkthrough, or crop a component.
+description: Capture screenshots and GIFs of a running site to document UI work — before/after PR evidence, component crops, and multi-page or scroll tours — by driving the playwright-cli tool. Use when the user wants to show what a UI change looks like, capture before/after evidence for a PR, record a walkthrough, or crop a component.
 user-invocable: true
 disable-model-invocation: false
 ---
@@ -10,7 +10,7 @@ disable-model-invocation: false
 ## Core Contract
 
 Produce visual artifacts of a running site to document UI, primarily before/after evidence for PRs.
-This skill is the orchestration and decision layer; every browser action goes through the `playwright-cli` skill — never Playwright MCP, `@playwright/test`, or Puppeteer.
+This skill is the orchestration and decision layer; every browser action runs through the `playwright-cli` **tool** — never Playwright MCP, `@playwright/test`, or Puppeteer. The hard dependency is the tool on PATH (or via `npx`); the companion `playwright-cli` skill is optional richer reference, and this skill embeds the commands it needs to work without it.
 Choose the medium by change type: static change → screenshot; interaction, scroll, or multi-page flow → GIF.
 Follow the target repo's `CLAUDE.md` / `AGENTS.md` on conflict.
 
@@ -24,8 +24,25 @@ Follow the target repo's `CLAUDE.md` / `AGENTS.md` on conflict.
 
 ## Prerequisites
 
-- `playwright-cli` on PATH, or `npx playwright cli`; install with `npm install -g @playwright/cli@latest`. Verify via the `playwright-cli` skill before capturing.
+- The `playwright-cli` tool. Resolve it in the preflight step below; never assume it is installed.
 - For GIFs: `gifski` (preferred) or `ffmpeg` to convert recorded `.webm` to `.gif`.
+
+## Preflight — resolve the tool
+
+Run this first and reuse the resolved command (shown as `playwright-cli` in the recipes):
+
+```bash
+if command -v playwright-cli >/dev/null 2>&1; then PW="playwright-cli";
+elif npx --no-install playwright --version >/dev/null 2>&1; then PW="npx playwright cli";
+else PW=""; fi
+echo "${PW:-MISSING}"
+```
+
+- Global binary found → use `playwright-cli`.
+- Only the local package found → use `npx playwright cli` for every command.
+- Neither → **stop and ask** before installing. Offer `npm install -g @playwright/cli@latest` (global) or a project-local `@playwright/cli` dev dependency; do not install without approval.
+
+For full command detail, defer to the companion [`playwright-cli`](../../tools/playwright-cli/SKILL.md) skill vendored in this repo; the recipes below are self-contained if it is unavailable.
 
 ## Medium Decision
 
@@ -39,20 +56,23 @@ Follow the target repo's `CLAUDE.md` / `AGENTS.md` on conflict.
 
 ## Workflow
 
-1. Pick the medium from the table above; state the choice and why.
-2. Confirm the site is reachable at the base URL/port; if not, stop and ask (never capture an error page).
-3. Open a named `playwright-cli` session and fix capture settings (viewport, theme, device). Reuse the same session across pages.
-4. Capture:
+1. Preflight (above): resolve the `playwright-cli` tool; if neither the binary nor the npx package is available, stop and ask before installing.
+2. Pick the medium from the table above; state the choice and why.
+3. Confirm the site is reachable at the base URL/port; if not, stop and ask (never capture an error page).
+4. Open a named session and fix capture settings (viewport, theme, device). Reuse the same session across pages.
+5. Capture:
    - Screenshots — full page and/or component crops.
    - GIFs — record native video across the interaction, then encode to `.gif`.
-5. Before/after — capture each state with **identical** settings and label old/new. Prefer a base-ref `worktree` (see `worktree` skill) running its own dev server, or a deployed preview, so you don't rebuild in place.
-6. Encode and size for the target; keep PR GIFs small.
-7. Organize outputs under `captures/` and produce ready-to-paste PR markdown.
-8. Close the session — always, including on error (`trap 'playwright-cli -s=capture close' EXIT`).
+6. Before/after — capture each state with **identical** settings and label old/new. Prefer a base-ref `worktree` (see `worktree` skill) running its own dev server, or a deployed preview, so you don't rebuild in place.
+7. Encode and size for the target; keep PR GIFs small.
+8. Organize outputs under `captures/` and produce ready-to-paste PR markdown.
+9. Close the session — always, including on error (`trap 'playwright-cli -s=capture close' EXIT`).
 
-Stop-and-ask gates: site unreachable, ambiguous before/after refs, `playwright-cli` missing, or an artifact would land in the repo root.
+Stop-and-ask gates: `playwright-cli` tool absent (and install not yet approved), site unreachable, ambiguous before/after refs, or an artifact would land in the repo root.
 
 ## playwright-cli Recipes
+
+Recipes write `playwright-cli` for brevity; if the preflight resolved to the npx form, substitute `npx playwright cli` (`$PW`) in every command.
 
 Screenshots (full page and component crop):
 
