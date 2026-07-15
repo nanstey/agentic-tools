@@ -25,18 +25,19 @@ Follow the target repo's `CLAUDE.md` / `AGENTS.md` on conflict.
 ## Prerequisites
 
 - The companion [`playwright-cli`](../../tools/playwright-cli/SKILL.md) skill and the `playwright-cli` tool it drives. Install the tool per that skill's Installation section; the Preflight below is a fast gate.
-- For GIFs: `gifski` (preferred) or `ffmpeg` to convert recorded `.webm` to `.gif`.
+- For GIFs: a `.webm`→`.gif` encoder. `gifski` is required for good quality/size; `ffmpeg` is an accepted fallback. The Preflight gates on this. Install if missing: `brew install gifski`, `cargo install gifski`, or the prebuilt npm binary (`npm i -g gifski` then symlink `$(npm root -g)/gifski/bin/<platform>/gifski` onto your PATH).
 
 ## Preflight — resolve the tool
 
 Run the bundled `scripts/resolve-tool.sh` (path relative to this skill's directory) to get the invocation; it prints `playwright-cli` or `npx playwright cli`, or exits non-zero when neither is available:
 
 ```bash
-PW="$(bash scripts/resolve-tool.sh)" || { echo "playwright-cli not found"; exit 1; }
+PW="$(bash scripts/resolve-tool.sh)"  || { echo "playwright-cli not found"; exit 1; }
+ENC="$(bash scripts/check-encoder.sh)" || { echo "no GIF encoder (gifski/ffmpeg)"; exit 1; }
 ```
 
-- Printed command → use it as `$PW` for every playwright-cli call.
-- Non-zero exit (neither binary nor npx package) → **stop and ask** before installing. Offer `npm install -g @playwright/cli@latest` (global) or a project-local `@playwright/cli` dev dependency; do not install without approval.
+- `resolve-tool.sh` prints the command → use it as `$PW` for every playwright-cli call. Non-zero exit (neither binary nor npx package) → **stop and ask** before installing. Offer `npm install -g @playwright/cli@latest` (global) or a project-local `@playwright/cli` dev dependency; do not install without approval.
+- `check-encoder.sh` prints `gifski` or `ffmpeg`. Non-zero exit (neither present) → **stop and ask**; recommend installing `gifski` (see Prerequisites). Do not install without approval.
 
 ## Bundled scripts
 
@@ -45,6 +46,7 @@ Deterministic helpers so the agent reads a result instead of choosing (paths rel
 | Script | Purpose |
 | --- | --- |
 | `scripts/resolve-tool.sh` | Print the playwright-cli invocation (`playwright-cli` or `npx playwright cli`); non-zero exit when absent. |
+| `scripts/check-encoder.sh` | Print the GIF encoder (`gifski` preferred, else `ffmpeg`); non-zero exit when neither is present. |
 | `scripts/capture-dir.sh` | Print the per-branch capture dir, reusing or creating `captures/<timestamp>-<slug>`. |
 | `scripts/encode-gif.sh <in> <out.gif> [fps] [width]` | Encode a recording to a GIF at native resolution (gifski, else ffmpeg palette); pass a smaller width to shrink for a PR. |
 | `scripts/scroll-capture.sh <url> <out.webm> [w] [h] [px_per_sec]` | Record a smooth, correctly-sized full-page scroll (no gray margins) at a constant, relaxed speed via a `run-code` hero script. |
@@ -63,7 +65,7 @@ Load the companion [`playwright-cli`](../../tools/playwright-cli/SKILL.md) skill
 
 ## Workflow
 
-1. Preflight (above): load the companion `playwright-cli` skill and resolve its tool via `scripts/resolve-tool.sh`; if it exits non-zero (neither binary nor npx package), stop and ask before installing.
+1. Preflight (above): load the companion `playwright-cli` skill, resolve its tool via `scripts/resolve-tool.sh`, and confirm a GIF encoder via `scripts/check-encoder.sh`; if either exits non-zero, stop and ask before installing.
 2. Pick the medium from the table above; state the choice and why.
 3. Confirm the site is reachable at the base URL/port; if not, stop and ask (never capture an error page).
 4. Resolve the per-branch capture dir by running the bundled `scripts/capture-dir.sh` and reading its printed path into `$CAP` (deterministic — reuses this branch's dir or creates a new timestamped one), then open a named session and fix capture settings (viewport, theme, device). Reuse the same session across pages.
