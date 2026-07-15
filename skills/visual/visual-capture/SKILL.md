@@ -46,8 +46,8 @@ Deterministic helpers so the agent reads a result instead of choosing (paths rel
 | --- | --- |
 | `scripts/resolve-tool.sh` | Print the playwright-cli invocation (`playwright-cli` or `npx playwright cli`); non-zero exit when absent. |
 | `scripts/capture-dir.sh` | Print the per-branch capture dir, reusing or creating `captures/<timestamp>-<slug>`. |
-| `scripts/encode-gif.sh <in> <out.gif> [fps] [width]` | Encode a recording to a PR-friendly GIF (gifski, else ffmpeg palette). |
-| `scripts/scroll-capture.sh <url> <out.webm> [w] [h] [scroll_ms]` | Record a smooth, correctly-sized full-page scroll (no gray margins) via a `run-code` hero script. |
+| `scripts/encode-gif.sh <in> <out.gif> [fps] [width]` | Encode a recording to a GIF at native resolution (gifski, else ffmpeg palette); pass a smaller width to shrink for a PR. |
+| `scripts/scroll-capture.sh <url> <out.webm> [w] [h] [px_per_sec]` | Record a smooth, correctly-sized full-page scroll (no gray margins) at a constant, relaxed speed via a `run-code` hero script. |
 
 Load the companion [`playwright-cli`](../../tools/playwright-cli/SKILL.md) skill before capturing — it documents every command used below, plus `references/video-recording.md` (GIF source) and `references/session-management.md` (named sessions).
 
@@ -102,18 +102,20 @@ playwright-cli -s=capture close
 
 GIF via recorded video. **Record at a size equal to the viewport** — bare `video-start` defaults to ~800×450 and letterboxes the page with gray margins. Drive motion from one `run-code` hero script (controlled pauses, time-based scrolling), never a fast `mouse.wheel` loop. See the `playwright-cli` skill's `references/video-recording.md`.
 
-Common case — a smooth full-page scroll — use the bundled helper (it sizes the video to the viewport and eases the scroll over `scroll_ms`):
+Common case — a smooth full-page scroll — use the bundled helper (it sizes the video to the viewport and scrolls at a constant, relaxed speed regardless of page length; lower `px_per_sec` for an even slower pace):
 
 ```bash
-bash scripts/scroll-capture.sh "$BASE_URL/pricing" "$CAP/tour.webm" 1280 800 9000
+bash scripts/scroll-capture.sh "$BASE_URL/pricing" "$CAP/tour.webm"          # 1280x800 @ 550 px/s
+# slower/faster: pass px/s as the 5th arg, e.g. ... "$CAP/tour.webm" 1280 800 400
 ```
 
 Richer tours (clicks, chapters, highlights): write your own hero script that calls `page.screencast.start({ path, size: { width, height } })` with size == viewport, paces with `waitForTimeout`/`pressSequentially({ delay })` and a time-based scroll, then `page.screencast.stop()`; run it via `playwright-cli run-code --filename=...`. `run-code` has no `process`/env and no `require`/`import`, so bake values into the script.
 
-Encode `.webm` → `.gif` with `scripts/encode-gif.sh` (prefers gifski, falls back to a two-pass ffmpeg palette; args: input, output, fps, width — keep width ~800–1100, fps 8–15):
+Encode `.webm` → `.gif` with `scripts/encode-gif.sh` (prefers gifski, falls back to a two-pass ffmpeg palette). It keeps native resolution by default for crisp output; pass a smaller width only to shrink a long scroll for a PR:
 
 ```bash
-bash scripts/encode-gif.sh "$CAP/tour.webm" "$CAP/tour.gif" 12 1000
+bash scripts/encode-gif.sh "$CAP/tour.webm" "$CAP/tour.gif"            # native width, crisp
+# smaller PR-friendly file: bash scripts/encode-gif.sh "$CAP/tour.webm" "$CAP/tour.gif" 12 1000
 ```
 
 Before/after pair (identical settings both runs):
@@ -148,7 +150,8 @@ captures/                                  # gitignored; add to the target repo'
 ## Gotchas
 
 - **Gray margins in the video/GIF.** Bare `video-start` records at ~800×450 regardless of `resize`, so the page is fit into that canvas with gray padding. Record via `page.screencast.start({ size })` (or `scroll-capture.sh`) with size equal to the viewport.
-- **Long dead time before motion, or scroll flies by.** Don't drive a recording with many separate CLI calls or a `mouse.wheel` loop. Use one `run-code` hero script with `waitForTimeout` pacing and a time-based (eased) scroll over `scroll_ms`.
+- **Long dead time before motion, or scroll flies by.** Don't drive a recording with many separate CLI calls or a `mouse.wheel` loop. Use one `run-code` hero script with `waitForTimeout` pacing. Scroll at a constant speed (px/second) rather than easing over a fixed duration — eased/fixed-duration scrolls spike to ~2× speed mid-page and feel fast on tall pages.
+- **Scroll-GIF file size.** A full-page scroll at native resolution is large (tens of MB); photo-heavy pages stay large even with `gifski`, since GIF encodes photos poorly. The reliable size levers are a smaller `encode-gif.sh` width and lower fps (GitHub caps GIF attachments ~10 MB); prefer a short/narrower clip, or attach the `.webm` as a video, when a full-res photo scroll is too big.
 - **`run-code` sandbox.** No `process`/env, no `require`/`import`; it evaluates a single function expression. Interpolate values into the script (as the helpers do).
 
 ## PR Integration
