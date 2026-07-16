@@ -19,6 +19,7 @@ Command and API details load on demand:
 
 - `references/cli.md` — `gh stack` commands, flags, exit codes.
 - `references/rest-api.md` — Stacks REST endpoints and the PR `stack` object.
+- `references/workflows.md` — merge semantics, day-to-day recipes (mid-stack changes, review feedback, adopting branches), stack structuring guidance.
 
 ## Required Inputs
 
@@ -55,7 +56,8 @@ Probe before the first operation, cache the result for the session:
    - **Checkout (T1)**: `gh stack checkout <number|url|branch>` with an explicit argument; navigation via `gh stack up|down|top|bottom|trunk`.
    - **Dissolve (T1/T2)**: confirm with the user first, then `gh stack unstack [<n>] [--local]` or `POST .../stacks/{n}/unstack`. Report PRs left stacked (merged/merging/queued cannot be removed).
    - **Any (T3)**: report why native stacks are unavailable; hand the task to `pr-restack` (stack) or `rebase` (single branch).
-3. After mutating operations, verify with an inspect call and report per-branch/PR outcomes.
+3. For mid-stack fixes and review feedback, follow the recipes in `references/workflows.md`: commit on the layer that owns the change, `gh stack rebase --upstack` (or full `rebase`), then `gh stack push` — never patch a lower-layer concern into a higher branch.
+4. After mutating operations, verify with an inspect call and report per-branch/PR outcomes.
 
 Stop and ask when: local and remote stack compositions diverge; a branch belongs to multiple stacks (exit 6); the stack is locked (exit 8); a rebase is already in progress (exit 7); the working tree is dirty before rebase/restructure; or a fully merged stack would silently spawn a new one on submit.
 
@@ -69,6 +71,7 @@ Stop and ask when: local and remote stack compositions diverge; a branch belongs
 - Never rebase or restructure over a dirty working tree; ask to commit or stash first.
 - Never resolve conflicts inline; delegate to `conflicts`.
 - Never delete local branches (`--prune`) without user approval.
+- Never merge a stacked PR without warning that it atomically merges every unmerged PR below it; confirm the intended merge point first.
 
 ## Output Style
 
