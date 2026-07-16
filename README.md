@@ -110,6 +110,7 @@ pi                                     # installs packages from settings.json
 | [`pr-rebase`](skills/pull-requests/pr-rebase/SKILL.md) | Rebase onto latest `origin/develop`, resolve conflicts, and force-push with lease. |
 | [`pr-restack`](skills/pull-requests/pr-restack/SKILL.md) | Rebase dependent PR stacks and repoint downstream branches to correct bases. |
 | [`pr-split`](skills/pull-requests/pr-split/SKILL.md) | Split a large branch/PR into smaller reviewable units, proposing parallel PRs or a stacked series. |
+| [`gh-stack`](skills/pull-requests/gh-stack/SKILL.md) | Create and manage GitHub native stacked-PR stacks via the gh-stack CLI or Stacks REST API, with fallback when the feature is unavailable. |
 
 ### Issues
 
