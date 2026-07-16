@@ -57,7 +57,7 @@ gh stack push                    # force-with-lease, atomic
 
 ### After a bottom PR merges
 
-`gh stack sync` — fetch, reconcile remote stack, fast-forward trunk, cascade rebase, push, sync PR state, prune prompt. PRs added to the stack on GitHub by others are pulled down and appended automatically; true divergence prompts (or aborts non-interactively).
+`gh stack sync` — fetch, reconcile remote stack, fast-forward trunk, cascade rebase, push, sync PR state. Non-interactively there is no prune prompt: merged local branches are only deleted with an explicit `--prune`. PRs added to the stack on GitHub by others are pulled down and appended automatically; true divergence prompts (or aborts non-interactively).
 
 ### Adopt existing branches
 

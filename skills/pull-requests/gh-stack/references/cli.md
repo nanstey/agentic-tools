@@ -79,7 +79,9 @@ Non-TUI alternative for restructuring: `gh stack unstack --local` → `gh stack 
 
 Unstack on GitHub + remove local tracking. No arg: active stack. With number: works from anywhere via API. Merged/merging/queued PRs stay stacked. All PRs removed ⇒ stack dissolved.
 
-- `--local` — remove local tracking only, keep GitHub stack
+- `--local` — remove local tracking only; never contacts GitHub. Error when combined with a number not tracked locally.
+
+`unstack <number>` is a remote-first API wrapper: works from anywhere in the repo, tracked locally or not. Unknown number ⇒ "not found on GitHub" (exit 2).
 
 ## Remote operations
 
@@ -124,7 +126,7 @@ Create/update a GitHub stack from branches or PR numbers/URLs **without local tr
 
 ## Navigation
 
-`gh stack switch` (interactive picker — avoid), `gh stack up [n]`, `gh stack down [n]`, `gh stack top`, `gh stack bottom`, `gh stack trunk`. All clamp at stack bounds.
+`gh stack switch` (interactive picker — avoid), `gh stack up [n]`, `gh stack down [n]`, `gh stack top`, `gh stack bottom`, `gh stack trunk`. All clamp at stack bounds. Navigation **skips merged branches**; `bottom` lands on the first non-merged branch above trunk.
 
 ## Misc
 
