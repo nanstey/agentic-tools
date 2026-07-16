@@ -1,7 +1,26 @@
 # gh-stack CLI reference (condensed)
 
 Install: `gh extension install github/gh-stack` (requires `gh` v2.0+).
-Source: https://github.github.com/gh-stack/reference/cli/
+Sources: https://github.github.com/gh-stack/reference/cli/ and the official agent skill (github/gh-stack `skills/gh-stack/SKILL.md`).
+
+## Agent-safety preflight
+
+Any command that would prompt hangs an agent. Before first use:
+
+```
+git config rerere.enabled true        # init prompts to enable rerere on first run otherwise
+git config remote.pushDefault origin  # multi-remote repos: avoids remote picker in push/submit/sync/link/checkout
+```
+
+Always pass explicit arguments/flags. **TUI/prompt traps:**
+
+- `gh stack view` and `gh stack view --short` — both launch a TUI; only `--json` is safe
+- `gh stack submit` without `--auto` — prompts per-PR for titles
+- `gh stack init` / `add` / `checkout` without arguments — interactive prompts/pickers
+- `gh stack checkout <pr-number>` when a different local stack exists on those branches — unbypassable conflict prompt; run `gh stack unstack` (or `unstack --local`) first, then retry
+- `gh stack switch` and `gh stack modify` — always interactive
+
+Output convention: status messages → **stderr** (✓/✗/⚠/ℹ prefixes); data (`view --json`) → **stdout**.
 
 ## Local stack management
 
@@ -18,19 +37,34 @@ gh stack init --base develop feature-auth
 
 ### `gh stack add [flags] [branch]`
 
-Create a branch at HEAD on top of the stack and check it out. Must run from the topmost branch. Without a name (and without `-m`): prompts — pass a name.
+Create a branch at HEAD on top of the stack and check it out. Must run from the topmost branch (off-top exits 5 — `gh stack top` first). Without a name (and without `-m`): prompts — pass a name. Branch names are used verbatim (slashes kept, nothing prefixed). Uncommitted changes carry over to the new branch (working tree untouched); commit or stash first for a clean start. Prefer plain `git add`/`git commit` per layer for deliberate staging; `-Am` is a shortcut for single-commit layers.
 
 - `-A, --all` — stage all changes incl. untracked (requires `-m`)
 - `-u, --update` — stage tracked only (requires `-m`; mutually exclusive with `-A`)
 - `-m, --message <msg>` — commit before branching; auto-generates branch name (`03-24-add_login`) when no name given
 
-### `gh stack view [flags]`
+### `gh stack view --json`
 
-Show branches, ordering, PR links, latest commit. `-s/--short` compact; `--json` structured output (prefer for parsing).
+Show stack state. **Only `--json` is agent-safe** (bare and `--short` launch a TUI). Output:
+
+```json
+{ "trunk": "main", "currentBranch": "api-routes",
+  "branches": [ { "name": "auth", "head": "<sha>", "base": "<parent sha>",
+    "isCurrent": false, "isMerged": true, "needsRebase": false,
+    "pr": { "number": 42, "url": "...", "state": "MERGED" } } ] }
+```
+
+`pr` omitted when no PR; `pr.state` is `OPEN`/`MERGED`; `needsRebase` = base not an ancestor. Useful jq:
+
+```
+gh stack view --json | jq '[.branches[] | select(.needsRebase)] | length'   # rebase needed?
+gh stack view --json | jq -r '.branches[] | select(.isMerged) | .name'      # merged branches
+gh stack view --json | jq '[.branches[].isMerged] | all'                    # stack fully merged?
+```
 
 ### `gh stack checkout [<stack-number>|<pr-number>|<pr-url>|<branch>]`
 
-Check out a stack; fetches and sets up remote stacks locally. Bare numbers try stack/PR number first, then branch. No argument: interactive picker — always pass an argument.
+Check out a stack; fetches and sets up remote stacks locally. Bare numbers try stack/PR number first, then branch. No argument: interactive picker — always pass an argument. Branch names resolve against locally tracked stacks only; use a PR/stack number to pull remote stacks. **If local and remote stack compositions differ, an unbypassable prompt appears** — `gh stack unstack` first, then retry.
 
 ### `gh stack modify [flags]`
 
@@ -97,17 +131,25 @@ Create/update a GitHub stack from branches or PR numbers/URLs **without local tr
 - `gh stack alias [name]` — install `gs` (or custom) wrapper in `~/.local/bin/`
 - `GH_STACK_THEME` = `auto|light|dark`
 
-## Exit codes
+## Exit codes and recovery
 
-| Code | Meaning |
-| --- | --- |
-| 0 | Success |
-| 1 | Generic error |
-| 2 | Not in a stack / stack not found |
-| 3 | Rebase conflict |
-| 4 | GitHub API failure |
-| 5 | Invalid arguments or flags |
-| 6 | Disambiguation required (branch in multiple stacks) |
-| 7 | Rebase already in progress |
-| 8 | Stack locked by another process |
-| 9 | Stacked PRs not enabled for this repository |
+| Code | Meaning | Agent action |
+| --- | --- | --- |
+| 0 | Success | proceed |
+| 1 | Generic error | read stderr |
+| 2 | Not in a stack / not found | `gh stack init` first, or check the number |
+| 3 | Rebase conflict | parse stderr for files, resolve, `git add`, `gh stack rebase --continue` |
+| 4 | GitHub API failure | check `gh auth status`, retry |
+| 5 | Invalid arguments (e.g. `add` off-top) | fix invocation; `gh stack top` before `add` |
+| 6 | Branch in multiple stacks | checkout a non-shared branch first |
+| 7 | Rebase already in progress | `--continue` (after resolving) or `--abort`; never start another |
+| 8 | Stack locked by another process | lock times out after ~5s; wait and retry |
+| 9 | Stacked PRs not enabled for repo | fall back (T2/T3); interactive `submit` offers plain unstacked PRs, non-interactive exits 9 |
+
+## Known limitations
+
+- Stacks are **strictly linear** — one parent, at most one child per branch; parallel workstreams need separate stacks.
+- **Merging stacked PRs from the CLI is not supported** — merge via the PR page in the browser.
+- `submit` PR titles/bodies are auto-generated only (single commit → commit subject/body; multiple → humanized branch name); customize afterwards with `gh pr edit`.
+- Exit-6 disambiguation cannot be bypassed with a flag.
+- Remote stack checkout needs a PR/stack number; branch names are local-only.

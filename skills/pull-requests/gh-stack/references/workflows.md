@@ -9,6 +9,7 @@ Sources: https://github.github.com/gh-stack/guides/stacked-prs/ and https://gith
   - Merge a **mid** PR → it and everything below land; PRs above stay open.
   - Merge the **bottom** PR → only that PR lands.
 - Only contiguous groups starting from the lowest unmerged PR can land; you cannot skip a lower PR.
+- **Merging is web-UI only** — the CLI cannot merge stacked PRs; give the user the PR URL.
 - After a partial merge, GitHub **automatically rebases and retargets** the remaining PRs so the next unmerged PR targets the trunk directly.
 - A fully merged stack is complete and cannot be extended; `gh stack submit` on new branches starts a **new** stack rooted at trunk.
 
@@ -67,6 +68,9 @@ gh stack submit --auto                     # link PRs (already-open PRs are dete
 ```
 
 ## Structuring guidance (for planning stacks)
+
+- Stacks are **strictly linear**: one parent, at most one child per branch. Parallel workstreams need separate stacks.
+- Stage deliberately with plain `git add <files>` / `git commit` so each layer's PR contains exactly its concern; use `-Am` only for simple single-commit layers.
 
 - Layers tell a cohesive story bottom→top: foundational changes low (schema/models), dependent changes high (API → UI → tests).
 - Start a new layer (`gh stack add`) at a change of concern: backend→frontend, logic→tests/docs, different reviewer audience, or current branch already big enough to review.
