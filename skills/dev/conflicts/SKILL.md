@@ -23,7 +23,7 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 3. List conflicted paths (`git diff --name-only --diff-filter=U`).
 4. Resolve each file by meaning, including add/add and delete/modify cases.
 5. Remove markers, stage resolved files, and run quick sanity checks.
-6. Continue operation with the correct `--continue` command; repeat until complete.
+6. Continue operation with the correct `--continue` command; repeat until complete. If the rebase was started by `gh-stack`, continue with `gh stack rebase --continue` (or `gh stack modify --continue`), not `git rebase --continue`.
 7. Report outcomes; do not push unless asked.
 
 If no operation is active, report and stop. If a resolution is ambiguous, stop and ask.

@@ -12,11 +12,12 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 ## Steps
 
-1. Resolve PR with `pr-info` and capture `baseRefName`, title, and body.
-2. If no PR exists, ask whether to use generic `rebase` base detection or an explicit base.
-3. Delegate to `rebase` with base pinned to PR base.
-4. Let `conflicts` handle pauses.
-5. Do not re-implement fetch/rebase/push logic here.
+1. Resolve PR with `pr-info` and capture `baseRefName`, title, body, and `stack`.
+2. If `stack` is non-null, the PR is a layer of a GitHub native stack: stop and use `gh-stack` (`gh stack rebase`/`sync`) instead — rebasing one layer in isolation desyncs the layers above.
+3. If no PR exists, ask whether to use generic `rebase` base detection or an explicit base.
+4. Delegate to `rebase` with base pinned to PR base.
+5. Let `conflicts` handle pauses.
+6. Do not re-implement fetch/rebase/push logic here.
 
 ## Guards
 

@@ -33,7 +33,9 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
    - Dependent groups → **stacked series** ordered base → leaf, each PR based on the prior.
    - Note any group too small/large and suggest merges or further splits.
 6. Present the proposal (units, files/hunks, order, PR type, rationale) and **stop for approval**.
-7. On approval, execute per unit: create branch from the correct base, move the relevant changes, commit, and open the PR via `pr-create`; keep stacks aligned with `pr-restack`.
+7. On approval, execute per unit: create branch from the correct base, move the relevant changes, and commit.
+   - Parallel PRs: open each via `pr-create`.
+   - Stacked series: if GitHub native Stacked PRs are available (probe per `gh-stack`), build and publish the stack with `gh-stack` (`init`/`submit`, or `link` for existing branches); otherwise open PRs via `pr-create` and keep the stack aligned with `pr-restack`.
 8. Verify each unit builds on the intended base and report the resulting PR set.
 
 Stop and ask if dependencies are ambiguous, a group cannot be cleanly separated, or the split would rewrite already-reviewed history.
