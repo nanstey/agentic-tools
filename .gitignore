@@ -7,5 +7,6 @@ pi/sessions/
 pi/run-history.jsonl
 pi/observability/
 pi/npm/node_modules/
+.pi-subagents/
 **/*.token
 **/*.secret
