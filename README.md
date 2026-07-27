@@ -64,10 +64,13 @@ pi                                     # installs packages from settings.json
 
 ### Planning
 
+Focused planning skills below are optional and independently selectable; `proposal` and `speclist` remain separate planning paths.
+
 | Skill | Description |
 | --- | --- |
 | [`proposal`](skills/planning/proposal/SKILL.md) | Run discovery and uncertainty resolution for a change, then write a terse plan document covering purpose, behaviour, validation, architecture, and phased vertical slices. Read-only. |
 | [`speclist`](skills/planning/speclist/SKILL.md) | Convert reports into ordered implementation checklists with blockers and validation steps. |
+| [`product-review`](skills/planning/product-review/SKILL.md) | Turns a product request into a concise user-centred review with outcomes, success signals, and scope. Use when an agent misunderstanding the product intent would be expensive. |
 
 ### Agent
 
