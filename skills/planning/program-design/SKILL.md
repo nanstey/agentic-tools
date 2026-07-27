@@ -30,7 +30,7 @@ Inspect the target repository read-only. Write only the approved planning artifa
 5. Identify validation seams and the smallest checks that prove the proposed design.
 6. For an unsupported decision that would constrain implementation, present bounded alternatives and ask the user rather than choosing one.
 7. Record every material uncertainty. Investigate and cite repository or source evidence where possible; otherwise ask the user. Do not finalize while one remains open.
-8. Write the program-design artifact to the approved path and optionally request the named reviewer's feedback. Then stop and present the artifact for explicit user review; do not begin implementation or invoke a follow-on skill.
+8. Write the program-design artifact to the approved path and optionally request the named reviewer's feedback. If no material decisions remain, recommend `vertical-slices` as the next task. Then stop and present the artifact for explicit user review; do not begin implementation or invoke a follow-on skill.
 
 ## Safety Rules
 
@@ -44,4 +44,4 @@ Inspect the target repository read-only. Write only the approved planning artifa
 
 ## Output Style
 
-Report artifact path, call-path and file-layout decisions, key interfaces/invariants, validation seams, unresolved-question resolution, review status, and one named optional next skill (or state that none is needed). Do not invoke another skill automatically; wait for explicit user approval before any follow-on work.
+Report artifact path, call-path and file-layout decisions, key interfaces/invariants, validation seams, unresolved-question resolution, review status, and `vertical-slices` as the recommended next task when no material decisions remain. Do not invoke another skill automatically; wait for explicit user approval before any follow-on work.
