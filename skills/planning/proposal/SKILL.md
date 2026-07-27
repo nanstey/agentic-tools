@@ -28,17 +28,19 @@ If intent is too vague to design against, stop and ask.
 
 ## Workflow
 
-1. Restate the request and the desired change in behaviour.
-2. Discover: gather missing context from the user; investigate the codebase to learn current behaviour, boundaries, and affected areas.
-3. Reason through consequences: for each desired behaviour change, name what it breaks, touches, or requires downstream.
-4. Track every uncertainty as an open question. Resolve each one before designing:
+1. State that this is planning-only: do not edit source or dependencies. Treat implementation imperatives such as “build,” “implement,” “ship,” or “wire up” as planning scope, not permission to execute.
+2. Restate the request and the desired change in behaviour.
+3. Discover: gather missing context from the user; investigate the codebase to learn current behaviour, boundaries, and affected areas.
+4. Reason through consequences: for each desired behaviour change, name what it breaks, touches, or requires downstream.
+5. Track every uncertainty as an open question. Resolve each one before designing:
    - Verifiable from the codebase or docs: investigate directly and record the finding.
    - Not verifiable (intent, priorities, external systems): surface to the user via harness question tooling when available, plain questions otherwise.
    - Loop: keep investigating and asking until no open questions remain.
-5. Decompose into vertical slices, each independently shippable and verifiable.
-6. Resolve the plan's location per the rules below.
-7. Write the plan document per the contract below.
-8. Report the plan path and how each open question was resolved (verified or answered).
+6. Decompose into vertical slices, each independently shippable and verifiable.
+7. Resolve the plan's location per the rules below.
+8. Write the plan document per the contract below.
+9. Present the plan for explicit user review and stop; do not begin implementation or invoke a follow-on skill.
+10. Report the plan path and how each open question was resolved (verified or answered).
 
 Stop and ask whenever an uncertainty is not verifiable by investigation; do not design past it.
 
@@ -69,6 +71,8 @@ Code snippets only when they convey the change more succinctly than prose. Diagr
 ## Safety Rules
 
 - Never modify the codebase; this skill investigates and plans only.
+- Never treat an implementation imperative as permission to edit source, invoke a build workflow, or proceed past the review gate.
+- Explicit approval of the plan selects a later, separate planning or build phase; it never authorizes source edits within this skill.
 - Never state an assumption as fact; verify it by investigation or ask the user.
 - Never finalize the plan while open questions remain; resolve them all first.
 - Never design past an uncertainty that investigation cannot settle without asking first.
@@ -76,4 +80,4 @@ Code snippets only when they convey the change more succinctly than prose. Diagr
 
 ## Output Style
 
-Report the written plan path, a one-line summary of the change, the phase list, and how each open question was resolved (verified by investigation or answered by the user). The shipped plan carries no open questions.
+Report the written plan path, a one-line summary of the change, the phase list, how each open question was resolved (verified by investigation or answered by the user), and review status. The shipped plan carries no open questions. Wait for explicit user approval before any follow-on work.

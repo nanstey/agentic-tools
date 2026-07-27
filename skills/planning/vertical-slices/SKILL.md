@@ -23,23 +23,27 @@ Inspect the target repository read-only. Write only the approved planning artifa
 
 ## Workflow
 
-1. Identify the smallest end-to-end behaviour that can be exposed and verified first.
-2. Define one to three slices for the next planning wave. For each, state the observable outcome, layers crossed, focused implementation boundary, verification method, and review/steering checkpoint.
-3. Reject a database-, service-, API-, or frontend-only phase unless it is explicitly justified bootstrap work. Restructure unjustified horizontal work into a vertical slice.
-4. For justified bootstrap work that cannot itself expose behaviour, state why, bound it tightly, and require a verification checkpoint before the first observable slice.
-5. Require each completed slice to record its verification result and, when review is requested, the opted-in reviewer's steering outcome before the next slice starts.
-6. Treat later work as a re-planning checkpoint, not an uncontrolled batch; stop after the current wave and ask for steering before defining more slices.
-7. Record every material uncertainty. Investigate and cite repository or source evidence where possible; otherwise ask the user. Do not finalize while one remains open.
-8. Write the slice-boundary artifact to the approved path. Recommend `speclist` only when task-level execution steps are needed.
+1. State that this is planning-only: do not edit source or dependencies. Treat implementation imperatives such as “build,” “implement,” “ship,” or “wire up” as slice-planning scope, not permission to execute. If there is no approved artifact path or permission to propose one, ask the user and stop.
+2. Identify the smallest end-to-end behaviour that can be exposed and verified first.
+3. Define one to three slices for the next planning wave. For each, state the observable outcome, layers crossed, focused implementation boundary, verification method, and review/steering checkpoint.
+4. Reject a database-, service-, API-, or frontend-only phase unless it is explicitly justified bootstrap work. Restructure unjustified horizontal work into a vertical slice.
+5. For justified bootstrap work that cannot itself expose behaviour, state why, bound it tightly, and require a verification checkpoint before the first observable slice.
+6. Require each completed slice to record its verification result and, when review is requested, the opted-in reviewer's steering outcome before the next slice starts.
+7. Treat later work as a re-planning checkpoint, not an uncontrolled batch; stop after the current wave and ask for steering before defining more slices.
+8. Record every material uncertainty. Investigate and cite repository or source evidence where possible; otherwise ask the user. Do not finalize while one remains open.
+9. Write the slice-boundary artifact to the approved path. Recommend `speclist` only when task-level execution steps are needed. Then stop and present the artifact for explicit user review; do not begin implementation or invoke a follow-on skill.
 
 ## Safety Rules
 
 - Never edit source, tests, configuration, dependencies, or existing documentation.
+- Never treat an implementation imperative as permission to edit source, invoke a build workflow, or proceed past the review gate.
 - Never present horizontal layer sequencing as a vertical slice.
 - Never use a slice to hide an unbounded implementation batch.
 - Never invent validation capability or repository behaviour without evidence or user confirmation.
+- Never assume user approval or a reviewer; a reviewer is author opt-in, but explicit user review is required before any follow-on work.
+- Explicit approval of the slice plan selects a later, separate planning or build phase; it never authorizes source edits within this skill.
 - Never finalize while a material sequencing or verification decision is unresolved.
 
 ## Output Style
 
-Report artifact path; the current planning wave; each slice's observable outcome, validation, and checkpoint; the opted-in reviewer/mechanism when requested; any justified bootstrap work; unresolved-question resolution; and one named optional next skill (or state that none is needed). Do not invoke another skill automatically.
+Report artifact path; the current planning wave; each slice's observable outcome, validation, and checkpoint; the opted-in reviewer/mechanism when requested; any justified bootstrap work; unresolved-question resolution; review status; and one named optional next skill (or state that none is needed). Do not invoke another skill automatically; wait for explicit user approval before any follow-on work.
