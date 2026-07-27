@@ -18,7 +18,7 @@ Inspect the target repository read-only. Write only the approved planning artifa
 1. Settled architecture, local requirement, or prior planning artifact.
 2. Relevant repository areas and constraints.
 3. Validation expectations and compatibility requirements.
-4. Artifact path, or permission to propose one.
+4. Plan folder (via `plan-init`), or permission to resolve or create one.
 5. Optional opted-in reviewer and review mechanism.
 
 ## Workflow
@@ -30,7 +30,7 @@ Inspect the target repository read-only. Write only the approved planning artifa
 5. Identify validation seams and the smallest checks that prove the proposed design.
 6. For an unsupported decision that would constrain implementation, present bounded alternatives and ask the user rather than choosing one.
 7. Record every material uncertainty. Investigate and cite repository or source evidence where possible; otherwise ask the user. Do not finalize while one remains open.
-8. Write the program-design artifact to the approved path and optionally request the named reviewer's feedback. If no material decisions remain, recommend `vertical-slices` as the next task. Then stop and present the artifact for explicit user review; do not begin implementation or invoke a follow-on skill.
+8. Resolve the plan folder: reuse the change's existing folder, or run `plan-init` to create one. Write the program-design artifact to `<plan-folder>/program-design.md`, upsert its row in the README `## Design` table, and optionally request the named reviewer's feedback. If no material decisions remain, recommend `vertical-slices` as the next task. Then stop and present the artifact for explicit user review; do not begin implementation or invoke a follow-on skill.
 
 ## Safety Rules
 

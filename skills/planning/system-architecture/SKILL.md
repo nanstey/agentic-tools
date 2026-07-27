@@ -18,7 +18,7 @@ Inspect the target repository read-only. Write only the approved planning artifa
 1. Change request and available product or technical context.
 2. Affected systems, interfaces, and constraints.
 3. Compatibility, security, reliability, and rollout requirements.
-4. Artifact path, or permission to propose one.
+4. Plan folder (via `plan-init`), or permission to resolve or create one.
 5. Optional opted-in reviewer and review mechanism.
 
 ## Workflow
@@ -29,7 +29,7 @@ Inspect the target repository read-only. Write only the approved planning artifa
 4. Use a sequence or data-flow diagram only when it makes an interaction clearer than concise prose.
 5. Defer call stacks, file placement, internal types, and method signatures to `program-design`.
 6. Record every material uncertainty. Investigate and cite repository or source evidence where possible; otherwise ask the user. Do not finalize while one remains open.
-7. Write the architecture artifact to the approved path and optionally request the named reviewer's feedback. Then stop and present the artifact for explicit user review; do not begin implementation or invoke a follow-on skill.
+7. Resolve the plan folder: reuse the change's existing folder, or run `plan-init` to create one. Write the architecture artifact to `<plan-folder>/system-architecture.md`, upsert its row in the README `## Design` table, and optionally request the named reviewer's feedback. Then stop and present the artifact for explicit user review; do not begin implementation or invoke a follow-on skill.
 
 ## Safety Rules
 

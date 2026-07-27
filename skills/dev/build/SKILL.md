@@ -18,7 +18,8 @@ Protect the context window of your main thread by delegating to subagents wherev
 
 ## Required Inputs
 
-1. Source: `context`, `plan`, or `speclist` (inline or filepath). If absent, derive a minimal plan from intent.
+1. Source: a plan folder `README.md`, `context`, `plan`, or `speclist` (inline or filepath). If absent, derive a minimal plan from intent.
+   - Given a plan-folder README: read it for the big picture, follow its `## Design` docs for context, and take the target slice's `specs/NN-*.md` as the phase checklist. Build one slice per PR unless told otherwise; stack dependent slices via `/gh-stack` or `/pr-restack`.
 2. Outcome and boundaries.
 3. Success criteria stated as observable behaviour (BDD/TDD), not implementation details.
 4. Required validation and the tooling/methods it depends on.
@@ -33,8 +34,9 @@ If no actionable target or intent exists, stop and ask.
 3. Confirm validation tooling is available and runnable; acquire or flag missing tooling before relying on it.
 4. Decompose into individually verifiable phases.
 5. For each phase: implement focused edits, and validate its success criteria, update speclist checkboxes only after validation, then run `/commit`.
-6. When all phases pass, run `/pr`.
-7. Summarize changes, validation, assumptions, and risks.
+6. When all phases pass, run `/pr`. In a plan folder, set the slice's `PR` and `Status` cells in the README `## Slices` table and update the top-level `Status`.
+7. If a design changes during implementation, update the affected `## Design` doc or spec and append a dated entry to the README `## Decision log`; keep the plan folder consistent with what shipped.
+8. Summarize changes, validation, assumptions, and risks.
 
 Stop and ask when scope is ambiguous, architecture choices are unresolved, or validation is blocked by missing access/resources.
 
@@ -47,6 +49,7 @@ Stop and ask when scope is ambiguous, architecture choices are unresolved, or va
 - Never treat ambiguous intent as approval for broad refactors.
 - Never delegate to a subagent without a scoped task, chosen model, and return contract.
 - Never revert or overwrite unrelated user changes, or use destructive git/file operations, without explicit approval.
+- Never let a plan folder drift from reality: update its README index and design docs when implementation diverges from the plan.
 
 ## Output Style
 

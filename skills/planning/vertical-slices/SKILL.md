@@ -19,7 +19,7 @@ Inspect the target repository read-only. Write only the approved planning artifa
 2. Observable user, API, CLI, or test outcomes.
 3. Validation tooling and reviewer/steering expectations.
 4. Optional opted-in reviewer and review mechanism.
-5. Artifact path, or permission to propose one.
+5. Plan folder (via `plan-init`), or permission to resolve or create one.
 
 ## Workflow
 
@@ -31,7 +31,7 @@ Inspect the target repository read-only. Write only the approved planning artifa
 6. Require each completed slice to record its verification result and, when review is requested, the opted-in reviewer's steering outcome before the next slice starts.
 7. Use checkpoints between planned slices to permit execution-time steering or re-planning when evidence changes; do not omit later required slices merely because they belong to a later execution wave.
 8. Record every material uncertainty. Investigate and cite repository or source evidence where possible; otherwise ask the user. Do not finalize while one remains open.
-9. Write the complete slice-boundary artifact to the approved path. Recommend `speclist` only when task-level execution steps are needed. Then stop and present the artifact for explicit user review; do not begin implementation or invoke a follow-on skill.
+9. Resolve the plan folder: reuse the change's existing folder, or run `plan-init` to create one. Write the complete slice-boundary artifact to `<plan-folder>/vertical-slices.md`, upsert its row in the README `## Design` table, and seed the README `## Slices` table with one numbered row per slice (leave `Spec`, `PR`, and `Status` blank). Recommend `speclist` when task-level execution steps are needed, one spec per slice. Then stop and present the artifact for explicit user review; do not begin implementation or invoke a follow-on skill.
 
 ## Safety Rules
 

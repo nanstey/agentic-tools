@@ -22,7 +22,7 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 2. Affected system(s) and entry points.
 3. Constraints (tech, deadlines, compatibility) and definition of done.
 4. Validation and verification tooling available.
-5. Output path (auto-detected per the location rules below when not given).
+5. Plan folder (via `plan-init`), auto-resolved per the location rules below when not given.
 
 If intent is too vague to design against, stop and ask.
 
@@ -37,8 +37,8 @@ If intent is too vague to design against, stop and ask.
    - Not verifiable (intent, priorities, external systems): surface to the user via harness question tooling when available, plain questions otherwise.
    - Loop: keep investigating and asking until no open questions remain.
 6. Decompose into vertical slices, each independently shippable and verifiable.
-7. Resolve the plan's location per the rules below.
-8. Write the plan document per the contract below.
+7. Resolve the plan folder per the rules below.
+8. Write the plan to `<plan-folder>/proposal.md` per the contract below, upsert its row in the README `## Design` table, and seed the README `## Slices` table from the implementation phases (one numbered row per phase; leave `Spec`, `PR`, and `Status` blank).
 9. Present the plan for explicit user review and stop; do not begin implementation or invoke a follow-on skill.
 10. Report the plan path and how each open question was resolved (verified or answered).
 
@@ -46,12 +46,13 @@ Stop and ask whenever an uncertainty is not verifiable by investigation; do not 
 
 ## Plan Location
 
-Decide where the plan file lives by investigating the codebase, not by guessing.
+The plan lives in a plan folder (`plan-init`'s Plan Folder Layout) as `<plan-folder>/proposal.md`, so it stays linked to any later architecture, design, slice, and spec files through the folder's README index. Decide the folder by investigating the codebase, not by guessing.
 
-1. Look for a documented or conventional spot: plan/design directories (`docs/plans/`, `plans/`, `.plans/`, `rfcs/`, `design/`, `specs`, `docs/specs`, etc), references in `CLAUDE.md` / `AGENTS.md` / `README`, or where existing plans already sit.
-2. If one clear spot exists, assert it and state why.
-3. If evidence shows both a persistent spot (tracked, e.g. `docs/plans/`) and an ephemeral one (gitignored or temp, e.g. `/tmp`, a scratch dir), propose both filepaths. Default to the persistent spot unless told otherwise, but surface the choice anyway.
-4. If none exists, propose a sensible default and confirm before writing.
+1. Reuse an existing plan folder for this change if one exists.
+2. Otherwise resolve the base plans directory: a documented or conventional spot (`docs/plans/`, `plans/`, `.plans/`, `rfcs/`, `design/`, `specs/`, `docs/specs/`), references in `CLAUDE.md` / `AGENTS.md` / `README`, or where existing plans already sit. If one clear base exists, assert it and state why.
+3. If evidence shows both a persistent base (tracked, e.g. `docs/plans/`) and an ephemeral one (gitignored or temp), surface the choice and default to the persistent base unless told otherwise.
+4. If no base exists, propose a sensible default and confirm before writing.
+5. Create the folder and README via `plan-init` (or its layout) before writing `proposal.md`.
 
 ## Plan Document Contract
 
