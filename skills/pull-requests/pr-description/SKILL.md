@@ -23,10 +23,11 @@ Default behavior is to update the PR directly once rewritten.
 3. Read current title, body, and metadata.
 4. Analyze the branch's own changes with the three-dot merge-base diff: `git diff base...HEAD` and `git diff --stat base...HEAD` (use `git log base..HEAD` for the commit list). If the diff shows files unrelated to the branch's commits, the base has advanced past the merge-base — trust the three-dot diff, not `base..HEAD`.
 5. Identify drift: stale title, missing changes, stale bullets, stale/complete checklist items.
-6. Rewrite concise body (typically `Summary`, `What Changed`, optional `Testing`/`Open Questions`).
-7. If the title no longer summarizes the changeset, rewrite it (concise, imperative, matching repo convention such as Conventional Commits when in use).
-8. Preserve still-relevant links/issues/related PR refs.
-9. Update the PR title (only if drifted) and body via `gh`, then verify by re-reading the PR.
+6. If the branch changes user-facing UI, run `pr-screenshots` to ensure the PR's visual evidence is current before finalizing the body; wire any refreshed attachments into the description. Skip for non-UI changesets.
+7. Rewrite concise body (typically `Summary`, `What Changed`, optional `Testing`/`Screenshots`/`Open Questions`).
+8. If the title no longer summarizes the changeset, rewrite it (concise, imperative, matching repo convention such as Conventional Commits when in use).
+9. Preserve still-relevant links/issues/related PR refs, including current screenshot/clip attachments.
+10. Update the PR title (only if drifted) and body via `gh`, then verify by re-reading the PR.
 
 ## Guidelines
 
@@ -34,6 +35,7 @@ Default behavior is to update the PR directly once rewritten.
 - Do not credit agents (Claude Code, Codex, etc.) for writing the description.
 - Do not reference filepaths in the summary.
 - Do not reference uncommitted plan files.
+- Screenshots/clips belong as PR attachments, never committed to the repo; delegate their capture and refresh to `pr-screenshots`.
 - Do not structure the content according to implementation order.
 - Use appropriate subsections in `What changed` section
 
@@ -52,6 +54,7 @@ Default behavior is to update the PR directly once rewritten.
 - Never remove links or attachments unless there is evidence they are stale or irrelevant.
 - Never check off a checklist item unless the changeset supports that inference with reasonable confidence.
 - Never preserve stale descriptive bullets that conflict with the current branch state.
+- Never leave stale screenshots in a UI PR body; refresh via `pr-screenshots`, and never commit the artifacts to the repo.
 - Never overwrite unrelated user work in the repository while gathering context.
 - If unexpected working tree changes appear while you are working, stop and ask the user how to proceed.
 
