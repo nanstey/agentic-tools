@@ -114,6 +114,7 @@ Focused planning skills below are optional and independently selectable; `propos
 | [`pr-create`](skills/pull-requests/pr-create/SKILL.md) | Create a draft PR for the current branch when none exists. |
 | [`pr-comments`](skills/pull-requests/pr-comments/SKILL.md) | Triage unresolved review threads, apply fixes, validate, commit, push, and resolve/reply. |
 | [`pr-description`](skills/pull-requests/pr-description/SKILL.md) | Sync the PR title and description to current branch changes and maintain checklist accuracy. |
+| [`pr-screenshots`](skills/pull-requests/pr-screenshots/SKILL.md) | Keep a PR's screenshots and UI clips in sync with the current UI implementation, capturing or refreshing them (as PR attachments, never committed) when the branch changes UI. |
 | [`pr-rebase`](skills/pull-requests/pr-rebase/SKILL.md) | Rebase onto latest `origin/develop`, resolve conflicts, and force-push with lease. |
 | [`pr-restack`](skills/pull-requests/pr-restack/SKILL.md) | Rebase dependent PR stacks and repoint downstream branches to correct bases. |
 | [`pr-split`](skills/pull-requests/pr-split/SKILL.md) | Split a large branch/PR into smaller reviewable units, proposing parallel PRs or a stacked series. |

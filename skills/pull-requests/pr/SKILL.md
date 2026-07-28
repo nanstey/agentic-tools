@@ -39,7 +39,7 @@ Run in order, skipping steps the user excluded.
 
 ### 3. Update the PR
   - `pr-rebase`: rebase onto the latest base and force-push with lease. This single push carries all fixes and triggers one fresh CI run and review-agent pass.
-  - `pr-description`: sync the PR body with the final changeset.
+  - `pr-description`: sync the PR body with the final changeset; for UI changesets it runs `pr-screenshots` to refresh visual evidence and attach it to the PR (never committed).
 
 After each step, report its outcome before continuing.
 Stop and ask when any step hits its own stop gate, fails, or leaves the branch in an unexpected state.
@@ -48,6 +48,7 @@ Stop and ask when any step hits its own stop gate, fails, or leaves the branch i
 
 - Never push during step 3; the rebase push exists to avoid retriggering CI and review agents on intermediate states.
 - Never resolve threads before their fix commit is pushed.
+- Never commit screenshots/clips to the repo; `pr-screenshots` attaches them to the PR.
 - Never continue past a failed step without user approval.
 - Never duplicate work a sub-skill owns; delegate instead of reimplementing.
 - If unexpected working tree changes appear between steps, stop and ask the user how to proceed.
