@@ -42,10 +42,8 @@ If not applicable, report "no UI change — screenshots not required" and stop w
    If **Current**, report that and stop — do not recapture.
 5. For missing/stale evidence, confirm the branch's site is reachable at the base URL/port; if not, stop and ask (never capture an error page).
 6. Delegate capture to `visual-capture`: pick the medium (static → screenshot, interaction/scroll/flow → video), capture the changed routes/components, and — when the change modifies existing UI — capture a before/after pair using a base-ref `worktree`.
-7. Attach the artifacts to the PR and reference them in the body (hand the body edit to `pr-description`, or update directly when run standalone), keeping each asset under GitHub's ~10 MB inline limit. There is **no** `gh` command or public REST endpoint for PR/issue body attachments, so:
-   - If a github.com browser session is available, drag-drop the files into the body/comment to get `github.com/user-attachments` URLs.
-   - Otherwise, treat attachment as a **handoff**: output the artifact file paths plus a paste-ready `## Screenshots` markdown block for the user to drop in, and report the attach step as pending. Do not fabricate attachment URLs.
-8. Verify by re-reading the PR body and confirming the new links render (or, on handoff, that the paste-ready block was emitted).
+7. Attach the artifacts to the PR (see **Attachment Paths** below) and reference them in the body (hand the body edit to `pr-description`, or update directly when run standalone), keeping each asset under GitHub's ~10 MB inline limit. There is **no** `gh` command or public REST endpoint for PR/issue body attachments; use the browser-upload recipe when a logged-in GitHub profile exists, else hand off. Do not fabricate attachment URLs.
+8. Verify by re-reading the PR body and confirming the new images render (or, on handoff, that the paste-ready block was emitted). GitHub rewrites `user-attachments/assets/...` to `private-user-images.githubusercontent.com` on render, so match both forms when asserting the embed loaded.
 
 Stop-and-ask gates: site unreachable, ambiguous before/after refs, capture tooling unavailable (per `visual-capture` preflight), or an artifact would land in the repo.
 
@@ -53,11 +51,26 @@ Stop-and-ask gates: site unreachable, ambiguous before/after refs, capture tooli
 
 - Do **not** add screenshots or videos to the repository. They live in the gitignored `captures/` dir that `visual-capture` produces, and reach the PR as GitHub attachments hosted off-tree.
 - Attachment paths, best first:
-  1. **User drag-drop** into the PR body/comment (the normal path). GitHub's `github.com/user-attachments` CDN is an authenticated browser-only flow (session + CSRF); there is no `gh` command and no public REST endpoint for it, and the agent must not drive a browser using the user's github.com credentials.
-  2. **Handoff** when the agent has no github.com session: emit the artifact paths and a paste-ready `## Screenshots` block, and mark the attach as pending.
-  3. **`gh release upload`** only as a last resort — it yields a public `browser_download_url` that renders in markdown, but pollutes Releases; call out the tradeoff and prefer drag-drop.
+  1. **Browser upload via `playwright-cli`** (preferred, programmatic) when a github.com-authenticated persistent profile exists. GitHub's `user-attachments` CDN is a browser-only flow (session + CSRF) with no `gh`/REST endpoint, but dropping a file into a PR comment textarea mints a **persistent** `user-attachments/assets/` URL *without submitting the comment*. Drive this through `playwright-cli` (never ad-hoc Puppeteer/MCP), reusing a persistent profile the **user** logged into once — the agent never types or handles raw GitHub credentials. See **Browser Upload Recipe**.
+  2. **User drag-drop** into the PR body/comment when no authenticated profile is available and logging one in is out of scope.
+  3. **Handoff** when neither is possible: emit the artifact paths and a paste-ready `## Screenshots` block, and mark the attach as pending.
+  4. **`gh release upload`** only as a last resort — it yields a public `browser_download_url` that renders in markdown, but pollutes Releases; call out the tradeoff and prefer the paths above.
 - The only exception is a project that already keeps UI assets in a tracked asset dir (e.g. `docs/assets/`) and explicitly wants them committed — otherwise attach, never commit.
 - Reference attachments in the PR body only; the branch diff must not gain image/video files.
+
+## Browser Upload Recipe
+
+Mint persistent attachment URLs by dropping files into a PR comment box via `playwright-cli`, then embed them with `gh` — without ever submitting the comment. Adapted from the community `github-upload-image-to-pr` skill (MIT).
+
+Preconditions: `playwright-cli` available (per `visual-capture` preflight) and a **persistent profile already logged into github.com** (`playwright-cli open --persistent` / `--profile=<dir>`; the user logs in once in that headed profile). If no such profile exists, do not attempt to authenticate — fall back to drag-drop or handoff.
+
+1. **Stage inside the repo, not `/tmp`.** Browser tools only read files under their workspace root, and the staged filename becomes the image alt text. Copy with a meaningful name, e.g. `cp "$CAP/02-edit-widget-modal.png" ./.upload-01-edit-widget-modal.png`. Delete after upload so it is never committed.
+2. **Open the PR in the authenticated profile:** `playwright-cli -s=ghup open --persistent "https://github.com/<owner>/<repo>/pull/<number>"`. Take a `snapshot`/`find` to confirm login (handle an SSO "Continue" if shown); if not logged in, stop and fall back.
+3. **Find the dropzone**, not the hidden `<input type=file>` (it is `display:none` and absent from the snapshot): `playwright-cli -s=ghup find "Paste, drop, or click to add files"` (or the "Attach files" button). Use its ref.
+4. **Upload each file** onto that ref: `playwright-cli -s=ghup drop <ref> --path=./.upload-01-edit-widget-modal.png` (or `upload <path>` if a file chooser opens). Wait ~2–3s between multiple files; upload all into the same textarea before extracting.
+5. **Poll the comment textarea** until the placeholder `![Uploading…]()` is replaced by real URLs (1–5s). GitHub inserts an `<img … src="https://github.com/user-attachments/assets/…">` tag (not markdown), so match the asset URL: `playwright-cli --raw -s=ghup eval "JSON.stringify([...(document.getElementById('new_comment_field')||document.querySelector('textarea[id*=comment]')).value.matchAll(/https:\/\/github\.com\/user-attachments\/assets\/[0-9a-fA-F-]+/g)].map(m=>m[0]))"`.
+6. **Clear the textarea without submitting** so the draft autosave does not resurface it: `playwright-cli -s=ghup eval "(()=>{const t=document.getElementById('new_comment_field')||document.querySelector('textarea[id*=comment]');t.value='';t.dispatchEvent(new Event('input',{bubbles:true}));return'cleared'})()"`. Never click Comment/Submit.
+7. **Embed** the minted URLs into the PR body (hand off to `pr-description`, or `gh pr edit <number> --body-file <file>` when standalone), then `rm ./.upload-*.png` and `playwright-cli -s=ghup close`.
 
 ## Composition
 
@@ -73,7 +86,9 @@ Stop-and-ask gates: site unreachable, ambiguous before/after refs, capture tooli
 - Never capture a blank or error page; if the site is unreachable, stop and ask.
 - Never vary viewport/theme/device between before and after (enforced by `visual-capture`).
 - Never bypass `visual-capture`/`playwright-cli` with ad-hoc Puppeteer, `@playwright/test`, or MCP.
-- Never drive a browser with the user's github.com credentials to upload attachments; hand off instead.
+- Never type or handle raw GitHub credentials to authenticate a browser; the browser-upload recipe only reuses a persistent profile the user already logged into, and falls back to drag-drop/handoff when none exists.
+- Never submit the PR comment used as the upload staging area; clear the textarea instead.
+- Never leave the staged `.upload-*` copy tracked or committed; `rm` it after upload.
 - Never claim a `gh`/public REST attachment path exists, and never fabricate attachment URLs.
 - Never overwrite unrelated PR body content while inserting screenshot references.
 - If unexpected working tree changes appear while you are working, stop and ask the user how to proceed.
