@@ -42,6 +42,8 @@ Body sections should use this default order when relevant:
 
 Omit irrelevant sections rather than adding filler.
 
+For a planning-only skill that writes an artifact rather than changing the target codebase, include an active planning-only guardrail in that skill itself: implementation imperatives define planning scope rather than execution authority; source edits and follow-on invocation are forbidden; and the skill stops for explicit user review after its artifact. Do not rely on a separate referenced skill for this boundary.
+
 ## Required Inputs
 
 1. Skill purpose/workflow.

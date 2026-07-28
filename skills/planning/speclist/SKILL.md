@@ -9,7 +9,8 @@ disable-model-invocation: false
 
 ## Core Contract
 
-Convert one report into one executable implementation checklist and write it to markdown.
+Convert a report or a plan folder's slice into an executable implementation checklist and write it to markdown.
+When a plan folder exists, write one spec per slice under `<plan-folder>/specs/NN-<slice-slug>.md` (`NN` matches the slice number in the README `## Slices` table); each spec is scoped to a single PR that is reviewed independently and may be stacked. Absent a plan folder, write one standalone checklist file.
 Resolve every open question before finalizing: verify from the report/codebase, or expose the decision to the user and get an answer.
 Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
@@ -18,26 +19,30 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 1. Source report/link.
 2. Scope boundaries.
 3. Constraints and definition of done.
-4. Desired depth and output path.
+4. Plan folder and the target slice(s) (via `plan-init` / `vertical-slices`), or a standalone output path.
+5. Desired depth.
 
 If source is too vague to extract actions, stop and ask.
 
 ## Workflow
 
-1. Ingest report and restate objective.
-2. Extract requirements, assumptions, risks, and constraints.
-3. Track every uncertainty as an open question and resolve each before building the final checklist:
+1. State that this is planning-only: do not edit source or dependencies. Treat implementation imperatives such as “build,” “implement,” “ship,” or “wire up” as checklist scope, not permission to execute.
+2. Ingest report and restate objective.
+3. Extract requirements, assumptions, risks, and constraints.
+4. Track every uncertainty as an open question and resolve each before building the final checklist:
    - Verifiable from the report or codebase: investigate directly and record the finding.
    - Not verifiable (intent, priorities, trade-offs): expose the decision to the user via harness question tooling when available, plain questions otherwise.
    - Loop until no open questions remain.
-4. Build ordered checklist with verifiable actions.
-5. Add `Risk Controls` and optional `Out of Scope`.
-6. Write markdown plan file (user path or sensible temp filename).
+5. Build ordered checklist with verifiable actions.
+6. Add `Risk Controls` and optional `Out of Scope`.
+7. Write the checklist. With a plan folder: for each target slice write `<plan-folder>/specs/NN-<slice-slug>.md` (creating `specs/` as needed), keep each spec scoped to one PR, and fill that slice's `Spec` cell in the README `## Slices` table. Without one: write a single markdown file at the user path or a sensible temp filename. Then present the spec(s) for explicit user review and stop; do not begin implementation or invoke a follow-on skill.
 
 Stop and ask whenever an uncertainty is not resolvable by investigation; do not finalize the checklist past it.
 
 ## Safety Rules
 
+- Never treat an implementation imperative as permission to edit source, invoke a build workflow, or proceed past the review gate.
+- Explicit approval of the checklist selects a later, separate planning or build phase; it never authorizes source edits within this skill.
 - Never invent report facts; verify each or expose the decision to the user.
 - Never hide unresolved blockers inside checklist items; resolve them with the user before finalizing.
 - Never finalize the checklist while open questions remain; resolve them all first.
@@ -47,4 +52,4 @@ Stop and ask whenever an uncertainty is not resolvable by investigation; do not 
 
 ## Output Style
 
-Provide objective, written plan path, ordered checklist, risk controls, out-of-scope items, and how each open question was resolved (verified or answered).
+Provide objective, written plan path, ordered checklist, risk controls, out-of-scope items, how each open question was resolved (verified or answered), and review status. Wait for explicit user approval before any follow-on work.
