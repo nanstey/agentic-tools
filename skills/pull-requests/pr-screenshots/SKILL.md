@@ -45,7 +45,7 @@ If not applicable, report "no UI change — screenshots not required" and stop w
 7. Attach the artifacts to the PR (see **Attachment Paths** below) and reference them in the body (hand the body edit to `pr-description`, or update directly when run standalone), keeping each asset under GitHub's ~10 MB inline limit. GitHub has no public REST/`gh` endpoint for body attachments, so upload with the `gh-image` extension (which replicates the web upload flow); hand off only when no GitHub session is available. Do not fabricate attachment URLs.
 8. Verify by re-reading the PR body and confirming the new images render (or, on handoff, that the paste-ready block was emitted). On a private repo the `user-attachments` URL inherits repo visibility, so an anonymous fetch returning 404/403 is expected, not a failure.
 
-Stop-and-ask gates: site unreachable, ambiguous before/after refs, capture tooling unavailable (per `visual-capture` preflight), or an artifact would land in the repo.
+Stop-and-ask gates: site unreachable, ambiguous before/after refs, capture tooling unavailable (per `visual-capture` preflight), the `gh-image` extension missing (per the gh-image preflight — stop before installing a third-party extension), or an artifact would land in the repo.
 
 ## Artifact Handling
 
@@ -61,10 +61,14 @@ Stop-and-ask gates: site unreachable, ambiguous before/after refs, capture tooli
 
 Upload artifacts to GitHub and get ready-to-embed `user-attachments` references with the [`gh-image`](https://github.com/drogers0/gh-image) `gh` extension (MIT, © drogers0), then embed them via `gh`. No browser automation, no repo commit, no history churn.
 
-Preconditions:
-- `gh` installed and authenticated (`gh auth status`).
-- Extension present (idempotent): `gh extension list | grep -q 'drogers0/gh-image' || gh extension install drogers0/gh-image`.
-- A GitHub **session** for the upload — `gh-image` does not use the `gh` token (that endpoint rejects it); it reads the browser `user_session` cookie, or `--token`/`GH_SESSION_TOKEN` (use the env var in CI with a dedicated bot account). A `user_session` cookie grants full account access; treat it like a password and never log it. If no session is available, fall back to drag-drop or handoff.
+Preflight (gate before any upload; if any check fails, fall back to drag-drop or handoff — do not silently skip):
+1. **`gh` present and authenticated:** `gh auth status`. If not, stop and ask the user to `gh auth login` (never run it unattended).
+2. **`gh-image` extension present:**
+   ```bash
+   gh extension list | grep -q 'drogers0/gh-image' && echo present || echo missing
+   ```
+   If `missing`, **stop and ask before installing** — `gh-image` is a third-party extension (MIT, © drogers0) that authenticates with your full-account `user_session` cookie, so the user should vet/approve it. On approval: `gh extension install drogers0/gh-image`. Never install it unattended.
+3. **GitHub session for the upload:** `gh-image` does not use the `gh` token (that endpoint rejects it); it reads the browser `user_session` cookie, or `--token`/`GH_SESSION_TOKEN` (use the env var in CI with a dedicated bot account). A `user_session` cookie grants full account access; treat it like a password and never log it.
 
 1. **Upload** each artifact with an absolute path (`--repo` is inferred inside the repo working dir); capture the printed reference from stdout — `![name](url)` for images, one line per file:
    ```bash
@@ -93,6 +97,7 @@ Preconditions:
 - Never vary viewport/theme/device between before and after (enforced by `visual-capture`).
 - Never bypass `visual-capture`/`playwright-cli` with ad-hoc Puppeteer, `@playwright/test`, or MCP.
 - Never commit artifacts or force-push a throwaway image commit to host attachments; use `gh-image` (or drag-drop/handoff), never the branch history.
+- Never install the `gh-image` extension unattended; it uses a full-account `user_session` cookie, so stop and ask the user to vet and approve the install first.
 - Never print, log, or paste a `user_session` cookie / `GH_SESSION_TOKEN`; it grants full account access.
 - Never claim a native `gh`/public REST body-attachment endpoint exists, and never fabricate attachment URLs.
 - Never overwrite unrelated PR body content while inserting screenshot references.
