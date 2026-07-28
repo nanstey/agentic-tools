@@ -36,6 +36,7 @@ If intent is too vague to name a folder, stop and ask.
 ```
 
 - Only `README.md` is created up front. Every other file appears when its skill runs.
+- Two planning paths feed the folder: `proposal.md` is the self-contained path for small or trivial changes (one doc for the whole change), while the focused skills (`product-review`, `system-architecture`, `program-design`, `vertical-slices`) decompose larger or riskier changes into one doc per concern. Pick one path per concern; both converge on `## Slices`, `specs/`, and `build`.
 - `specs/` holds one checklist per slice, numbered `NN-` to match the slice number in the README `## Slices` table. Each spec file is scoped to a single PR; specs are implemented, reviewed, and stacked independently.
 
 ## README Index Contract

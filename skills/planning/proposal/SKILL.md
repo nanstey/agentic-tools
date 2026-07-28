@@ -1,6 +1,6 @@
 ---
 name: proposal
-description: Runs discovery and uncertainty resolution for a change, then writes a terse plan document covering purpose, behaviour, validation, architecture, and phased vertical slices. Use before building when a change needs a clear, agreed design.
+description: Runs discovery and uncertainty resolution for a change, then writes one self-contained plan document covering purpose, behaviour, validation, architecture, and phased vertical slices. Use for a small or trivial change simple enough to plan in a single document rather than decomposed focused artifacts.
 user-invocable: true
 disable-model-invocation: false
 ---
@@ -10,6 +10,7 @@ disable-model-invocation: false
 ## Core Contract
 
 Turn a change request into one written plan document that a human, team, or agent can read and act on.
+This is the self-contained planning path: one `proposal.md` covering the whole change, for small or trivial work that does not warrant separate product, architecture, program-design, and slice documents. For larger or riskier changes where each concern needs depth or independent review, use the focused skills (`product-review`, `system-architecture`, `program-design`, `vertical-slices`) instead. Pick one path per concern; do not also write a focused doc for something `proposal.md` already covers. If a concern later outgrows its section, promote it to its own doc, thin that section from `proposal.md`, and note the move in the README `## Decision log`.
 Discover context from the user and the codebase, resolve every uncertainty up front, then design the change.
 Make no assumptions in the plan: verify each fact by direct investigation, or ask the user. Repeat until no open questions remain.
 Read-only on the codebase; the only output is the plan file.
