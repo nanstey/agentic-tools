@@ -43,7 +43,9 @@ Decomposed design docs carry a numeric prefix (`1-`..`4-`) reflecting planning o
 
 ## README Index Contract
 
-The README is the single entry point: a reader or `build` agent opens it to see the big picture, find each artifact, and identify the slice in progress. Use fixed, single-owner sections so skills update it without clobbering each other.
+The README is the single entry point: a reader or `build` agent opens it to see the big picture, find each artifact, and identify the slice in progress. Use fixed, single-owner sections so skills update it without clobbering each other. The `Doc` and `Spec` cells are relative markdown links to the real files (`[1-product-review](./1-product-review.md)`, `[01-<slice>](./specs/01-<slice>.md)`) so the index is navigable.
+
+The README is a live index, not a one-time scaffold: whenever a plan file in the folder is created, renamed, or materially changed, its owning skill updates the README in the same step so links, statuses, and rows always match what is on disk.
 
 ```markdown
 # <Title>
@@ -62,12 +64,12 @@ The README is the single entry point: a reader or `build` agent opens it to see 
 ## Decision log
 ```
 
-Section ownership:
+Section ownership (each owner keeps its rows and links current every time it touches a file):
 
 - **plan-init** writes the title, `Status: planning`, summary, and the empty `## Design`, `## Slices`, and `## Decision log` sections.
-- **Design skills** (`product-review`, `system-architecture`, `program-design`, `proposal`) each upsert their own row in `## Design` (`Stage | ./<file>.md | draft|done`).
+- **Design skills** (`product-review`, `system-architecture`, `program-design`, `proposal`) each upsert their own `## Design` row (`Stage | [<file>](./<file>.md) | draft|done`).
 - **vertical-slices** seeds `## Slices` with one numbered row per slice and upserts its own `## Design` row.
-- **speclist** writes `specs/NN-<slice-slug>.md` and fills the `Spec` cell of the matching slice row.
+- **speclist** writes `specs/NN-<slice-slug>.md` and links it from the `Spec` cell of the matching slice row.
 - **build** updates each slice row's `PR` and `Status`, sets top-level `Status`, and appends to `## Decision log` when a design changes during implementation.
 - **Decision log** is append-only: `YYYY-MM-DD — what changed and which doc was updated`.
 
