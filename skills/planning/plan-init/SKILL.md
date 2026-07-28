@@ -25,15 +25,17 @@ If intent is too vague to name a folder, stop and ask.
 
 ```
 <base>/<slug>/
-  README.md                # index; created here
-  product-review.md        # optional; written by product-review
-  system-architecture.md   # optional; written by system-architecture
-  program-design.md        # optional; written by program-design
-  proposal.md              # optional; written by proposal
-  vertical-slices.md       # optional; written by vertical-slices
+  README.md                 # index; created here (unnumbered)
+  1-product-review.md       # optional; written by product-review
+  2-system-architecture.md  # optional; written by system-architecture
+  3-program-design.md       # optional; written by program-design
+  4-vertical-slices.md      # optional; written by vertical-slices
+  proposal.md               # optional; self-contained path, written by proposal
   specs/
-    NN-<slice-slug>.md      # written by speclist, one file per slice
+    NN-<slice-slug>.md       # written by speclist, one file per slice
 ```
+
+Decomposed design docs carry a numeric prefix (`1-`..`4-`) reflecting planning order; `README.md` stays unnumbered as the entry point, and `proposal.md` (the self-contained path) is unnumbered because it replaces the decomposed set.
 
 - Only `README.md` is created up front. Every other file appears when its skill runs.
 - Two planning paths feed the folder: `proposal.md` is the self-contained path for small or trivial changes (one doc for the whole change), while the focused skills (`product-review`, `system-architecture`, `program-design`, `vertical-slices`) decompose larger or riskier changes into one doc per concern. Pick one path per concern; both converge on `## Slices`, `specs/`, and `build`.

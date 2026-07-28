@@ -30,7 +30,7 @@ Inspect the target repository read-only. Write only the approved planning artifa
 5. Record every material uncertainty. Investigate and cite repository or source evidence where possible; otherwise ask the user. Do not finalize while one remains open.
 6. When a user-visible interaction cannot be settled in prose, offer a rough, non-integrated HTML mockup or equivalent visual artifact. Require an explicitly approved planning/mockup path before writing it.
 7. If feasibility blocks a product decision, stop and recommend `prototype` or `system-architecture`.
-8. Resolve the plan folder: reuse the change's existing folder, or run `plan-init` to create one. Write the review to `<plan-folder>/product-review.md`, upsert its row in the README `## Design` table, and optionally request the named reviewer's feedback. Then stop and present the artifact for explicit user review; do not begin implementation or invoke a follow-on skill.
+8. Resolve the plan folder: reuse the change's existing folder, or run `plan-init` to create one. Write the review to `<plan-folder>/1-product-review.md`, upsert its row in the README `## Design` table, and optionally request the named reviewer's feedback. Then stop and present the artifact for explicit user review; do not begin implementation or invoke a follow-on skill.
 
 ## Safety Rules
 
