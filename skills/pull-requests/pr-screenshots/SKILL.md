@@ -42,14 +42,20 @@ If not applicable, report "no UI change — screenshots not required" and stop w
    If **Current**, report that and stop — do not recapture.
 5. For missing/stale evidence, confirm the branch's site is reachable at the base URL/port; if not, stop and ask (never capture an error page).
 6. Delegate capture to `visual-capture`: pick the medium (static → screenshot, interaction/scroll/flow → video), capture the changed routes/components, and — when the change modifies existing UI — capture a before/after pair using a base-ref `worktree`.
-7. Attach the artifacts to the PR by GitHub upload and reference them in the body (hand the body edit to `pr-description`, or update directly when run standalone). Keep each asset under GitHub's ~10 MB inline limit.
-8. Verify by re-reading the PR body and confirming the new links render.
+7. Attach the artifacts to the PR and reference them in the body (hand the body edit to `pr-description`, or update directly when run standalone), keeping each asset under GitHub's ~10 MB inline limit. There is **no** `gh` command or public REST endpoint for PR/issue body attachments, so:
+   - If a github.com browser session is available, drag-drop the files into the body/comment to get `github.com/user-attachments` URLs.
+   - Otherwise, treat attachment as a **handoff**: output the artifact file paths plus a paste-ready `## Screenshots` markdown block for the user to drop in, and report the attach step as pending. Do not fabricate attachment URLs.
+8. Verify by re-reading the PR body and confirming the new links render (or, on handoff, that the paste-ready block was emitted).
 
 Stop-and-ask gates: site unreachable, ambiguous before/after refs, capture tooling unavailable (per `visual-capture` preflight), or an artifact would land in the repo.
 
 ## Artifact Handling
 
-- Do **not** add screenshots or videos to the repository. They live in the gitignored `captures/` dir that `visual-capture` produces, and reach the PR via GitHub's attachment upload (drag-drop into the body/comment, or the REST upload), which hosts them off-tree.
+- Do **not** add screenshots or videos to the repository. They live in the gitignored `captures/` dir that `visual-capture` produces, and reach the PR as GitHub attachments hosted off-tree.
+- Attachment paths, best first:
+  1. **User drag-drop** into the PR body/comment (the normal path). GitHub's `github.com/user-attachments` CDN is an authenticated browser-only flow (session + CSRF); there is no `gh` command and no public REST endpoint for it, and the agent must not drive a browser using the user's github.com credentials.
+  2. **Handoff** when the agent has no github.com session: emit the artifact paths and a paste-ready `## Screenshots` block, and mark the attach as pending.
+  3. **`gh release upload`** only as a last resort — it yields a public `browser_download_url` that renders in markdown, but pollutes Releases; call out the tradeoff and prefer drag-drop.
 - The only exception is a project that already keeps UI assets in a tracked asset dir (e.g. `docs/assets/`) and explicitly wants them committed — otherwise attach, never commit.
 - Reference attachments in the PR body only; the branch diff must not gain image/video files.
 
@@ -67,9 +73,11 @@ Stop-and-ask gates: site unreachable, ambiguous before/after refs, capture tooli
 - Never capture a blank or error page; if the site is unreachable, stop and ask.
 - Never vary viewport/theme/device between before and after (enforced by `visual-capture`).
 - Never bypass `visual-capture`/`playwright-cli` with ad-hoc Puppeteer, `@playwright/test`, or MCP.
+- Never drive a browser with the user's github.com credentials to upload attachments; hand off instead.
+- Never claim a `gh`/public REST attachment path exists, and never fabricate attachment URLs.
 - Never overwrite unrelated PR body content while inserting screenshot references.
 - If unexpected working tree changes appear while you are working, stop and ask the user how to proceed.
 
 ## Output Style
 
-Report applicability verdict, existing-evidence inventory and classification (missing/stale/current), medium chosen and surfaces captured, before/after mapping, where artifacts were attached (confirming none were committed), and the PR body sections updated.
+Report applicability verdict, existing-evidence inventory and classification (missing/stale/current), medium chosen and surfaces captured, before/after mapping, how artifacts reached the PR (drag-drop, or a pending handoff with the paste-ready block) confirming none were committed, and the PR body sections updated.
