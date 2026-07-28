@@ -24,7 +24,12 @@ Default tool is `gh`. Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 4. Apply worthwhile code changes with minimal scope.
 5. Validate touched areas before commit.
 6. Commit and push when code changed and validation passed.
-7. Resolve/reply to each thread only after branch state is final.
+7. Reply in-thread and resolve only after branch state is final:
+   - Use GraphQL `addPullRequestReviewThreadReply` or `gh pr review --comment --body-file` targeting the thread.
+   - Never use `gh pr comment` for thread-specific explanations; reserve that for general PR-wide status.
+   - Write reply text using `terse` (outcome-first, no redundancy).
+   - Reply text should appear nested under the original review comment in the thread.
+   - Then resolve the thread via GraphQL `resolveReviewThread` if appropriate.
 8. Leave unresolved threads open and report blockers.
 
 Stop and ask when feedback implies product/architecture decisions or high-risk trade-offs.
