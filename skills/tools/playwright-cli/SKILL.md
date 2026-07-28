@@ -99,7 +99,7 @@ playwright-cli mousewheel 0 100
 
 ```bash
 playwright-cli screenshot
-playwright-cli screenshot e5
+playwright-cli screenshot e5        # element crop uses the positional ref, NOT a --ref flag
 playwright-cli screenshot --filename=page.png
 playwright-cli screenshot --hires
 playwright-cli pdf --filename=page.pdf
