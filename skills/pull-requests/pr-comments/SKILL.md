@@ -27,6 +27,7 @@ Default tool is `gh`. Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 7. Reply in-thread and resolve only after branch state is final:
    - Use GraphQL `addPullRequestReviewThreadReply` or `gh pr review --comment --body-file` targeting the thread.
    - Never use `gh pr comment` for thread-specific explanations; reserve that for general PR-wide status.
+   - Write reply text using `terse` (outcome-first, no redundancy).
    - Reply text should appear nested under the original review comment in the thread.
    - Then resolve the thread via GraphQL `resolveReviewThread` if appropriate.
 8. Leave unresolved threads open and report blockers.
