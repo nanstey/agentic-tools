@@ -51,7 +51,7 @@ Probe before the first operation, cache the result for the session:
    - **Publish (T1)**: `gh stack submit --auto` (drafts) or `--auto --open` (ready). Never open the interactive submit editor.
    - **Sync (T1)**: `gh stack sync` (add `--prune` only with user approval to delete merged local branches). On cascade conflict: `gh stack rebase`, delegate resolution to `conflicts`, then `gh stack rebase --continue`. `--abort` only on user request.
    - **Restructure (T1)**: `gh stack modify` is TUI-only — stop and ask: (a) user drives the TUI, or (b) skill runs `gh stack unstack --local` + `gh stack init <new-order...>` + `gh stack submit`.
-   - **Link (T1/T2)**: T1 `gh stack link [--base <trunk>] <branches-or-prs...>`; T2 `POST /repos/{o}/{r}/stacks` with ordered PR numbers bottom→top (min 2), extend with `POST .../stacks/{n}/add`.
+   - **Link (T1/T2)**: T1 `gh stack link [--base <trunk>] <branches-or-prs...>`; T2 requires properly chained PRs first (each PR's base = previous PR's head) — if not already chained, update bases via `gh api .../pulls/{n} -X PATCH -f base=<parent-branch>` bottom-up, then `POST /repos/{o}/{r}/stacks` with ordered PR numbers bottom→top (min 2). Extend with `POST .../stacks/{n}/add`.
    - **Inspect (T1/T2)**: T1 `gh stack view --json` — never bare or `--short` (both are TUIs); T2 `GET .../stacks` or per-PR `gh api .../pulls/{n} --jq '.stack'`.
    - **Checkout (T1)**: `gh stack checkout <number|url|branch>` with an explicit argument; if local and remote stack compositions differ this prompts unbypassably — `gh stack unstack` first. Navigation via `gh stack up|down|top|bottom|trunk`.
    - **Dissolve (T1/T2)**: confirm with the user first, then `gh stack unstack [<n>] [--local]` or `POST .../stacks/{n}/unstack`. Report PRs left stacked (merged/merging/queued cannot be removed).
@@ -71,6 +71,7 @@ Stop and ask when: local and remote stack compositions diverge; a branch belongs
 - Never rebase or restructure over a dirty working tree; ask to commit or stash first.
 - Never resolve conflicts inline; delegate to `conflicts`.
 - Never delete local branches (`--prune`) without user approval.
+- Never create a T2 stack without verifying/fixing PR bases first; each PR's base must be the previous PR's head, not trunk.
 - Never merge a stacked PR without warning that it atomically merges every unmerged PR below it; confirm the intended merge point first. Merging stacked PRs is web-UI only — hand the user the PR URL rather than attempting `gh pr merge`.
 
 ## Output Style
