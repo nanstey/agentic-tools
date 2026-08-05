@@ -21,6 +21,16 @@ Default tool for PR reads/writes is `gh`. Follow the target repo's `CLAUDE.md` /
 3. A runnable site/dev server for the branch (base URL/port) when capture is needed.
 4. Publish target for artifacts (default: attach to the PR via GitHub upload; never the repo root).
 
+## Evidence Model
+
+Default to **PR-scoped, final-state** evidence: every artifact in the PR body should be captured from final `HEAD` and demonstrate the capabilities the PR introduces, not a commit-to-commit delta. Before capture, sketch a short evidence matrix so the artifacts cover the PR, not an arbitrary diff:
+
+| PR capability | Final-state screenshot/video moment |
+| --- | --- |
+| … | … |
+
+Use a before/after pair **only** when the PR's review question is explicitly a visual replacement or regression. When a comparison is genuinely useful, label the exact refs — e.g. `Prior commit (abc123)` and `Final branch` — never a bare `Before`/`After`, which misleads on a feature PR or a refresh after an incremental commit.
+
 ## Applicability
 
 Screenshots are applicable only when the branch changes user-facing UI. Judge from the three-dot diff `git diff base...HEAD`:
@@ -41,7 +51,7 @@ If not applicable, report "no UI change — screenshots not required" and stop w
    - **Current**: evidence covers the changed surfaces and postdates the latest UI-affecting commit.
    If **Current**, report that and stop — do not recapture.
 5. For missing/stale evidence, confirm the branch's site is reachable at the base URL/port; if not, stop and ask (never capture an error page).
-6. Delegate capture to `visual-capture`: pick the medium (static → screenshot, interaction/scroll/flow → video), capture the changed routes/components, and — when the change modifies existing UI — capture a before/after pair using a base-ref `worktree`.
+6. Build the **evidence matrix** (see **Evidence Model**), then delegate capture to `visual-capture`: pick the medium (static → screenshot, interaction/scroll/flow → video) and capture each matrix row from final `HEAD`. Capture a before/after pair (via a base-ref `worktree`) only when the PR's review question is an explicit visual replacement/regression, and label the exact refs.
 7. Attach the artifacts to the PR (see **Attachment Paths** below) and reference them in the body (hand the body edit to `pr-description`, or update directly when run standalone), keeping each asset under GitHub's ~10 MB inline limit. GitHub has no public REST/`gh` endpoint for body attachments, so upload with the `gh-image` extension (which replicates the web upload flow); hand off only when no GitHub session is available. Do not fabricate attachment URLs.
 8. Verify by re-reading the PR body and confirming the new images render (or, on handoff, that the paste-ready block was emitted). On a private repo the `user-attachments` URL inherits repo visibility, so an anonymous fetch returning 404/403 is expected, not a failure.
 
@@ -78,6 +88,11 @@ Preflight (gate before any upload; if any check fails, fall back to drag-drop or
    ```bash
    BODY="$(gh pr view <number> --repo <owner>/<repo> --json body -q .body)"
    printf '%s\n\n## Screenshots\n\n%s\n' "$BODY" "$MD" | gh pr edit <number> --repo <owner>/<repo> --body-file -
+   ```
+   If `gh pr edit` fails for unrelated reasons (e.g. GitHub's deprecated classic-Projects GraphQL field), fall back to a direct REST PATCH, then re-read the body to confirm only the intended section changed:
+   ```bash
+   jq -n --arg body "$(printf '%s\n\n## Screenshots\n\n%s\n' "$BODY" "$MD")" '{body:$body}' > body.json
+   gh api --method PATCH repos/<owner>/<repo>/pulls/<number> --input body.json
    ```
 3. **Size** if needed by embedding an HTML tag instead of the bare markdown: `<img width="800" alt="..." src="<url>" />`.
 4. On `SAML SSO ... not authorized` or `uploadToken not found`, authorize the org session at `https://github.com/orgs/<org>/sso` (write access alone is not enough) and retry; on "no `user_session` cookie", log into a supported browser or set `GH_SESSION_TOKEN`.
