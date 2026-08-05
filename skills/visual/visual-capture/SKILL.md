@@ -19,6 +19,7 @@ Follow the target repo's `CLAUDE.md` / `AGENTS.md` on conflict.
 1. Base URL of the running site and the routes/selectors of interest.
 2. What changed, so the medium and framing fit the change.
 3. Before/after scope: which git refs or states to compare (skip for a plain capture).
+   For a PR feature walkthrough, prefer a final-state capture from `HEAD` over a commit delta (see `pr-screenshots` Evidence Model).
 4. Output/publish target (default a per-branch dir under `captures/`; a project asset dir when embedding).
 5. Viewport/theme/device preferences (defaults: desktop `1280x800`, project default theme).
 
@@ -66,7 +67,7 @@ Load the companion [`playwright-cli`](../../tools/playwright-cli/SKILL.md) skill
 
 1. Preflight (above): load the companion `playwright-cli` skill, resolve its tool via `scripts/resolve-tool.sh`, and confirm `ffmpeg` is present (for the mp4 transcode); if either check fails, stop and ask before installing.
 2. Pick the medium from the table above; state the choice and why.
-3. Confirm the site is reachable at the base URL/port; if not, stop and ask (never capture an error page).
+3. Confirm the site is reachable at the base URL/port; if not, stop and ask (never capture an error page). If the walkthrough **mutates data** (creates/edits records), require an idempotent, uniquely named demo entity and a cleanup path before recording — prefer application/API cleanup, and scope any direct database cleanup to the generated identifier.
 4. Resolve the per-branch capture dir by running the bundled `scripts/capture-dir.sh` and reading its printed path into `$CAP` (deterministic — reuses this branch's dir or creates a new timestamped one), then open a named session and fix capture settings (viewport, theme, device). Reuse the same session across pages.
 5. Capture:
    - Screenshots — full page and/or component crops.
@@ -112,6 +113,18 @@ bash scripts/scroll-capture.sh "$BASE_URL/pricing" "$CAP/tour.webm"          # 1
 
 Richer tours (clicks, chapters, highlights): write your own hero script that calls `page.screencast.start({ path, size: { width, height } })` with size == viewport, paces with `waitForTimeout`/`pressSequentially({ delay })` and a time-based scroll, then `page.screencast.stop()`; run it via `playwright-cli run-code --filename=...`. `run-code` has no `process`/env and no `require`/`import`, so bake values into the script.
 
+Always wrap the recording in `try/finally` so a mid-flow failure still stops the screencast (no orphaned/partial recording), and explicitly dismiss any open overlay (combobox portal, popover, menu) before clicking a form submit control — an open portal can intercept the click and silently break the flow:
+
+```js
+await page.screencast.start({ path, size: { width: 1280, height: 800 } });
+try {
+  // navigate, act, and after a multi-select: press Escape (or a verified close)
+  // to dismiss the combobox portal before clicking Save/Create, then wait for settled UI.
+} finally {
+  await page.screencast.stop();
+}
+```
+
 Transcode `.webm` → `.mp4` with `scripts/encode-mp4.sh` for a PR-embeddable clip (H.264/yuv420p, GitHub plays it inline; `.webm` embedding is unreliable). Native resolution by default; raise `crf` or pass a smaller width to shrink under GitHub's ~10 MB limit:
 
 ```bash
@@ -154,6 +167,8 @@ captures/                                  # gitignored; add to the target repo'
 - **Long dead time before motion, or scroll flies by.** Don't drive a recording with many separate CLI calls or a `mouse.wheel` loop. Use one `run-code` hero script with `waitForTimeout` pacing. Scroll at a constant speed (px/second) rather than easing over a fixed duration — eased/fixed-duration scrolls spike to ~2× speed mid-page and feel fast on tall pages.
 - **Video format for PRs.** The `.webm` screencast is high quality and small, but GitHub's inline playback of `.webm` is inconsistent (codec-dependent). Transcode to `.mp4` (H.264/yuv420p, via `encode-mp4.sh`) for the artifact you attach to a PR. Keep it under GitHub's ~10 MB attachment limit — raise `crf` or reduce width for long/photo-heavy scrolls.
 - **`run-code` sandbox.** No `process`/env, no `require`/`import`; it evaluates a single function expression. Interpolate values into the script (as the helpers do).
+- **Overlay intercepts submit click.** After a multi-select, an open combobox/portal can sit over the form's submit button and swallow the click. Dismiss it (Escape or a verified close action) and wait for it to detach before clicking Save/Create.
+- **Orphaned recording on failure.** Always `page.screencast.start()` inside `try` with `stop()` in `finally`, so a mid-flow error still finalizes the file instead of leaving a partial/locked recording.
 
 ## PR Integration
 
@@ -173,6 +188,8 @@ captures/                                  # gitignored; add to the target repo'
 - Never leave an orphaned browser; close the session at the end and on error.
 - Never vary viewport, theme, or device between before and after — mismatched settings invalidate the comparison.
 - Never fabricate a state; capture the actual before and after.
+- Never leave a recording unstopped on error; start the screencast in `try` and stop it in `finally`.
+- Never leave demo data behind; when a walkthrough mutates data, use a uniquely named entity and clean it up afterward.
 - Never bypass the `playwright-cli` skill with ad-hoc Puppeteer, `@playwright/test`, or MCP.
 - Never commit oversized assets; downscale and trim to PR-friendly sizes.
 - If the site or a route is unreachable, stop and ask rather than capturing a blank or error page.
