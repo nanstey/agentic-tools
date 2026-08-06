@@ -13,11 +13,13 @@
     "npm:pi-interactive-shell",
     "npm:@plannotator/pi-extension",
     "npm:@heyhuynhgiabuu/pi-diff",
-    "npm:@nanstey/pi-auth-profiles",
     "npm:@gotgenes/pi-anthropic-auth",
     "npm:@juicesharp/rpiv-voice",
     "npm:@tmustier/pi-raw-paste",
-    "npm:@nanstey/pi-command-shortcuts"
+    "npm:@nanstey/pi-command-shortcuts",
+    "npm:@tigorhutasuhut/pi-rules",
+    "npm:@oaalto-kodanbce/pi-ignore",
+    "npm:@nanstey/pi-auth-profiles"
   ],
   "theme": "dark"
 }
