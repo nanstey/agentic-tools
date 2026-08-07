@@ -1,198 +1,206 @@
-# Pi subagent development workflows
+# Tiered development workflows on pi-flows
 
 ## Purpose
 
-Add a small set of reusable **Pi subagent chains** for the development patterns
-observed in real usage: scoped discovery → plan, focused parallel review,
-research + local handoff, and post-implementation review. Ship them as saved
-`.chain.md` files that Pi discovers at runtime, install them non-destructively
-alongside the repo's existing agent profiles, and make them discoverable from
-both the runtime (`/run-chain`, `subagent({ action: "list" })`) and the repo
-catalog.
+Add a small, tiered set of reusable development workflows built on
+[`pi-flows`](https://github.com/Thulr/pi-flows) for the patterns observed in real
+usage: scoped discovery, plan-led work, focused parallel review, and — the
+dominant pattern — implement → review → fix until an independent reviewer is
+clean. Ship them as named `pi-flows` **presets** (plus custom flow agents where a
+bundled one does not fit), install them non-destructively, and make them
+discoverable from both the `pi-flows` runtime (`/flows`, `flow list:true`) and
+the repo catalog.
 
-The session-history audit found the strongest recurring pattern is
-implement/change → focused review → fix → re-review. It also found repeated
-scoped reconnaissance, plan-led implementation, and parallel specialist review.
-The audit used `~/.pi/agent/run-history.jsonl`; it did not synthesize all
-persisted transcripts, so its counts are lower bounds.
+This plan supersedes the earlier `pi-subagents` chain approach. `pi-subagents`
+chains are static and cannot loop or gate, so the core review-fix-until-clean
+pattern had to be emulated by parent orchestration. `pi-flows` provides that
+control flow natively — a generator-evaluator `evaluate` loop with an
+independent critic, a deterministic `checkCommand` gate, and a hard iteration
+cap — so it is the better engine for the workflow set.
 
-This plan is intentionally **Pi-specific**. The workflows target `pi-subagents`
-builtins and chain syntax directly; there is no portable/harness-agnostic layer.
+This plan is Pi-specific by design; there is no harness-agnostic layer.
+
+## Why pi-flows
+
+- **Native iteration and gates.** `evaluate` runs a builder and an independent
+  critic in separate child contexts, optionally gated on a shell command
+  (`npm test` exit 0), revising under a hard `maxIterations` cap. `loop`,
+  `workflow`, and `worktree` cover the heavier long-horizon shapes.
+- **Enforced isolation.** Read-only agents run without shell/write tools;
+  concurrent writers cannot share a checkout unless explicitly opted in.
+- **Bounded and auditable.** Count, concurrency, depth, token, and USD ceilings
+  are enforced (`BUDGET_EXCEEDED`); handoffs between agents are redacted and
+  scanned for injection; runs emit JSONL traces and `/flows report`.
+- **One interface, many shapes.** `single`, `parallel`, `chain`, `evaluate`,
+  `orchestrate`, `dossier`, `workflow`, `worktree`, etc. all use the same `flow`
+  tool, so a tier ladder is expressible without new syntax per workflow.
+
+## Tier ladder
+
+Workflows are organized as an escalation ladder — pick the least coordination
+the task needs, escalate only when isolation, independent evidence, or gated
+iteration changes correctness. Model **tier** (`fast` / `capable` / `deep`)
+scales with the work, not hard-coded model ids.
+
+| Tier | Workflow | pi-flows shape | Model tiers | Writes? |
+| --- | --- | --- | --- | --- |
+| T1 Scout | `discovery` | `single` `recon` (or `scout` preset) | fast | no |
+| T2 Review | `diff-review` | `code-review` preset (two `overwatch`: standards + spec) | capable | no |
+| T2 Plan | `discovery-to-plan` | `chain` `recon → strategist` | recon fast, strategist deep | no |
+| T3 Research | `research-handoff` | `dossier` / `orchestrate` over sources → synthesis | capable, synth deep | no |
+| T4 Verified build | `review-fix` | `evaluate` `operator` + `redteam` critic + optional `checkCommand` | operator capable, critic deep | yes (bounded) |
+| T5 Gated/isolated | (future) release/migration | `workflow` (phases + approval) / `worktree` | per role | yes (isolated) |
+
+T1–T3 are read-only. T4 is the review-fix-until-clean loop and the primary
+deliverable; it is the only tier that mutates the tree, bounded by the critic,
+the deterministic gate, and `maxIterations`. T5 is scoped out of V1.
 
 ## User story & scenarios
 
-As a Pi user, I can run a named chain with a concrete target so that focused
-roles receive the right handoff and stop at the appropriate approval boundary.
+As a Pi user, I invoke a named preset with a concrete target and get a bounded,
+auditable result at the right tier, stopping at the correct decision boundary.
 
-Scenarios:
-
-1. **Understand before planning.** A concrete change request needs repository
-   reconnaissance and an implementation plan, but no edits.
-2. **Review a bounded diff.** A branch, commit range, or uncommitted diff needs
-   independent reviews for distinct concerns.
-3. **Prepare a plan from external and local evidence.** A task depends on both
-   current external documentation and local integration context.
-4. **Review completed implementation.** An approved implementation needs
-   parallel correctness, validation, and maintainability checks before a parent
-   decides on fixes.
+1. **Understand before touching.** Read-only recon of a code path (T1).
+2. **Review a bounded diff.** Independent standards + spec review of a resolved
+   Git range, exactly once, no fixes (T2).
+3. **Plan a change.** Recon then a `strategist` plan; unresolved product/scope
+   intent is recorded as a question, not guessed (T2).
+4. **Reconcile external + local evidence.** Source-specific extraction then
+   cited synthesis that preserves conflicts (T3).
+5. **Implement until clean.** Builder + independent critic (+ `npm test` gate)
+   iterate until `VERDICT: PASS` or the cap, returning the last attempt (T4).
 
 ## Behaviour
 
-### Workflow selection
+### Tier selection and bounds
 
-- **Given** a user runs a chain and supplies a concrete target, **when** the
-  chain starts, **then** each step receives the target, scope, success criteria,
-  output format, and stop rule.
-- **Given** the target leaves product, architecture, migration, or scope intent
-  unresolved, **when** a chain reaches that decision, **then** it stops for
-  parent/user clarification rather than selecting an interpretation.
-- **Given** a chain is review-only, **when** it runs, **then** its children do
-  not modify project/source files.
+- **Given** a target, **when** a preset runs, **then** it applies its declared
+  mode, model tiers, and ceilings; it never silently loosens capture, trust, or
+  budget.
+- **Given** product, architecture, migration, or scope intent is unresolved,
+  **when** a workflow reaches that decision, **then** it surfaces the question
+  rather than choosing an interpretation.
+- **Given** a read-only tier (T1–T3), **when** it runs, **then** its agents have
+  no write/shell tools and cannot mutate the repo.
 
-### Discovery to plan
+### Verified build (T4, evaluate)
 
-- **Given** a concrete change request, **when** `discovery-to-plan` runs,
-  **then** `scout` maps relevant files, conventions, tests, and uncertainties
-  before `planner` writes a plan.
-- **Given** the scout identifies unresolved non-verifiable intent, **when** the
-  planner receives the handoff, **then** the plan records the question and does
-  not authorize implementation.
+- **Given** an implementation goal and (optionally) a `checkCommand`, **when**
+  `review-fix` runs, **then** `operator` builds, an independent `redteam` critic
+  judges only the operator's output, and on `REVISE` the operator revises in
+  place with the critique.
+- **Given** a `checkCommand`, **when** a round runs, **then** a non-zero exit is
+  an automatic `REVISE` (its output becomes the critique) and `PASS` requires
+  both the gate and the critic(s).
+- **Given** the loop does not converge, **when** `maxIterations` is reached,
+  **then** it returns the last attempt with the outstanding critique — it never
+  loops unbounded.
 
-### Parallel review
+### Diff review (T2, one-shot)
 
-- **Given** a stable explicit diff scope, **when** `parallel-diff-review` runs,
-  **then** fresh-context reviewers inspect it independently for
-  correctness/regressions, tests/validation, and simplicity/maintainability.
-- **Given** reviewers disagree or recommend scope expansion, **when** results
-  return, **then** the parent synthesizes and accepts, defers, or rejects
-  findings; no chain child decides that outcome.
-
-### Research and local handoff
-
-- **Given** an external dependency or current technical fact is material,
-  **when** `research-local-handoff` runs, **then** `researcher` and `scout` run
-  in parallel and `context-builder` combines source-backed external evidence
-  with local integration points.
-- **Given** external evidence is not needed, **when** a user picks a workflow,
-  **then** they use `discovery-to-plan` instead, avoiding unnecessary web
-  research.
-
-### Post-implementation review
-
-- **Given** the implementation and its validation contract are supplied,
-  **when** `post-implementation-review` runs, **then** three fresh-context
-  reviewers return evidence-backed findings without edits.
-- **Given** findings need fixes, **when** the chain ends, **then** the parent
-  may launch one writer and, if warranted, another review round. This decision
-  remains outside the static chain.
+- **Given** a Git range, **when** `diff-review` runs, **then** the range is
+  resolved to immutable commit IDs and two reviewers cover it once; reviewers
+  make no edits and the result is `CLEAN`, `FINDINGS`, or `PARTIAL`. Triage of
+  findings stays with the parent/user.
 
 ## QA
 
-No automated chain tests are in scope for this change.
+No automated flow tests are in scope. Manual validation after installation:
 
-Manual validation after installation:
-
-1. Run `bash install.sh` and confirm every chain appears in
-   `subagent({ action: "list" })` and is runnable via `/run-chain`.
-2. Run each read-only chain against a small, disposable repository and confirm
-   its steps, named outputs, and handoffs are visible.
-3. Run the review chains against a known diff; confirm reviewers make no source
-   edits and have distinct, non-overlapping briefs.
-4. Confirm the discoverability index (see Architecture) lists each chain with an
-   accurate trigger and matches the chains actually on disk.
-5. Confirm a user's existing, unrelated Pi chains are preserved by the
+1. `flow showConfig:true` and `flow list:true` resolve the pi-flows extension
+   and its agents; `/flows status all` reports the preset/agent directories with
+   no shadowing or frontmatter errors for our artifacts.
+2. Each read-only preset (T1–T3) runs against a small disposable repo and makes
+   no source edits.
+3. `review-fix` (T4) runs against a trivial goal with a `checkCommand`, iterates,
+   and terminates on `PASS` or the cap; the tree is left coherent.
+4. Catalog rows and the index skill list exactly the presets on disk with
+   accurate tiers, inputs, and stop rules.
+5. A user's existing, unrelated flow presets/agents are preserved by the
    installer.
 
 ## Architecture
 
-Single layer: the `.chain.md` files are the canonical workflow definition. They
-compose the agent profiles already shipped under `agents/` (`scout`, `planner`,
-`researcher`, `context-builder`, `reviewer`, `worker`).
-
 ```text
-pi/chains/development/*.chain.md   (canonical: steps, gates, outputs)
-        │  compose
-        ├── agents/*.md            (already installed agent profiles)
+pi-flows extension (flow tool + bundled agents)
         │
-        ├── install.sh             symlinks chains into ~/.pi/agent/chains/
-        └── discoverability        runtime list + repo catalog + index skill
+        ├── pi/flow-presets/*.md      our tiered workflows (frontmatter + JSON body)
+        ├── pi/flow-agents/*.md       custom agents only where a bundled one is unfit
+        ├── settings.json packages    declares the pi-flows package for pi to load
+        ├── install.sh                symlinks presets/agents; ensures the package is listed
+        └── discoverability           /flows + repo catalog + index skill
 ```
 
-### Pi chains
+### Presets as the canonical workflows
 
-Create static `.chain.md` files under `pi/chains/development/`. Each file uses
-`pi-subagents` chain syntax directly: `## agent-name` step headers, `phase` /
-`label` / `as` / `output` / `reads` / `model` config lines, `context: fresh`
-for independent reviewers, and `{task}` / `{outputs.<name>}` handoffs. Parallel
-review fan-out that needs concurrency beyond sequential steps uses the inline
-parallel group form or a `.chain.json` sibling where required.
+Each tier is a `pi-flows` preset: a markdown file with `name` / `description` /
+`overrides` frontmatter and a JSON body that fixes the mode, roles, model tiers,
+and bounds while leaving `{task}` and safe caller controls open. Presets are the
+canonical definition; they compose `pi-flows`' bundled agents (`recon`,
+`strategist`, `overwatch`, `operator`, `redteam`, `debrief`, …).
 
-V1 chains are **read-only** and stop before decisions such as accepting a plan,
-triaging review findings, or applying fixes. This preserves a single writer and
-parent authority. An approved-worker stage may be added later, separately
-parameterized, only after manual use validates the contract.
+### Custom agents only where needed
+
+Prefer the bundled roster. Add a `pi/flow-agents/<name>.md` only when a
+workflow needs a persona the bundled agents do not cover (e.g. a stricter
+maintainability critic). Custom agents use `tier` for portable model selection,
+not pinned ids.
 
 ### Installation
 
-Extend `install.sh` with a `chains` artifact type that recursively symlinks
-repo `pi/chains/**/*.chain.md` (and future `.chain.json`) into
-`~/.pi/agent/chains/`, preserving each file's relative path. It must create
-destination parent directories and only manage matching workflow paths, so it
-never replaces unrelated user-local chains. Because chains are Pi-only, the
-`chains` type is attached to the `pi` harness row alongside `skills`/`agents`.
-
-Note: the existing `config` type copies only the *top-level* files of `pi/`, so
-`pi/chains/` is not swept up by config copying; the new `chains` type owns it
-and symlinks (chains are static repo artifacts, unlike rewritten config files).
+- Add `pi-flows` to the `packages` list in `pi/settings.json` so `pi` loads the
+  extension on launch (copied with the rest of pi config).
+- Extend `install.sh` with two symlink types on the `pi` harness:
+  `flow-presets:$PI_AGENT_DIR/flow-presets` and
+  `flow-agents:$PI_AGENT_DIR/flow-agents`, recursively linking
+  `pi/flow-presets/**/*.md` and `pi/flow-agents/**/*.md` while preserving
+  relative paths. It manages only our files, leaving unrelated user presets and
+  agents untouched.
 
 ### Discoverability
 
-Three complementary surfaces:
-
-1. **Runtime** — once symlinked into `~/.pi/agent/chains/`, chains appear in
-   `subagent({ action: "list" })` and run via `/run-chain <name> -- <task>`.
-   Each chain's `name:` and `description:` frontmatter is the runtime label, so
-   both must be accurate and intent-revealing.
-2. **Repo catalog** — add a **Chains** section to `README.md` with one row per
-   chain (name, path, description) so the catalog stays in sync with disk, per
-   the AGENTS.md catalog policy.
-3. **Index skill** — add a single Pi-facing skill,
-   `skills/agent/subagent-workflows/SKILL.md`, that maps developer intent →
-   chain (which chain to pick, its required target/inputs, and its stop rule).
-   This is a thin selector/entry point, not a per-workflow contract; it keeps
-   the chains usable without memorizing names.
+1. **Runtime** — presets and agents appear in `flow list:true`, `/flows`, and
+   `/flows status all`; presets run by name. Accurate `description` frontmatter
+   is what the parent model reads when choosing.
+2. **Repo catalog** — a **Flows** section in `README.md`, one row per preset
+   (name, tier, path, description), kept in sync with disk per AGENTS.md policy.
+3. **Index skill** — one Pi-facing skill,
+   `skills/agent/flow-workflows/SKILL.md`, mapping intent → tier/preset with
+   required inputs and stop rules. A thin selector, not a per-workflow contract.
 
 ### Rejected alternatives
 
-- **Portable/harness-agnostic layer.** An earlier draft shipped a portable
-  role-contract skill per workflow plus a derived Pi adapter. Dropped: this repo
-  is comfortable being Pi-specific here, and the two-layer split doubled the
-  artifacts and added a role-name indirection with no current consumer.
-- **One fully automatic implement → fix → re-review chain.** Session evidence
-  and `pi-subagents` guidance both require a parent to approve plans, synthesize
-  review feedback, and control the sole writer.
+- **Keep the `pi-subagents` chain approach.** Chains are static — no loop, no
+  conditional, no deterministic gate — so the dominant review-fix-until-clean
+  pattern could only be emulated by hand-rolled parent orchestration. `pi-flows`
+  `evaluate` provides it natively with an independent critic and a hard cap.
+- **A harness-agnostic role-contract layer.** Out of scope; this repo is
+  comfortable being Pi-specific here, and the abstraction has no current
+  consumer.
+- **A long-lived autonomous swarm / peer-to-peer agents.** `pi-flows` is a star
+  topology (parent delegates bounded work, children return, parent decides) and
+  we adopt that boundary deliberately.
 
 ## Affected areas
 
 | Area | Change |
 | --- | --- |
-| `pi/chains/development/` | Add four static `.chain.md` workflow definitions. |
-| `skills/agent/subagent-workflows/` | Add one Pi-facing index skill mapping intent → chain. |
-| `install.sh` | Add a `chains` type on the `pi` harness that recursively symlinks chain artifacts without affecting unrelated local chains. |
-| `README.md` | Add a **Chains** catalog section and the index-skill row; document install destination and `/run-chain` invocation. |
-| `plans/pi-subagent-workflows.md` | This design record. |
+| `pi/settings.json` | Add `pi-flows` to the `packages` list so pi loads the extension. |
+| `pi/flow-presets/` | Add the tiered workflow presets (T1–T4). |
+| `pi/flow-agents/` | Add custom flow agents only where a bundled agent is unfit. |
+| `skills/agent/flow-workflows/` | Add one Pi-facing index skill mapping intent → tier/preset. |
+| `install.sh` | Add `flow-presets` and `flow-agents` symlink types on the `pi` harness; non-destructive, relative-path preserving. |
+| `README.md` | Add a **Flows** catalog section and the index-skill row; document install destination and `/flows` invocation. |
+| `plans/pi-subagent-workflows.md` | This design record (retitled for pi-flows). |
 
-Proposed initial chains (all read-only in V1):
+### Migration note
 
-1. `discovery-to-plan` — `scout → planner`.
-2. `parallel-diff-review` — three fresh-context reviewers in parallel.
-3. `research-local-handoff` — `researcher + scout → context-builder`.
-4. `post-implementation-review` — three fresh-context reviewers in parallel.
-
-The existing `pi-subagents` prompt workflows (`review-loop`,
-`parallel-context-build`, `parallel-handoff-plan`, `parallel-review`) remain
-available. These saved chains add stable, named local triggers tailored to the
-observed workflow set; they do not reimplement the extension runtime.
+The in-progress `pi-subagents` artifacts on this branch —
+`pi/chains/development/review-fix.chain.md` and the `chains` symlink type in
+`install.sh` — are superseded by this plan. Either remove them, or keep the
+`review-fix` chain as a lightweight `pi-subagents` fallback and clearly document
+that the canonical loop is the `pi-flows` `evaluate` preset. Decide during
+Phase 1; do not maintain two engines for the same workflow silently.
 
 ## Schema migrations
 
@@ -200,44 +208,50 @@ None.
 
 ## Implementation phases
 
-### 1. Add the Pi chains
+### 1. Load pi-flows and reconcile the branch
 
-Add the four `pi/chains/development/<workflow>.chain.md` files. Use step
-headers, `phase`/`label`/`as`, isolated `output` paths, named `{outputs.*}`
-handoffs where required, `context: fresh` for independent reviewers, and
-read-only prompts for all V1 children. Give each accurate `name:` /
-`description:` frontmatter for runtime discovery.
+Add `pi-flows` to `pi/settings.json` packages. Decide the fate of the
+`pi-subagents` `review-fix` chain and its installer `chains` type (remove or
+demote to documented fallback). Confirm `flow showConfig:true` / `flow list:true`
+resolve after `install.sh` copies settings and pi installs the package.
 
-**V&V gate:** after linking the chain directory into a test Pi agent directory,
-`subagent({ action: "list" })` discovers all four chains, names are
-collision-free, and each runs via `/run-chain`.
+**V&V gate:** `pi-flows` loads; `/flows status all` is clean; the branch no
+longer implies two canonical engines for review-fix.
 
-### 2. Make chain installation non-destructive
+### 2. Author the tiered presets
 
-Add the `chains` type to `install.sh` on the `pi` harness with a recursive
-collector that emits `relpath<TAB>srcfile` for every `pi/chains/**/*.chain.md`,
-and link them under `~/.pi/agent/chains/` preserving relative directories.
-Preserve chains not represented by a repo source file.
+Add `pi/flow-presets/*.md` for T1–T4 (`discovery`, `diff-review`,
+`discovery-to-plan`, `research-handoff`, `review-fix`). Set mode, roles, model
+tiers, `maxIterations`, and any `checkCommand` per the tier table. Add custom
+`pi/flow-agents/*.md` only where a bundled agent is unfit.
 
-**V&V gate:** run `bash install.sh` twice; the second run is idempotent, the
-four chain links resolve to this repository, and a pre-existing unrelated local
-chain remains unchanged.
+**V&V gate:** every preset appears in `flow list:true` with an accurate
+description; each read-only preset makes no edits; `review-fix` iterates and
+terminates on `PASS` or cap against a disposable target.
 
-### 3. Make chains discoverable
+### 3. Make installation non-destructive
 
-Add the `skills/agent/subagent-workflows/SKILL.md` index skill (intent → chain,
-inputs, stop rule) and the **Chains** catalog section plus index-skill row in
-`README.md`. Document the install destination and `/run-chain` invocation.
+Add `flow-presets` and `flow-agents` symlink types to `install.sh` on the `pi`
+harness with recursive, relative-path-preserving collectors. Run twice;
+idempotent; unrelated user presets/agents unchanged.
 
-**V&V gate:** the index skill and README rows list exactly the chains on disk
-with accurate triggers and inputs; the index skill installs and is discoverable
-through the existing skills installer.
+**V&V gate:** the second `bash install.sh` is idempotent, our links resolve to
+this repo, and a pre-existing unrelated user preset/agent remains intact.
 
-### 4. Manually exercise the workflow set
+### 4. Make workflows discoverable
 
-Run the four chains against small disposable targets, record any prompt,
-handoff, or chain-serialization defects, and refine contracts before adding
-writer/fix automation.
+Add `skills/agent/flow-workflows/SKILL.md` (intent → tier/preset, inputs, stop
+rule) and the **Flows** catalog section plus index-skill row in `README.md`.
 
-**V&V gate:** each chain returns its stated artifact/result, makes no unintended
-source edits, and stops at its declared parent/user decision boundary.
+**V&V gate:** the index skill and README rows list exactly the presets on disk
+with accurate tiers and inputs; the index skill installs via the existing skills
+installer.
+
+### 5. Exercise the ladder
+
+Run each tier against small disposable targets; record prompt, handoff, gate, or
+budget defects; refine before considering T5 (workflow/worktree).
+
+**V&V gate:** each workflow returns its stated result at its tier, read-only
+tiers make no edits, and `review-fix` leaves a coherent, validated tree or
+surfaces a decision it may not make.

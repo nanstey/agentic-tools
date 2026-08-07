@@ -11,7 +11,7 @@ PI_AGENT_DIR="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}"
 # every existing match, so a single pair can fan out to many destinations.
 HARNESSES=(
   "claude|$HOME/.claude|claude|skills:$HOME/.claude/skills;agents:$HOME/.claude/agents"
-  "pi|$PI_AGENT_DIR|pi|skills:$PI_AGENT_DIR/skills;agents:$PI_AGENT_DIR/agents;config:$PI_AGENT_DIR::$REPO_ROOT/pi;config:$PI_AGENT_DIR/extensions::$REPO_ROOT/pi/extensions;hoist:$PI_AGENT_DIR/npm::$REPO_ROOT/pi/settings.json"
+  "pi|$PI_AGENT_DIR|pi|skills:$PI_AGENT_DIR/skills;agents:$PI_AGENT_DIR/agents;chains:$PI_AGENT_DIR/chains;config:$PI_AGENT_DIR::$REPO_ROOT/pi;config:$PI_AGENT_DIR/extensions::$REPO_ROOT/pi/extensions;hoist:$PI_AGENT_DIR/npm::$REPO_ROOT/pi/settings.json"
   "codex|$HOME/.codex|codex|skills:$HOME/.codex/skills"
   "cursor|$HOME/.cursor|cursor,cursor-agent|skills:$HOME/.cursor/skills"
   "openclaw|$HOME/.openclaw|openclaw|skills:$HOME/.openclaw/skills"
@@ -41,6 +41,18 @@ collect_agents() {
   while read -r f; do
     n="$(fm_name "$f")"; [ -n "$n" ] || n="$(basename "${f%.md}")"
     printf '%s.md\t%s\n' "$n" "$(cd "$(dirname "$f")" && pwd)/$(basename "$f")"
+  done
+}
+
+# Chains: pi-only saved workflows under pi/chains/. Recursively linked so nested
+# directories are preserved. Emits "relpath<TAB>srcfile" (relpath may contain
+# subdirs). Only paths matching a repo source file are managed, so unrelated
+# user-local chains are left untouched.
+collect_chains() {
+  [ -d "$REPO_ROOT/pi/chains" ] || return 0
+  find "$REPO_ROOT/pi/chains" -type f \( -name '*.chain.md' -o -name '*.chain.json' \) -not -path '*/.git/*' |
+  while read -r f; do
+    printf '%s\t%s\n' "${f#"$REPO_ROOT/pi/chains/"}" "$f"
   done
 }
 
@@ -147,6 +159,7 @@ for entry in "${HARNESSES[@]}"; do
     case "$type" in
       skills) collector=collect_skills ;;
       agents) collector=collect_agents ;;
+      chains) collector=collect_chains ;;
       *) echo "  [$type] unknown type, skipping"; continue ;;
     esac
     # The dir may be a glob; nullglob makes a non-matching pattern expand to
@@ -165,6 +178,8 @@ for entry in "${HARNESSES[@]}"; do
       ok=0; linked=0; repointed=0; overwritten=0
       while IFS=$'\t' read -r linkname src; do
         [ -n "$linkname" ] || continue
+        # linkname may contain subdirs (e.g. chains preserve relative paths).
+        mkdir -p "$(dirname "$dir/$linkname")"
         case "$(link_one "$dir/$linkname" "$src")" in
           ok)        ok=$((ok+1)) ;;
           link)      linked=$((linked+1)) ;;
