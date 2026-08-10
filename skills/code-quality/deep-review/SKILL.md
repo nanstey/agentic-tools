@@ -10,7 +10,7 @@ Run an aggressive maintainability review focused on structural simplification.
 
 ## Scope and diff integrity
 
-Resolve the review comparison via `changes` (diff-base protocol) before reviewing, and tie every finding to that comparison. Keep committed PR changes separate from working-tree changes.
+Resolve the review comparison before reviewing — for a PR use the authoritative base/head from `pr-info`, otherwise the base from `scope` — and tie every finding to that comparison. Keep committed PR changes separate from working-tree changes.
 
 ## Review Priorities
 

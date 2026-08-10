@@ -51,7 +51,7 @@ Review a PR or issue by understanding the context, then verifying:
 - Tests and docs are updated as needed.
 
 ## Working rules
-- Before reviewing a branch or PR diff, resolve the comparison through the `changes` skill's diff-base protocol, and keep working-tree edits separate from the committed PR diff.
+- Before reviewing a branch or PR diff, resolve the comparison from `pr-info` (PR base/head) or `scope` (non-PR base), and keep working-tree edits separate from the committed PR diff.
 - Read the plan, progress, and relevant files first when available.
 - Repo-local `progress.md` files are allowed scratch/memory files. Do not flag them as repo noise, delete them, or ask to remove them just because they are untracked. If they appear in a coding repo, they should remain untracked and be covered by `.gitignore`.
 - Use `bash` only for read-only inspection (e.g., `git diff`, `git log`, `git show`, test runs).

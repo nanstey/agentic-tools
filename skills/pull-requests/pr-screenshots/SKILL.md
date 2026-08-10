@@ -17,7 +17,7 @@ Default tool for PR reads/writes is `gh`. Follow the target repo's `CLAUDE.md` /
 ## Required Inputs
 
 1. PR URL if provided, else current branch (resolve via `pr-info`).
-2. The branch changeset (comparison resolved by `changes`) to judge whether UI changed.
+2. The branch changeset (`pr-info`'s authoritative comparison) to judge whether UI changed.
 3. A runnable site/dev server for the branch (base URL/port) when capture is needed.
 4. Publish target for artifacts (default: attach to the PR via GitHub upload; never the repo root).
 
@@ -33,7 +33,7 @@ Use a before/after pair **only** when the PR's review question is explicitly a v
 
 ## Applicability
 
-Screenshots are applicable only when the branch changes user-facing UI. Judge from the comparison resolved by `changes` (`git diff <baseRefOid>..<headRefOid>` for an existing PR):
+Screenshots are applicable only when the branch changes user-facing UI. Judge from `pr-info`'s authoritative comparison (`git diff <baseRefOid>..<headRefOid>`):
 
 - **Applicable**: changes to components/views/templates/styles/pages, or files under UI dirs (e.g. `components/`, `pages/`, `app/`, `src/ui/`, `*.tsx/.jsx/.vue/.svelte`, `*.css/.scss`).
 - **Not applicable**: backend-only, config, docs, tests, tooling, or non-visual refactors.

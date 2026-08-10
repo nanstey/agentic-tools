@@ -21,7 +21,7 @@ Default behavior is to update the PR directly once rewritten.
 1. Resolve PR via `pr-info`.
 2. If no PR exists, stop and suggest `pr-create`.
 3. Read current title, body, and metadata.
-4. Analyze the exact PR changes over the comparison resolved by `changes` (diff-base protocol): `git diff <baseRefOid>..<headRefOid>`, `git diff --stat <baseRefOid>..<headRefOid>`, and `git log <baseRefOid>..<headRefOid>` for the commit list.
+4. Analyze the exact PR changes over `pr-info`'s authoritative comparison: `git diff <baseRefOid>..<headRefOid>`, `git diff --stat <baseRefOid>..<headRefOid>`, and `git log <baseRefOid>..<headRefOid>` for the commit list.
 5. Identify drift: stale title, missing changes, stale bullets, stale/complete checklist items.
 6. If the branch changes user-facing UI, run `pr-screenshots` to ensure the PR's visual evidence is current before finalizing the body; wire any refreshed attachments into the description. Skip for non-UI changesets.
 7. Rewrite concise body (typically `Summary`, `What Changed`, optional `Testing`/`Screenshots`/`Open Questions`).
