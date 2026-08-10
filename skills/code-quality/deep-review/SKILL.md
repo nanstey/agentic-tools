@@ -10,12 +10,7 @@ Run an aggressive maintainability review focused on structural simplification.
 
 ## Scope and diff integrity
 
-Start by invoking `changes` to resolve and document the review comparison. If a PR
-exists, use its exact GitHub `baseRefOid..headRefOid` (after verifying local
-`HEAD == headRefOid`); never assume local `develop` or `origin/develop` is the
-PR base. Review findings must be tied to that comparison, with working-tree
-changes reported separately. If no PR exists, record the explicitly selected
-pre-PR target and its resolved SHA.
+Resolve the review comparison via `changes` (diff-base protocol) before reviewing, and tie every finding to that comparison. Keep committed PR changes separate from working-tree changes.
 
 ## Review Priorities
 

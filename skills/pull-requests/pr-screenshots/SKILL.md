@@ -17,7 +17,7 @@ Default tool for PR reads/writes is `gh`. Follow the target repo's `CLAUDE.md` /
 ## Required Inputs
 
 1. PR URL if provided, else current branch (resolve via `pr-info`).
-2. The branch changeset, using the exact PR base/head SHAs from `pr-info` (or a three-dot diff against an explicitly selected target when no PR exists), to judge whether UI changed.
+2. The branch changeset (comparison resolved by `changes`) to judge whether UI changed.
 3. A runnable site/dev server for the branch (base URL/port) when capture is needed.
 4. Publish target for artifacts (default: attach to the PR via GitHub upload; never the repo root).
 
@@ -33,7 +33,7 @@ Use a before/after pair **only** when the PR's review question is explicitly a v
 
 ## Applicability
 
-Screenshots are applicable only when the branch changes user-facing UI. For an existing PR, judge from the exact GitHub comparison `git diff <baseRefOid>..<headRefOid>`; do not substitute local `develop` or `origin/develop`. For a pre-PR branch, use `git diff <target>...HEAD` against the explicitly selected target:
+Screenshots are applicable only when the branch changes user-facing UI. Judge from the comparison resolved by `changes` (`git diff <baseRefOid>..<headRefOid>` for an existing PR):
 
 - **Applicable**: changes to components/views/templates/styles/pages, or files under UI dirs (e.g. `components/`, `pages/`, `app/`, `src/ui/`, `*.tsx/.jsx/.vue/.svelte`, `*.css/.scss`).
 - **Not applicable**: backend-only, config, docs, tests, tooling, or non-visual refactors.
@@ -43,7 +43,7 @@ If not applicable, report "no UI change — screenshots not required" and stop w
 ## Workflow
 
 1. Resolve the PR via `pr-info`; if no PR exists, stop and suggest `pr-create`.
-2. Analyze the exact PR diff (`git diff <baseRefOid>..<headRefOid>`, `git diff --stat <baseRefOid>..<headRefOid>`) and decide applicability above. Verify the local head matches `headRefOid`; if no PR exists, use the explicitly selected target with a three-dot diff. If not applicable, stop with that outcome.
+2. Analyze the PR diff (`git diff <baseRefOid>..<headRefOid>`, `git diff --stat <baseRefOid>..<headRefOid>`) and decide applicability above. If not applicable, stop with that outcome.
 3. Read the current PR body and inventory existing visual evidence: embedded images, attached `user-images.githubusercontent.com` / `github.com/user-attachments` links, and any `<details>Screenshots</details>` blocks.
 4. Classify the evidence:
    - **Missing**: UI changed but the body has no relevant screenshot/clip.

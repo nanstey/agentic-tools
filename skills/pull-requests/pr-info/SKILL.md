@@ -21,7 +21,7 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 1. If PR is provided, load it with `gh pr view <id> --json number,title,body,url,headRefName,headRefOid,baseRefName,baseRefOid,state,isDraft,author,mergeStateStatus`.
 2. Otherwise resolve from branch using the same `gh pr view --json ...` query, then fallback `gh pr list --head <branch>` and fetch the selected PR with that query.
 3. Verify `headRefName` matches current branch.
-4. Return `number,title,body,url,headRefName,headRefOid,baseRefName,baseRefOid,state,isDraft,author,mergeStateStatus`. Treat `baseRefOid` as the authoritative PR comparison base; it is not interchangeable with a local `develop` or `origin/develop` ref.
+4. Return `number,title,body,url,headRefName,headRefOid,baseRefName,baseRefOid,state,isDraft,author,mergeStateStatus`. `baseRefOid`/`headRefOid` are the authoritative PR comparison SHAs (see `changes` for the diff-base protocol that consumes them).
 5. Also fetch the stack membership via `gh api repos/{owner}/{repo}/pulls/{number} --jq '.stack'`; when non-null, flag that the PR is a layer of a GitHub native stack (see `gh-stack`) and include number/size/position.
 
 Stop and ask if no PR, multiple matches, branch mismatch, or PR is closed/merged unexpectedly.
