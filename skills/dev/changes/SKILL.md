@@ -11,6 +11,8 @@ Read-only change review: group current edits by intent and flag out-of-place ite
 Always inspect real diffs and branch intent.
 Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
+Resolve the diff base before grouping: for a PR use the authoritative comparison from `pr-info`, otherwise resolve the base via `scope`. Always report the exact base/head refs used.
+
 ## Required Inputs
 
 1. Current branch and base.
@@ -21,11 +23,11 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 ## Workflow
 
 1. Capture state with `git status --porcelain`, `git diff`, and `git diff --staged`.
-2. Read branch context with `git log --oneline <base>..HEAD` and PR metadata.
+2. Resolve the diff base/head (PR → `pr-info`; else `scope`) and read branch context with `git log --oneline <base>..<head>` and PR metadata.
 3. Group changes by unit of work (feature/fix/refactor/test/docs), splitting hunks when needed.
 4. Classify untracked files as relocation, net-new, or follow-on edits.
 5. Flag unrelated/incidental/risky/inconsistent items with `file:line` references.
-6. If the tree is clean, report and stop.
+6. If there is no working-tree delta, report that separately; continue reviewing the committed PR/branch comparison when one exists. If both the working tree and selected committed comparison are clean, report and stop.
 
 ## Safety Rules
 

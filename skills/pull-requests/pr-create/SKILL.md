@@ -10,7 +10,7 @@ disable-model-invocation: false
 ## Core Contract
 
 Create exactly one PR for the current branch against the correct base.
-Default tool is `gh`. Default base is `develop`; PR opens as draft unless asked otherwise.
+Default tool is `gh`. Default target branch is `develop`; PR opens as draft unless asked otherwise.
 Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 ## Required Inputs
@@ -23,8 +23,8 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 1. Resolve PR state via `pr-info`; if a PR already exists, report it and stop.
 2. Confirm the branch is pushed; push with `git push -u origin <branch>` if needed.
-3. Determine base branch (explicit input > repo convention > `develop`).
-4. Analyze `base...HEAD` diff (`git log`, `git diff --stat`, `git diff`) to draft a title and a placeholder body.
+3. Determine the target branch (explicit input > repo convention > `develop`).
+4. Analyze the branch diff against the target (`git log <base>..HEAD`, `git diff --stat <base>...HEAD`, `git diff <base>...HEAD`) to draft a title and a placeholder body.
 5. Create the PR with `gh pr create --draft --base <base> --title ... --body ...`.
 6. Run `pr-description` to write the full body from the diff.
 7. Verify by re-reading the PR and report the URL.

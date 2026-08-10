@@ -23,6 +23,7 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 Run in order, skipping steps the user excluded.
 
 ### 0. Pre-check
+  - Run `changes` first to resolve the comparison scope and record the exact base/head refs (PR base/head come from `pr-info`).
   - IF uncommitted `changes`:
     - IF on main/develop: create a new `branch`, and `commit`, then proceed to step 2b.
     - ELSE: `commit`

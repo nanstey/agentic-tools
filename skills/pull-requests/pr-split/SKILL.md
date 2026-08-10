@@ -24,8 +24,8 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 ## Workflow
 
-1. Load the changeset with `changes` to get logical groups and flagged/out-of-place items.
-2. Read branch/PR intent (`git log --oneline <base>..HEAD`, PR metadata) to name the units.
+1. Load the changeset with `changes` (which resolves the diff base via `pr-info`/`scope`) to get logical groups and flagged/out-of-place items.
+2. Read branch/PR intent (`git log --oneline <base>..<head>`, PR metadata) to name the units.
 3. Build a dependency map between groups: shared files, symbol/import edges, test-to-code links.
 4. Classify each group as **orthogonal** (no dependency) or **dependent** (builds on another).
 5. Draft the split proposal:
