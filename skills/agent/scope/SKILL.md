@@ -11,7 +11,7 @@ disable-model-invocation: false
 
 Set analysis scope before scanning so work stays bounded and reproducible.
 When specific lines, files, symbols, or names are provided, treat them as the explicit scope.
-When scope is missing, prefer uncommitted changes first; if none exist, use current branch delta vs base (`base...HEAD`).
+When scope is missing, prefer uncommitted changes first; if none exist, use current branch delta vs the resolved base. For PR work, delegate base resolution to `changes`/`pr-info` and use the exact GitHub `baseRefOid..headRefOid`, not a guessed local branch.
 If user already set scope, confirm and proceed.
 Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
@@ -28,8 +28,8 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
    - If user provides specific lines, files, symbols, or names, use that as scope directly.
 2. If no explicit scope, check for uncommitted changes.
    - If present, set scope to uncommitted changes (staged + unstaged + untracked as relevant).
-3. If no uncommitted changes, default to branch-delta scope (`base...HEAD`).
-4. Resolve base branch automatically (`main`, then `develop`, then tracked upstream merge-base); ask only if unresolved.
+3. If no uncommitted changes, default to branch-delta scope against the resolved base.
+4. Resolve PR bases through `pr-info`/`changes` when a PR exists. Only for pre-PR work, resolve a target branch/ref (prefer an explicit target, then repo convention, then tracked upstream merge-base); record its resolved SHA and ask only if unresolved.
 5. Restate final scope and exclusions.
 6. If scope is still uncertain and could change conclusions, ask the user to clarify before proceeding.
 

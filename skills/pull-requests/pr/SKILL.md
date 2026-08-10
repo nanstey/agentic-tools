@@ -23,6 +23,7 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 Run in order, skipping steps the user excluded.
 
 ### 0. Pre-check
+  - Run `changes` first to resolve the comparison scope and record the exact base/head refs. If a PR already exists, it must use GitHub's `baseRefOid..headRefOid`; never infer the PR base from local `develop` or `origin/develop`.
   - IF uncommitted `changes`:
     - IF on main/develop: create a new `branch`, and `commit`, then proceed to step 2b.
     - ELSE: `commit`
@@ -39,7 +40,7 @@ Run in order, skipping steps the user excluded.
 
 ### 3. Update the PR
   - `pr-rebase`: rebase onto the latest base and force-push with lease. This single push carries all fixes and triggers one fresh CI run and review-agent pass.
-  - `pr-description`: sync the PR body with the final changeset; for UI changesets it runs `pr-screenshots` to refresh visual evidence and attach it to the PR (never committed). Capturing this evidence is mandatory for UI changesets — never downgrade it to an optional decision or ask/skip because auth, feature flags, or navigation look involved (`visual-capture`/`playwright-cli` handle those). Stop only on `pr-screenshots`' own gates: site unreachable, ambiguous before/after refs, capture tooling unavailable, or an artifact would land in the repo.
+  - `pr-description`: sync the PR body with the final changeset using the verified GitHub `baseRefOid..headRefOid` comparison; for UI changesets it runs `pr-screenshots` to refresh visual evidence and attach it to the PR (never committed). Capturing this evidence is mandatory for UI changesets — never downgrade it to an optional decision or ask/skip because auth, feature flags, or navigation look involved (`visual-capture`/`playwright-cli` handle those). Stop only on `pr-screenshots`' own gates: site unreachable, ambiguous before/after refs, capture tooling unavailable, or an artifact would land in the repo.
 
 After each step, report its outcome before continuing.
 Stop and ask when any step hits its own stop gate, fails, or leaves the branch in an unexpected state.
