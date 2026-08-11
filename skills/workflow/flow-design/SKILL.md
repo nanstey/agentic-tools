@@ -55,6 +55,7 @@ Right-size the model to each role, and split vendors between author and judge:
 - Cap iteration (`maxIterations`), fan-out, and spend (`maxCostUsd` or `maxTokens`) explicitly; never leave an implementation flow uncapped.
 - State `passContract` acceptance criteria concretely; vague criteria make critic verdicts unreliable.
 - Place human `checkpoint` / workflow `approval` nodes where the caller declared approval points.
+- When the task carries a spec checklist, encode checkbox ownership in the role contracts: the operator ticks `## Implementation` items it completed (validation passing), and the reviewer/QA role ticks `## Test Scenarios` items it observed passing. Scope the QA role's write access to the spec file when it must tick directly; when the verifier is read-only, its return contract must report per-scenario pass/fail evidence so the caller ticks on its behalf. The implementing role never ticks a scenario.
 - Keep concurrent writers out of a shared `cwd`; use `worktree` mode or sequential execution instead of `allowSharedWriteCwd`.
 
 ## Workflow

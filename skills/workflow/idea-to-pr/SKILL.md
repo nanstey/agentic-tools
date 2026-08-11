@@ -51,13 +51,14 @@ When unsure, ask. Size also selects the quality pass in stage 5 (on for large, o
 ### 4. Specs
 
 - `speclist`: one spec per slice under `<plan-folder>/specs/`. One slice = one PR.
+- Instruct `speclist` to structure each spec with two distinct checklists, since checkbox ownership differs downstream: `## Implementation` (build items, ticked by the worker) and `## Test Scenarios` (Given/When/Then verification items, ticked by the reviewer/QA role).
 
 ### 5. Per slice, in order
 
 1. `branch` or `worktree` (worktree when other slices are in flight).
 2. `flow-design`: design the slice's execution flow from its spec — typically `evaluate` with an Anthropic operator, OpenAI Codex critic(s), the repo's test command as `checkCommand`, and explicit caps.
-3. Execute the designed flow (or `build` when pi-flows is unavailable), honoring the plan's gates and budgets. Validation must pass before the slice advances.
-4. Runtime verification (when the slice exposes runnable behaviour): boot the app and exercise the spec's scenarios end-to-end — via `playwright-cli` for anything browser-facing, or the equivalent CLI/API calls otherwise. Every Given/When/Then in the slice spec must be observed passing against the running app, not inferred from unit tests. On failure, route the fix back through step 3.
+3. Execute the designed flow (or `build` when pi-flows is unavailable), honoring the plan's gates and budgets. Validation must pass before the slice advances. The worker (operator) checks off each `## Implementation` item as it lands and its validation passes; it never touches `## Test Scenarios`.
+4. Runtime verification (when the slice exposes runnable behaviour): boot the app and exercise the spec's scenarios end-to-end — via `playwright-cli` for anything browser-facing, or the equivalent CLI/API calls otherwise. Every Given/When/Then in the slice spec must be observed passing against the running app, not inferred from unit tests. On failure, route the fix back through step 3. The reviewer/QA role checks off each `## Test Scenarios` item as it observes that scenario pass; when the verifying role cannot write, this skill ticks the item on the QA role's explicit per-scenario evidence, never on inference.
 5. Evidence capture (user-facing UI slices): after runtime verification passes, capture screenshots/clips of the verified behaviour via `visual-capture` for the PR. Evidence is attached to the PR by `pr`/`pr-screenshots`, never committed.
 6. Quality pass (large changes; opt-in for small): `principles` and/or `deep-review`, delegated to a fresh-context Codex-side reviewer per `flow-design`'s vendor split. Apply fixes through the same execution path.
 7. `commit`, then `pr` (full checklist; `pr-screenshots` wires the captured evidence into the PR). Stack dependent slices via `gh-stack` / `pr-restack`.
@@ -80,6 +81,8 @@ After each stage, report its outcome before continuing. Stop and ask when any de
 - Never skip runtime verification for a slice with runnable behaviour on the grounds that unit tests pass; tests supplement, not replace, observing the running app.
 - Never capture PR screenshots or clips before the behaviour they show is verified; evidence documents verified behaviour, it does not substitute for verification.
 - Never let a boot failure pass silently; if the app cannot start, the slice is blocked.
+- Never let the implementing agent check off a test scenario, and never let any checkbox be ticked before its item is validated (implementation) or observed passing (scenario).
+- Never open the slice's PR with unticked spec items; an unticked item is either unfinished work or a blocked scenario to surface.
 - Never run concurrent writers in one checkout; parallel slices require separate worktrees.
 - Never execute a pi-flows plan that lacks a `why`, iteration caps, or a spend ceiling; send it back to `flow-design`.
 - Never let the plan-folder README drift: update slice status at every transition.
