@@ -11,7 +11,7 @@ disable-model-invocation: false
 
 Orchestrate existing skills as one pipeline from idea to review-ready PR(s); do no planning, editing, or PR work directly outside those skills.
 Each delegated skill follows its own contract, gates, and safety rules; this skill sequences them, tracks state in the plan-folder README, and reports per-stage outcomes.
-Execution inside a slice is delegated through pi-flows using a plan from `flow-design`; fall back to `build`'s own subagent delegation when pi-flows is unavailable.
+The top-level agent must protect its context during discovery and planning by delegating read-only reconnaissance and context-building to `pi-subagents` before invoking planning skills. Execution inside a slice may use pi-flows through a plan from `flow-design`; fall back to `build`'s own `pi-subagents` delegation when pi-flows is unavailable.
 Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 ## Required Inputs
@@ -42,9 +42,25 @@ When unsure, ask. Size also selects the quality pass in stage 5 (on for large, o
 
 ### 3. Plan
 
+#### 3a. Delegated planning discovery
+
+Before invoking a planning skill, the top-level agent delegates repository discovery through `pi-subagents`:
+
+- **Small idea**: one fresh-context `scout` or `context-builder` for affected files, current behaviour, tests, and validation commands.
+- **Large idea**: a small parallel fan-out of fresh-context, read-only agents with distinct scopes — typically request/scope, codebase/patterns, and validation/risks — followed by a `context-builder` or `planner` synthesis step.
+- Launch these asynchronously where possible, use distinct output artifacts, and wait for all required findings before planning. Children must not edit source files or launch their own subagents.
+- The synthesis handoff must include verified file/line evidence, affected boundaries, available test/browser commands, risks, unresolved questions, and a compact meta-prompt for the planning skill. The top-level agent uses this handoff instead of re-reading the entire repository into its own context.
+
+Use the smallest fan-out that materially reduces parent context load; do not delegate trivial ideas where direct inspection is sufficient. If pi-subagents is unavailable, stop and report the setup problem rather than silently pretending planning was delegated.
+
+#### 3b. Planning path
+
+Pass the delegated discovery handoff to the appropriate planning path:
+
 - Small: `proposal`.
 - Large: `product-review` → `system-architecture` → `program-design` → `vertical-slices`.
-- Planning discovery may fan out read-only investigation via pi-flows (`recon`/`analyst`, designed by `flow-design`) when the codebase survey exceeds what the parent context should hold.
+
+Planning skills remain responsible for resolving uncertainties and writing their artifacts; delegated discovery is evidence, not approval.
 
 **GATE: explicit user approval of the plan.** Never proceed on silence, even in autopilot.
 
@@ -76,6 +92,8 @@ After each stage, report its outcome before continuing. Stop and ask when any de
 ## Safety Rules
 
 - Never do work a delegated skill owns; sequence and report only.
+- Never make the top-level context absorb a broad repository survey when a bounded `pi-subagents` discovery fan-out would materially reduce context load.
+- Never use write-capable planning children for discovery; planning scouts and context-builders are read-only and must not launch nested subagents.
 - Never proceed past the plan-approval gate without explicit user approval, in any mode.
 - Never advance a slice whose validation has not passed, or claim validation ran when it did not.
 - Never skip runtime verification for a slice with runnable behaviour on the grounds that unit tests pass; tests supplement, not replace, observing the running app.
@@ -90,4 +108,4 @@ After each stage, report its outcome before continuing. Stop and ask when any de
 
 ## Output Style
 
-Report a per-stage checklist (done/skipped/blocked with one-line outcome), the plan folder path, per-slice status with PR URLs, delegated flow summaries (mode, cost, verdicts), and any unresolved blockers or open gates.
+Report a per-stage checklist (done/skipped/blocked with one-line outcome), the plan folder path, planning subagent assignments and handoff artifacts, per-slice status with PR URLs, delegated flow summaries (mode, cost, verdicts), and any unresolved blockers or open gates.
