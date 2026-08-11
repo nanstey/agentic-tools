@@ -17,7 +17,7 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 ## Required Inputs
 
 1. The task: outcome, boundaries, and acceptance criteria.
-2. Validation tooling available (test command, linter, typecheck) for deterministic gates.
+2. Validation tooling available (test command, linter, typecheck, E2E harness, how to boot the app) for deterministic and runtime gates.
 3. Constraints: budget ceiling, timeout expectations, approval points.
 4. Whether the task writes to the repo, and if parallel writers are plausible.
 
@@ -51,6 +51,7 @@ Right-size the model to each role, and split vendors between author and judge:
 ### Gates and budgets
 
 - Attach a deterministic `checkCommand` (tests, typecheck, lint) to every `evaluate` and to workflow phases that produce code; confirm the command is runnable before designing it in.
+- When the task changes runnable behaviour, unit tests alone are not an adequate gate: design a runtime verification stage that boots the app and exercises the acceptance scenarios against it — an E2E `checkCommand` (e.g. a Playwright test run) when one exists, otherwise a `workflow` phase or caller-owned step that drives the running app via `playwright-cli` or equivalent. Name which acceptance criteria the runtime stage proves.
 - Cap iteration (`maxIterations`), fan-out, and spend (`maxCostUsd` or `maxTokens`) explicitly; never leave an implementation flow uncapped.
 - State `passContract` acceptance criteria concretely; vague criteria make critic verdicts unreliable.
 - Place human `checkpoint` / workflow `approval` nodes where the caller declared approval points.
