@@ -84,6 +84,15 @@ Focused planning skills below are optional and independently selectable; `propos
 | [`scope`](skills/agent/scope/SKILL.md) | Confirm and normalize analysis scope, then return clear scope assumptions before scanning files. |
 | [`reflect`](skills/agent/reflect/SKILL.md) | Review the current session for problems and their fixes, then propose durable improvements to repo skills, scripts, or docs that prevent recurrence. |
 
+### Thinking
+
+| Skill | Description |
+| --- | --- |
+| [`brutal-critic`](skills/thinking/brutal-critic/SKILL.md) | Structured adversarial thinking partner that stress-tests plans, reasoning, and assumptions. Use when the user explicitly asks for critical review or uses phrases like "red-team this," "poke holes," or "what am I missing." |
+| [`commanders-intent`](skills/thinking/commanders-intent/SKILL.md) | Pre-execution intent elicitation based on Auftragstaktik. Decides whether to execute, confirm an assumption, or interview before starting ambiguous, high-stakes, or open-ended work. |
+| [`pre-mortem`](skills/thinking/pre-mortem/SKILL.md) | Structured pre-mortem analysis that assumes a plan has already failed and works backward to identify the most likely causes. Use before executing a specific plan or initiative. |
+| [`socratic-explorer`](skills/thinking/socratic-explorer/SKILL.md) | Guide users through deep exploration of any challenge or topic using a structured Socratic method, building from theory through principles to concrete application. |
+
 ### Writing
 
 | Skill | Description |
