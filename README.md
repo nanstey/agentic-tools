@@ -76,6 +76,13 @@ Focused planning skills below are optional and independently selectable; `propos
 | [`program-design`](skills/planning/program-design/SKILL.md) | Produces a concise code-shape design with call paths, file placement, and key interfaces. Use when an implementation could go wrong despite a settled architecture or local requirement. |
 | [`vertical-slices`](skills/planning/vertical-slices/SKILL.md) | Breaks a change into small observable implementation increments with verification checkpoints. Use when a plan risks becoming a large horizontal batch of layer-by-layer work. |
 
+### Workflow
+
+| Skill | Description |
+| --- | --- |
+| [`idea-to-pr`](skills/workflow/idea-to-pr/SKILL.md) | Takes an idea end-to-end from discovery and planning through built, tested, and validated pull requests by chaining the planning, dev, and pr skills with pi-flows execution. |
+| [`flow-design`](skills/workflow/flow-design/SKILL.md) | Designs a bounded pi-flows delegation plan for a task, selecting mode, agents, model tiers and vendors, gates, and budgets. |
+
 ### Agent
 
 | Skill | Description |
