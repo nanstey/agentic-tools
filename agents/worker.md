@@ -1,7 +1,8 @@
 ---
 name: worker
 description: Implementation agent for normal tasks and approved oracle handoffs
-thinking: high
+model: openai-codex/gpt-5.6-terra
+thinking: medium
 systemPromptMode: replace
 inheritProjectContext: true
 inheritSkills: false

@@ -169,4 +169,4 @@ Claude Code subagents for focused delegated work.
 | [`reviewer`](agents/reviewer.md) | Versatile review specialist for code diffs, plans, proposed solutions, codebase health, and PR/issue validation. |
 | [`context-builder`](agents/context-builder.md) | Analyzes requirements and codebase; generates `context.md` and `meta-prompt.md` for planning and subagent handoffs. |
 | [`oracle`](agents/oracle.md) | High-context decision-consistency oracle that protects inherited state and prevents drift. Read-only. |
-| [`delegate`](agents/delegate.md) | Lightweight subagent that inherits the parent model with no default reads. General-purpose delegated execution. |
+| [`delegate`](agents/delegate.md) | Lightweight, low-cost generic subagent with no default reads. General-purpose delegated execution. |

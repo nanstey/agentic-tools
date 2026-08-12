@@ -1,6 +1,7 @@
 ---
 name: oracle
 description: High-context decision-consistency oracle that protects inherited state and prevents drift
+model: openai-codex/gpt-5.6-sol
 tools: read, grep, find, ls, bash, intercom
 thinking: high
 systemPromptMode: replace
