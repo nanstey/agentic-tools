@@ -10,7 +10,7 @@ disable-model-invocation: false
 ## Core Contract
 
 Turn one task into a concrete, bounded pi-flows delegation plan: the mode, agent roles, per-role model choices, deterministic gates, budgets, and the exact `flow` call(s) ready to execute.
-Design-only: never execute the designed flow, edit source, or spawn children. The caller (a user, `idea-to-pr`, or `build`) executes the plan.
+Design-only: never execute the designed flow, edit source, or spawn children. The caller (a user, `idea-to-pr`, or `build`) executes the plan. It may run the bounded validation-environment preflight below: an immutable dependency install and retry are setup, not flow execution.
 Ground every choice in the installed pi-flows contract (`flow list:true` / `showConfig:true` and the flow reference); never design against modes, agents, or parameters that are not available.
 Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
@@ -51,10 +51,11 @@ Right-size the model to each role, and split vendors between author and judge:
 ### Gates and budgets
 
 - Attach a deterministic `checkCommand` (tests, typecheck, lint) to every `evaluate` and to workflow phases that produce code; confirm the command is runnable before designing it in.
+- Do not stop at the first dependency-shaped preflight failure. When a prospective gate reports missing workspace/module imports, a missing project executable, or absent generated dependency output, detect the lockfile/package manager; run one immutable install (for pnpm, `pnpm install --frozen-lockfile`) and retry the identical command once. Preserve manifests, lockfiles, and gate scope. Record the repair and retry. Only then classify a persistent failure as code, lockfile/install, access/service, or unknown; a baseline code failure is a blocker, not a reason to propose a narrower gate.
 - When the task changes runnable behaviour, unit tests alone are not an adequate gate: design a runtime verification stage that boots the app and exercises the acceptance scenarios against it — an E2E `checkCommand` (e.g. a Playwright test run) when one exists, otherwise a `workflow` phase or caller-owned step that drives the running app via `playwright-cli` or equivalent. Name which acceptance criteria the runtime stage proves.
 - Cap iteration (`maxIterations`), fan-out, and spend (`maxCostUsd` or `maxTokens`) explicitly; never leave an implementation flow uncapped.
 - State `passContract` acceptance criteria concretely; vague criteria make critic verdicts unreliable.
-- Place human `checkpoint` / workflow `approval` nodes where the caller declared approval points.
+- Place human `checkpoint` / workflow `approval` nodes only where the caller declared approval points. An `idea-to-pr` autopilot handoff is explicit approval for ordinary planning and execution transitions: do not invent plan, vendor, or flow-shape approval prompts. Select a compliant available cross-vendor pairing yourself; report the selected pairing and any unavoidable capability limitation.
 - When the task carries a spec checklist, encode checkbox ownership in the role contracts: the operator ticks `## Implementation` items it completed (validation passing), and the reviewer/QA role ticks `## Test Scenarios` items it observed passing. Scope the QA role's write access to the spec file when it must tick directly; when the verifier is read-only, its return contract must report per-scenario pass/fail evidence so the caller ticks on its behalf. The implementing role never ticks a scenario.
 - Keep concurrent writers out of a shared `cwd`; use `worktree` mode or sequential execution instead of `allowSharedWriteCwd`.
 
@@ -62,11 +63,12 @@ Right-size the model to each role, and split vendors between author and judge:
 
 1. Restate the task, its acceptance criteria, and whether it writes to the repo.
 2. Inspect the installed pi-flows surface (`list`, `showConfig`) for available agents, tiers, caps, and any user/project custom agents.
-3. Pick the least-coordination mode per the design rules; record why simpler modes were rejected.
-4. Assign agents and models per role using the model selection policy.
-5. Define gates: `checkCommand`, `passContract`, iteration caps, budgets, and any approval points.
-6. Write the plan: the exact `flow` call JSON (or ordered calls), each with its `why`, plus a short rationale table (role → agent → tier/model → vendor → reason).
-7. Present the plan and stop; do not execute it.
+3. Probe the prospective gate. If it has a dependency-shaped failure, perform the bounded immutable-install repair and retry before treating it as unavailable.
+4. Pick the least-coordination mode per the design rules; record why simpler modes were rejected.
+5. Assign agents and models per role using the model selection policy. Resolve vendor selection from the installed surface; do not ask the caller to waive or choose among routine compliant options.
+6. Define gates: `checkCommand`, `passContract`, iteration caps, budgets, and only caller-requested approval points.
+7. Write the plan: the exact `flow` call JSON (or ordered calls), each with its `why`, plus a short rationale table (role → agent → tier/model → vendor → reason).
+8. Present the plan and stop; do not execute it.
 
 Stop and ask when acceptance criteria are unverifiable, the needed gate command is unavailable, or budget expectations are unknown for an expensive mode (`worktree`, `orchestrate`, `debate`).
 
@@ -77,6 +79,8 @@ Stop and ask when acceptance criteria are unverifiable, the needed gate command 
 - Never omit `why`, iteration caps, or a spend ceiling from an implementation flow.
 - Never assign the same vendor as both sole author and sole judge of an artifact.
 - Never design shared-write concurrency; isolate writers or serialize.
+- Never weaken, narrow, or substitute a failing baseline gate to make a flow runnable; make the bounded dependency repair attempt first and surface a persistent blocker.
+- Never request user approval for an ordinary vendor/model selection or planning transition when the caller supplied autopilot authorization.
 - Never escalate coordination beyond what the task's correctness requires.
 
 ## Output Style

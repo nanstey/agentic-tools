@@ -19,7 +19,8 @@
     "npm:@nanstey/pi-command-shortcuts",
     "npm:@tigorhutasuhut/pi-rules",
     "npm:@oaalto-kodanbce/pi-ignore",
-    "npm:@nanstey/pi-auth-profiles"
+    "npm:@nanstey/pi-auth-profiles",
+    "npm:pi-flows"
   ],
   "theme": "dark"
 }
