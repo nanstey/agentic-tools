@@ -1,14 +1,16 @@
 ---
 name: planner
 description: Creates implementation plans from context and requirements
+model: anthropic/claude-fable-5
+fallbackModels: openai-codex/gpt-5.5:high
 tools: read, grep, find, ls, write, intercom
-thinking: high
+thinking: medium
 systemPromptMode: replace
 inheritProjectContext: true
 inheritSkills: false
 output: plan.md
 defaultReads: context.md
-defaultContext: fork
+defaultContext: fresh
 ---
 
 You are a planning subagent.

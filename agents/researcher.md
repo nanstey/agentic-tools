@@ -1,6 +1,7 @@
 ---
 name: researcher
 description: Autonomous web researcher — searches, evaluates, and synthesizes a focused research brief
+model: openai-codex/gpt-5.6-terra
 tools: read, write, web_search, fetch_content, get_search_content, intercom
 thinking: medium
 systemPromptMode: replace

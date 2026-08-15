@@ -1,6 +1,8 @@
 ---
 name: context-builder
 description: Analyzes requirements and codebase, generates context and meta-prompt
+model: anthropic/claude-fable-5
+fallbackModels: openai-codex/gpt-5.5:high
 tools: read, grep, find, ls, bash, write, web_search, intercom
 thinking: medium
 systemPromptMode: replace
