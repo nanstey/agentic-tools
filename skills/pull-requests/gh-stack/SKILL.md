@@ -23,7 +23,7 @@ Command and API details load on demand:
 
 ## Required Inputs
 
-1. Operation: create, add layer, submit/publish, sync/restack, link, inspect, checkout, dissolve.
+1. Operation: create, add layer, submit/publish, sync/restack, link, inspect, checkout, collapse, dissolve.
 2. Repo (`owner/repo`, default current) and remote (default auto-detected).
 3. Branch order (bottom→top) or PR numbers, as the operation requires.
 4. Trunk override (`--base`), if not the default branch.
@@ -35,6 +35,8 @@ Probe before the first operation, cache the result for the session:
 
 1. Extension: `gh extension list` contains `github/gh-stack`.
 2. Feature: `gh api repos/{owner}/{repo}/stacks` — HTTP 404 means Stacked PRs are not enabled for the repo (CLI equivalent: exit code 9).
+
+A custom SSH remote host alias (e.g. `github.com-work`) breaks `gh stack`/`gh` repo auto-detection: the derived `owner/repo` will be wrong or empty. When the remote uses a host alias, drive the REST API path with explicit `--repo <owner>/<repo>` (or `gh api` with an explicit owner/repo) rather than relying on auto-detection.
 
 | Tier | Condition | Capability |
 | --- | --- | --- |
@@ -54,6 +56,13 @@ Probe before the first operation, cache the result for the session:
    - **Link (T1/T2)**: T1 `gh stack link [--base <trunk>] <branches-or-prs...>`; T2 requires properly chained PRs first (each PR's base = previous PR's head) — if not already chained, update bases via `gh api .../pulls/{n} -X PATCH -f base=<parent-branch>` bottom-up, then `POST /repos/{o}/{r}/stacks` with ordered PR numbers bottom→top (min 2). Extend with `POST .../stacks/{n}/add`.
    - **Inspect (T1/T2)**: T1 `gh stack view --json` — never bare or `--short` (both are TUIs); T2 `GET .../stacks` or per-PR `gh api .../pulls/{n} --jq '.stack'`.
    - **Checkout (T1)**: `gh stack checkout <number|url|branch>` with an explicit argument; if local and remote stack compositions differ this prompts unbypassably — `gh stack unstack` first. Navigation via `gh stack up|down|top|bottom|trunk`.
+   - **Collapse (T1/T2)**: fold the whole stack into a single PR. Confirm survivor, close policy, and squash policy first (see Safety Rules), then apply the 5-step default below. **T1**: prefer `gh stack unstack <n>` to dissolve, then re-point the survivor base and close lower PRs via CLI/API. **T2 / host-alias fallback**: `POST /repos/{o}/{r}/stacks/{n}/unstack`, `PATCH /repos/{o}/{r}/pulls/{survivor}` with `base=<trunk>`, then per lower PR `PATCH /repos/{o}/{r}/pulls/{lower}` with `state=closed` plus a fold-in comment referencing the survivor. See `references/workflows.md` for the exact sequences.
+     Default collapse policy:
+     1. **Survivor = top PR** — it already contains every commit in the stack, so re-pointing it to trunk is lossless. Verify with `git merge-base --is-ancestor <lower-head> <survivor-head>` for each lower head before acting; abort and ask if any lower branch is not an ancestor (diverged/non-linear stack).
+     2. **Preserve commits** — do not squash by default (keeps authored history); offer squash only on explicit request.
+     3. **Re-point** the survivor's base to trunk (`--base`, default the stack's trunk).
+     4. **Close lower PRs** with a fold-in comment referencing the survivor; leave their branches intact (non-destructive).
+     5. **Refresh** the survivor's title/body to describe the full changeset, since the top PR's title usually covers only its own layer.
    - **Dissolve (T1/T2)**: confirm with the user first, then `gh stack unstack [<n>] [--local]` or `POST .../stacks/{n}/unstack`. Report PRs left stacked (merged/merging/queued cannot be removed).
    - **Any (T3)**: report why native stacks are unavailable; hand the task to `pr-restack` (stack) or `rebase` (single branch).
 3. For mid-stack fixes and review feedback, follow the recipes in `references/workflows.md`: commit on the layer that owns the change, `gh stack rebase --upstack` (or full `rebase`), then `gh stack push` — never patch a lower-layer concern into a higher branch.
@@ -67,6 +76,7 @@ Stop and ask when: local and remote stack compositions diverge; a branch belongs
 - Never drive interactive TUIs (`modify`, submit editor, checkout/switch pickers); use flags and explicit arguments, or stop and ask.
 - Never use plain `--force`; stack pushes rely on `--force-with-lease` (built into `push`/`sync`).
 - Never dissolve or unstack on GitHub without explicit user confirmation.
+- Collapse is destructive (dissolves the stack + closes PRs) — confirm survivor, close policy, and squash policy first; verify the survivor is a descendant of every lower head (`git merge-base --is-ancestor`) before re-pointing.
 - Never auto-resolve stack divergence; present the options and wait.
 - Never rebase or restructure over a dirty working tree; ask to commit or stash first.
 - Never resolve conflicts inline; delegate to `conflicts`.

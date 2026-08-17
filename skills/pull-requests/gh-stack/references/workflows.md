@@ -67,6 +67,42 @@ gh stack view
 gh stack submit --auto                     # link PRs (already-open PRs are detected)
 ```
 
+### Collapsing a stack into one PR
+
+Fold an entire stack into a single PR. **Destructive** — confirm survivor, close-vs-leave-open, and squash-vs-preserve before running (defaults: survivor = top PR, leave lower branches intact, preserve commits).
+
+Preflight (both tiers) — verify the survivor descends from every lower head:
+
+```
+# survivor = top branch; for each lower branch head:
+git merge-base --is-ancestor <lower-head> <survivor-head> || echo "ABORT: <lower-head> not an ancestor"
+```
+
+Abort and ask if any check fails (diverged/non-linear stack).
+
+**T1 (gh stack CLI):**
+
+```
+gh stack unstack <n>                                   # dissolve the stack on GitHub
+gh pr edit <survivor> --base <trunk>                   # re-point survivor to trunk
+gh pr close <lower> --comment "Folded into #<survivor>"  # per lower PR; branch left intact
+gh pr edit <survivor> --title "<full changeset>" --body "<full changeset>"
+```
+
+**T2 / host-alias fallback (REST API, explicit owner/repo):**
+
+```
+gh api -X POST  repos/{o}/{r}/stacks/{n}/unstack
+gh api -X PATCH repos/{o}/{r}/pulls/{survivor} -f base=<trunk>
+# per lower PR:
+gh api -X POST  repos/{o}/{r}/issues/{lower}/comments -f body="Folded into #<survivor>"
+gh api -X PATCH repos/{o}/{r}/pulls/{lower} -f state=closed
+# refresh survivor title/body:
+gh api -X PATCH repos/{o}/{r}/pulls/{survivor} -f title="<full changeset>" -f body="<full changeset>"
+```
+
+Use the REST path with explicit `owner/repo` whenever the remote uses a custom SSH host alias (e.g. `github.com-work`), which breaks `gh stack` repo auto-detection.
+
 ## Structuring guidance (for planning stacks)
 
 - Stacks are **strictly linear**: one parent, at most one child per branch. Parallel workstreams need separate stacks.
