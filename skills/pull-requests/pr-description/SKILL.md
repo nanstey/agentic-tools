@@ -8,6 +8,7 @@ description: Refreshes PR titles and descriptions to match the current branch ch
 ## Core Contract
 
 Sync PR title and body with the current branch diff.
+Write BLUF (Bottom Line Up Front): lead with the main point, then follow with context. State the conclusion before the material that justifies it, so a time-constrained reviewer grasps what changed and what is needed of them from the first line.
 Default tool is `gh`. Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 Default behavior is to update the PR directly once rewritten.
 
@@ -39,7 +40,7 @@ Use this fixed section set. Omit optional sections when they add nothing.
 
 ```markdown
 ## Summary
-<Lead paragraph: 1-2 sentences stating what the change does (and its purpose only if not obvious). No rationale. If there is surrounding context (stack position, related PRs, review guidance), put it in its own following paragraph.>
+<BLUF: 1-2 sentences stating what the change does (and its purpose only if not obvious). Bottom line first — no rationale, no build-up. If there is surrounding context (stack position, related PRs, review guidance), put it in its own following paragraph, after the bottom line.>
 
 ## Changes
 ### <Group / area>
@@ -71,7 +72,9 @@ Be terse (see the `terse` skill). Treat the word counts as ceilings, not targets
 
 - Be terse. State what changed, not why it was done that way; omit rationale, justification, and design narration by default.
 - Cap sentences and bullets at ~25 words. Split anything longer; prefer several short sentences over one clause-stacked line.
+- Write BLUF (Bottom Line Up Front): put the main point at the very start, then follow with context. Present conclusions before the material that justifies them (deductive, not inductive); never open with background, motivation, or a chronology that builds toward the point.
 - Lead with a one-to-two sentence `Summary` so a scanning reviewer gets bearings instantly; start it with an active verb. State the change and, if not obvious, its purpose in a single clause — no supporting argument.
+- Apply BLUF fractally: each `Changes` group and each bullet also states its bottom line first, so a reviewer skimming only the lead of each section still gets the full picture.
 - Split the `Summary` into paragraphs when intent shifts (change content vs. surrounding context); never fold related-PR/stack framing into the opening sentence.
 - In `Changes`, derive the work groups from first principles: consider the whole changeset holistically and organize by cohesive units of work (behavior, capability, or area), not by how the change was produced. Each bullet states a fact in one clause. Keep bullets few. Do not explain why a change was made unless a reviewer cannot trust or navigate the change without it — and then in one clause, not a paragraph.
 - Never structure the body line by line, file by file, commit by commit, or slice by slice. A commit list, changelog, or one-bullet-per-file dump is not an acceptable `Changes` structure; synthesize the diff into work groups instead.
