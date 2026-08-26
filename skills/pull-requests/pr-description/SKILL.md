@@ -24,20 +24,58 @@ Default behavior is to update the PR directly once rewritten.
 4. Analyze the exact PR changes over `pr-info`'s authoritative comparison: `git diff <baseRefOid>..<headRefOid>`, `git diff --stat <baseRefOid>..<headRefOid>`, and `git log <baseRefOid>..<headRefOid>` for the commit list.
 5. Identify drift: stale title, missing changes, stale bullets, stale/complete checklist items.
 6. If the branch changes user-facing UI, run `pr-screenshots` to ensure the PR's visual evidence is current before finalizing the body; wire any refreshed attachments into the description. Skip for non-UI changesets.
-7. Rewrite concise body (typically `Summary`, `What Changed`, optional `Testing`/`Screenshots`/`Open Questions`).
+7. Rewrite the body in the fixed format (see `Template`): `Summary`, `Changes`, `Testing`, optional `Notes`, optional `Screenshots`. Scale length to change size (see `Length`); prefer omission over filler.
 8. If the title no longer summarizes the changeset, rewrite it (concise, imperative, matching repo convention such as Conventional Commits when in use).
 9. Preserve still-relevant links/issues/related PR refs, including current screenshot/clip attachments.
 10. Update the PR title (only if drifted) and body via `gh`, then verify by re-reading the PR.
 
+## Template
+
+Use this fixed section set. Omit optional sections when they add nothing.
+
+```markdown
+## Summary
+<1-3 sentences: what this change does and why. The why for the whole change lives here.>
+
+## Changes
+### <Group / area>
+- <briefest summary of a change>
+
+### <Another group / area>
+- <briefest summary of a change>
+
+## Testing
+<How it was verified: tests added/updated, manual steps, env, edge cases. Specific, not verbose.>
+
+## Notes (optional)
+<Tradeoffs, risks, breaking changes, known limitations, follow-ups, open questions.>
+
+## Screenshots (optional)
+<Before/after or current-state attachments for UI changes.>
+```
+
+## Length
+
+Match depth to change size; do not pad because the diff is large.
+
+- Trivial fix / typo: ~50-100 words. `Summary` + `Testing` often suffice.
+- Single feature or refactor: ~150-250 words.
+- Multi-component change: ~300-400 words.
+- Breaking change or migration: ~400 words plus a migration/impact note in `Notes`.
+
 ## Guidelines
 
+- Lead with a one-to-two sentence `Summary` so a scanning reviewer gets bearings instantly; start it with an active verb.
+- The why for the entire change lives in `Summary`. The why for a specific interesting implementation choice lives inline in `Changes`.
+- In `Changes`, group related changes into subsections. Limit both the number of bullets and the length of each bullet. By default give the briefest summary possible; add detail only when a change is genuinely interesting or needs justification.
+- Do not narrate per file, and do not structure content by implementation order.
+- Surface tradeoffs, risks, breaking changes, and known limitations in `Notes` rather than burying them mid-body; omit `Notes` when there is nothing to flag.
+- `Testing` is required. Be specific about what was verified (tests, manual steps, env, edge cases); avoid bare "tested locally" and avoid verbosity.
 - Do not write from commit messages alone; use the diff.
 - Do not credit agents (Claude Code, Codex, etc.) for writing the description.
 - Do not reference filepaths in the summary.
 - Do not reference uncommitted plan files.
 - Screenshots/clips belong as PR attachments, never committed to the repo; delegate their capture and refresh to `pr-screenshots`.
-- Do not structure the content according to implementation order.
-- Use appropriate subsections in `What changed` section
 
 ## Implementation Notes
 
