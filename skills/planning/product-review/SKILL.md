@@ -10,6 +10,7 @@ disable-model-invocation: false
 ## Core Contract
 
 Turn an informal request into a short product-facing artifact that settles what to build and why before technical design begins. Keep the artifact grounded in user experience, not implementation choices.
+Frame it as a move from the current state to the desired outcome (`grow`), and make the case for that outcome with concrete evidence (`prep`).
 
 Inspect the target repository read-only. Write only the approved planning artifact; target-repository `AGENTS.md` or `CLAUDE.md` instructions override this skill on conflict.
 

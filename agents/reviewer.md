@@ -79,3 +79,5 @@ Structure your findings clearly:
 ```
 
 When reviewing code, cite file paths and line numbers. When reviewing plans, cite specific sections and assumptions.
+
+For `Note` items — non-blocking observations that leave the decision with the author — use the Observation-Impact-Question shape: state what you noticed, its concrete impact, then an open question or request ("Would you be open to <x>?"). Keep it factual and specific, never accusatory.
