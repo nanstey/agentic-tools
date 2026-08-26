@@ -12,7 +12,7 @@ disable-model-invocation: false
 Write documentation that a reader can act on without prior context.
 Describe how the system behaves and how its parts relate, not how the code is implemented, unless the doc is explicitly a technical/internals reference.
 Match the target repo's existing docs conventions and location patterns. Follow `CLAUDE.md` / `AGENTS.md` on conflict.
-Apply `terse` and `deslop` throughout.
+Apply `terse`, `deslop`, and `bluf` throughout.
 
 ## Required Inputs
 
@@ -42,7 +42,7 @@ Apply `terse` and `deslop` throughout.
 
 ## Recommended Practices
 
-- **Lead with why and what**, then how. Put the most-needed information first.
+- **Lead with why and what**, then how. Put the most-needed information first, bottom-line-up-front (`bluf`).
 - **Structure for scanning.** Descriptive headings, short paragraphs, lists for steps or options.
 - **One term per concept.** Pick a name and use it consistently; do not alternate synonyms.
 - **Second person, active voice** for instructions ("Run `x`", not "the user should run `x`").

@@ -29,7 +29,7 @@ Default to **PR-scoped, final-state** evidence: every artifact in the PR body sh
 | --- | --- |
 | … | … |
 
-Use a before/after pair **only** when the PR's review question is explicitly a visual replacement or regression. When a comparison is genuinely useful, label the exact refs — e.g. `Prior commit (abc123)` and `Final branch` — never a bare `Before`/`After`, which misleads on a feature PR or a refresh after an incremental commit.
+Use a before/after pair **only** when the PR's review question is explicitly a visual replacement or regression. When a comparison is genuinely useful, label the exact refs — e.g. `Prior commit (abc123)` and `Final branch` — never a bare `Before`/`After`, which misleads on a feature PR or a refresh after an incremental commit. When the body narrates such a comparison, frame it as Before, After, Bridge (`before-after-bridge`): the prior state, the improved state, then how the change got there.
 
 ## Applicability
 

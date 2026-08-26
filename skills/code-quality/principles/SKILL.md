@@ -34,7 +34,7 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
    - If a higher-priority principle fails, make lower-priority recommendations conditional.
 5. For each principle, classify outcome (`pass`, `warning`, `fail`) with direct evidence.
 6. Resolve conflicts by preserving higher-priority intent and recording exception guardrails.
-7. Propose minimal remediations and explicit exceptions for every `warning` or `fail`.
+7. Propose minimal remediations and explicit exceptions for every `warning` or `fail`. State each as a claim backed by its reason and concrete evidence from the artifact (`prep`).
 
 ## Safety Rules
 

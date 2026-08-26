@@ -8,7 +8,7 @@ description: Refreshes PR titles and descriptions to match the current branch ch
 ## Core Contract
 
 Sync PR title and body with the current branch diff.
-Write BLUF (Bottom Line Up Front): lead with the main point, then follow with context. State the conclusion before the material that justifies it, so a time-constrained reviewer grasps what changed and what is needed of them from the first line.
+Write BLUF (Bottom Line Up Front, see the [`bluf`](../../writing/bluf/SKILL.md) skill): lead with the main point, then follow with context. State the conclusion before the material that justifies it, so a time-constrained reviewer grasps what changed and what is needed of them from the first line.
 Default tool is `gh`. Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 Default behavior is to update the PR directly once rewritten.
 

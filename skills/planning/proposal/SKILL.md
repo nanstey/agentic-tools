@@ -59,7 +59,7 @@ The plan lives in a plan folder (`plan-init`'s Plan Folder Layout) as `<plan-fol
 
 Include these sections; omit one only when it does not apply.
 
-1. **Purpose** — why the change exists; the problem and intended outcome.
+1. **Purpose** — why the change exists; the problem and intended outcome. Frame it as the move from current state to target (`grow`): goal, current reality, the options weighed, and the chosen path.
 2. **User story & scenarios** — the story and the scenarios it covers.
 3. **Behaviour** — Given/When/Then for each scenario, including edge cases.
 4. **QA** — how each behaviour is proven (tests, checks, manual steps) and the tooling used.
