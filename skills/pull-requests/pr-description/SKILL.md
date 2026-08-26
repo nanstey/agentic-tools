@@ -24,10 +24,14 @@ Default behavior is to update the PR directly once rewritten.
 4. Analyze the exact PR changes over `pr-info`'s authoritative comparison: `git diff <baseRefOid>..<headRefOid>`, `git diff --stat <baseRefOid>..<headRefOid>`, and `git log <baseRefOid>..<headRefOid>` for the commit list.
 5. Identify drift: stale title, missing changes, stale bullets, stale/complete checklist items.
 6. If the branch changes user-facing UI, run `pr-screenshots` to ensure the PR's visual evidence is current before finalizing the body; wire any refreshed attachments into the description. Skip for non-UI changesets.
-7. Rewrite the body in the fixed format (see `Template`): `Summary`, `Changes`, `Testing`, optional `Notes`, optional `Screenshots`. Scale length to change size (see `Length`); prefer omission over filler.
-8. If the title no longer summarizes the changeset, rewrite it (concise, imperative, matching repo convention such as Conventional Commits when in use).
-9. Preserve still-relevant links/issues/related PR refs, including current screenshot/clip attachments.
-10. Update the PR title (only if drifted) and body via `gh`, then verify by re-reading the PR.
+7. Draft the body in the fixed format (see `Template`): `Summary`, `Changes`, `Testing`, optional `Notes`, optional `Screenshots`.
+8. Self-review the draft once against the checks below, revise, then move on. One pass — not a loop.
+   - **Length**: under the ceiling for the change size (see `Length`); cut, do not pad. No sentence or bullet over ~25 words — split any that run long.
+   - **No rationale**: `Summary` and `Changes` state what changed, not why; drop justification and design narration unless a reviewer cannot trust or navigate the change without it, and then in one clause.
+   - **Structure**: `Summary` split when intent shifts (content vs. context); `Changes` organized into work groups derived from first principles (never line/file/commit/slice-based) with one-clause bullets; `Testing` present and specific; `Notes` only if there is something to flag.
+9. If the title no longer summarizes the changeset, rewrite it (concise, imperative, matching repo convention such as Conventional Commits when in use).
+10. Preserve still-relevant links/issues/related PR refs, including current screenshot/clip attachments.
+11. Update the PR title (only if drifted) and body via `gh`, then verify by re-reading the PR.
 
 ## Template
 
@@ -35,14 +39,14 @@ Use this fixed section set. Omit optional sections when they add nothing.
 
 ```markdown
 ## Summary
-<1-3 sentences: what this change does and why. The why for the whole change lives here.>
+<Lead paragraph: 1-2 sentences stating what the change does (and its purpose only if not obvious). No rationale. If there is surrounding context (stack position, related PRs, review guidance), put it in its own following paragraph.>
 
 ## Changes
 ### <Group / area>
-- <briefest summary of a change>
+- <one clause stating a change, not why>
 
 ### <Another group / area>
-- <briefest summary of a change>
+- <one clause stating a change, not why>
 
 ## Testing
 <How it was verified: tests added/updated, manual steps, env, edge cases. Specific, not verbose.>
@@ -56,19 +60,22 @@ Use this fixed section set. Omit optional sections when they add nothing.
 
 ## Length
 
-Match depth to change size; do not pad because the diff is large.
+Be terse (see the `terse` skill). Treat the word counts as ceilings, not targets, and come in under them; the shortest description that lets a reviewer navigate the diff wins.
 
-- Trivial fix / typo: ~50-100 words. `Summary` + `Testing` often suffice.
-- Single feature or refactor: ~150-250 words.
-- Multi-component change: ~300-400 words.
-- Breaking change or migration: ~400 words plus a migration/impact note in `Notes`.
+- Trivial fix / typo: up to ~50 words. `Summary` + `Testing` often suffice.
+- Single feature or refactor: up to ~150 words.
+- Multi-component change: up to ~300 words.
+- Breaking change or migration: up to ~400 words plus a migration/impact note in `Notes`.
 
 ## Guidelines
 
-- Lead with a one-to-two sentence `Summary` so a scanning reviewer gets bearings instantly; start it with an active verb.
-- The why for the entire change lives in `Summary`. The why for a specific interesting implementation choice lives inline in `Changes`.
-- In `Changes`, group related changes into subsections. Limit both the number of bullets and the length of each bullet. By default give the briefest summary possible; add detail only when a change is genuinely interesting or needs justification.
-- Do not narrate per file, and do not structure content by implementation order.
+- Be terse. State what changed, not why it was done that way; omit rationale, justification, and design narration by default.
+- Cap sentences and bullets at ~25 words. Split anything longer; prefer several short sentences over one clause-stacked line.
+- Lead with a one-to-two sentence `Summary` so a scanning reviewer gets bearings instantly; start it with an active verb. State the change and, if not obvious, its purpose in a single clause — no supporting argument.
+- Split the `Summary` into paragraphs when intent shifts (change content vs. surrounding context); never fold related-PR/stack framing into the opening sentence.
+- In `Changes`, derive the work groups from first principles: consider the whole changeset holistically and organize by cohesive units of work (behavior, capability, or area), not by how the change was produced. Each bullet states a fact in one clause. Keep bullets few. Do not explain why a change was made unless a reviewer cannot trust or navigate the change without it — and then in one clause, not a paragraph.
+- Never structure the body line by line, file by file, commit by commit, or slice by slice. A commit list, changelog, or one-bullet-per-file dump is not an acceptable `Changes` structure; synthesize the diff into work groups instead.
+- Do not structure content by implementation order or the sequence in which the work was done.
 - Surface tradeoffs, risks, breaking changes, and known limitations in `Notes` rather than burying them mid-body; omit `Notes` when there is nothing to flag.
 - `Testing` is required. Be specific about what was verified (tests, manual steps, env, edge cases); avoid bare "tested locally" and avoid verbosity.
 - Do not write from commit messages alone; use the diff.
