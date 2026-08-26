@@ -11,7 +11,7 @@ disable-model-invocation: false
 
 Lead with the bottom line, then follow with only the context needed to support it.
 Present conclusions before the material that justifies them (deductive, not inductive).
-A drafting order, not a visible template: apply `terse` and `deslop` so the seams never show. Follow `CLAUDE.md` / `AGENTS.md` on conflict.
+A drafting order, not a visible template: the seams must never show in shipped prose. Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 ## Structure
 

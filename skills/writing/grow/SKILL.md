@@ -10,7 +10,7 @@ disable-model-invocation: false
 ## Core Contract
 
 Frame movement from a current state to a target as Goal, Reality, Options, Will.
-A drafting and thinking order, not a visible template: apply `terse` and `deslop` so the plan reads as prose, not labelled boxes. Follow `CLAUDE.md` / `AGENTS.md` on conflict.
+A drafting and thinking order, not a visible template: the plan must read as prose, never labelled boxes. Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 ## Structure
 

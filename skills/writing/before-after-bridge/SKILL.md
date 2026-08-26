@@ -10,7 +10,7 @@ disable-model-invocation: false
 ## Core Contract
 
 Tell a results story as the prior state, the improved state, then the path between them.
-A drafting order, not a visible template: apply `terse` and `deslop` so it reads as a narrative, not labelled sections. Follow `CLAUDE.md` / `AGENTS.md` on conflict.
+A drafting order, not a visible template: it must read as a narrative, never labelled sections. Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 ## Structure
 

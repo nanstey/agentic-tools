@@ -10,7 +10,7 @@ disable-model-invocation: false
 ## Core Contract
 
 Give feedback as a neutral observation, its concrete impact, then a question that hands agency back.
-A drafting order, not a visible template: apply `terse` and `deslop` so it reads as a normal comment, not a labelled form. Follow `CLAUDE.md` / `AGENTS.md` on conflict.
+A drafting order, not a visible template: it must read as a normal comment, never a labelled form. Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 ## Structure
 

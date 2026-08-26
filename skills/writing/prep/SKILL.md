@@ -10,7 +10,7 @@ disable-model-invocation: false
 ## Core Contract
 
 Make a persuasive case by stating the point, justifying it, grounding it in a concrete instance, then restating it.
-A drafting order, not a visible template: apply `terse` and `deslop` so the four beats read as natural argument, not a labelled scaffold. Follow `CLAUDE.md` / `AGENTS.md` on conflict.
+A drafting order, not a visible template: the four beats must read as natural argument, never a labelled scaffold. Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 ## Structure
 
