@@ -6,6 +6,7 @@ Reusable tools for real engineering work across machines and projects.
 | --- | --- |
 | **Skills** | Portable `SKILL.md` workflows for reliable end-to-end tasks. |
 | **Agent profiles** | Claude Code subagents I can delegate focused work to. |
+| **Output styles** | Swappable system-prompt styles for Claude Code and pi. |
 
 ## Quick Start
 
@@ -175,3 +176,26 @@ Claude Code subagents for focused delegated work.
 | [`context-builder`](agents/context-builder.md) | Analyzes requirements and codebase; generates `context.md` and `meta-prompt.md` for planning and subagent handoffs. |
 | [`oracle`](agents/oracle.md) | High-context decision-consistency oracle that protects inherited state and prevents drift. Read-only. |
 | [`delegate`](agents/delegate.md) | Lightweight, low-cost generic subagent with no default reads. General-purpose delegated execution. |
+
+## Output styles
+
+Swappable system-prompt styles (role, tone, default response format). One
+Markdown file per style under [`output-styles/`](output-styles/README.md);
+`install.sh` links each into both Claude Code (`~/.claude/output-styles/`) and
+pi/[`pi-output-styles`](https://pi.dev/packages/pi-output-styles)
+(`~/.omp/agent/output-styles/`). See
+[`output-styles/README.md`](output-styles/README.md) for the format and how to
+select a style.
+
+| Style | Description |
+| --- | --- |
+| [`concise`](output-styles/concise.md) | Minimal words; answer first, no preamble. |
+| [`explanatory`](output-styles/explanatory.md) | Complete the task, then add a short "why" insight. |
+| [`teacher`](output-styles/teacher.md) | Teach as you go; explain concepts before applying them. |
+| [`reviewer`](output-styles/reviewer.md) | Critical code-review lens; risks, edge cases, and quality. |
+| [`diagrams-first`](output-styles/diagrams-first.md) | Lead structural/flow explanations with a Mermaid diagram. |
+| [`ste`](output-styles/ste.md) | Write prose in ASD-STE100 Simplified Technical English. |
+| [`eli5`](output-styles/eli5.md) | Keep it simple — explain like I'm 5. |
+
+These styles are vendored from
+[`pi-output-styles`](https://pi.dev/packages/pi-output-styles) by LoneExile (MIT).

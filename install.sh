@@ -9,9 +9,15 @@ PI_AGENT_DIR="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}"
 # teach a harness about a new type; add a row to support a new harness.
 # A dir may be a glob (e.g. one skills dir per hermes profile): it expands to
 # every existing match, so a single pair can fan out to many destinations.
+# Output styles are dual-format Markdown files (frontmatter + body) that both
+# Claude Code and the pi-output-styles extension consume; the same source file
+# links into each harness's own output-styles dir (Claude ignores pi-only
+# fields and vice-versa). pi-output-styles' default home is ~/.omp/agent
+# (overridable via PI_OUTPUT_STYLES_HOME), which is why the pi row targets
+# ~/.omp/agent/output-styles rather than $PI_AGENT_DIR.
 HARNESSES=(
-  "claude|$HOME/.claude|claude|skills:$HOME/.claude/skills;agents:$HOME/.claude/agents"
-  "pi|$PI_AGENT_DIR|pi|skills:$PI_AGENT_DIR/skills;agents:$PI_AGENT_DIR/agents;config:$PI_AGENT_DIR::$REPO_ROOT/pi;config:$PI_AGENT_DIR/extensions::$REPO_ROOT/pi/extensions;hoist:$PI_AGENT_DIR/npm::$REPO_ROOT/pi/settings.json"
+  "claude|$HOME/.claude|claude|skills:$HOME/.claude/skills;agents:$HOME/.claude/agents;output-styles:$HOME/.claude/output-styles"
+  "pi|$PI_AGENT_DIR|pi|skills:$PI_AGENT_DIR/skills;agents:$PI_AGENT_DIR/agents;output-styles:$HOME/.omp/agent/output-styles;config:$PI_AGENT_DIR::$REPO_ROOT/pi;config:$PI_AGENT_DIR/extensions::$REPO_ROOT/pi/extensions;hoist:$PI_AGENT_DIR/npm::$REPO_ROOT/pi/settings.json"
   "codex|$HOME/.codex|codex|skills:$HOME/.codex/skills"
   "cursor|$HOME/.cursor|cursor,cursor-agent|skills:$HOME/.cursor/skills"
   "openclaw|$HOME/.openclaw|openclaw|skills:$HOME/.openclaw/skills"
@@ -38,6 +44,16 @@ collect_skills() {
 collect_agents() {
   [ -d "$REPO_ROOT/agents" ] || return 0
   find "$REPO_ROOT/agents" -type f -name '*.md' -not -path '*/.git/*' |
+  while read -r f; do
+    n="$(fm_name "$f")"; [ -n "$n" ] || n="$(basename "${f%.md}")"
+    printf '%s.md\t%s\n' "$n" "$(cd "$(dirname "$f")" && pwd)/$(basename "$f")"
+  done
+}
+
+# Output styles: *.md files under output-styles/. Emits "linkname.md<TAB>srcfile".
+collect_output_styles() {
+  [ -d "$REPO_ROOT/output-styles" ] || return 0
+  find "$REPO_ROOT/output-styles" -type f -name '*.md' -not -path '*/.git/*' -not -name 'README.md' |
   while read -r f; do
     n="$(fm_name "$f")"; [ -n "$n" ] || n="$(basename "${f%.md}")"
     printf '%s.md\t%s\n' "$n" "$(cd "$(dirname "$f")" && pwd)/$(basename "$f")"
@@ -147,6 +163,7 @@ for entry in "${HARNESSES[@]}"; do
     case "$type" in
       skills) collector=collect_skills ;;
       agents) collector=collect_agents ;;
+      output-styles) collector=collect_output_styles ;;
       *) echo "  [$type] unknown type, skipping"; continue ;;
     esac
     # The dir may be a glob; nullglob makes a non-matching pattern expand to

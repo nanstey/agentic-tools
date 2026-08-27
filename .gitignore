@@ -9,3 +9,6 @@ pi/observability/
 pi/npm/node_modules/
 **/*.token
 **/*.secret
+
+# Machine-local pi runtime state (flow traces, etc.)
+.pi/

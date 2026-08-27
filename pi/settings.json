@@ -20,7 +20,8 @@
     "npm:@tigorhutasuhut/pi-rules",
     "npm:@oaalto-kodanbce/pi-ignore",
     "npm:@nanstey/pi-auth-profiles",
-    "npm:pi-flows"
+    "npm:pi-flows",
+    "npm:pi-output-styles"
   ],
   "theme": "dark"
 }

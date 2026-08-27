@@ -8,6 +8,8 @@ This repo stores reusable **agentic tools**:
 
 - **Skills**: one `SKILL.md` per directory under `skills/` (portable).
 - **Agent profiles**: Claude Code subagents under `agents/`.
+- **Output styles**: one Markdown file per style under `output-styles/`,
+  linked into both Claude Code and pi (`pi-output-styles`).
 
 Tools are installed by **symlink**. Editing here updates linked harnesses.
 `README.md` is the catalog. `INSTALL.md` performs linking.
@@ -29,9 +31,10 @@ Scope by location:
 ```
 .agents/skills/<skill-name>/SKILL.md      # repo-local authoring skill
 agents/[<group>/]<agent-name>.md          # agent profiles
+output-styles/<style-name>.md             # output styles (dual-harness)
 skills/<category>/<skill-name>/SKILL.md   # global skill
 AGENTS.md                                 # this file
-INSTALL.md                                # symlink installer
+install.sh                                # symlink installer
 README.md                                 # catalog
 ```
 
