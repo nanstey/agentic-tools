@@ -6,11 +6,9 @@
     "pnpm"
   ],
   "packages": [
-    "npm:pi-subagents",
     "npm:pi-observational-memory",
     "npm:pi-observability",
     "npm:pi-web-access",
-    "npm:pi-interactive-shell",
     "npm:@plannotator/pi-extension",
     "npm:@heyhuynhgiabuu/pi-diff",
     "npm:@gotgenes/pi-anthropic-auth",
@@ -20,7 +18,8 @@
     "npm:@tigorhutasuhut/pi-rules",
     "npm:@oaalto-kodanbce/pi-ignore",
     "npm:@nanstey/pi-auth-profiles",
-    "npm:pi-flows"
+    "npm:pi-flows",
+    "npm:@maplezzk/pi-interactive-subagents"
   ],
   "theme": "dark"
 }
