@@ -61,6 +61,7 @@ pi                                     # installs packages from settings.json
 | [`branch`](skills/dev/branch/SKILL.md) | Create a new branch for current/proposed changes, deriving a conventional `<type>/<slug>` name when none is given. |
 | [`worktree`](skills/dev/worktree/SKILL.md) | Create or reuse a git worktree for a branch (local, remote-only, or new) and report its path. |
 | [`prototype`](skills/dev/prototype/SKILL.md) | Build a throwaway prototype (interactive logic TUI or switchable UI variants) to answer a design question, then capture the answer and delete it. |
+| [`new-app`](skills/dev/new-app/SKILL.md) | Scaffolds a new software project from scratch — folder structure, git, README, LICENSE, .gitignore, optional CI, and a private GitHub repo via `gh` — delegating language-specific init to the ecosystem's own tool. |
 
 ### Planning
 
