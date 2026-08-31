@@ -19,12 +19,18 @@ Install or update the tools:
 bash install.sh
 ```
 
-## Portable pi config
+## Harnesses
 
-`harness/pi/` holds portable, non-secret pi configuration. `install.sh` copies
-it into `$PI_AGENT_DIR`, which defaults to `~/.pi/agent` and follows
-`PI_CODING_AGENT_DIR` when set. These files are copied rather than symlinked
-because pi may rewrite them locally.
+`harness/` stores portable, non-secret configuration for supported agent
+harnesses. Expand a harness below for its managed files, install destinations,
+and runtime behavior.
+
+<details>
+<summary><code>harness/pi/</code> (Pi)</summary>
+
+`install.sh` copies the Pi configuration into `$PI_AGENT_DIR`, which defaults to
+`~/.pi/agent` and follows `PI_CODING_AGENT_DIR` when set. These files are copied
+rather than symlinked because Pi may rewrite them locally.
 
 | Repository path | Install destination | Purpose |
 | --- | --- | --- |
@@ -55,7 +61,10 @@ pi                                     # installs packages from settings.json
 /login anthropic                       # re-auth (secrets are never synced)
 ```
 
-## Portable omp config
+</details>
+
+<details>
+<summary><code>harness/omp/</code> (OMP)</summary>
 
 `install.sh` links shared skills and agents into `~/.omp/agent` and copies
 portable OMP config. When `omp` is on `PATH`, it installs the packages below
@@ -76,7 +85,7 @@ This repository intentionally has no `harness/omp/config.yml`, and `install.sh`
 does not create or manage `~/.omp/agent/config.yml`. A partial repository file
 would replace the complete machine-local file, dropping settings such as
 `modelRoles`, `webSearchOrder`, and `setupVersion`. Only add
-`harness/omp/config.yml` if the repository owns the entire canonical file.
+`harness/omp/config.yml` if the repository owns the complete file.
 
 To cap subagents at one delegation level, create or edit the machine-local file:
 
@@ -84,6 +93,8 @@ To cap subagents at one delegation level, create or edit the machine-local file:
 task:
   maxRecursionDepth: 1
 ```
+
+</details>
 
 ## Skills
 
