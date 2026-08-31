@@ -1,6 +1,6 @@
 ---
 name: pi-sync
-description: Captures the portable, non-secret pi config from a live ~/.pi/agent into this repo's pi/ directory and commits it, without reading or copying secrets. Use when live pi config or extensions have drifted from the repo and need to be synced back.
+description: Captures the portable, non-secret pi config from a live ~/.pi/agent into this repo's harness/pi/ directory and commits it, without reading or copying secrets. Use when live pi config or extensions have drifted from the repo and need to be synced back.
 user-invocable: true
 disable-model-invocation: true
 ---
@@ -10,9 +10,9 @@ disable-model-invocation: true
 ## Core Contract
 
 Capture the **portable, non-secret** pi config from a live `~/.pi/agent` into
-this repo's `pi/` directory and commit it. This is the reverse of `install.sh`:
-`install.sh` copies `pi/` out to `~/.pi/agent`; this skill pulls the live state
-back for review and commit.
+this repo's `harness/pi/` directory and commit it. This is the reverse of
+`install.sh`: `install.sh` copies `harness/pi/` out to `~/.pi/agent`; this skill
+pulls the live state back for review and commit.
 
 Config is **copied, not symlinked** (pi rewrites some files locally), so live
 changes never flow back on their own. Operate strictly on the allowlist below
@@ -49,12 +49,12 @@ first line of defense, `.gitignore` is the backstop.
 
 ### Allowlist — portable config to sync
 
-| Source (`~/.pi/agent`) | Dest (`pi/`) | Notes |
+| Source (`~/.pi/agent`) | Dest (`harness/pi/`) | Notes |
 | --- | --- | --- |
-| `settings.json` | `pi/settings.json` | Strip volatile key `lastChangelogVersion`. |
-| `extensions/*.json` | `pi/extensions/` | Per-extension config. |
-| `command-shortcuts.json` | `pi/command-shortcuts.json` | Optional; copy if present. |
-| `keybindings.json` | `pi/keybindings.json` | Optional; copy if present. |
+| `settings.json` | `harness/pi/settings.json` | Strip volatile key `lastChangelogVersion`. |
+| `extensions/*.json` | `harness/pi/extensions/` | Per-extension config. |
+| `command-shortcuts.json` | `harness/pi/command-shortcuts.json` | Optional; copy if present. |
+| `keybindings.json` | `harness/pi/keybindings.json` | Optional; copy if present. |
 
 `skills/` and `agents/` are **symlinked** by `install.sh`, so edits there
 already live in the repo — this skill does not touch them.
@@ -78,28 +78,28 @@ Run from the repo root.
 PI="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}"
 
 # 1. settings.json — strip only the volatile, locally-rewritten key.
-jq 'del(.lastChangelogVersion)' "$PI/settings.json" > pi/settings.json
+jq 'del(.lastChangelogVersion)' "$PI/settings.json" > harness/pi/settings.json
 
 # 2. extensions/*.json — copy each config by name (no recursion).
-mkdir -p pi/extensions
+mkdir -p harness/pi/extensions
 for f in "$PI"/extensions/*.json; do
   [ -e "$f" ] || continue
-  cp "$f" "pi/extensions/$(basename "$f")"
+  cp "$f" "harness/pi/extensions/$(basename "$f")"
 done
 
 # 3. Optional top-level config files — copy only if present.
 for name in command-shortcuts.json keybindings.json; do
-  [ -e "$PI/$name" ] && cp "$PI/$name" "pi/$name"
+  [ -e "$PI/$name" ] && cp "$PI/$name" "harness/pi/$name"
 done
 ```
 
 Verify, then guard:
 
 ```sh
-git status --short pi/
-git diff -- pi/
+git status --short harness/pi/
+git diff -- harness/pi/
 
-git status --porcelain pi/ | grep -E \
+git status --porcelain harness/pi/ | grep -E \
   'auth\.json|auth-profiles/|web-search\.json|trust\.json|sessions/|run-history|observability/|node_modules/' \
   && { echo 'ABORT: secret/state file staged'; exit 1; } || echo 'clean: no secrets staged'
 ```
@@ -107,7 +107,7 @@ git status --porcelain pi/ | grep -E \
 Commit only after the guard passes:
 
 ```sh
-git add pi/
+git add harness/pi/
 git commit -m "chore(pi): sync portable config from live ~/.pi/agent"
 ```
 

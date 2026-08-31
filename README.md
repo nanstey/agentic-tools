@@ -21,16 +21,16 @@ bash install.sh
 
 ## Portable pi config
 
-`pi/` holds the portable, non-secret pi configuration that `install.sh` copies
-into `~/.pi/agent` (it is **copied**, not symlinked, because pi rewrites these
-files locally):
+`harness/pi/` holds the portable, non-secret pi configuration that `install.sh`
+copies into `~/.pi/agent` (it is **copied**, not symlinked, because pi rewrites
+these files locally):
 
 | File | Purpose |
 | --- | --- |
-| `pi/settings.json` | Defaults + the `packages` list (the extension manifest). |
-| `pi/extensions/*.json` | Per-extension config. |
-| `pi/command-shortcuts.json` | Command shortcut bindings. |
-| `pi/keybindings.json` | Custom keybindings. |
+| `harness/pi/settings.json` | Defaults + the `packages` list (the extension manifest). |
+| `harness/pi/extensions/*.json` | Per-extension config. |
+| `harness/pi/command-shortcuts.json` | Command shortcut bindings. |
+| `harness/pi/keybindings.json` | Custom keybindings. |
 
 Secrets and machine-local state (`auth.json`, `auth-profiles/`, `web-search.json`,
 `trust.json`, sessions, run history) are git-ignored and never travel — re-auth
@@ -42,7 +42,7 @@ skill (allowlist-based; it never reads or copies secrets).
 ### New machine bootstrap
 ```sh
 git clone git@github.com:nanstey/agentic-tools.git ~/Code/skills
-cd ~/Code/skills && bash install.sh   # links skills + agents, copies pi config
+cd ~/Code/skills && bash install.sh   # links tools, copies harness config
 pi                                     # installs packages from settings.json
 /login anthropic                       # re-auth (secrets are never synced)
 ```
@@ -54,18 +54,18 @@ these portable omp artifacts:
 
 | Repository file | Install destination | Purpose |
 | --- | --- | --- |
-| [`omp/APPEND_SYSTEM.md`](omp/APPEND_SYSTEM.md) | `~/.omp/agent/APPEND_SYSTEM.md` | Adds bounded delegation and collision-safe temporary-file guidance. |
+| [`harness/omp/APPEND_SYSTEM.md`](harness/omp/APPEND_SYSTEM.md) | `~/.omp/agent/APPEND_SYSTEM.md` | Adds bounded delegation and collision-safe temporary-file guidance. |
 
-The installer copies each top-level, non-dot file under `omp/` as a whole file;
-it does not symlink or merge these files. A differing destination file is
+The installer copies each top-level, non-dot file under `harness/omp/` as a whole
+file; it does not symlink or merge these files. A differing destination file is
 replaced, so local edits to a managed file such as `APPEND_SYSTEM.md` are
 clobbered the next time `install.sh` runs.
 
-This repository intentionally has no `omp/config.yml`, and `install.sh` does not
-create or manage `~/.omp/agent/config.yml`. A partial repository file would
-replace the complete machine-local file, dropping settings such as `modelRoles`,
-`webSearchOrder`, and `setupVersion`. Only add `omp/config.yml` if the repository
-owns the entire canonical file.
+This repository intentionally has no `harness/omp/config.yml`, and `install.sh`
+does not create or manage `~/.omp/agent/config.yml`. A partial repository file
+would replace the complete machine-local file, dropping settings such as
+`modelRoles`, `webSearchOrder`, and `setupVersion`. Only add
+`harness/omp/config.yml` if the repository owns the entire canonical file.
 
 To cap subagents at one delegation level, create or edit the machine-local file:
 
@@ -185,7 +185,7 @@ Focused planning skills below are optional and independently selectable; `propos
 | Skill | Description |
 | --- | --- |
 | [`check-skill-name`](.agents/skills/check-skill-name/SKILL.md) | Check skill names for collisions and return CLEAR/CONFLICT/RISKY plus safe alternatives. |
-| [`pi-sync`](.agents/skills/pi-sync/SKILL.md) | Capture portable, non-secret pi config from a live `~/.pi/agent` into `pi/` and commit it, without touching secrets. |
+| [`pi-sync`](.agents/skills/pi-sync/SKILL.md) | Capture portable, non-secret pi config from a live `~/.pi/agent` into `harness/pi/` and commit it, without touching secrets. |
 | [`make-skill`](.agents/skills/make-skill/SKILL.md) | Plan and scaffold a convention-compliant repo skill, including name validation. |
 | [`make-agent`](.agents/skills/make-agent/SKILL.md) | Plan and scaffold a convention-compliant repo agent profile and align the catalog. |
 

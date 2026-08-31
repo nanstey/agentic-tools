@@ -1,11 +1,11 @@
 # Never commit secrets or machine-local pi state
-pi/auth.json
-pi/auth-profiles/
-pi/web-search.json
-pi/trust.json
-pi/sessions/
-pi/run-history.jsonl
-pi/observability/
-pi/npm/node_modules/
+harness/pi/auth.json
+harness/pi/auth-profiles/
+harness/pi/web-search.json
+harness/pi/trust.json
+harness/pi/sessions/
+harness/pi/run-history.jsonl
+harness/pi/observability/
+harness/pi/npm/node_modules/
 **/*.token
 **/*.secret
