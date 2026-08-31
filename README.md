@@ -21,16 +21,24 @@ bash install.sh
 
 ## Portable pi config
 
-`harness/pi/` holds the portable, non-secret pi configuration that `install.sh`
-copies into `~/.pi/agent` (it is **copied**, not symlinked, because pi rewrites
-these files locally):
+`harness/pi/` holds portable, non-secret pi configuration. `install.sh` copies
+it into `$PI_AGENT_DIR`, which defaults to `~/.pi/agent` and follows
+`PI_CODING_AGENT_DIR` when set. These files are copied rather than symlinked
+because pi may rewrite them locally.
 
-| File | Purpose |
-| --- | --- |
-| `harness/pi/settings.json` | Defaults + the `packages` list (the extension manifest). |
-| `harness/pi/extensions/*.json` | Per-extension config. |
-| `harness/pi/command-shortcuts.json` | Command shortcut bindings. |
-| `harness/pi/keybindings.json` | Custom keybindings. |
+| Repository path | Install destination | Purpose |
+| --- | --- | --- |
+| `harness/pi/settings.json` | `$PI_AGENT_DIR/settings.json` | Defaults and Pi's extension package list, including `npm:pi-intercom@0.12.0`. |
+| `harness/pi/extensions/*.json` | `$PI_AGENT_DIR/extensions/` | Per-extension config. |
+| `harness/pi/extensions/pi-interactive-subagents/config.json` | `$PI_AGENT_DIR/extensions/pi-interactive-subagents/config.json` | Interactive-subagents config. |
+| `harness/pi/extensions/pi-intercom/config.json` | `$PI_AGENT_DIR/intercom/config.json` | Shared pi-intercom config: enabled inbound replies, no send confirmation, and reply hints. |
+| `harness/pi/command-shortcuts.json` | `$PI_AGENT_DIR/command-shortcuts.json` | Command shortcut bindings. |
+| `harness/pi/keybindings.json` | `$PI_AGENT_DIR/keybindings.json` | Custom keybindings. |
+
+When either Pi or OMP is installed, `install.sh` copies the same
+`harness/pi/extensions/pi-intercom/config.json` source to
+`$PI_AGENT_DIR/intercom/config.json`. pi-intercom also stores its runtime state
+under `$PI_AGENT_DIR/intercom`.
 
 Secrets and machine-local state (`auth.json`, `auth-profiles/`, `web-search.json`,
 `trust.json`, sessions, run history) are git-ignored and never travel — re-auth
@@ -49,17 +57,20 @@ pi                                     # installs packages from settings.json
 
 ## Portable omp config
 
-`install.sh` links the shared skills and agents into `~/.omp/agent` and copies
-these portable omp artifacts:
+`install.sh` links shared skills and agents into `~/.omp/agent` and copies
+portable OMP config. When `omp` is on `PATH`, it installs the packages below
+with OMP's native `omp install` command:
 
-| Repository file | Install destination | Purpose |
+| Repository path | Install destination | Purpose |
 | --- | --- | --- |
 | [`harness/omp/APPEND_SYSTEM.md`](harness/omp/APPEND_SYSTEM.md) | `~/.omp/agent/APPEND_SYSTEM.md` | Adds bounded delegation and collision-safe temporary-file guidance. |
+| [`harness/omp/plugins/pi-intercom.txt`](harness/omp/plugins/pi-intercom.txt) | Not copied; passed to `omp install` | Installs `npm:pi-intercom@0.12.0`. Blank and comment lines are ignored. |
 
 The installer copies each top-level, non-dot file under `harness/omp/` as a whole
-file; it does not symlink or merge these files. A differing destination file is
-replaced, so local edits to a managed file such as `APPEND_SYSTEM.md` are
-clobbered the next time `install.sh` runs.
+file; nested files such as the plugin manifest are not copied. A differing
+destination file is replaced, so local edits to a managed file such as
+`APPEND_SYSTEM.md` are clobbered the next time `install.sh` runs. Native OMP
+package installation failure exits the installer with an error.
 
 This repository intentionally has no `harness/omp/config.yml`, and `install.sh`
 does not create or manage `~/.omp/agent/config.yml`. A partial repository file

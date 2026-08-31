@@ -19,7 +19,8 @@
     "npm:@oaalto-kodanbce/pi-ignore",
     "npm:@nanstey/pi-auth-profiles",
     "npm:pi-flows",
-    "npm:@maplezzk/pi-interactive-subagents"
+    "npm:@maplezzk/pi-interactive-subagents",
+    "npm:pi-intercom@0.12.0"
   ],
   "theme": "dark"
 }

@@ -11,8 +11,8 @@ PI_AGENT_DIR="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}"
 # every existing match, so a single pair can fan out to many destinations.
 HARNESSES=(
   "claude|$HOME/.claude|claude|skills:$HOME/.claude/skills;agents:$HOME/.claude/agents"
-  "pi|$PI_AGENT_DIR|pi|skills:$PI_AGENT_DIR/skills;agents:$PI_AGENT_DIR/agents;config:$PI_AGENT_DIR::$REPO_ROOT/harness/pi;config:$PI_AGENT_DIR/extensions::$REPO_ROOT/harness/pi/extensions;config:$PI_AGENT_DIR/extensions/pi-interactive-subagents::$REPO_ROOT/harness/pi/extensions/pi-interactive-subagents;hoist:$PI_AGENT_DIR/npm::$REPO_ROOT/harness/pi/settings.json"
-  "omp|$HOME/.omp/agent|omp|skills:$HOME/.omp/agent/skills;agents:$HOME/.omp/agent/agents;config:$HOME/.omp/agent::$REPO_ROOT/harness/omp"
+  "pi|$PI_AGENT_DIR|pi|skills:$PI_AGENT_DIR/skills;agents:$PI_AGENT_DIR/agents;config:$PI_AGENT_DIR::$REPO_ROOT/harness/pi;config:$PI_AGENT_DIR/extensions::$REPO_ROOT/harness/pi/extensions;config:$PI_AGENT_DIR/extensions/pi-interactive-subagents::$REPO_ROOT/harness/pi/extensions/pi-interactive-subagents;config:$PI_AGENT_DIR/intercom::$REPO_ROOT/harness/pi/extensions/pi-intercom;hoist:$PI_AGENT_DIR/npm::$REPO_ROOT/harness/pi/settings.json"
+  "omp|$HOME/.omp/agent|omp|skills:$HOME/.omp/agent/skills;agents:$HOME/.omp/agent/agents;config:$HOME/.omp/agent::$REPO_ROOT/harness/omp;config:$PI_AGENT_DIR/intercom::$REPO_ROOT/harness/pi/extensions/pi-intercom;omp-plugin-manifest:$REPO_ROOT/harness/omp/plugins/pi-intercom.txt"
   "codex|$HOME/.codex|codex|skills:$HOME/.codex/skills"
   "cursor|$HOME/.cursor|cursor,cursor-agent|skills:$HOME/.cursor/skills"
   "openclaw|$HOME/.openclaw|openclaw|skills:$HOME/.openclaw/skills"
@@ -106,6 +106,30 @@ install_pnpm_hoist() {
   echo "  [hoist] -> $rc (set, store reset for flat reinstall)"
 }
 
+# Install each uncommented package specification in an OMP plugin manifest using
+# OMP's native installer. The manifest is repository metadata, not runtime config.
+install_omp_plugin_manifest() {
+  local manifest="$1" package installed=0
+  if ! command -v omp >/dev/null 2>&1; then
+    echo "  [omp-plugin-manifest] omp not on PATH, skipping"
+    return
+  fi
+  if [ ! -f "$manifest" ]; then
+    echo "  [omp-plugin-manifest] no source $manifest, skipping"
+    return
+  fi
+  while IFS= read -r package || [ -n "$package" ]; do
+    package="${package#"${package%%[![:space:]]*}"}"
+    package="${package%"${package##*[![:space:]]}"}"
+    case "$package" in
+      ''|\#*) continue ;;
+    esac
+    omp install "$package" || return 1
+    installed=$((installed+1))
+  done < "$manifest"
+  echo "  [omp-plugin-manifest] -> $manifest ($installed installed)"
+}
+
 # Present if the home dir exists or any listed binary is on PATH.
 present() {
   [ -d "$1" ] && return 0
@@ -144,6 +168,10 @@ for entry in "${HARNESSES[@]}"; do
     # hoist pairs encode NPMDIR::SETTINGS; they bypass the linker loop too.
     if [ "$type" = "hoist" ]; then
       install_pnpm_hoist "${pattern%%::*}" "${pattern##*::}"; continue
+    fi
+    # OMP plugin manifests are repository metadata, not copied runtime config.
+    if [ "$type" = "omp-plugin-manifest" ]; then
+      install_omp_plugin_manifest "$pattern"; continue
     fi
     case "$type" in
       skills) collector=collect_skills ;;
