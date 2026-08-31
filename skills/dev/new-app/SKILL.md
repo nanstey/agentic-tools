@@ -28,19 +28,34 @@ one, follow it on conflict.
 
 1. Project name and target directory/path.
 2. Language/stack/framework — drives which first-party init tool runs.
-3. One-line purpose/description — for the README.
-4. License choice — default `MIT` if unspecified.
-5. GitHub: whether to create a remote (default yes), and visibility (default
-   **private**).
-6. Optional: CI provider — default GitHub Actions when a remote is created;
+3. App scope — what the app does and its core features, enough to shape the
+   initial structure and README. A bare name is not a scope.
+4. One-line purpose/description — for the README (derive from scope).
+5. License choice — default `MIT` if unspecified.
+6. GitHub: whether to create a remote (default yes), the **owner** to create it
+   under — a user account or an organization — and visibility (default
+   **private**). With multiple `gh` accounts configured, also which account's
+   credentials own the repo.
+7. Optional: CI provider — default GitHub Actions when a remote is created;
    skip if the user declines.
 
-If project name, target directory, or stack is missing, stop and ask.
+Stop and ask before scaffolding when any of these is missing:
+- Project name, target directory, or stack.
+- App scope — never invent features or product intent; ask what to build.
+- The GitHub owner (user or organization) when a remote will be created — never
+  assume the default authenticated account.
+
+If the instructions are ambiguous, or the scope is broad enough to need design
+decisions, offer to start a planning session first (e.g. the `scrutiny` or
+`proposal` skill) rather than guessing.
 
 ## Workflow
 
 1. Gather inputs, restate the plan, and confirm the target directory. Stop and
-   ask if name, directory, or stack is unknown.
+   ask if name, directory, stack, or app scope is unknown, and — when creating a
+   remote — which GitHub owner (user or organization) hosts it. If the request
+   is ambiguous, offer to start a planning session (e.g. `scrutiny`/`proposal`)
+   before scaffolding.
 2. Preflight. Confirm the target directory is nonexistent or empty; if it
    exists and is non-empty, stop and ask. Verify required tooling is present and
    runnable — `git`, the chosen stack's init tool, and `gh` (with `gh auth
@@ -60,15 +75,19 @@ If project name, target directory, or stack is missing, stop and ask.
 6. Initialize git if the initializer did not (`git init -b main`), ensure
    `.gitignore` covers secrets and build artifacts, then stage and make one
    initial commit.
-7. GitHub. With `gh` available and authenticated, create the remote
-   **private** by default (`gh repo create`), set `origin`, and **stop and ask
-   before the first push**. If `gh` is missing or unauthenticated, keep the
-   project local and print exact manual steps to create and push the remote.
+7. GitHub. With `gh` available and authenticated, create the remote under the
+   agreed owner (`gh repo create <owner>/<name>`), **private** by default, set
+   `origin`, and **stop and ask before the first push**. When several `gh`
+   accounts are configured, confirm `gh` is acting as the intended account
+   (`gh auth status`) before creating. If `gh` is missing or unauthenticated,
+   keep the project local and print exact manual steps to create and push the
+   remote.
 8. Verify and report: run the stack's build/test smoke if one exists; report the
    project path, structure, git state, and remote URL (or local-only status).
 
-Stop and ask when: name/directory/stack is unknown; the target directory is
-non-empty; or before the first push to any remote.
+Stop and ask when: name/directory/stack/scope is unknown; the GitHub owner is
+unspecified for a remote; the target directory is non-empty; or before the first
+push to any remote. Offer a planning session when the request is ambiguous.
 
 ## Implementation Notes
 
@@ -81,9 +100,11 @@ Concrete commands (adapt to the chosen stack):
 - `.gitignore`: prefer the initializer's output; otherwise
   `gh api /gitignore/templates/<Name> --jq .source` (e.g. `Rust`, `Node`, `Go`,
   `Python`) or `curl https://www.toptal.com/developers/gitignore/api/<name>`.
-- Create remote without pushing, then push after confirmation:
+- Create remote without pushing, then push after confirmation. Qualify the name
+  with the owner (a user or an organization); a bare name uses the default
+  account:
   ```sh
-  gh repo create <name> --private --source=. --remote=origin
+  gh repo create <owner>/<name> --private --source=. --remote=origin
   # after explicit confirmation:
   git push -u origin main
   ```
@@ -101,6 +122,8 @@ Concrete commands (adapt to the chosen stack):
   first, then add or merge the remaining files.
 - Never create a public repository or push to any remote without explicit
   confirmation; default visibility is private.
+- Never assume the GitHub owner or account; confirm the user/organization (and,
+  with multiple `gh` accounts, which one) before creating a remote.
 - Never assume tooling exists; verify `git`, `gh` (and its auth), and the stack
   init tool, and flag anything missing before relying on it.
 - Never fabricate license text; fetch canonical text from an authoritative source.
