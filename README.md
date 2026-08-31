@@ -47,6 +47,33 @@ pi                                     # installs packages from settings.json
 /login anthropic                       # re-auth (secrets are never synced)
 ```
 
+## Portable omp config
+
+`install.sh` links the shared skills and agents into `~/.omp/agent` and copies
+these portable omp artifacts:
+
+| Repository file | Install destination | Purpose |
+| --- | --- | --- |
+| [`omp/APPEND_SYSTEM.md`](omp/APPEND_SYSTEM.md) | `~/.omp/agent/APPEND_SYSTEM.md` | Biases the main thread toward bounded subagent delegation. |
+
+The installer copies each top-level, non-dot file under `omp/` as a whole file;
+it does not symlink or merge these files. A differing destination file is
+replaced, so local edits to a managed file such as `APPEND_SYSTEM.md` are
+clobbered the next time `install.sh` runs.
+
+This repository intentionally has no `omp/config.yml`, and `install.sh` does not
+create or manage `~/.omp/agent/config.yml`. A partial repository file would
+replace the complete machine-local file, dropping settings such as `modelRoles`,
+`webSearchOrder`, and `setupVersion`. Only add `omp/config.yml` if the repository
+owns the entire canonical file.
+
+To cap subagents at one delegation level, create or edit the machine-local file:
+
+```yaml
+task:
+  maxRecursionDepth: 1
+```
+
 ## Skills
 
 ### Dev

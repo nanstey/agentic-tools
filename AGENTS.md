@@ -4,13 +4,15 @@ Guidance for AI agents working **on** this repository.
 
 ## What this repo is
 
-This repo stores reusable **agentic tools**:
+This repo stores reusable **agentic tools** and portable harness configuration:
 
 - **Skills**: one `SKILL.md` per directory under `skills/` (portable).
 - **Agent profiles**: Claude Code subagents under `agents/`.
+- **omp harness artifacts**: top-level configuration files under `omp/`.
 
-Tools are installed by **symlink**. Editing here updates linked harnesses.
-`README.md` is the catalog. `INSTALL.md` performs linking.
+Skills and agent profiles are installed by **symlink**. Top-level files under
+`omp/` are copied whole into `~/.omp/agent`. `README.md` is the catalog;
+`install.sh` performs the installation.
 
 Repo-local authoring helpers live in `.agents/skills/`. `.claude` is a symlink
 to `.agents`, so Claude sees the same files at `.claude/skills/`.
@@ -23,6 +25,8 @@ Scope by location:
 
 - `skills/`: global artifacts; keep repo/content agnostic.
 - `.agents/skills/`: repo-local helpers; follow this `AGENTS.md`.
+- `omp/`: portable omp harness artifacts; top-level files are copied whole into
+  `~/.omp/agent`.
 
 ## Repository layout
 
@@ -30,8 +34,9 @@ Scope by location:
 .agents/skills/<skill-name>/SKILL.md      # repo-local authoring skill
 agents/[<group>/]<agent-name>.md          # agent profiles
 skills/<category>/<skill-name>/SKILL.md   # global skill
+omp/APPEND_SYSTEM.md                      # portable omp system-prompt addition
 AGENTS.md                                 # this file
-INSTALL.md                                # symlink installer
+install.sh                                # installer
 README.md                                 # catalog
 ```
 
@@ -74,6 +79,10 @@ Keep section placement aligned with the tool's location/category, and keep the
 row `description` consistent with the tool's frontmatter. A change to a skill or
 agent is not complete until the catalog reflects it.
 
+Any addition, removal, or rename of a top-level `omp/` artifact must update the
+portable omp config table in `README.md` in the same change, including its
+repository path, install destination, and purpose.
+
 ## Commit granularity policy
 
 Default: one skill per commit (`skills/.../<name>/SKILL.md` or
@@ -89,5 +98,5 @@ message/body.
 - Mixing artifact types (agents in skill dirs or skills in `agents/`).
 - Letting `name:` drift from file/directory name.
 - Copying tools into harness dirs (installer symlinks instead).
-- Committing harness-specific or absolute-path artifacts.
+- Committing harness secrets, machine-local state, or absolute paths.
 - Creating new top-level docs unless requested.
