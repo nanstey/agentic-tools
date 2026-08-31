@@ -8,10 +8,10 @@ This repo stores reusable **agentic tools** and portable harness configuration:
 
 - **Skills**: one `SKILL.md` per directory under `skills/` (portable).
 - **Agent profiles**: Claude Code subagents under `agents/`.
-- **omp harness artifacts**: top-level configuration files under `omp/`.
+- **Harness configuration**: portable files under `harness/<harness>/`.
 
-Skills and agent profiles are installed by **symlink**. Top-level files under
-`omp/` are copied whole into `~/.omp/agent`. `README.md` is the catalog;
+Skills and agent profiles are installed by **symlink**. Harness configuration is
+copied into each harness's runtime directory. `README.md` is the catalog;
 `install.sh` performs the installation.
 
 Repo-local authoring helpers live in `.agents/skills/`. `.claude` is a symlink
@@ -25,8 +25,8 @@ Scope by location:
 
 - `skills/`: global artifacts; keep repo/content agnostic.
 - `.agents/skills/`: repo-local helpers; follow this `AGENTS.md`.
-- `omp/`: portable omp harness artifacts; top-level files are copied whole into
-  `~/.omp/agent`.
+- `harness/`: portable harness configuration copied into harness-specific runtime
+  directories.
 
 ## Repository layout
 
@@ -34,7 +34,8 @@ Scope by location:
 .agents/skills/<skill-name>/SKILL.md      # repo-local authoring skill
 agents/[<group>/]<agent-name>.md          # agent profiles
 skills/<category>/<skill-name>/SKILL.md   # global skill
-omp/APPEND_SYSTEM.md                      # portable omp system-prompt addition
+harness/pi/settings.json                   # portable pi configuration
+harness/omp/APPEND_SYSTEM.md               # portable omp system-prompt addition
 AGENTS.md                                 # this file
 install.sh                                # installer
 README.md                                 # catalog
@@ -79,9 +80,9 @@ Keep section placement aligned with the tool's location/category, and keep the
 row `description` consistent with the tool's frontmatter. A change to a skill or
 agent is not complete until the catalog reflects it.
 
-Any addition, removal, or rename of a top-level `omp/` artifact must update the
-portable omp config table in `README.md` in the same change, including its
-repository path, install destination, and purpose.
+Any addition, removal, or rename of a managed artifact under `harness/` must
+update the corresponding portable harness config table in `README.md`, including
+its repository path, install destination, and purpose.
 
 ## Commit granularity policy
 
