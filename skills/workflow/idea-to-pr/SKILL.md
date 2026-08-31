@@ -11,7 +11,7 @@ disable-model-invocation: false
 
 The coordinating session owns user communication, scope and approval decisions, the plan-folder README state machine, work assignment, compact handoffs, supervision, and final reporting.
 
-Use the active environment's available execution mechanisms. Work may run inline, through directly delegated tasks, through a managed workflow, or through bounded nested coordination when that is the supported model. Inspect available capabilities before designing the run; never assume tool names, agent types, model vendors, workflow modes, or invocation parameters.
+Use whatever delegation mechanism the active environment provides. Delegate substantive work when a separate context helps; otherwise work inline. Do not prescribe tool names, agent types, models, workflow modes, or invocation syntax.
 
 Use the least coordination that preserves correctness. Keep one owner for global state and decisions even when execution is delegated. Preserve coordinator context by retaining only current state, decisions, and compact evidence packets; durable artifacts hold detailed findings and output. Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
@@ -19,26 +19,18 @@ Use the least coordination that preserves correctness. Keep one owner for global
 
 1. The idea or change request.
 2. Mode: `autopilot` (default) or `gated` (stop at plan and dependent-slice gates).
-3. Constraints: deadline, execution budget, compatibility requirements, and optional skipped stages.
+3. Constraints: deadline, compatibility requirements, and optional skipped stages.
 4. For a resumed run: the existing plan folder.
 
 If the idea is too vague to classify or acceptance criteria cannot be derived, stop and ask. In autopilot, the initial invocation authorizes ordinary discovery, planning, implementation, validation, commits, and PR creation within the agreed scope.
 
 ## Orchestration Protocol
 
-### Capability discovery
+### Delegation
 
-Inspect the current execution environment once at the start and record which capabilities exist:
+Give delegated work a clear purpose, relevant context, and expected result. Run independent work concurrently only when the environment can keep writers isolated. Let the environment choose its native agents, tools, and coordination pattern.
 
-- delegated task execution and cancellation;
-- parallel read-only work;
-- isolated workspaces for concurrent writers;
-- role, tool, or model selection;
-- time, cost, token, iteration, and fan-out limits;
-- durable task output, traces, or artifact storage;
-- blocking approval or checkpoint support.
-
-Map the logical stages below onto those capabilities. If delegation is unavailable or adds more coordination than value, run that stage inline. Missing optional controls do not block the run: replace them with narrow scope, explicit stop conditions, and recorded limitations. Never invent unsupported controls or syntax.
+Track timing, cost, or resource usage when the environment reports it. Do not require budgets or resource controls unless the user requests them or the environment requires them.
 
 ### State and handoffs
 
@@ -62,13 +54,11 @@ Required artifact and return contract
 - Require evidence for research and QA returns. Synthesis resolves duplicates and contradictions before planning instead of passing raw fan-out output onward.
 - Never ask a later stage to rediscover settled facts. Run narrowly scoped supplemental reconnaissance when evidence is missing.
 
-### Bounded supervision
+### Supervision
 
-Every delegated task needs a purpose, bounded scope, stop condition, required artifacts, deterministic gate where applicable, and concrete return contract. Set time, cost, token, iteration, and fan-out limits when supported.
+Record each assignment and expected artifact in the README. Verify returned evidence, artifacts, and validation results before advancing.
 
-Before dispatch, record the task, owner, expected result, validation gate, and artifact paths in the README. At return, inspect status, evidence, required artifacts, and gate results before advancing.
-
-Treat a timed-out, partial, blocked, cancelled, artifact-less, or gate-failed task as a blocked stage. Make at most one narrower retry with fresh scope and an explicit stop condition; otherwise surface the evidence and stop. Keep reconnaissance bounded to relevant paths, targeted reads, and package metadata. Do not scan lockfiles or dependency directories as source evidence.
+Treat a partial, blocked, cancelled, artifact-less, or gate-failed task as a blocked stage. Make at most one narrower retry; otherwise surface the evidence and stop. Keep reconnaissance focused on relevant paths, targeted reads, and package metadata. Do not scan lockfiles or dependency directories as source evidence.
 
 ## Workflow
 
@@ -86,9 +76,9 @@ Run `plan-init` to create the plan folder/README. For a resumed run, verify the 
 
 #### 3a. Discovery
 
-- **Small idea:** use one bounded reconnaissance task for the affected behaviour, files, tests, validation commands, and risks.
+- **Small idea:** use one focused reconnaissance task for the affected behaviour, files, tests, validation commands, and risks.
 - **Large idea:** split distinct read-only scopes across product/request evidence, code patterns and boundaries, and validation/runtime risks when parallel execution is available. Follow with one synthesis step that emits a single evidence packet.
-- Give every scope concrete paths, a strict evidence-bearing return contract, and an explicit tool or effort bound. Do not fan out overlapping questions.
+- Give every scope concrete paths and an evidence-bearing return contract. Do not fan out overlapping questions.
 
 #### 3b. Planning
 
@@ -113,12 +103,12 @@ Run `speclist` to write one spec per slice under `<plan-folder>/specs/`. One sli
 For each slice, use the spec plus current decision packet. Dependent slices remain sequential. Concurrent writers require isolated workspaces; otherwise serialize them.
 
 1. Run `branch` or `worktree` when the current checkout is unsuitable. Never run concurrent writers in one checkout.
-2. Run a bounded environment preflight: detect the package manager/lockfile, run the prospective deterministic gate, and, only for a dependency-shaped failure, make one immutable-install repair (for pnpm, `pnpm install --frozen-lockfile`) and retry the identical gate. Record both attempts and classify persistent failure as baseline code, lockfile/install, access/service, or unknown.
-3. Run `flow-design` when delegation would improve the slice. It inspects the active environment and returns the smallest supported execution plan, role boundaries, deterministic gate, pass contract, limits, and return contracts. For simple or non-delegated slices, record the equivalent plan inline.
+2. Run a focused environment preflight: detect the package manager/lockfile, run the prospective deterministic gate, and, only for a dependency-shaped failure, make one immutable-install repair (for pnpm, `pnpm install --frozen-lockfile`) and retry the identical gate. Record both attempts and classify persistent failure as baseline code, lockfile/install, access/service, or unknown.
+3. Run `flow-design` when delegation would improve the slice. It returns an appropriate execution plan, role boundaries, validation gates, and return contracts. For simple or non-delegated slices, record the equivalent plan inline.
 4. Execute the plan. Separate implementation from acceptance review when an independent context is available; otherwise perform a distinct self-review pass and record that limitation. Only the implementation step checks completed `## Implementation` items.
 5. For runnable behaviour, use a separate QA step to boot the app and observe every Given/When/Then scenario end-to-end. Use `playwright-cli` for browser-facing behaviour or equivalent CLI/API verification otherwise. QA returns per-scenario evidence and checks only `## Test Scenarios`; unit tests alone do not prove runtime behaviour.
 6. For user-facing UI, run `visual-capture` only after QA passes. Store evidence outside git and hand its paths to the PR step.
-7. For large changes or on request, run an independent quality review using `principles` and/or `deep-review`; route accepted fixes through a new bounded implementation step.
+7. For large changes or on request, run an independent quality review using `principles` and/or `deep-review`; route accepted fixes through a new implementation step.
 8. Run `commit`, then `pr`. Use `gh-stack` / `pr-restack` for dependent PRs. Update the README with the PR URL, status, evidence paths, and decision deviations.
 
 **GATE (gated mode):** require user approval before the next dependent slice. Autopilot proceeds after successful ordinary transitions and stops only for an unresolved material decision, destructive or externally consequential action not already authorized, unavailable required access/service, or a blocked validation/runtime gate.
@@ -129,9 +119,9 @@ Perform a final read-only audit that every slice is review-ready or merged, spec
 
 ## Safety Rules
 
-- Never prescribe or fabricate a delegation API, workflow mode, agent type, model, vendor, or control that the active environment does not expose.
-- Never delegate without bounded scope, a stop condition, required evidence or artifacts, and a concrete return contract.
-- Never treat a timed-out, partial, cancelled, artifact-less, or gate-failed result as successful.
+- Never prescribe or fabricate a delegation API, workflow mode, agent type, model, or vendor.
+- Never delegate without a clear task, relevant context, and expected result.
+- Never treat a partial, cancelled, artifact-less, or gate-failed result as successful.
 - Never use broad or unbounded discovery scans, scan lockfiles/dependency directories, or duplicate settled reconnaissance.
 - Never proceed past the planning gate in `gated` mode without explicit approval.
 - Never weaken a failing baseline gate, alter manifests/lockfiles, or skip the one bounded immutable-install retry for a dependency-shaped failure.
@@ -142,4 +132,4 @@ Perform a final read-only audit that every slice is review-ready or merged, spec
 
 ## Output Style
 
-Report a compact stage checklist (`done` / `skipped` / `blocked`), plan-folder path, current handoff packet location, execution assignments and artifact paths, limits and verdict per delegated task when available, slice status with PR URLs, and unresolved blockers or gates. Keep detailed task output in linked artifacts.
+Report a compact stage checklist (`done` / `skipped` / `blocked`), plan-folder path, current handoff packet location, execution assignments and artifact paths, optional resource usage when available, slice status with PR URLs, and unresolved blockers or gates. Keep detailed task output in linked artifacts.

@@ -13,7 +13,7 @@ Execute one cohesive change as a sequence of individually verifiable phases, eac
 
 Define success criteria before editing and advance only when the current phase's criteria pass. Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
-Use the active environment's delegation capabilities when a separate execution context improves discovery, implementation, or review. Inspect those capabilities before use; do not assume a subagent API, role name, model, vendor, or concurrency mechanism. Keep small cohesive work inline when delegation would add coordination without improving correctness. Parallelize only independent scopes, and isolate concurrent writers.
+Use the active environment's delegation mechanisms when a separate execution context improves discovery, implementation, or review. Keep small cohesive work inline. Run independent scopes concurrently only when writers are isolated, and let the environment choose its agents, models, and tools.
 
 ## Required Inputs
 
@@ -46,7 +46,7 @@ Stop and ask when scope is ambiguous, architecture choices are unresolved, or va
 - Never rely on validation tooling without first confirming it is available and runnable.
 - Never `/commit`, push, or `/pr` unless the request includes shipping; when it does, treat them as phase and completion steps.
 - Never treat ambiguous intent as approval for broad refactors.
-- Never delegate work without a purpose, bounded scope, stop condition, required evidence, and return contract; never invent controls absent from the active environment.
+- Never delegate work without a clear purpose, relevant context, required evidence, and expected result.
 - Never revert or overwrite unrelated user changes, or use destructive git/file operations, without explicit approval.
 - Never let a plan folder drift from reality: update its README index and design docs when implementation diverges from the plan.
 

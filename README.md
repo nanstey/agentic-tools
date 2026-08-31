@@ -109,7 +109,7 @@ Focused planning skills below are optional and independently selectable; `propos
 | Skill | Description |
 | --- | --- |
 | [`idea-to-pr`](skills/workflow/idea-to-pr/SKILL.md) | Takes an idea from evidence-backed discovery through built, tested, and validated pull requests. Use when a feature idea or change request should be driven end-to-end to review-ready PRs. |
-| [`flow-design`](skills/workflow/flow-design/SKILL.md) | Designs a bounded, platform-neutral delegation plan with roles, gates, budgets, and return contracts. Use when a task needs coordinated execution designed before work begins. |
+| [`flow-design`](skills/workflow/flow-design/SKILL.md) | Designs a platform-neutral delegation plan with roles, gates, and return contracts. Use when a task needs coordinated execution designed before work begins. |
 
 ### Agent
 
