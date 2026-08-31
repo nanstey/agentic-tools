@@ -9,12 +9,11 @@ disable-model-invocation: false
 
 ## Core Contract
 
-Execute one cohesive change using subagents as a sequence of individually verifiable phases, each with edits and validation.
+Execute one cohesive change as a sequence of individually verifiable phases, each with focused edits and validation.
 
-Define success criteria before editing and advance only when the current phase's criteria pass.
-Follow `CLAUDE.md` / `AGENTS.md` on conflict.
+Define success criteria before editing and advance only when the current phase's criteria pass. Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
-Protect the context window of your main thread by delegating to subagents wherever possible. Run subagents in parallel where possible. Choose an appropriate model per task.
+Use the active environment's delegation capabilities when a separate execution context improves discovery, implementation, or review. Inspect those capabilities before use; do not assume a subagent API, role name, model, vendor, or concurrency mechanism. Keep small cohesive work inline when delegation would add coordination without improving correctness. Parallelize only independent scopes, and isolate concurrent writers.
 
 ## Required Inputs
 
@@ -47,10 +46,10 @@ Stop and ask when scope is ambiguous, architecture choices are unresolved, or va
 - Never rely on validation tooling without first confirming it is available and runnable.
 - Never `/commit`, push, or `/pr` unless the request includes shipping; when it does, treat them as phase and completion steps.
 - Never treat ambiguous intent as approval for broad refactors.
-- Never delegate to a subagent without a scoped task, chosen model, and return contract.
+- Never delegate work without a purpose, bounded scope, stop condition, required evidence, and return contract; never invent controls absent from the active environment.
 - Never revert or overwrite unrelated user changes, or use destructive git/file operations, without explicit approval.
 - Never let a plan folder drift from reality: update its README index and design docs when implementation diverges from the plan.
 
 ## Output Style
 
-Report source used, objective and success criteria with per-phase pass/fail, branch/worktree decision, validation tooling used (and any missing), subagent delegations (task + model), files changed, commits per phase and final PR status, plus assumptions, risks, and next steps.
+Report source used, objective and success criteria with per-phase pass/fail, branch/worktree decision, validation tooling used (and any missing), execution assignments and limitations, files changed, commits per phase and final PR status, plus assumptions, risks, and next steps.
