@@ -54,7 +54,7 @@ these portable omp artifacts:
 
 | Repository file | Install destination | Purpose |
 | --- | --- | --- |
-| [`omp/APPEND_SYSTEM.md`](omp/APPEND_SYSTEM.md) | `~/.omp/agent/APPEND_SYSTEM.md` | Biases the main thread toward bounded subagent delegation. |
+| [`omp/APPEND_SYSTEM.md`](omp/APPEND_SYSTEM.md) | `~/.omp/agent/APPEND_SYSTEM.md` | Adds bounded delegation and collision-safe temporary-file guidance. |
 
 The installer copies each top-level, non-dot file under `omp/` as a whole file;
 it does not symlink or merge these files. A differing destination file is
