@@ -87,9 +87,14 @@ task:
 | [`conflicts`](skills/dev/conflicts/SKILL.md) | Resolve merge/rebase/cherry-pick/revert conflicts and continue the stopped operation. |
 | [`branch`](skills/dev/branch/SKILL.md) | Create a new branch for current/proposed changes, deriving a conventional `<type>/<slug>` name when none is given. |
 | [`worktree`](skills/dev/worktree/SKILL.md) | Create or reuse a git worktree for a branch (local, remote-only, or new) and report its path. |
-| [`worktree-env`](skills/dev/worktree-env/SKILL.md) | Builds a project-specific, idempotent worktree bootstrap that copies approved local configuration, installs dependencies, and allocates collision-free service ports. Use when a repository needs repeatable isolated development environments for Git or Orca worktrees. |
 | [`prototype`](skills/dev/prototype/SKILL.md) | Build a throwaway prototype (interactive logic TUI or switchable UI variants) to answer a design question, then capture the answer and delete it. |
 | [`new-app`](skills/dev/new-app/SKILL.md) | Scaffolds a new software project from scratch — folder structure, git, README, LICENSE, .gitignore, optional CI, and a private GitHub repo via `gh` — delegating language-specific init to the ecosystem's own tool. |
+
+### Env
+
+| Skill | Description |
+| --- | --- |
+| [`worktree-env`](skills/env/worktree-env/SKILL.md) | Builds a project-specific, idempotent worktree bootstrap that copies approved local configuration, installs dependencies, and allocates collision-free service ports. Use when a repository needs repeatable isolated development environments for Git or Orca worktrees. |
 
 ### Planning
 
