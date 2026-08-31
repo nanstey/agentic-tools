@@ -8,7 +8,8 @@ Subagents cannot spawn further (depth capped), so hand each a complete, self-con
 
 # Temporary-file safety
 
-For temporary artifacts, create a unique private workspace (for example, with
-`mktemp -d`) and place every related file inside it. NEVER use fixed shared paths
-such as `/tmp/pr-body.md`; concurrent sessions can overwrite or read each other's
-data. Remove the workspace after its artifacts have been consumed.
+For each operation that needs temporary artifacts, atomically create a new private workspace
+(for example, with `mktemp -d`) and use only paths beneath it. NEVER construct,
+discover, or reuse a workspace from a branch, PR, task, PID, timestamp, or other
+guessable identifier, and NEVER use fixed paths in a global temporary directory.
+Register cleanup immediately and remove the workspace on exit.
