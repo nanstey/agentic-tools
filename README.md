@@ -90,6 +90,12 @@ task:
 | [`prototype`](skills/dev/prototype/SKILL.md) | Build a throwaway prototype (interactive logic TUI or switchable UI variants) to answer a design question, then capture the answer and delete it. |
 | [`new-app`](skills/dev/new-app/SKILL.md) | Scaffolds a new software project from scratch — folder structure, git, README, LICENSE, .gitignore, optional CI, and a private GitHub repo via `gh` — delegating language-specific init to the ecosystem's own tool. |
 
+### Env
+
+| Skill | Description |
+| --- | --- |
+| [`worktree-env`](skills/env/worktree-env/SKILL.md) | Builds a project-specific, idempotent worktree bootstrap that copies approved local configuration, installs dependencies, and allocates collision-free service ports. Use when a repository needs repeatable isolated development environments for Git or Orca worktrees. |
+
 ### Planning
 
 Focused planning skills below are optional and independently selectable; `proposal` and `speclist` remain separate planning paths. `plan-init` groups a change's artifacts into one plan folder with a README index that later skills and `build` share.
