@@ -90,10 +90,10 @@ preserves unrelated YAML keys such as `modelRoles`, `webSearchOrder`, and
 artifact that manages `~/.omp/agent/config.yml`; there is no copied
 `harness/omp/config.yml`.
 
-The custom Nerd Font line uses OMP's borderless composer: model and Git state
-stay on the left, while session name, compact context usage such as
-`39.0%/272K`, and elapsed time sit on the right without an expanding context
-gauge. OMP renders one adaptive row and drops elapsed time first as width narrows.
+The custom Nerd Font line uses OMP's borderless composer and one left-aligned
+group with no expanding gap: model, compact context usage such as
+`39.0%/272K`, elapsed time, Git state, then session name. OMP keeps the group on
+one adaptive row and drops trailing segments as width narrows.
 
 To cap subagents at one delegation level, create or edit the machine-local file:
 
