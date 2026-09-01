@@ -66,26 +66,34 @@ pi                                     # installs packages from settings.json
 <details>
 <summary><code>harness/omp/</code> (OMP)</summary>
 
-`install.sh` links shared skills and agents into `~/.omp/agent` and copies
-portable OMP config. When `omp` is on `PATH`, it installs the packages below
-with OMP's native `omp install` command:
+`install.sh` links shared skills and agents into `~/.omp/agent`, copies portable
+OMP config, applies the versioned status-line settings, and installs the packages
+below with OMP's native `omp install` command:
 
 | Repository path | Install destination | Purpose |
 | --- | --- | --- |
 | [`harness/omp/APPEND_SYSTEM.md`](harness/omp/APPEND_SYSTEM.md) | `~/.omp/agent/APPEND_SYSTEM.md` | Adds bounded delegation and collision-safe temporary-file guidance. |
 | [`harness/omp/plugins/pi-intercom.txt`](harness/omp/plugins/pi-intercom.txt) | Not copied; passed to `omp install` | Installs `npm:pi-intercom@0.12.0`. Blank and comment lines are ignored. |
+| [`harness/omp/status-line/apply.sh`](harness/omp/status-line/apply.sh) | Default and existing profile `config.yml` files (via `omp config`) | Selectively merges the versioned Nerd Font status-line schema. |
 
 The installer copies each top-level, non-dot file under `harness/omp/` as a whole
-file; nested files such as the plugin manifest are not copied. A differing
-destination file is replaced, so local edits to a managed file such as
-`APPEND_SYSTEM.md` are clobbered the next time `install.sh` runs. Native OMP
-package installation failure exits the installer with an error.
+file. Nested files such as the plugin manifest and status-line applicator are not
+copied. A differing destination file is replaced, so local edits to a managed
+file such as `APPEND_SYSTEM.md` are clobbered the next time `install.sh` runs.
+Native OMP package installation failure exits the installer with an error.
 
-This repository intentionally has no `harness/omp/config.yml`, and `install.sh`
-does not create or manage `~/.omp/agent/config.yml`. A partial repository file
-would replace the complete machine-local file, dropping settings such as
-`modelRoles`, `webSearchOrder`, and `setupVersion`. Only add
-`harness/omp/config.yml` if the repository owns the complete file.
+After copying OMP artifacts for a detected OMP harness, `install.sh` runs the
+status-line applicator against `~/.omp/agent/config.yml` and each existing
+`~/.omp/profiles/*/agent/config.yml`. It compares every managed schema value with
+`omp config get` and calls `omp config set` only for differences. Unrelated and
+profile-local settings—including `composer.shape`, `modelRoles`,
+`webSearchOrder`, and `setupVersion`—remain untouched; reruns are idempotent.
+There is no copied `harness/omp/config.yml`.
+
+The custom Nerd Font line uses each profile's chosen composer. It groups model,
+compact context usage such as `39.0%/272K`, Git state, and session name on the
+left, with elapsed time right-aligned. OMP keeps the status on one adaptive row
+and drops trailing segments as width narrows.
 
 To cap subagents at one delegation level, create or edit the machine-local file:
 

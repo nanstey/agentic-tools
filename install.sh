@@ -12,7 +12,7 @@ PI_AGENT_DIR="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}"
 HARNESSES=(
   "claude|$HOME/.claude|claude|skills:$HOME/.claude/skills;agents:$HOME/.claude/agents"
   "pi|$PI_AGENT_DIR|pi|skills:$PI_AGENT_DIR/skills;agents:$PI_AGENT_DIR/agents;config:$PI_AGENT_DIR::$REPO_ROOT/harness/pi;config:$PI_AGENT_DIR/extensions::$REPO_ROOT/harness/pi/extensions;config:$PI_AGENT_DIR/extensions/pi-interactive-subagents::$REPO_ROOT/harness/pi/extensions/pi-interactive-subagents;config:$PI_AGENT_DIR/intercom::$REPO_ROOT/harness/pi/extensions/pi-intercom;hoist:$PI_AGENT_DIR/npm::$REPO_ROOT/harness/pi/settings.json"
-  "omp|$HOME/.omp/agent|omp|skills:$HOME/.omp/agent/skills;agents:$HOME/.omp/agent/agents;config:$HOME/.omp/agent::$REPO_ROOT/harness/omp;config:$PI_AGENT_DIR/intercom::$REPO_ROOT/harness/pi/extensions/pi-intercom;omp-plugin-manifest:$REPO_ROOT/harness/omp/plugins/pi-intercom.txt"
+  "omp|$HOME/.omp/agent|omp|skills:$HOME/.omp/agent/skills;agents:$HOME/.omp/agent/agents;config:$HOME/.omp/agent::$REPO_ROOT/harness/omp;config:$PI_AGENT_DIR/intercom::$REPO_ROOT/harness/pi/extensions/pi-intercom;omp-plugin-manifest:$REPO_ROOT/harness/omp/plugins/pi-intercom.txt;omp-status-line:$REPO_ROOT/harness/omp/status-line/apply.sh"
   "codex|$HOME/.codex|codex|skills:$HOME/.codex/skills"
   "cursor|$HOME/.cursor|cursor,cursor-agent|skills:$HOME/.cursor/skills"
   "openclaw|$HOME/.openclaw|openclaw|skills:$HOME/.openclaw/skills"
@@ -72,6 +72,27 @@ install_config() {
   [ "$copied" -gt 0 ] && summary="$summary, $copied copied"
   [ "$updated" -gt 0 ] && summary="$summary, $updated updated"
   echo "  [config] -> $dest_dir ($summary)"
+}
+
+# OMP's config CLI performs schema-aware updates. Apply the shared status
+# settings to the default config and every existing profile config while leaving
+# profile-local choices, such as composer shape and model roles, untouched.
+install_omp_status_line() {
+  local applicator="$1" agent_dir
+  local -a agent_dirs=("$HOME/.omp/agent")
+  if [ ! -f "$applicator" ]; then
+    echo "  [status-line] no source $applicator, skipping"
+    return
+  fi
+  if [ -d "$HOME/.omp/profiles" ]; then
+    shopt -s nullglob
+    agent_dirs+=("$HOME"/.omp/profiles/*/agent)
+    shopt -u nullglob
+  fi
+  for agent_dir in "${agent_dirs[@]}"; do
+    [ -d "$agent_dir" ] || continue
+    (cd "$REPO_ROOT" && bash "$applicator" "$agent_dir")
+  done
 }
 
 # First element of settings.json's npmCommand[] (the package manager pi shells
@@ -164,6 +185,12 @@ for entry in "${HARNESSES[@]}"; do
     # copied rather than symlinked, so they bypass the shared linker loop.
     if [ "$type" = "config" ]; then
       install_config "${pattern%%::*}" "${pattern##*::}"; continue
+    fi
+    # The OMP status-line applicator follows its config copy so it can merge its
+    # managed schema keys without copying a partial config.yml into the agent dir.
+    if [ "$type" = "omp-status-line" ]; then
+      install_omp_status_line "$pattern"
+      continue
     fi
     # hoist pairs encode NPMDIR::SETTINGS; they bypass the linker loop too.
     if [ "$type" = "hoist" ]; then
