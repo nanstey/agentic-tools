@@ -20,9 +20,10 @@ ensure_setting() {
 
 # Keep this list explicit: these are the only config keys this applicator owns.
 ensure_setting "symbolPreset" "nerd"
+ensure_setting "composer.shape" "borderless"
 ensure_setting "statusLine.preset" "custom"
 ensure_setting "statusLine.separator" "powerline"
-ensure_setting "statusLine.contextLine" "embedded"
+ensure_setting "statusLine.contextLine" "off"
 ensure_setting "statusLine.compactThinkingLevel" "true"
 ensure_setting "statusLine.transparent" "true"
 ensure_setting "statusLine.sessionAccent" "true"
