@@ -74,7 +74,7 @@ below with OMP's native `omp install` command:
 | --- | --- | --- |
 | [`harness/omp/APPEND_SYSTEM.md`](harness/omp/APPEND_SYSTEM.md) | `~/.omp/agent/APPEND_SYSTEM.md` | Adds bounded delegation and collision-safe temporary-file guidance. |
 | [`harness/omp/plugins/pi-intercom.txt`](harness/omp/plugins/pi-intercom.txt) | Not copied; passed to `omp install` | Installs `npm:pi-intercom@0.12.0`. Blank and comment lines are ignored. |
-| [`harness/omp/status-line/apply.sh`](harness/omp/status-line/apply.sh) | `~/.omp/agent/config.yml` (via `omp config`) | Selectively merges the versioned Nerd Font status-line schema. |
+| [`harness/omp/status-line/apply.sh`](harness/omp/status-line/apply.sh) | Default and existing profile `config.yml` files (via `omp config`) | Selectively merges the versioned Nerd Font status-line schema. |
 
 The installer copies each top-level, non-dot file under `harness/omp/` as a whole
 file. Nested files such as the plugin manifest and status-line applicator are not
@@ -83,17 +83,17 @@ file such as `APPEND_SYSTEM.md` are clobbered the next time `install.sh` runs.
 Native OMP package installation failure exits the installer with an error.
 
 After copying OMP artifacts for a detected OMP harness, `install.sh` runs the
-status-line applicator. It compares each managed schema value with
-`omp config get` and calls `omp config set` only for differences, so the merge
-preserves unrelated YAML keys such as `modelRoles`, `webSearchOrder`, and
-`setupVersion`; rerunning it is idempotent. The applicator is the only repository
-artifact that manages `~/.omp/agent/config.yml`; there is no copied
-`harness/omp/config.yml`.
+status-line applicator against `~/.omp/agent/config.yml` and each existing
+`~/.omp/profiles/*/agent/config.yml`. It compares every managed schema value with
+`omp config get` and calls `omp config set` only for differences. Unrelated and
+profile-local settings—including `composer.shape`, `modelRoles`,
+`webSearchOrder`, and `setupVersion`—remain untouched; reruns are idempotent.
+There is no copied `harness/omp/config.yml`.
 
-The custom Nerd Font line uses OMP's borderless composer with model, compact
-context usage such as `39.0%/272K`, Git state, and session name grouped on the
-left; elapsed time stays right-aligned without an expanding gauge. OMP keeps the
-status on one adaptive row and drops trailing segments as width narrows.
+The custom Nerd Font line uses each profile's chosen composer. It groups model,
+compact context usage such as `39.0%/272K`, Git state, and session name on the
+left, with elapsed time right-aligned. OMP keeps the status on one adaptive row
+and drops trailing segments as width narrows.
 
 To cap subagents at one delegation level, create or edit the machine-local file:
 

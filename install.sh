@@ -74,15 +74,25 @@ install_config() {
   echo "  [config] -> $dest_dir ($summary)"
 }
 
-# OMP's config CLI performs a schema-aware update, so keep this dedicated hook
-# narrow rather than treating repository files as arbitrary installer scripts.
+# OMP's config CLI performs schema-aware updates. Apply the shared status
+# settings to the default config and every existing profile config while leaving
+# profile-local choices, such as composer shape and model roles, untouched.
 install_omp_status_line() {
-  local applicator="$1"
+  local applicator="$1" agent_dir
+  local -a agent_dirs=("$HOME/.omp/agent")
   if [ ! -f "$applicator" ]; then
     echo "  [status-line] no source $applicator, skipping"
     return
   fi
-  bash "$applicator"
+  if [ -d "$HOME/.omp/profiles" ]; then
+    shopt -s nullglob
+    agent_dirs+=("$HOME"/.omp/profiles/*/agent)
+    shopt -u nullglob
+  fi
+  for agent_dir in "${agent_dirs[@]}"; do
+    [ -d "$agent_dir" ] || continue
+    (cd "$REPO_ROOT" && bash "$applicator" "$agent_dir")
+  done
 }
 
 # First element of settings.json's npmCommand[] (the package manager pi shells
