@@ -27,8 +27,8 @@ ensure_setting "statusLine.contextLine" "off"
 ensure_setting "statusLine.compactThinkingLevel" "true"
 ensure_setting "statusLine.transparent" "true"
 ensure_setting "statusLine.sessionAccent" "true"
-ensure_setting "statusLine.leftSegments" '["model","context_pct","time_spent","git","session_name"]'
-ensure_setting "statusLine.rightSegments" '[]'
+ensure_setting "statusLine.leftSegments" '["model","context_pct","git","session_name"]'
+ensure_setting "statusLine.rightSegments" '["time_spent"]'
 ensure_setting "statusLine.segmentOptions" '{"model":{"showThinkingLevel":true},"git":{"showBranch":true,"showStaged":true,"showUnstaged":true,"showUntracked":true}}'
 
 if [ "$updated" -eq 0 ]; then
