@@ -24,7 +24,7 @@ Default behavior is to update the PR directly once rewritten.
 3. Read current title, body, and metadata.
 4. Analyze the exact PR changes over `pr-info`'s authoritative comparison: `git diff <baseRefOid>..<headRefOid>`, `git diff --stat <baseRefOid>..<headRefOid>`, and `git log <baseRefOid>..<headRefOid>` for the commit list.
 5. Identify drift: stale title, missing changes, stale bullets, stale/complete checklist items.
-6. If the branch changes user-facing UI, run `pr-screenshots` to ensure the PR's visual evidence is current before finalizing the body; wire any refreshed attachments into the description. Skip for non-UI changesets.
+6. If the branch changes user-facing UI, run `pr-screenshots` to ensure the PR's visual evidence is current before finalizing the body. `pr-screenshots` performs the attachment-bearing body edit; preserve its refreshed attachments when syncing description text. Skip for non-UI changesets.
 7. Draft the body in the fixed format (see `Template`): `Summary`, `Changes`, `Testing`, optional `Notes`, optional `Screenshots`.
 8. Self-review the draft once against the checks below, revise, then move on. One pass — not a loop.
    - **Length**: under the ceiling for the change size (see `Length`); cut, do not pad. No sentence or bullet over ~25 words — split any that run long.
@@ -85,12 +85,12 @@ Be terse (see the `terse` skill). Treat the word counts as ceilings, not targets
 - Do not credit agents (Claude Code, Codex, etc.) for writing the description.
 - Do not reference filepaths in the summary.
 - Do not reference uncommitted plan files.
-- Screenshots/clips belong as PR attachments, never committed to the repo; delegate their capture and refresh to `pr-screenshots`.
+- Screenshots/clips belong as PR attachments, never committed to the repo; delegate their capture and refresh to `pr-screenshots`, which owns the attachment-bearing body edit.
 
 ## Implementation Notes
 
 - Update the title with `gh pr edit <number> --title <title>` only when it has drifted; skip the flag otherwise to avoid a no-op edit.
-- If `gh pr edit --body-file <file>` fails on the deprecated `projectCards` GraphQL field (`repository.pullRequest.projectCards`), it does **not** update the body. Fall back to the REST API: `gh api -X PATCH repos/<owner>/<repo>/pulls/<number> -F body=@<file>` (resolve `<owner>/<repo>` via `gh repo view --json nameWithOwner -q .nameWithOwner`). The same REST call accepts `-F title=<title>` when the `gh pr edit` title update also fails.
+- If `gh pr edit --body-file <file>` fails on the deprecated `projectCards` GraphQL field (`repository.pullRequest.projectCards`), it does **not** update the body. Fall back to the text-only REST API: `gh api -X PATCH repos/<owner>/<repo>/pulls/<number> -F body=@<file>` (resolve `<owner>/<repo>` via `gh repo view --json nameWithOwner -q .nameWithOwner`). REST PATCH cannot carry media attachments; those belong to `pr-screenshots`' native `gh pr edit --attach` edit. The same REST call accepts `-F title=<title>` when the `gh pr edit` title update also fails.
 - Always verify by re-reading afterward: `gh pr view <number> --json title,body -q '.title, .body'`.
 
 ## Safety Rules
