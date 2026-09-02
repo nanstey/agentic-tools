@@ -19,7 +19,7 @@ Default tool for PR reads/writes is `gh`. Follow the target repo's `CLAUDE.md` /
 1. PR URL if provided, else current branch (resolve via `pr-info`).
 2. The branch changeset (`pr-info`'s authoritative comparison) to judge whether UI changed.
 3. A runnable site/dev server for the branch (base URL/port) when capture is needed.
-4. Publish target for artifacts (default: attach to the PR via GitHub upload; never the repo root).
+4. Artifact publish outcome: a completed native `gh pr edit --body-file <temp> --attach <path>` edit, or a pending handoff with artifact paths and paste-ready local Markdown (never the repo root).
 
 ## Evidence Model
 
@@ -52,50 +52,71 @@ If not applicable, report "no UI change — screenshots not required" and stop w
    If **Current**, report that and stop — do not recapture.
 5. For missing/stale evidence, confirm the branch's site is reachable at the base URL/port; if not, stop and ask (never capture an error page).
 6. Build the **evidence matrix** (see **Evidence Model**), then delegate capture to `visual-capture`: pick the medium (static → screenshot, interaction/scroll/flow → video) and capture each matrix row from final `HEAD`. Capture a before/after pair (via a base-ref `worktree`) only when the PR's review question is an explicit visual replacement/regression, and label the exact refs.
-7. Attach the artifacts to the PR (see **Attachment Paths** below) and reference them in the body (hand the body edit to `pr-description`, or update directly when run standalone), keeping each asset under GitHub's ~10 MB inline limit. GitHub has no public REST/`gh` endpoint for body attachments, so upload with the `gh-image` extension (which replicates the web upload flow); hand off only when no GitHub session is available. Do not fabricate attachment URLs.
-8. Verify by re-reading the PR body and confirming the new images render (or, on handoff, that the paste-ready block was emitted). On a private repo the `user-attachments` URL inherits repo visibility, so an anonymous fetch returning 404/403 is expected, not a failure.
+7. Build the complete intended body and attach the artifacts with the single native edit in **Native Attach Recipe**. The body preserves unrelated content and references every local capture path once with alt text. Do not fabricate attachment URLs.
+8. After every attempted native attach command, re-read the body and inventory hosted attachment URLs and remaining local capture paths. A nonzero exit may have updated the PR with successful uploads; report that partial state and do not blindly retry, because a retry can duplicate uploads. If preflight failed, instead confirm the pending handoff includes artifact paths and a paste-ready block. On a private repo, an anonymous fetch returning 404/403 for a hosted attachment URL is expected, not a failure.
 
-Stop-and-ask gates: site unreachable, ambiguous before/after refs, capture tooling unavailable (per `visual-capture` preflight), the `gh-image` extension missing (per the gh-image preflight — stop before installing a third-party extension), or an artifact would land in the repo.
+Stop-and-ask gates: `gh` older than 2.99.0, missing GitHub authentication or push access, a non-`github.com` host (GHES is unsupported), more than 50 attachment files, site unreachable, ambiguous before/after refs, capture tooling unavailable (per `visual-capture` preflight), or an artifact landing in the repo. A failed native-attach preflight takes the handoff path; never make a partial attach attempt.
 
 ## Artifact Handling
 
 - Do **not** add screenshots or videos to the repository. They live in the gitignored `captures/` dir that `visual-capture` produces, and reach the PR as GitHub attachments hosted off-tree.
 - Attachment paths, best first:
-  1. **`gh image` upload** (preferred, programmatic). The [`gh-image`](https://github.com/drogers0/gh-image) extension (MIT) replicates GitHub's internal web-UI upload endpoint and mints canonical `user-attachments` URLs from the terminal — uploads on private repos stay private. See **gh-image Upload Recipe**.
-  2. **User drag-drop** into the PR body/comment when `gh-image` is unavailable or has no usable session.
-  3. **Handoff** when neither is possible: emit the artifact paths and a paste-ready `## Screenshots` block, and mark the attach as pending.
+  1. **Native `gh pr edit --attach`** (preferred, programmatic). It uploads each local capture while rewriting the PR body in one operation. See **Native Attach Recipe**.
+  2. **Handoff when preflight fails.** Emit the artifact paths plus a paste-ready `## Screenshots` block containing each local path and its alt text. Mark the attach as pending. The user may manually drag and drop those files into the PR body as the fallback step; do not run any `--attach` flags.
 - The only exception is a project that already keeps UI assets in a tracked asset dir (e.g. `docs/assets/`) and explicitly wants them committed — otherwise attach, never commit.
 - Reference attachments in the PR body only; the branch diff must not gain image/video files.
 
-## gh-image Upload Recipe
+## Native Attach Recipe
 
-Upload artifacts to GitHub and get ready-to-embed `user-attachments` references with the [`gh-image`](https://github.com/drogers0/gh-image) `gh` extension (MIT, © drogers0), then embed them via `gh`. No browser automation, no repo commit, no history churn.
+Use one native attachment-bearing body edit. It uploads the assets and rewrites their local Markdown references to hosted URLs without adding body or media files to the branch.
 
-Preflight (gate before any upload; if any check fails, fall back to drag-drop or handoff — do not silently skip):
-1. **`gh` present and authenticated:** `gh auth status`. If not, stop and ask the user to `gh auth login` (never run it unattended).
-2. **`gh-image` extension present:**
-   ```bash
-   gh extension list | grep -q 'drogers0/gh-image' && echo present || echo missing
-   ```
-   If `missing`, **stop and ask before installing** — `gh-image` is a third-party extension (MIT, © drogers0) that authenticates with your full-account `user_session` cookie, so the user should vet/approve it. On approval: `gh extension install drogers0/gh-image`. Never install it unattended.
-3. **GitHub session for the upload:** `gh-image` does not use the `gh` token (that endpoint rejects it); it reads the browser `user_session` cookie, or `--token`/`GH_SESSION_TOKEN` (use the env var in CI with a dedicated bot account). A `user_session` cookie grants full account access; treat it like a password and never log it.
+**Preflight.** Run every gate before generating an attachment edit. Any failure takes the pending-handoff path in **Attachment Paths**; never submit a partial `--attach` attempt.
 
-1. **Upload** each artifact with an absolute path (`--repo` is inferred inside the repo working dir); capture the printed reference from stdout — `![name](url)` for images, one line per file:
+| Gate | Check | Failure outcome |
+| --- | --- | --- |
+| GitHub CLI version | `gh --version` reports version 2.99.0 or later | Emit paths and paste-ready Markdown; mark attach pending. |
+| GitHub authentication | `gh auth status` exits successfully | Emit paths and paste-ready Markdown; mark attach pending. |
+| Push access | `gh repo view --json viewerPermission -q .viewerPermission` reports `ADMIN`, `MAINTAIN`, or `WRITE` | Emit paths and paste-ready Markdown; mark attach pending. |
+| Public GitHub host | `gh repo view --json url -q .url` resolves to `https://github.com/...` | Emit paths and paste-ready Markdown; mark attach pending. GHES is unsupported. |
+| Attachment count | At most 50 files will be passed with `--attach`, and the body references each one | Emit paths and paste-ready Markdown; mark attach pending. |
+
+**Prepare the body and assets.**
+
+1. Create a private temporary workspace, register recursive cleanup immediately, and serialize the existing body directly to a file. `jq -j` writes the JSON string without adding or removing a final newline:
    ```bash
-   MD="$(gh image "$PWD/$CAP/02-edit-widget-modal.png" --repo <owner>/<repo>)"
+   TMP_DIR="$(mktemp -d)"
+   trap 'rm -rf "$TMP_DIR"' EXIT
+   BODY_FILE="$TMP_DIR/body.md"
+   gh pr view <number> --json body | jq -j '.body' > "$BODY_FILE"
    ```
-2. **Embed** into the PR body via `--body-file -` (never inline `--body`, so multi-line/special chars can't break quoting) — or hand the minted markdown to `pr-description`:
+2. Use a structured body-file editor to insert or refresh only the managed `## Screenshots` evidence section in `"$BODY_FILE"`. It must preserve every byte outside that section's exact byte range; when the section is absent, it must insert the new section without rewriting existing body bytes. Build the section from the local capture paths, with descriptive Markdown alt text. Do not read the body into a shell variable or rewrite it with shell substitution.
+3. For every asset, check its MIME type and size before upload. Use GitHub-supported image/video types only (`image/png`, `image/jpeg`, `image/gif`, `image/webp`, `image/svg+xml`, `video/mp4`, `video/quicktime`, or `video/webm`), and reject a file larger than the conservative 10 MiB inline limit:
    ```bash
-   BODY="$(gh pr view <number> --repo <owner>/<repo> --json body -q .body)"
-   printf '%s\n\n## Screenshots\n\n%s\n' "$BODY" "$MD" | gh pr edit <number> --repo <owner>/<repo> --body-file -
+   mime="$(file --brief --mime-type "$asset")"
+   bytes="$(wc -c < "$asset")"
+   case "$mime" in image/png|image/jpeg|image/gif|image/webp|image/svg+xml|video/mp4|video/quicktime|video/webm) ;; *) exit 1;; esac
+   test "$bytes" -le 10485760
    ```
-   If `gh pr edit` fails for unrelated reasons (e.g. GitHub's deprecated classic-Projects GraphQL field), fall back to a direct REST PATCH, then re-read the body to confirm only the intended section changed:
-   ```bash
-   jq -n --arg body "$(printf '%s\n\n## Screenshots\n\n%s\n' "$BODY" "$MD")" '{body:$body}' > body.json
-   gh api --method PATCH repos/<owner>/<repo>/pulls/<number> --input body.json
-   ```
-3. **Size** if needed by embedding an HTML tag instead of the bare markdown: `<img width="800" alt="..." src="<url>" />`.
-4. On `SAML SSO ... not authorized` or `uploadToken not found`, authorize the org session at `https://github.com/orgs/<org>/sso` (write access alone is not enough) and retry; on "no `user_session` cookie", log into a supported browser or set `GH_SESSION_TOKEN`.
+   Re-encode or shrink an oversized or unsupported asset using `visual-capture` guidance. If it cannot be made uploadable, stop and report it; never submit an asset expected to fail.
+4. Enforce the one-reference-per-asset invariant and the 50-file maximum. Pass no more than 50 absolute local paths to `--attach`; each path appears exactly once in the generated Markdown evidence section, for example `![Edit widget](/absolute/path/captures/widget.png)`. Unreferenced attachments are appended by `gh`; duplicate references produce duplicate embeds. The Markdown alt text survives the hosted-URL rewrite.
+
+**Attach and verify.** Run exactly one attachment-bearing edit, with one repeatable `--attach` flag for each referenced asset:
+
+Always re-read the body after the command returns, including after a nonzero exit. Capture the status without changing the caller's shell options:
+
+```bash
+if gh pr edit <number> --body-file "$BODY_FILE" \
+  --attach "/absolute/path/captures/widget.png" \
+  --attach "/absolute/path/captures/tour.mp4"
+then
+  attach_status=0
+else
+  attach_status=$?
+fi
+gh pr view <number> --json body -q .body
+```
+
+Inventory the hosted attachment URLs and the local capture paths still present in the re-read body. A zero exit requires every local path to have been rewritten to a hosted URL with none remaining. A nonzero exit can mean successful files already updated the PR while other local paths remain. Report the exit status and that exact partial state, then stop; never blindly retry the attachment command because it can duplicate successful uploads. An anonymous 404/403 for an attachment URL on a private repository is expected because the URL inherits repository visibility.
 
 ## Composition
 
@@ -111,13 +132,13 @@ Preflight (gate before any upload; if any check fails, fall back to drag-drop or
 - Never capture a blank or error page; if the site is unreachable, stop and ask.
 - Never vary viewport/theme/device between before and after (enforced by `visual-capture`).
 - Never bypass `visual-capture`/`playwright-cli` with ad-hoc Puppeteer, `@playwright/test`, or MCP.
-- Never commit artifacts or force-push a throwaway image commit to host attachments; use `gh-image` (or drag-drop/handoff), never the branch history.
-- Never install the `gh-image` extension unattended; it uses a full-account `user_session` cookie, so stop and ask the user to vet and approve the install first.
-- Never print, log, or paste a `user_session` cookie / `GH_SESSION_TOKEN`; it grants full account access.
-- Never claim a native `gh`/public REST body-attachment endpoint exists, and never fabricate attachment URLs.
+- Never commit artifacts or force-push a throwaway image commit to host attachments; use native `gh pr edit --attach` or the pending handoff, never branch history.
+- Never pass `--attach` for an asset that the generated body does not reference exactly once, or pass more than 50 attachment files.
+- Never run the attachment edit when any native preflight gate fails.
+- Never blindly retry an attachment command after a nonzero exit; re-read the body and report any partial upload state first.
 - Never overwrite unrelated PR body content while inserting screenshot references.
 - If unexpected working tree changes appear while you are working, stop and ask the user how to proceed.
 
 ## Output Style
 
-Report applicability verdict, existing-evidence inventory and classification (missing/stale/current), medium chosen and surfaces captured, before/after mapping, how artifacts reached the PR (drag-drop, or a pending handoff with the paste-ready block) confirming none were committed, and the PR body sections updated.
+Report applicability verdict, existing-evidence inventory and classification (missing/stale/current), medium chosen and surfaces captured, before/after mapping, command exit status, hosted attachment URLs and any remaining local paths after an attempted attach, whether artifacts reached the PR through the native attach edit or remain pending handoff with the paste-ready block, confirmation none were committed, and the PR body sections updated.

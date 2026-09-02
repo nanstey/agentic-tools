@@ -172,10 +172,10 @@ captures/                                  # gitignored; add to the target repo'
 
 ## PR Integration
 
-- Emit a ready-to-paste block for the PR body (hand off to `pr-description`):
+- Emit a ready-to-paste block for the PR body and hand off to `pr-screenshots`: include each off-tree `$CAP` path and its Markdown alt text.
   - Before/after in a two-column table, or wrapped in `<details><summary>Screenshots</summary>…</details>`.
   - When the block tells a results story, order it Before, After, Bridge (`before-after-bridge`): prior state, improved state, then the approach.
-- Attach the `.mp4` via the GitHub UI (drag-drop into the PR body or a comment); GitHub hosts it and renders an inline player. Do not rely on `.webm` embedding. Screenshots can be committed under the project's asset dir (e.g. `public/`, `docs/assets/`) and linked, or attached the same way.
+- `pr-screenshots` publishes those assets with its native `gh pr edit --attach` flow. Do not duplicate that recipe here. Do not rely on `.webm` embedding; provide the `.mp4` path for PR attachment. Screenshots may use a project's explicitly tracked asset dir (e.g. `public/`, `docs/assets/`) when that project requests it.
 - Keep each asset under GitHub's per-file limit (~10 MB free / 100 MB paid); raise `crf`/reduce width to fit.
 
 ## Composition
