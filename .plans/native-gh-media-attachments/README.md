@@ -11,7 +11,7 @@
 ## Slices
 | # | Slice | Spec | PR | Status |
 | --- | --- | --- | --- | --- |
-| 1 | Use native gh media attachments | [01-use-native-gh-media-attachments](./specs/01-use-native-gh-media-attachments.md) | | building |
+| 1 | Use native gh media attachments | [01-use-native-gh-media-attachments](./specs/01-use-native-gh-media-attachments.md) | [#53](https://github.com/nanstey/agentic-tools/pull/53) | review-ready |
 
 ## Decision log
 - 2026-09-02 — Autopilot run started; treat GitHub CLI v2.99.0 native `--attach` as the target integration.
@@ -27,3 +27,4 @@
 - 2026-09-02 — QA plan adjusted after preflight: system `gh` 2.45.0 now proves the old-version handoff gate; native flag semantics use an ephemeral official v2.99.0 binary. No workstation dependency change.
 - 2026-09-02 — Review passed after fixes: body bytes are preserved outside the managed section, temp files stay in a private directory, and one canonical attach command handles the 50-file cap and partial nonzero updates without blind retry. QA assigned to execute the 11 scenario dispositions and write `qa.md`.
 - 2026-09-02 — QA passed; evidence in [qa.md](./qa.md). All 14 implementation items and 11 scenario dispositions are checked. Live upload was skipped because no delivery PR or relevant UI artifact existed; system-old and ephemeral-native CLI paths were both exercised.
+- 2026-09-02 — Commit `3387e67` pushed and draft PR [#53](https://github.com/nanstey/agentic-tools/pull/53) opened against `main`. `gh pr edit` hit the known classic-Projects failure, so the verified text-only REST fallback updated the description; the PR re-read is clean.
