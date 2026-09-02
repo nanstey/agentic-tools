@@ -1,6 +1,6 @@
 # Native GitHub CLI Media Attachments
 
-- Status: building
+- Status: done
 - Summary: Replace screenshot attachment workarounds with GitHub CLI v2.99+ native `--attach` flows.
 
 ## Design
@@ -28,3 +28,4 @@
 - 2026-09-02 — Review passed after fixes: body bytes are preserved outside the managed section, temp files stay in a private directory, and one canonical attach command handles the 50-file cap and partial nonzero updates without blind retry. QA assigned to execute the 11 scenario dispositions and write `qa.md`.
 - 2026-09-02 — QA passed; evidence in [qa.md](./qa.md). All 14 implementation items and 11 scenario dispositions are checked. Live upload was skipped because no delivery PR or relevant UI artifact existed; system-old and ephemeral-native CLI paths were both exercised.
 - 2026-09-02 — Commit `3387e67` pushed and draft PR [#53](https://github.com/nanstey/agentic-tools/pull/53) opened against `main`. `gh pr edit` hit the known classic-Projects failure, so the verified text-only REST fallback updated the description; the PR re-read is clean.
+- 2026-09-02 — Final independent audit passed: artifacts, 25 checked implementation/QA dispositions, source scope, base/head, PR body, and non-UI screenshot applicability all match. Pipeline closed.
