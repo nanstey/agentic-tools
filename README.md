@@ -7,6 +7,9 @@ Reusable tools for real engineering work across machines and projects.
 | **Skills** | Portable `SKILL.md` workflows for reliable end-to-end tasks. |
 | **Agent profiles** | Claude Code subagents I can delegate focused work to. |
 
+[GRAPH.md](GRAPH.md) visualizes which skills reference which; regenerate it
+with `scripts/skill-graph` (`--check` verifies it is current).
+
 ## Quick Start
 
 Clone the repo:
