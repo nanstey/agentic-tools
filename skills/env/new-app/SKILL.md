@@ -67,9 +67,7 @@ decisions, offer to start a planning session first (for example, `scrutiny` or
    initial commit.
 7. Verify and report: run the stack's build/test smoke if one exists; report the
    project path, structure, and git state.
-8. If the Orca IDE runs this session, offer to invoke `orca-repo` to register
-   the new project with Orca. Skip silently when Orca is not present.
-9. If the user wants a GitHub repository, offer to invoke `new-repo` after the
+8. If the user wants a GitHub repository, offer to invoke `new-repo` after the
    local work is complete. Do not create or configure a remote in this skill.
 
 Stop and ask when name/directory/stack/scope is unknown or the target directory
@@ -110,7 +108,6 @@ Concrete commands (adapt to the chosen stack):
 ## Output Style
 
 Report the project path and structure created, the stack init tool run, git
-state (branch and first commit hash), tooling verified/missing, Orca
-registration outcome (registered, declined, or not applicable), assumptions
+state (branch and first commit hash), tooling verified/missing, assumptions
 made, and suggested next steps. If the user wants a GitHub remote, state that
 `new-repo` can create and configure it.

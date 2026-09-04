@@ -142,7 +142,9 @@ ask before the first push, even after the remote was created.
    A `403` or `404` from branch-protection creation or verification is a partial
    failure, not a successful policy configuration. Explain the response and the
    policy settings that remain unverified.
-8. If the user provided architecture/stack context — or asks for worktree
+8. If the Orca IDE runs this session, invoke `orca-repo` to register the
+   repository with Orca. Skip silently when Orca is not present.
+9. If the user provided architecture/stack context — or asks for worktree
    environments — invoke `worktree-env` against this repository as a final
    step, passing that context (services, env files, ports) as its inputs. Skip
    silently when no architecture context was provided and none was requested.
@@ -177,6 +179,7 @@ what requires pull requests and prevents direct pushes under this policy.
 
 Report the local repository path, GitHub owner/name, selected account,
 visibility, remote URL, first-push confirmation, merge-policy verification,
-branch-protection verification, and the `worktree-env` outcome (invoked,
-skipped, or its reported result). On any failure, identify the completed steps,
-the exact failed command or API response, and remaining manual action.
+branch-protection verification, the `orca-repo` outcome (invoked or not
+applicable), and the `worktree-env` outcome (invoked, skipped, or its reported
+result). On any failure, identify the completed steps, the exact failed command
+or API response, and remaining manual action.
