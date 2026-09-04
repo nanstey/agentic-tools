@@ -1,6 +1,6 @@
 ---
 name: pr
-description: Runs the full PR checklist by chaining the pr-* skills in a logical order. Use when a branch should be taken end-to-end to a healthy, review-ready PR.
+description: Prepares a branch and invokes `pr-monitor` once for PR reconciliation. Use when a branch should be prepared and checked through one PR-health pass.
 user-invocable: true
 disable-model-invocation: false
 ---
@@ -9,52 +9,34 @@ disable-model-invocation: false
 
 ## Core Contract
 
-Orchestrate the `pr-*` skills as one checklist for the current branch; do no PR work directly outside those skills.
-Each step follows its own skill's contract and safety rules.
+Prepare the current branch for an open pull request, then invoke `pr-monitor` with `mode: once`. This skill owns setup only; `pr-monitor` owns all subsequent PR health and update work.
+
 Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 ## Required Inputs
 
-1. Current branch (or PR URL/number).
-2. Optional steps to skip.
+1. Current branch or PR URL/number.
+2. Optional setup steps to skip.
 
 ## Workflow
 
-Run in order, skipping steps the user excluded.
+1. Run `changes` first to resolve the comparison scope and record the exact base and head refs. When an existing PR is found, use `pr-info` for its base and head.
+2. If `changes` reports uncommitted work:
+   - on `main` or `develop`, create a `branch`, then `commit` the work;
+   - otherwise, `commit` the work.
+3. Invoke `pr-info` to resolve and verify an existing PR.
+4. If no PR exists, invoke `pr-create`, then use its resulting PR as the target. Stop on any other `pr-info` gate.
+5. Invoke `pr-monitor` with `mode: once` for the verified or newly created PR. Report the setup outcomes and the engine result.
 
-### 0. Pre-check
-  - Run `changes` first to resolve the comparison scope and record the exact base/head refs (PR base/head come from `pr-info`).
-  - IF uncommitted `changes`:
-    - IF on main/develop: create a new `branch`, and `commit`, then proceed to step 2b.
-    - ELSE: `commit`
-
-### 1. Check for existing PR status
-  - `pr-info`: resolve and verify the PR.
-
-### 2a. If PR exists, check comments and CI
-  - `pr-comments`: apply fixes for unresolved threads locally; instruct it to **defer push and thread replies**.
-  - `pr-ci`: diagnose existing failed CI jobs and apply fixes locally; instruct it to **defer push**.
-
-### 2b. If PR doesn't exist, create one
-  - `pr-create`: create a new PR.
-
-### 3. Update the PR
-  - `pr-rebase`: rebase onto the latest base and force-push with lease. This single push carries all fixes and triggers one fresh CI run and review-agent pass.
-  - `pr-description`: sync the PR body with the final changeset; for UI changesets it runs `pr-screenshots` to refresh visual evidence and attach it to the PR (never committed). Capturing this evidence is mandatory for UI changesets — never downgrade it to an optional decision or ask/skip because auth, feature flags, or navigation look involved (`visual-capture`/`playwright-cli` handle those). Stop only on `pr-screenshots`' own gates: site unreachable, ambiguous before/after refs, capture tooling unavailable, or an artifact would land in the repo.
-
-After each step, report its outcome before continuing.
-Stop and ask when any step hits its own stop gate, fails, or leaves the branch in an unexpected state.
+Stop and ask when setup fails, a setup delegate reaches its stop gate, or the branch enters an unexpected state.
 
 ## Safety Rules
 
-- Never push during step 3; the rebase push exists to avoid retriggering CI and review agents on intermediate states.
-- Never resolve threads before their fix commit is pushed.
-- Never commit screenshots/clips to the repo; `pr-screenshots` attaches them to the PR.
-- Never ask whether to capture UI screenshots or skip them on effort/auth/complexity grounds; delegate to `pr-screenshots` and stop only on its defined gates.
-- Never continue past a failed step without user approval.
-- Never duplicate work a sub-skill owns; delegate instead of reimplementing.
-- If unexpected working tree changes appear between steps, stop and ask the user how to proceed.
+- Never continue from uncommitted work on `main` or `develop` without first creating a branch and committing it.
+- Never continue past a failed setup step or its stop gate without user approval.
+- Never proceed when unexpected working-tree changes appear during setup.
+- Never perform PR health or update work directly; invoke `pr-monitor` in `once` mode.
 
 ## Output Style
 
-Report a per-step checklist (run/skipped/blocked with one-line outcome), final PR URL and state, and any unresolved blockers.
+Report the comparison scope; branch and commit outcomes; existing or newly created PR; and the `pr-monitor` result, including its final head OID and any blocker.
