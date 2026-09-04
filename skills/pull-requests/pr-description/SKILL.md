@@ -22,21 +22,24 @@ Default behavior is to update the PR directly once rewritten.
 1. Resolve PR via `pr-info`.
 2. If no PR exists, stop and suggest `pr-create`.
 3. Read current title, body, and metadata.
-4. Analyze the exact PR changes over `pr-info`'s authoritative comparison: `git diff <baseRefOid>..<headRefOid>`, `git diff --stat <baseRefOid>..<headRefOid>`, and `git log <baseRefOid>..<headRefOid>` for the commit list.
-5. Identify drift: stale title, missing changes, stale bullets, stale/complete checklist items.
-6. If the branch changes user-facing UI, run `pr-screenshots` to ensure the PR's visual evidence is current before finalizing the body. `pr-screenshots` performs the attachment-bearing body edit; preserve its refreshed attachments when syncing description text. Skip for non-UI changesets.
-7. Draft the body in the fixed format (see `Template`): `Summary`, `Changes`, `Testing`, optional `Notes`, optional `Screenshots`.
-8. Self-review the draft once against the checks below, revise, then move on. One pass — not a loop.
+4. Before drift analysis or drafting, apply applicable `AGENTS.md` / `CLAUDE.md` instructions already supplied by the active environment. Do not search for more context files. Inspect standard PR guidance only: case-insensitive `pull_request_template.md` files at the repository root, `.github/`, or `docs/`; templates in `.github/PULL_REQUEST_TEMPLATE/*.md`; and `CONTRIBUTING*` files at those same locations when present or explicitly linked by that guidance.
+5. Select applicable repository guidance and a PR template. With multiple templates, infer the best match from the existing PR body and change type. Stop and ask only when materially different template choices remain ambiguous. Apply guidance in this order: applicable repository instructions and explicit PR guidance, selected template, still-relevant existing PR content, then this skill's default template and style. Repository guidance can change section names, order, and required fields.
+6. Analyze the exact PR changes over `pr-info`'s authoritative comparison: `git diff <baseRefOid>..<headRefOid>`, `git diff --stat <baseRefOid>..<headRefOid>`, and `git log <baseRefOid>..<headRefOid>` for the commit list.
+7. Identify drift: stale title, missing changes, stale bullets, stale/complete checklist items.
+8. If the branch changes user-facing UI, run `pr-screenshots` to ensure the PR's visual evidence is current before finalizing the body. `pr-screenshots` performs the attachment-bearing body edit; preserve its refreshed attachments when syncing description text. Skip for non-UI changesets.
+9. Draft the body using selected repository guidance and template. Use the default `Template` only to fill gaps that repository guidance does not cover.
+10. Self-review the draft once against the checks below, revise, then move on. One pass — not a loop.
+   - **Repository guidance**: follow the selected guidance and template. Preserve every required field and any template comment that must remain.
    - **Length**: under the ceiling for the change size (see `Length`); cut, do not pad. No sentence or bullet over ~25 words — split any that run long.
-   - **No rationale**: `Summary` and `Changes` state what changed, not why; drop justification and design narration unless a reviewer cannot trust or navigate the change without it, and then in one clause.
-   - **Structure**: `Summary` split when intent shifts (content vs. context); `Changes` organized into work groups derived from first principles (never line/file/commit/slice-based) with one-clause bullets; `Testing` present and specific; `Notes` only if there is something to flag.
-9. If the title no longer summarizes the changeset, rewrite it (concise, imperative, matching repo convention such as Conventional Commits when in use).
-10. Preserve still-relevant links/issues/related PR refs, including current screenshot/clip attachments.
-11. Update the PR title (only if drifted) and body via `gh`, then verify by re-reading the PR.
+   - **No rationale**: `Summary` and `Changes` state what changed, not why; drop justification and design narration unless a reviewer cannot trust or understand the change without it, and then in one clause.
+   - **Structure**: use repository-required sections and order; where guidance leaves gaps, split `Summary` when intent shifts (content vs. context), organize `Changes` into work groups derived from first principles (never line/file/commit/slice-based) with one-clause bullets, keep `Testing` present and specific, and include `Notes` only when there is something to flag.
+11. If the title no longer summarizes the changeset, rewrite it (concise, imperative, matching repo convention such as Conventional Commits when in use).
+12. Preserve still-relevant links/issues/related PR refs, including current screenshot/clip attachments.
+13. Update the PR title (only if drifted) and body via `gh`, then verify by re-reading the PR.
 
 ## Template
 
-Use this fixed section set. Omit optional sections when they add nothing.
+Use this default section set only when selected repository guidance and its template do not provide the structure. Omit optional sections when they add nothing.
 
 ```markdown
 ## Summary
@@ -61,7 +64,7 @@ Use this fixed section set. Omit optional sections when they add nothing.
 
 ## Length
 
-Be terse (see the `terse` skill). Treat the word counts as ceilings, not targets, and come in under them; the shortest description that lets a reviewer navigate the diff wins.
+Be terse (see the `terse` skill). Treat the word counts as ceilings, not targets, and come in under them; the shortest description that lets a reviewer understand the diff wins.
 
 - Trivial fix / typo: up to ~50 words. `Summary` + `Testing` often suffice.
 - Single feature or refactor: up to ~150 words.
@@ -70,17 +73,19 @@ Be terse (see the `terse` skill). Treat the word counts as ceilings, not targets
 
 ## Guidelines
 
+- Follow selected repository guidance before these default style rules.
 - Be terse. State what changed, not why it was done that way; omit rationale, justification, and design narration by default.
 - Cap sentences and bullets at ~25 words. Split anything longer; prefer several short sentences over one clause-stacked line.
 - Write BLUF (Bottom Line Up Front): put the main point at the very start, then follow with context. Present conclusions before the material that justifies them (deductive, not inductive); never open with background, motivation, or a chronology that builds toward the point.
-- Lead with a one-to-two sentence `Summary` so a scanning reviewer gets bearings instantly; start it with an active verb. State the change and, if not obvious, its purpose in a single clause — no supporting argument.
-- Apply BLUF fractally: each `Changes` group and each bullet also states its bottom line first, so a reviewer skimming only the lead of each section still gets the full picture.
-- Split the `Summary` into paragraphs when intent shifts (change content vs. surrounding context); never fold related-PR/stack framing into the opening sentence.
-- In `Changes`, derive the work groups from first principles: consider the whole changeset holistically and organize by cohesive units of work (behavior, capability, or area), not by how the change was produced. Each bullet states a fact in one clause. Keep bullets few. Do not explain why a change was made unless a reviewer cannot trust or navigate the change without it — and then in one clause, not a paragraph.
+- Where repository guidance leaves room for it, lead with a one-to-two sentence `Summary` so a scanning reviewer gets bearings instantly; start it with an active verb. State the change and, if not obvious, its purpose in a single clause — no supporting argument.
+- Where repository guidance uses `Changes`, apply BLUF fractally: each group and each bullet also states its bottom line first, so a reviewer skimming only the lead of each section still gets the full picture.
+- Where repository guidance uses `Summary`, split it into paragraphs when intent shifts (change content vs. surrounding context); never fold related-PR/stack framing into the opening sentence.
+- Where repository guidance uses `Changes`, derive the work groups from first principles: consider the whole changeset holistically and organize by cohesive units of work (behavior, capability, or area), not by how the change was produced. Each bullet states a fact in one clause. Keep bullets few. Do not explain why a change was made unless a reviewer cannot trust or understand the change without it — and then in one clause, not a paragraph.
 - Never structure the body line by line, file by file, commit by commit, or slice by slice. A commit list, changelog, or one-bullet-per-file dump is not an acceptable `Changes` structure; synthesize the diff into work groups instead.
 - Do not structure content by implementation order or the sequence in which the work was done.
-- Surface tradeoffs, risks, breaking changes, and known limitations in `Notes` rather than burying them mid-body; omit `Notes` when there is nothing to flag.
-- `Testing` is required. Be specific about what was verified (tests, manual steps, env, edge cases); avoid bare "tested locally" and avoid verbosity.
+- Follow the selected repository guidance for required sections, fields, order, and template comments. Use the remaining default section guidance only where it does not conflict.
+- Surface tradeoffs, risks, breaking changes, and known limitations in `Notes` rather than burying them mid-body; omit `Notes` when there is nothing to flag, unless repository guidance requires it.
+- `Testing` is required unless repository guidance uses a different required verification field. Be specific about what was verified (tests, manual steps, env, edge cases); avoid bare "tested locally" and avoid verbosity.
 - Do not write from commit messages alone; use the diff.
 - Do not credit agents (Claude Code, Codex, etc.) for writing the description.
 - Do not reference filepaths in the summary.
@@ -100,12 +105,14 @@ Be terse (see the `terse` skill). Treat the word counts as ceilings, not targets
 - Never change the title when it still accurately summarizes the changeset; only update on genuine drift.
 - Never base the description only on commit titles when the diff is available.
 - Never remove links or attachments unless there is evidence they are stale or irrelevant.
+- Never drop a required repository-guidance field or a selected-template comment that must remain.
+- Never let the default template override selected repository guidance or still-relevant existing PR content.
 - Never check off a checklist item unless the changeset supports that inference with reasonable confidence.
-- Never preserve stale descriptive bullets that conflict with the current branch state.
+- Never preserve stale descriptive bullets that conflict with the current branch state, even when retaining the required field or template comment that contains them.
 - Never leave stale screenshots in a UI PR body; refresh via `pr-screenshots`, and never commit the artifacts to the repo.
 - Never overwrite unrelated user work in the repository while gathering context.
 - If unexpected working tree changes appear while you are working, stop and ask the user how to proceed.
 
 ## Output Style
 
-Report PR updated, base used for drift analysis, whether the title drifted (old → new, or unchanged), major body drift found, and what sections were rewritten/preserved/checked/removed.
+Report PR updated, base used for drift analysis, repository guidance sources and selected template used, whether the title drifted (old → new, or unchanged), major body drift found, and what sections were rewritten/preserved/checked/removed.
