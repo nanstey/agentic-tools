@@ -27,6 +27,8 @@ local application needs to be created.
 4. Visibility, if not private.
 5. When more than one GitHub account is authenticated, the account that must
    perform the operation.
+6. Optional: project architecture/stack context (services, env files, local
+   ports) — feeds the final `worktree-env` step when provided.
 
 Stop and ask before creation if the owner or repository name is absent. Stop and
 ask before the first push, even after the remote was created.
@@ -140,6 +142,10 @@ ask before the first push, even after the remote was created.
    A `403` or `404` from branch-protection creation or verification is a partial
    failure, not a successful policy configuration. Explain the response and the
    policy settings that remain unverified.
+8. If the user provided architecture/stack context — or asks for worktree
+   environments — invoke `worktree-env` against this repository as a final
+   step, passing that context (services, env files, ports) as its inputs. Skip
+   silently when no architecture context was provided and none was requested.
 
 ## GitHub API Caveat
 
@@ -170,6 +176,7 @@ what requires pull requests and prevents direct pushes under this policy.
 ## Output Style
 
 Report the local repository path, GitHub owner/name, selected account,
-visibility, remote URL, first-push confirmation, merge-policy verification, and
-branch-protection verification. On any failure, identify the completed steps,
+visibility, remote URL, first-push confirmation, merge-policy verification,
+branch-protection verification, and the `worktree-env` outcome (invoked,
+skipped, or its reported result). On any failure, identify the completed steps,
 the exact failed command or API response, and remaining manual action.
