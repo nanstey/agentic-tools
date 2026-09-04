@@ -67,7 +67,11 @@ decisions, offer to start a planning session first (for example, `scrutiny` or
    initial commit.
 7. Verify and report: run the stack's build/test smoke if one exists; report the
    project path, structure, and git state.
-8. If the user wants a GitHub repository, offer to invoke `new-repo` after the
+8. If the Orca IDE runs this session (per the `orca-cli` skill's executable
+   resolution), offer to register the new project with Orca:
+   `ORCA repo add --path <absolute-project-path> --json`. Skip silently when
+   Orca is not present.
+9. If the user wants a GitHub repository, offer to invoke `new-repo` after the
    local work is complete. Do not create or configure a remote in this skill.
 
 Stop and ask when name/directory/stack/scope is unknown or the target directory
@@ -87,6 +91,10 @@ Concrete commands (adapt to the chosen stack):
   `uv init` (or `poetry new .`) · `go mod init <module>` · `dotnet new <tmpl>`.
   Some (for example, `cargo init`, `uv init`) also run `git init` — detect and
   avoid a double init.
+- Orca registration: resolve the executable per the `orca-cli` skill
+  (`ORCA_CLI_COMMAND`, else `orca-dev`/`orca-ide`/`orca`; never bare `orca` on
+  Linux outside an Orca terminal), then
+  `ORCA repo add --path /abs/project --json`.
 
 ## Safety Rules
 
@@ -108,6 +116,7 @@ Concrete commands (adapt to the chosen stack):
 ## Output Style
 
 Report the project path and structure created, the stack init tool run, git
-state (branch and first commit hash), tooling verified/missing, assumptions
+state (branch and first commit hash), tooling verified/missing, Orca
+registration outcome (registered, declined, or not applicable), assumptions
 made, and suggested next steps. If the user wants a GitHub remote, state that
 `new-repo` can create and configure it.
