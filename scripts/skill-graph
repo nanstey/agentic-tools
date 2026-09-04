@@ -11,7 +11,7 @@ harness-provided skill fails the run (catches stale references after renames).
 
 Usage:
   scripts/skill-graph          # validate and (re)write GRAPH.md
-  scripts/skill-graph --svg    # also render GRAPH.svg (requires graphviz)
+  scripts/skill-graph --svg    # also render GRAPH.svg + GRAPH.png (graphviz)
   scripts/skill-graph --check  # validate and fail if GRAPH.md is stale (CI)
 """
 
@@ -24,6 +24,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 OUTPUT = ROOT / "GRAPH.md"
 SVG_OUTPUT = ROOT / "GRAPH.svg"
+PNG_OUTPUT = ROOT / "GRAPH.png"
 
 PALETTE = ["#e3f2fd", "#e8f5e9", "#fff3e0", "#f3e5f5", "#e0f7fa", "#fce4ec",
            "#f1f8e9", "#ede7f6", "#fffde7", "#efebe9", "#e8eaf6"]
@@ -91,7 +92,9 @@ def render(skills, edges):
         "inside a category; dotted arrows cross category boundaries. Each",
         "diagram shows every edge touching its category.",
         "",
-        "![Skill graph](GRAPH.svg)",
+        "![Skill graph](GRAPH.png)",
+        "",
+        "([zoomable SVG](GRAPH.svg))",
         "",
     ]
     for cat in categories:
@@ -145,15 +148,17 @@ def render_dot(skills, edges):
     return "\n".join(out)
 
 
-def write_svg(skills, edges):
+def write_images(skills, edges):
     if not shutil.which("dot"):
         sys.exit("error: --svg requires graphviz (dot) on PATH")
-    result = subprocess.run(
-        ["dot", "-Tsvg", "-o", str(SVG_OUTPUT)],
-        input=render_dot(skills, edges), text=True, capture_output=True)
-    if result.returncode != 0:
-        sys.exit(f"error: dot failed:\n{result.stderr}")
-    print(f"wrote {SVG_OUTPUT.relative_to(ROOT)}")
+    dot_source = render_dot(skills, edges)
+    for fmt, output in (("svg", SVG_OUTPUT), ("png", PNG_OUTPUT)):
+        result = subprocess.run(
+            ["dot", f"-T{fmt}", "-o", str(output)],
+            input=dot_source, text=True, capture_output=True)
+        if result.returncode != 0:
+            sys.exit(f"error: dot -T{fmt} failed:\n{result.stderr}")
+        print(f"wrote {output.relative_to(ROOT)}")
 
 
 def main():
@@ -169,7 +174,7 @@ def main():
     OUTPUT.write_text(content)
     print(f"wrote {OUTPUT.relative_to(ROOT)}")
     if "--svg" in sys.argv[1:]:
-        write_svg(skills, edges)
+        write_images(skills, edges)
 
 
 if __name__ == "__main__":

@@ -7,7 +7,9 @@ do not edit by hand.
 inside a category; dotted arrows cross category boundaries. Each
 diagram shows every edge touching its category.
 
-![Skill graph](GRAPH.svg)
+![Skill graph](GRAPH.png)
+
+([zoomable SVG](GRAPH.svg))
 
 ## agent
 
