@@ -11,15 +11,22 @@ harness-provided skill fails the run (catches stale references after renames).
 
 Usage:
   scripts/skill-graph          # validate and (re)write GRAPH.md
+  scripts/skill-graph --svg    # also render GRAPH.svg (requires graphviz)
   scripts/skill-graph --check  # validate and fail if GRAPH.md is stale (CI)
 """
 
 import re
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 OUTPUT = ROOT / "GRAPH.md"
+SVG_OUTPUT = ROOT / "GRAPH.svg"
+
+PALETTE = ["#e3f2fd", "#e8f5e9", "#fff3e0", "#f3e5f5", "#e0f7fa", "#fce4ec",
+           "#f1f8e9", "#ede7f6", "#fffde7", "#efebe9", "#e8eaf6"]
 
 # Skills provided by agent harnesses, not by this repository.
 EXTERNAL = {"orca-cli", "computer-use"}
@@ -84,6 +91,8 @@ def render(skills, edges):
         "inside a category; dotted arrows cross category boundaries. Each",
         "diagram shows every edge touching its category.",
         "",
+        "![Skill graph](GRAPH.svg)",
+        "",
     ]
     for cat in categories:
         members = sorted(n for n, c in category_of.items() if c == cat)
@@ -106,17 +115,61 @@ def render(skills, edges):
     return "\n".join(lines)
 
 
+def render_dot(skills, edges):
+    category_of = {name: cat for name, (cat, _) in skills.items()}
+    categories = sorted({cat for cat, _ in skills.values()})
+    out = [
+        "digraph skills {",
+        "  rankdir=LR;",
+        "  splines=true;",
+        "  concentrate=true;",
+        "  ranksep=1.2;",
+        '  node [shape=box, style="rounded,filled", fontname="Helvetica",'
+        ' fontsize=11, margin="0.15,0.08", fillcolor="white"];',
+        '  edge [color="#607d8b", arrowsize=0.7];',
+        '  fontname="Helvetica";',
+    ]
+    for i, cat in enumerate(categories):
+        out.append(f'  subgraph cluster_{cat.replace("-", "_")} {{')
+        out.append(f'    label="{cat}"; style="rounded,filled";'
+                   f' fillcolor="{PALETTE[i % len(PALETTE)]}";'
+                   ' color="#90a4ae"; fontsize=14;')
+        for name in sorted(n for n, c in category_of.items() if c == cat):
+            out.append(f'    "{name}";')
+        out.append("  }")
+    for a, b in edges:
+        attrs = ("" if category_of[a] == category_of[b]
+                 else ' [style=dashed, color="#78909c"]')
+        out.append(f'  "{a}" -> "{b}"{attrs};')
+    out.append("}")
+    return "\n".join(out)
+
+
+def write_svg(skills, edges):
+    if not shutil.which("dot"):
+        sys.exit("error: --svg requires graphviz (dot) on PATH")
+    result = subprocess.run(
+        ["dot", "-Tsvg", "-o", str(SVG_OUTPUT)],
+        input=render_dot(skills, edges), text=True, capture_output=True)
+    if result.returncode != 0:
+        sys.exit(f"error: dot failed:\n{result.stderr}")
+    print(f"wrote {SVG_OUTPUT.relative_to(ROOT)}")
+
+
 def main():
     skills = load_skills()
     validate(skills)
-    content = render(skills, extract_edges(skills))
+    edges = extract_edges(skills)
+    content = render(skills, edges)
     if "--check" in sys.argv[1:]:
         if not OUTPUT.exists() or OUTPUT.read_text() != content:
             sys.exit("error: GRAPH.md is stale; run scripts/skill-graph")
         print("GRAPH.md is up to date")
-    else:
-        OUTPUT.write_text(content)
-        print(f"wrote {OUTPUT.relative_to(ROOT)}")
+        return
+    OUTPUT.write_text(content)
+    print(f"wrote {OUTPUT.relative_to(ROOT)}")
+    if "--svg" in sys.argv[1:]:
+        write_svg(skills, edges)
 
 
 if __name__ == "__main__":

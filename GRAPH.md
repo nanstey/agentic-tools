@@ -7,6 +7,8 @@ do not edit by hand.
 inside a category; dotted arrows cross category boundaries. Each
 diagram shows every edge touching its category.
 
+![Skill graph](GRAPH.svg)
+
 ## agent
 
 ```mermaid
