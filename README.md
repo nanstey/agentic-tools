@@ -66,8 +66,9 @@ pi                                     # installs packages from settings.json
 <details>
 <summary><code>harness/omp/</code> (OMP)</summary>
 
-`install.sh` links shared skills and agents into `~/.omp/agent`, copies portable
-OMP config, applies the versioned status-line settings, and installs the packages
+`install.sh` links shared skills and agents into `~/.omp/agent` and each existing
+OMP profile's `~/.omp/profiles/*/agent` directory, copies portable OMP config,
+applies the versioned status-line settings, and installs the packages
 below with OMP's native `omp install` command:
 
 | Repository path | Install destination | Purpose |
