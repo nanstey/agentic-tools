@@ -1,6 +1,7 @@
 ---
 name: pr
 description: Runs the PR creation and maintenance checklist for the current branch, optionally through to merge. Use when a branch should be committed, opened as a PR, reconciled with review and CI, and optionally merged with `--auto-merge`.
+argument-hint: "[--auto-merge]"
 user-invocable: true
 disable-model-invocation: false
 ---
