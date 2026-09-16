@@ -127,10 +127,22 @@ install_pnpm_hoist() {
   echo "  [hoist] -> $rc (set, store reset for flat reinstall)"
 }
 
+# Installed OMP npm plugins as "name@version" lines, read from omp's JSON
+# listing. Whitespace is stripped so each entry's adjacent name/version keys
+# match as one token; names and versions never contain whitespace.
+omp_installed_plugins() {
+  omp plugin list --json 2>/dev/null | tr -d ' \n\t' \
+    | grep -o '"name":"[^"]*","version":"[^"]*"' \
+    | sed 's/"name":"\([^"]*\)","version":"\([^"]*\)"/\1@\2/'
+}
+
 # Install each uncommented package specification in an OMP plugin manifest using
 # OMP's native installer. The manifest is repository metadata, not runtime config.
+# An npm:<name>@<version> spec already present at that exact version is skipped:
+# `omp install` shells out to bun even for a no-op reinstall, and bun need not be
+# on the machine once the plugin is in place. Git specs always reinstall.
 install_omp_plugin_manifest() {
-  local manifest="$1" package installed=0
+  local manifest="$1" package installed=0 uptodate=0 have
   if ! command -v omp >/dev/null 2>&1; then
     echo "  [omp-plugin-manifest] omp not on PATH, skipping"
     return
@@ -139,16 +151,24 @@ install_omp_plugin_manifest() {
     echo "  [omp-plugin-manifest] no source $manifest, skipping"
     return
   fi
+  have="$(omp_installed_plugins)"
   while IFS= read -r package || [ -n "$package" ]; do
     package="${package#"${package%%[![:space:]]*}"}"
     package="${package%"${package##*[![:space:]]}"}"
     case "$package" in
       ''|\#*) continue ;;
+      npm:*@*)
+        if grep -qxF "${package#npm:}" <<<"$have"; then
+          uptodate=$((uptodate+1)); continue
+        fi ;;
     esac
-    omp install "$package" || return 1
+    if ! omp install "$package"; then
+      echo "  [omp-plugin-manifest] failed to install $package (omp install needs bun on PATH)" >&2
+      return 1
+    fi
     installed=$((installed+1))
   done < "$manifest"
-  echo "  [omp-plugin-manifest] -> $manifest ($installed installed)"
+  echo "  [omp-plugin-manifest] -> $manifest ($installed installed, $uptodate up to date)"
 }
 
 # Present if the home dir exists or any listed binary is on PATH.
