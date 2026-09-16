@@ -189,9 +189,10 @@ Focused planning skills below are optional and independently selectable; `propos
 
 | Skill | Description |
 | --- | --- |
-| [`pr`](skills/pull-requests/pr/SKILL.md) | Prepares a branch and invokes `pr-monitor` once for PR reconciliation. |
+| [`pr`](skills/pull-requests/pr/SKILL.md) | Prepares a branch and invokes `pr-monitor` for PR reconciliation, optionally squash-merging via `pr-merge` on a clean result with `--auto-merge`. |
 | [`pr-info`](skills/pull-requests/pr-info/SKILL.md) | Find and verify the branch PR (or a URL) and load its metadata. Read-only. |
 | [`pr-monitor`](skills/pull-requests/pr-monitor/SKILL.md) | Reconciles one verified open PR to a stable review-ready state. |
+| [`pr-merge`](skills/pull-requests/pr-merge/SKILL.md) | Marks a verified PR ready for review and squash-merges it when required CI passes and no review thread is unresolved. |
 | [`pr-ci`](skills/pull-requests/pr-ci/SKILL.md) | Diagnose failed PR CI jobs, fix root causes, validate, commit, and push. |
 | [`pr-create`](skills/pull-requests/pr-create/SKILL.md) | Create a draft PR for the current branch when none exists. |
 | [`pr-comments`](skills/pull-requests/pr-comments/SKILL.md) | Triage unresolved review threads, apply fixes, validate, commit, push, and resolve/reply. |
