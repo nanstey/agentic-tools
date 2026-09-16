@@ -29,6 +29,7 @@ disable-model-invocation: false
 - `description`: third person, outcome-first, ends with `Use when ...`.
 - `user-invocable`: default `true` unless explicitly constrained.
 - `disable-model-invocation`: default `false` unless explicitly constrained.
+- `argument-hint` (optional): autocomplete hint for skills that take arguments, e.g. `"[--auto-merge]"` or `"[issue-number]"`. Claude Code-only; other harnesses ignore it. Omit when the skill takes no arguments.
 
 Body sections should use this default order when relevant:
 
