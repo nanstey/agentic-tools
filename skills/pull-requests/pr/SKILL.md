@@ -1,6 +1,6 @@
 ---
 name: pr
-description: Prepares a branch and invokes `pr-monitor` for PR reconciliation, optionally squash-merging via `pr-merge` on a clean result. Use when a branch should be prepared and checked through one PR-health pass, or driven through to merge with `--auto-merge`.
+description: Runs the PR creation and maintenance checklist for the current branch, optionally through to merge. Use when a branch should be committed, opened as a PR, reconciled with review and CI, and optionally merged with `--auto-merge`.
 user-invocable: true
 disable-model-invocation: false
 ---
