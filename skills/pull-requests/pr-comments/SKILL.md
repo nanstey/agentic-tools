@@ -27,6 +27,15 @@ Default tool is `gh`. Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 7. Reply in-thread and resolve only after branch state is final:
    - Use GraphQL `addPullRequestReviewThreadReply` or `gh pr review --comment --body-file` targeting the thread.
    - Never use `gh pr comment` for thread-specific explanations; reserve that for general PR-wide status.
+   - Every reply (thread or PR-wide) starts with the agent disclosure block, then a blank line, then the reply text:
+
+     ```markdown
+     > [!NOTE]
+     > 🤖 Written by <owner>'s Agent
+     ```
+
+     `<owner>` is the authenticated GitHub user's display name, falling back to login:
+     `gh api user --jq '.name // .login'`. Use the first name only when the display name has several words.
    - Write reply text using `terse` (outcome-first, no redundancy).
    - Reply text should appear nested under the original review comment in the thread.
    - Then resolve the thread via GraphQL `resolveReviewThread` if appropriate.
