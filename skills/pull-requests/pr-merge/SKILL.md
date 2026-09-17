@@ -11,7 +11,7 @@ disable-model-invocation: false
 
 Merge one verified open PR by squash, using the PR title as the commit subject and an empty commit body. Convert a draft PR to ready-for-review first, then gate on required CI and unresolved review threads: any failing or non-terminal required check, or any unresolved thread, stops the skill. This skill never remediates; `pr-ci` and `pr-comments` own that work and are not invoked here.
 
-Default tool is `gh`. Follow `CLAUDE.md` / `AGENTS.md` on conflict.
+Default tool is `gh`; use the resolved Orca CLI for final cleanup only when the current cwd is an Orca-managed worktree. Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 ## Required Inputs
 
@@ -25,7 +25,8 @@ Default tool is `gh`. Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 4. Snapshot unresolved review threads. Stop if any thread is unresolved.
 5. Re-run `pr-info` and stop if `headRefOid` changed since step 1; the snapshots no longer describe the head being merged.
 6. Squash-merge with the PR title as the commit subject and an empty body.
-7. Report the merge result.
+7. Confirm the PR is merged and report the merge result. A successful command that only queues or schedules a merge is not confirmation.
+8. As the final step, detect and remove the current Orca-managed worktree using the cleanup notes below. Skip cleanup silently outside Orca. Never run cleanup after a failed, dry-run, or skipped merge, including a PR that was already merged when this workflow started.
 
 Stop and ask when a gate blocks, GitHub rejects the merge, or the PR head moves during the workflow.
 
@@ -35,7 +36,18 @@ Stop and ask when a gate blocks, GitHub rejects the merge, or the PR head moves 
 - Required checks: `gh pr checks <number> --required`. Only terminal, non-failing states pass the gate.
 - Unresolved threads: `gh api graphql -f query='query($owner:String!,$repo:String!,$number:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$number){reviewThreads(first:100){nodes{isResolved}}}}}' -F owner=<owner> -F repo=<repo> -F number=<number>` and count nodes where `isResolved` is false. Stop as blocked if the result is paginated beyond 100 threads or the query fails.
 - Merge: `gh pr merge <number> --squash --subject "<title>" --body ""`. Pass the title verbatim from `pr-info`; do not rewrite it.
+- Confirm after a successful merge command: `gh pr view <number> --json state,mergedAt,url`. Require `state` to be `MERGED` and `mergedAt` to be non-null before cleanup; otherwise report the pending or unconfirmed result and stop without cleanup.
 - Treat authentication, rate-limit, API, or incomplete-data failures as blockers; never infer a passing gate from missing data.
+
+## Orca Cleanup Notes
+
+Only enter this step after this workflow's merge succeeded and was confirmed above.
+
+1. Resolve the executable once, following the `orca-cli` skill stub: use `ORCA_CLI_COMMAND` when set; otherwise `orca-dev` when the session exposes `ORCA_DEV_REPO_ROOT`; otherwise `orca-ide` on Linux outside an Orca-managed terminal; otherwise `orca`. On Linux without a reliable managed-terminal hint, use `orca-ide` to avoid launching the GNOME screen reader. Below, `ORCA` is a placeholder for this executable, not a literal command or a shell variable; substitute the resolved executable, quoting its path if needed.
+2. Check that the selected executable resolves (for example, `command -v` in a POSIX shell). If unavailable, skip cleanup silently. Do not fall through to a different executable. Load its version-matched guide with `ORCA skills get orca-cli` before running Orca commands.
+3. From the unchanged current cwd, run `ORCA worktree current --json`. Require a successful exit and valid JSON with `ok: true` identifying the enclosing worktree for that cwd. Missing, failed, malformed, or non-ok results mean skip cleanup silently; environment hints alone never authorize removal. Do not select a different worktree or change directories.
+4. Finish all reporting and any other commands before removal. Tell the user that the PR was merged and the current Orca worktree will now be removed. **This destroys the current worktree and ends its session; no further commands in that session will work.**
+5. Run exactly `ORCA worktree rm --worktree active --force --json`, substituting only the resolved executable (the default form is `orca worktree rm --worktree active --force --json`). This must be the final command: do not append verification, reporting commands, or other follow-up work.
 
 ## Safety Rules
 
@@ -44,7 +56,8 @@ Stop and ask when a gate blocks, GitHub rejects the merge, or the PR head moves 
 - Never reply to, resolve, or dismiss review threads; stop and report them.
 - Never edit the PR title or description.
 - Never merge with a method other than squash, or with a non-empty commit body.
-- Never delete the head branch, force-push, or change local git state.
+- Never explicitly delete the head branch, force-push, or change local git state except through the final Orca worktree cleanup above.
+- Never remove a worktree unless this workflow successfully merged the verified PR, confirmed its merged state, and detected the current cwd as an Orca-managed worktree.
 - Never treat pending, queued, in-progress, or stale-head CI as passing.
 
 ## Output Style
