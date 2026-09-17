@@ -9,7 +9,7 @@ disable-model-invocation: false
 
 ## Core Contract
 
-Merge one verified open PR by squash, using the PR title as the commit subject and an empty commit body. Convert a draft PR to ready-for-review first, then gate on required CI and unresolved review threads: any failing or non-terminal required check, or any unresolved thread, stops the skill. This skill never remediates; `pr-ci` and `pr-comments` own that work and are not invoked here.
+Merge one verified open PR by squash, using the PR title followed by ` (#<pr-number>)` as the commit subject and an empty commit body. Convert a draft PR to ready-for-review first, then gate on required CI and unresolved review threads: any failing or non-terminal required check, or any unresolved thread, stops the skill. This skill never remediates; `pr-ci` and `pr-comments` own that work and are not invoked here.
 
 Default tool is `gh`; use the resolved Orca CLI for final cleanup only when the current cwd is an Orca-managed worktree. Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
@@ -24,7 +24,7 @@ Default tool is `gh`; use the resolved Orca CLI for final cleanup only when the 
 3. Snapshot required CI for the current head. Stop if any required check is failing, cancelled, timed out, action-required, queued, pending, or in progress.
 4. Snapshot unresolved review threads. Stop if any thread is unresolved.
 5. Re-run `pr-info` and stop if `headRefOid` changed since step 1; the snapshots no longer describe the head being merged.
-6. Squash-merge with the PR title as the commit subject and an empty body.
+6. Squash-merge with the PR title followed by ` (#<pr-number>)` as the commit subject and an empty body, following the subject rules below.
 7. Confirm the PR is merged and report the merge result. A successful command that only queues or schedules a merge is not confirmation.
 8. As the final step, detect and remove the current Orca-managed worktree using the cleanup notes below. Skip cleanup silently outside Orca. Never run cleanup after a failed, dry-run, or skipped merge, including a PR that was already merged when this workflow started.
 
@@ -35,7 +35,9 @@ Stop and ask when a gate blocks, GitHub rejects the merge, or the PR head moves 
 - Mark ready: `gh pr ready <number>`.
 - Required checks: `gh pr checks <number> --required`. Only terminal, non-failing states pass the gate.
 - Unresolved threads: `gh api graphql -f query='query($owner:String!,$repo:String!,$number:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$number){reviewThreads(first:100){nodes{isResolved}}}}}' -F owner=<owner> -F repo=<repo> -F number=<number>` and count nodes where `isResolved` is false. Stop as blocked if the result is paginated beyond 100 threads or the query fails.
-- Merge: `gh pr merge <number> --squash --subject "<title>" --body ""`. Pass the title verbatim from `pr-info`; do not rewrite it.
+- Merge: `gh pr merge <number> --squash --subject "<title> (#<number>)" --body ""`. Use the verified PR number from `pr-info` or `gh pr view <number> --json number`. Preserve the title text and append ` (#<number>)`; if the title already ends with that exact suffix, keep it only once. Whenever overriding the merge commit subject, require this suffix at the end of the subject line. This rule affects only the subject; keep the commit body empty.
+- Example subject: `fix(pr-merge): clean up Orca worktree after confirmed merge (#66)`.
+- When using GitHub's default squash-merge subject without overriding it, GitHub automatically appends `(#N)`; no additional suffix is needed on that path.
 - Confirm after a successful merge command: `gh pr view <number> --json state,mergedAt,url`. Require `state` to be `MERGED` and `mergedAt` to be non-null before cleanup; otherwise report the pending or unconfirmed result and stop without cleanup.
 - Treat authentication, rate-limit, API, or incomplete-data failures as blockers; never infer a passing gate from missing data.
 
