@@ -73,7 +73,7 @@ below with OMP's native `omp install` command:
 
 | Repository path | Install destination | Purpose |
 | --- | --- | --- |
-| [`harness/omp/APPEND_SYSTEM.md`](harness/omp/APPEND_SYSTEM.md) | `~/.omp/agent/APPEND_SYSTEM.md` | Adds bounded delegation and collision-safe temporary-file guidance. |
+| [`harness/omp/APPEND_SYSTEM.md`](harness/omp/APPEND_SYSTEM.md) | `~/.omp/agent/APPEND_SYSTEM.md` | Adds session lifecycle, bounded delegation, and collision-safe scratch-artifact guidance. |
 | [`harness/omp/plugins/pi-intercom.txt`](harness/omp/plugins/pi-intercom.txt) | Not copied; passed to `omp install` | Installs `npm:pi-intercom@0.12.0`. Blank and comment lines are ignored. |
 | [`harness/omp/status-line/apply.sh`](harness/omp/status-line/apply.sh) | Default and existing profile `config.yml` files (via `omp config`) | Selectively merges the versioned Nerd Font status-line schema. |
 

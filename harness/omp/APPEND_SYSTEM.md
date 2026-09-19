@@ -6,7 +6,23 @@ verification. Spawn parallel subagents for independent slices in a single `tasks
 Do trivial one-shot reads/edits yourself; anything multi-step or parallelizable -> delegate.
 Subagents cannot spawn further (depth capped), so hand each a complete, self-contained slice.
 
+# Session lifecycle
+
+Use Orca for managed, visible worktree sessions; use `task`/`hub` for bounded
+children; use Intercom for messages between independent sessions. After a timeout,
+interruption, or ambiguous launch, inspect the relevant supervisor, Orca terminal
+inventory, and Intercom roster before retrying. Reuse or stop the exact process
+you own; silence does not prove that no launch occurred. Reconcile a session before
+deleting its checkout.
+
+For explicitly headless OMP, send EOF on stdin when no piped prompt is intended.
+An open pipe can stall at `readPipedInput`. Do not use arbitrary log output as
+readiness; use an application-specific handshake.
+
 # Temporary-file safety
+
+This rule applies to scratch artifacts, not the placement of an Orca-managed
+checkout. Use Orca's worktree workflow for managed checkouts, including disposable ones.
 
 For each operation that needs temporary artifacts, atomically create a new private workspace
 (for example, with `mktemp -d`) and use only paths beneath it. NEVER construct,
