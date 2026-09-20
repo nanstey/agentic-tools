@@ -20,7 +20,8 @@
     "npm:@nanstey/pi-auth-profiles",
     "npm:pi-flows",
     "npm:@maplezzk/pi-interactive-subagents",
-    "npm:pi-intercom@0.12.0"
+    "npm:pi-intercom@0.12.0",
+    "npm:pi-jev@0.4.0"
   ],
   "theme": "dark"
 }

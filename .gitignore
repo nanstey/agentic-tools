@@ -1,4 +1,5 @@
 # Never commit secrets or machine-local pi state
+.env
 harness/pi/auth.json
 harness/pi/auth-profiles/
 harness/pi/web-search.json
