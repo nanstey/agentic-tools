@@ -34,7 +34,7 @@ rather than symlinked because Pi may rewrite them locally.
 
 | Repository path | Install destination | Purpose |
 | --- | --- | --- |
-| `harness/pi/settings.json` | `$PI_AGENT_DIR/settings.json` | Defaults and Pi's extension package list, including `npm:pi-intercom@0.12.0`. |
+| `harness/pi/settings.json` | `$PI_AGENT_DIR/settings.json` | Defaults and Pi's extension package list, including `npm:pi-intercom@0.12.0` and `npm:pi-jev@0.4.0`. |
 | `harness/pi/extensions/*.json` | `$PI_AGENT_DIR/extensions/` | Per-extension config. |
 | `harness/pi/extensions/pi-interactive-subagents/config.json` | `$PI_AGENT_DIR/extensions/pi-interactive-subagents/config.json` | Interactive-subagents config. |
 | `harness/pi/extensions/pi-intercom/config.json` | `$PI_AGENT_DIR/intercom/config.json` | Shared pi-intercom config: enabled inbound replies, no send confirmation, and reply hints. |
@@ -45,6 +45,13 @@ When either Pi or OMP is installed, `install.sh` copies the same
 `harness/pi/extensions/pi-intercom/config.json` source to
 `$PI_AGENT_DIR/intercom/config.json`. pi-intercom also stores its runtime state
 under `$PI_AGENT_DIR/intercom`.
+
+`pi-jev` requires a TypeSafe API key. Copy `.env.example` to the git-ignored
+`.env`, set `TYPESAFE_API_KEY`, and rerun `install.sh`. The installer copies the
+key with owner-only permissions to `~/.pi/agent/secrets/typesafe_api_key` for Pi
+and OMP, and to `~/.config/environment.d/90-typesafe.conf` so every harness can
+inherit it after the next login. Then run `/jev status`. Automatic routing, model
+selection, compaction, and orchestration remain opt-in.
 
 Secrets and machine-local state (`auth.json`, `auth-profiles/`, `web-search.json`,
 `trust.json`, sessions, run history) are git-ignored and never travel — re-auth
@@ -75,13 +82,25 @@ below with OMP's native `omp install` command:
 | --- | --- | --- |
 | [`harness/omp/APPEND_SYSTEM.md`](harness/omp/APPEND_SYSTEM.md) | `~/.omp/agent/APPEND_SYSTEM.md` | Adds session lifecycle, bounded delegation, and collision-safe scratch-artifact guidance. |
 | [`harness/omp/plugins/pi-intercom.txt`](harness/omp/plugins/pi-intercom.txt) | Not copied; passed to `omp install` | Installs `npm:pi-intercom@0.12.0`. Blank and comment lines are ignored. |
+| [`harness/omp/plugins/pi-jev.txt`](harness/omp/plugins/pi-jev.txt) | Not copied; passed to `omp install` | Installs `npm:pi-jev@0.4.0`. OMP loads its legacy `pi.extensions` manifest through the Pi compatibility layer. |
 | [`harness/omp/status-line/apply.sh`](harness/omp/status-line/apply.sh) | Default and existing profile `config.yml` files (via `omp config`) | Selectively merges the versioned Nerd Font status-line schema. |
 
 The installer copies each top-level, non-dot file under `harness/omp/` as a whole
 file. Nested files such as the plugin manifest and status-line applicator are not
 copied. A differing destination file is replaced, so local edits to a managed
 file such as `APPEND_SYSTEM.md` are clobbered the next time `install.sh` runs.
-Native OMP package installation failure exits the installer with an error.
+Native OMP package installation failure exits the installer with an error. OMP
+normally delegates installs to `bun`; when `bun` is absent, `install.sh` runs
+the official npm `bun` package through `npx` for that installation only.
+
+OMP can run `pi-jev` because its extension loader accepts legacy
+`pi.extensions` manifests and rewrites `@earendil-works/*` imports to OMP's
+host packages. Configure `TYPESAFE_API_KEY` through the repository `.env` as
+described above; `install.sh` writes the extension's shared secret-file fallback
+and the user-session environment file. The
+Jev tools and `/jev` commands are supported, while behavior that depends on
+Pi-specific third-party extensions, such as `pi-subagents` orchestration,
+still requires those dependencies to be installed and compatible.
 
 After copying OMP artifacts for a detected OMP harness, `install.sh` runs the
 status-line applicator against `~/.omp/agent/config.yml` and each existing

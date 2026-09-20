@@ -2,6 +2,15 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(git -C "$(dirname "${BASH_SOURCE[0]:-$PWD}")" rev-parse --show-toplevel 2>/dev/null || echo "$PWD")" && pwd)"
+
+# Load machine-local installer environment when the calling shell did not
+# already provide the key. The git-ignored file accepts shell assignments.
+if [ -z "${TYPESAFE_API_KEY:-}" ] && [ -f "$REPO_ROOT/.env" ]; then
+  set -a
+  # shellcheck disable=SC1091
+  . "$REPO_ROOT/.env"
+  set +a
+fi
 PI_AGENT_DIR="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}"
 
 # Each harness declares: name | detect_dir | binaries | type:dir;type:dir;...
@@ -12,7 +21,7 @@ PI_AGENT_DIR="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}"
 HARNESSES=(
   "claude|$HOME/.claude|claude|skills:$HOME/.claude/skills;agents:$HOME/.claude/agents"
   "pi|$PI_AGENT_DIR|pi|skills:$PI_AGENT_DIR/skills;agents:$PI_AGENT_DIR/agents;config:$PI_AGENT_DIR::$REPO_ROOT/harness/pi;config:$PI_AGENT_DIR/extensions::$REPO_ROOT/harness/pi/extensions;config:$PI_AGENT_DIR/extensions/pi-interactive-subagents::$REPO_ROOT/harness/pi/extensions/pi-interactive-subagents;config:$PI_AGENT_DIR/intercom::$REPO_ROOT/harness/pi/extensions/pi-intercom;hoist:$PI_AGENT_DIR/npm::$REPO_ROOT/harness/pi/settings.json"
-  "omp|$HOME/.omp/agent|omp|skills:$HOME/.omp/agent/skills;skills:$HOME/.omp/profiles/*/agent/skills;agents:$HOME/.omp/agent/agents;agents:$HOME/.omp/profiles/*/agent/agents;config:$HOME/.omp/agent::$REPO_ROOT/harness/omp;config:$PI_AGENT_DIR/intercom::$REPO_ROOT/harness/pi/extensions/pi-intercom;omp-plugin-manifest:$REPO_ROOT/harness/omp/plugins/pi-intercom.txt;omp-status-line:$REPO_ROOT/harness/omp/status-line/apply.sh"
+  "omp|$HOME/.omp/agent|omp|skills:$HOME/.omp/agent/skills;skills:$HOME/.omp/profiles/*/agent/skills;agents:$HOME/.omp/agent/agents;agents:$HOME/.omp/profiles/*/agent/agents;config:$HOME/.omp/agent::$REPO_ROOT/harness/omp;config:$PI_AGENT_DIR/intercom::$REPO_ROOT/harness/pi/extensions/pi-intercom;omp-plugin-manifest:$REPO_ROOT/harness/omp/plugins/pi-intercom.txt;omp-plugin-manifest:$REPO_ROOT/harness/omp/plugins/pi-jev.txt;omp-status-line:$REPO_ROOT/harness/omp/status-line/apply.sh"
   "codex|$HOME/.codex|codex|skills:$HOME/.codex/skills"
   "cursor|$HOME/.cursor|cursor,cursor-agent|skills:$HOME/.cursor/skills"
   "openclaw|$HOME/.openclaw|openclaw|skills:$HOME/.openclaw/skills"
@@ -127,13 +136,52 @@ install_pnpm_hoist() {
   echo "  [hoist] -> $rc (set, store reset for flat reinstall)"
 }
 
+install_typesafe_secret() {
+  local key="${TYPESAFE_API_KEY:-}"
+  local secret_dir="$PI_AGENT_DIR/secrets"
+  local environment_dir="$HOME/.config/environment.d"
+  [ -n "$key" ] || return 0
+  umask 077
+  mkdir -p "$secret_dir" "$environment_dir"
+  printf '%s\n' "$key" > "$secret_dir/typesafe_api_key"
+  printf 'TYPESAFE_API_KEY=%s\n' "$key" > "$environment_dir/90-typesafe.conf"
+  chmod 600 "$secret_dir/typesafe_api_key" "$environment_dir/90-typesafe.conf"
+  echo "  [secret] -> $secret_dir/typesafe_api_key"
+  echo "  [environment] -> $environment_dir/90-typesafe.conf (active after next login)"
+}
+
 # Installed OMP npm plugins as "name@version" lines, read from omp's JSON
 # listing. Whitespace is stripped so each entry's adjacent name/version keys
 # match as one token; names and versions never contain whitespace.
 omp_installed_plugins() {
   omp plugin list --json 2>/dev/null | tr -d ' \n\t' \
     | grep -o '"name":"[^"]*","version":"[^"]*"' \
-    | sed 's/"name":"\([^"]*\)","version":"\([^"]*\)"/\1@\2/'
+    | sed 's/"name":"\([^"]*\)","version":"\([^"]*\)"/\1@\2/' \
+    || true
+}
+
+# OMP delegates package installation to bun. Standalone OMP installations may
+# not have bun on PATH, so use the official npm bun package through npx without
+# permanently installing another global runtime.
+omp_install_package() {
+  local package="$1" npx_path tmp rc
+  if command -v bun >/dev/null 2>&1; then
+    omp install "$package"
+    return
+  fi
+  npx_path="$(command -v npx || true)"
+  if [ -z "$npx_path" ]; then
+    echo "  [omp-plugin-manifest] cannot install $package: bun and npx are both unavailable" >&2
+    return 1
+  fi
+  tmp="$(mktemp -d)"
+  trap 'rm -rf "$tmp"' RETURN
+  printf '#!/usr/bin/env bash\nexec "%s" --yes bun "$@"\n' "$npx_path" > "$tmp/bun"
+  chmod 700 "$tmp/bun"
+  if PATH="$tmp:$PATH" omp install "$package"; then rc=0; else rc=$?; fi
+  rm -rf "$tmp"
+  trap - RETURN
+  return "$rc"
 }
 
 # Install each uncommented package specification in an OMP plugin manifest using
@@ -162,8 +210,8 @@ install_omp_plugin_manifest() {
           uptodate=$((uptodate+1)); continue
         fi ;;
     esac
-    if ! omp install "$package"; then
-      echo "  [omp-plugin-manifest] failed to install $package (omp install needs bun on PATH)" >&2
+    if ! omp_install_package "$package"; then
+      echo "  [omp-plugin-manifest] failed to install $package" >&2
       return 1
     fi
     installed=$((installed+1))
@@ -193,6 +241,8 @@ link_one() {
     ln -s "$src" "$link"; echo link
   fi
 }
+
+install_typesafe_secret
 
 for entry in "${HARNESSES[@]}"; do
   IFS='|' read -r name detect_dir bins typemap <<<"$entry"
