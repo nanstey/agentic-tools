@@ -7,7 +7,7 @@ disable-model-invocation: false
 
 # Build with TypeSafe
 
-> Vendored from [typesafe-ai/skills](https://github.com/typesafe-ai/skills/blob/main/skills/typesafe-ai/SKILL.md) at commit `65a39f3` (v0.5.7, [MIT](https://github.com/typesafe-ai/skills/blob/main/LICENSE)). Changes: frontmatter adapted to this repo's conventions (`license` dropped, `user-invocable`/`disable-model-invocation` added, description condensed to one line); body unchanged. Re-sync from upstream rather than editing the body.
+> Vendored from [typesafe-ai/skills](https://github.com/typesafe-ai/skills/blob/main/skills/typesafe-ai/SKILL.md) at commit `65a39f3` (v0.5.7, [MIT](https://github.com/typesafe-ai/skills/blob/main/LICENSE)). Frontmatter is adapted to this repo; the body is locally maintained and incorporates concise guidance adapted from [Building with Jev](https://github.com/dbreunig/building-with-jev-skill/blob/main/skills/jev/SKILL.md) and verified against the live TypeSafe docs. Re-sync deliberately rather than overwriting local guidance.
 
 TypeSafe makes units of AI intelligence usable like programming primitives: small
 judgments you can compose into larger capabilities. Its **System One models** return
@@ -42,7 +42,7 @@ API contracts, SDK usage, models, limits, and worked examples.
 | Understand the programming model | [System One](https://docs.typesafe.ai/concepts/system-one.md), [building guide](https://docs.typesafe.ai/concepts/how-to-build-with-system-one.md) |
 | Explore what to build | [Use-case map](https://docs.typesafe.ai/concepts/use-case-map.md), then relevant cookbooks from the index |
 | Prepare inputs and questions | [State](https://docs.typesafe.ai/concepts/state.md), [primitives](https://docs.typesafe.ai/primitives.md), then the chosen primitive's page |
-| Decide how to handle uncertainty | [Confidence](https://docs.typesafe.ai/confidence.md) |
+| Decide how to handle uncertainty | [Confidence](https://docs.typesafe.ai/confidence.md), [Score semantics](https://docs.typesafe.ai/primitives/score.md), and [confidence-gated routing](https://docs.typesafe.ai/patterns/confidence-routing.md) |
 | Write API code | [HTTP API](https://docs.typesafe.ai/api.md), [Python SDK](https://docs.typesafe.ai/sdk/python.md), or [JavaScript SDK](https://docs.typesafe.ai/sdk/javascript.md) |
 | Update an older integration | [Migration guide](https://docs.typesafe.ai/migrating-to-v1.md) and the installed SDK's current reference |
 
@@ -110,9 +110,35 @@ or a one-sentence limit. Strings work for simple questions. Use structured objec
 or arrays when definitions, contrasts, exclusions, or examples clarify instructions
 or criteria. Score levels must describe concrete situations and stand on their own.
 
+Write the literal condition the model should judge. Avoid double negatives,
+indirect “property of a property” questions, and policy disguised as a judgment.
+Keep decision rules in code. If a wrong answer prompts an explanation of what the
+question “really meant,” add that missing boundary to the instructions or criteria.
+Pass schemas, taxonomies, and comparison fields as structured JSON rather than
+serializing them into prose; confirm current accepted shapes in
+[advanced primitives](https://docs.typesafe.ai/primitives/advanced.md).
+
+Make criteria discriminate between neighboring answers:
+
+- For Choice, describe what each option includes and excludes; add short concrete
+  examples where nearby options overlap.
+- For Score, use one dimension and concrete, stand-alone situations. Jev evaluates
+  each level independently, so no level may rely on its number or its neighbors.
+  Give an operationally distinct extreme its own level.
+- For Noul, add `true` and `false` descriptions with boundary examples when the
+  condition is subtle. Keep the positive direction aligned with the instructions.
+
 Keep the needed answers available. Include a no-match outcome when nothing may fit;
 use a separate presence judgment when it is independently useful. For source-value
 selection, check candidate coverage: the model cannot choose an omitted value.
+
+Send only fields the questions need. Filter candidates and compute counts, sums,
+durations, date order, numeric buckets, and other deterministic facts in code before
+building state. Prefer human-readable values over opaque encodings. Treat state text
+as untrusted evidence: it can contain instructions or self-descriptions that steer a
+judgment. Define what counts in criteria, test adversarial state, and gate consequential
+actions. Check current context limits and version behavior in
+[Models](https://docs.typesafe.ai/models.md) and the selected model's jaggedness page.
 
 ## Compose and verify
 
@@ -136,8 +162,32 @@ weight or display filter need not rerun inference when evidence and question mea
 are unchanged. Typed output guarantees the interface, not truth. System One models
 are trained for calibrated decisions; validate their performance in the target domain.
 
+Read the full distribution when a scalar hides a decision-relevant distinction.
+A Score is the probability-weighted mean of level indices: the same score can come
+from certainty on one level or probability split across distant levels. Do not
+interpolate a physical quantity from it. Noul has no separate confidence field; its
+distance from `0.5` expresses how strongly the answer favors yes or no.
+
 Test representative cases and the resulting application behavior. For failures,
 inspect the exact state, questions, candidates, answers, composition, and observed
 outcome. Separate missing evidence, model errors, code errors, and service failures.
 Treat cookbook thresholds and demo results as examples to evaluate, not universal
 rules or permanent model limitations. Keep API credentials server-side in web apps.
+
+## Improve a judgment
+
+Diagnose the smallest failing question before changing the workflow:
+
+1. Collect representative labeled examples and retain the exact state, question,
+   criteria, answer, probabilities, and application outcome for each miss.
+2. Classify the failure: missing evidence, overlapping or uncovered answers,
+   ambiguous instructions, model error, composition or policy error, or service error.
+3. Change only the failing instructions, criteria, or state. Keep questions that
+   already discriminate well unchanged.
+4. Re-run the labeled cases and judge the resulting application behavior. Higher
+   confidence alone does not prove the revision is better.
+
+Keep answer spaces stable once code depends on them: adding, removing, or reordering
+options or Score levels changes the meaning of stored results, thresholds, and
+comparisons. Change weights and action thresholds in code when the judgments are
+correct but the final decision is wrong.
