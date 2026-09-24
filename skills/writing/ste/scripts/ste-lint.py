@@ -19,7 +19,7 @@ import json
 import re
 import sys
 
-# ponytail: regex heuristics, not a parser. No noun-cluster rule — needs POS
+# Regex heuristics, not a parser. No noun-cluster rule — needs POS
 # tagging to avoid constant false positives; add spaCy-backed rule if ever needed.
 # No ellipsis rule by owner's choice: technical writing sometimes earns one.
 RULES = [
