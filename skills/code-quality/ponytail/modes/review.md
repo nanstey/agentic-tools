@@ -1,7 +1,8 @@
-# Ponytail Review
+# Cut Format
 
-Review a diff for over-engineering. One line per finding: location, what to cut,
-what replaces it. The diff's best outcome is getting shorter.
+Shared format for branch cuts (default workflow and lite level) and audit. One
+line per finding: location, what to cut, what replaces it. The diff's best
+outcome is getting shorter.
 
 ## Format
 
@@ -38,5 +39,5 @@ Nothing to cut: say `Lean already. Ship.` and stop.
 
 Scope is over-engineering and complexity only. Correctness bugs, security holes,
 and performance go to a normal review pass. A single smoke test or `assert`-based
-self-check is the ponytail minimum, never flag it for deletion. Lists findings,
-applies nothing.
+self-check is the minimum, never flag it for deletion. Findings posted as review
+or PR comments never mention "ponytail".
