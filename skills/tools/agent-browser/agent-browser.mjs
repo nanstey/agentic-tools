@@ -83,6 +83,51 @@ function list() {
   console.log(names.length ? names.join("\n") : "(no profiles)");
 }
 
+// Import decrypted cookies from a running Chrome with DevTools enabled
+// (opt in once via chrome://inspect/#remote-debugging on that Chrome).
+async function importCookies(name, opts) {
+  const dir = profileDir(name);
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
+
+  let source;
+  try {
+    source = await chromium.connectOverCDP(`http://127.0.0.1:${opts.port}`);
+  } catch {
+    die(
+      `no DevTools endpoint on port ${opts.port}. On your Chrome, open ` +
+        `chrome://inspect/#remote-debugging and tick "Allow remote debugging ` +
+        `for this browser instance", or launch it with --remote-debugging-port ` +
+        `on a non-default profile.`,
+    );
+  }
+
+  let cookies;
+  try {
+    const srcCtx = source.contexts()[0];
+    if (!srcCtx) die("connected, but Chrome exposed no browser context");
+    cookies = await srcCtx.cookies();
+  } finally {
+    await source.close(); // detaches; never closes the user's Chrome
+  }
+
+  if (opts.domains.length) {
+    cookies = cookies.filter((c) =>
+      opts.domains.some((d) => c.domain === d || c.domain === `.${d}` || c.domain.endsWith(`.${d}`)),
+    );
+  }
+  if (!cookies.length) die("no cookies matched — check --domains or log in on the source Chrome first");
+
+  const ctx = await chromium.launchPersistentContext(dir, { headless: true });
+  try {
+    await ctx.addCookies(cookies);
+  } finally {
+    await ctx.close();
+  }
+  const domains = [...new Set(cookies.map((c) => c.domain))].sort();
+  console.error(`Imported ${cookies.length} cookies into profile "${name}" for: ${domains.join(", ")}`);
+  console.error("Note: localStorage/SPA tokens do not transfer; if the site rejects the session, use: agent-browser login " + name);
+}
+
 const [cmd, ...rest] = process.argv.slice(2);
 
 switch (cmd) {
@@ -107,9 +152,23 @@ switch (cmd) {
     await run(name, task, url, opts);
     break;
   }
+  case "import": {
+    const positional = [];
+    const opts = { port: 9222, domains: [] };
+    for (let i = 0; i < rest.length; i++) {
+      const a = rest[i];
+      if (a === "--port") opts.port = Number(rest[++i]);
+      else if (a === "--domains") opts.domains = rest[++i].split(",").map((d) => d.trim()).filter(Boolean);
+      else positional.push(a);
+    }
+    const [name] = positional;
+    if (!name) die("usage: agent-browser import <profile> [--port 9222] [--domains github.com,google.com]");
+    await importCookies(name, opts);
+    break;
+  }
   case "list":
     list();
     break;
   default:
-    die("usage: agent-browser <login|run|list> ...");
+    die("usage: agent-browser <login|run|import|list> ...");
 }

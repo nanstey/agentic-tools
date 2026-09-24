@@ -30,10 +30,19 @@ Idempotent. Installs `playwright` + `@jkudish/jev-browser` into `~/.browser-agen
 
 ## Workflow
 
-1. **Authenticate a profile once** (headed; do 2FA yourself; close the window to save):
+1. **Authenticate a profile once** — either headed login or cookie import:
+
+   **Headed login** (robust; do 2FA yourself; close the window to save):
    ```sh
    agent-browser login github https://github.com/login
    ```
+
+   **Import from your real Chrome** (bootstrap shortcut). Opt in once on that Chrome via `chrome://inspect/#remote-debugging` → "Allow remote debugging for this browser instance" (Chrome 136+ blocks the `--remote-debugging-port` flag on default profiles), then:
+   ```sh
+   agent-browser import github --domains github.com
+   ```
+   Pulls decrypted cookies over CDP (`--port 9222` default) into the agent profile without touching your Chrome. Limits: localStorage/SPA bearer tokens do not transfer, and device/IP-bound cookies (e.g. `cf_clearance`) will not validate. If the site rejects the imported session, fall back to `login`.
+
    Keep profiles per identity: `personal`, `github`, `google-work`. Cookies, localStorage, IndexedDB, and service workers persist in `~/.browser-agent/profiles/<name>` (mode 0700).
 
 2. **Run tasks headlessly** against that identity:
