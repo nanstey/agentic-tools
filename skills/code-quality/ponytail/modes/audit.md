@@ -1,7 +1,7 @@
-# Ponytail Audit
+# Audit
 
-`./review.md`, repo-wide. Scan the whole tree instead of a diff. Rank findings
-biggest cut first.
+The cut format in `./review.md`, repo-wide. Scan the whole tree instead of the
+branch diff. Rank findings biggest cut first.
 
 ## Tags
 
