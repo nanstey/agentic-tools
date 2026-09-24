@@ -30,92 +30,136 @@ discover, or reuse a workspace from a branch, PR, task, PID, timestamp, or other
 guessable identifier, and NEVER use fixed paths in a global temporary directory.
 Register cleanup immediately and remove the workspace on exit.
 
-# Browser relay with Jev judging
+# Browser automation with Jev-for-Chrome
 
-OMP's browser relay (`app.relay: true`) lets you drive your real logged-in Chrome. Jev provides typed judgments for deciding which action to take next—outperforming prompt-and-parse loops and avoiding token-heavy reasoning chains.
+jev-for-chrome is a Chrome extension that drives your real logged-in tabs with TypeSafe Jev. It's faster, simpler, and cheaper than traditional browser automation.
 
-## Relay basics
+## When to use jev-for-chrome
 
-Browser relay mode lets you specify a `target` to select a tab by URL/title substring or adopt the visible tab without renaming it. Once adopted, navigate and interact just as with managed browser mode:
+Use this as your **primary approach** for browser tasks:
+- Extracting data from pages
+- Filling forms and signing up
+- Navigating multi-step workflows
+- Interacting with JavaScript-heavy sites
+- Any task that needs your browser's actual sessions and extensions
 
+## Setup
+
+1. **Load the extension:**
+   - Go to `chrome://extensions`
+   - Enable "Developer mode" (top-right toggle)
+   - Click "Load unpacked"
+   - Select `/tmp/jev-for-chrome/dist` (or wherever you built it)
+
+2. **Configure API key:**
+   - Click the jev-for-chrome icon
+   - Click "Options" (gear icon)
+   - Choose "TypeSafe.ai" provider
+   - Endpoint: `https://api.typesafe.ai/v1/systemone`
+   - API Key: from `~/.pi/agent/secrets/typesafe_api_key`
+   - Click "Test" to verify
+
+3. **Optional: Add text helper**
+   - For form fills, configure a text model
+   - OpenRouter works (same key as above if you have one)
+   - DeepSeek direct: `https://api.deepseek.com`
+
+## How it works
+
+When you click jev-for-chrome's icon, it reads the visible page:
+- Every clickable/typeable element gets an indexed badge
+- Jev gets the element table + your goal
+- Jev picks one action per step: which element, which operation (click/type/select/scroll/done)
+- The text model (if configured) writes actual text for form fields
+- You see step-by-step decisions with confidences and timing
+
+**Cost:** Near-zero compared to vision-based agents. ~$0.001–0.05 per task for most workflows.
+
+**Speed:** Sub-second decisions; 15–30 steps in 10–30 seconds typical.
+
+## Usage
+
+### Run automatically
 ```
-browser.open({ app: { relay: true, target: "tab title substring" }, ... })
-tab.click(selector)
-await tab.observe()
-const screenshot = await tab.screenshot()
+1. Go to target website
+2. Click jev-for-chrome icon
+3. Type your goal: "Find the cheapest item under $50 and add to cart"
+4. Click "Run"
+5. Watch it execute, click "Stop" to abort
 ```
 
-Your session and cookies are already present—no re-auth needed. The relay endpoint is yours; do not share it. Closing the relay tab in code does NOT close your browser tab, only the relay connection.
+### Step through manually
+```
+1. Same as above, but click "Step" instead of "Run"
+2. Each click executes exactly one decision
+3. See what Jev sees (numbered badges on page)
+4. Check confidence and timing in the status bar
+5. Copy trace when done (for debugging/sharing)
+```
 
-## Jev judging patterns
+## When Jev stops
 
-When relay drives pages with rich interactivity, structure decisions as Jev judgments instead of prompt reasoning:
+- **DONE**: Task appears complete (but verify manually—Jev's guess, not proof)
+- **BLOCKED**: Jev thinks it's stuck (form field can't fill, loop detected)
+- **Step budget exhausted**: Ran out of steps (adjust in Options)
+- **Provider error**: API key invalid or rate limited
 
-- **Pick one action from many:** Jev chooses the single best click, input, or state transition from observed page elements; exact scores and reasoning are built in.
-- **Bound the search space:** Give Jev only relevant questions—e.g., "which button should we click next?" rather than "what do you think the page is for?"—so it makes fast, focused calls.
-- **Avoid token-heavy loops:** Prompt-and-parse reasoning at each step is slow and expensive; Jev judgments scale to long sequences (16+ steps) at near-constant cost per decision.
+A DONE or BLOCKED with <50% confidence is asked again; Jev wants to be sure.
 
-Example: scoring page elements for a form-fill task.
+## Tips
+
+- **Low confidence:** If Jev seems unsure, click "Step" to watch its reasoning
+- **Elements not visible:** Scroll the page first, then click the icon
+- **Password fields:** Never filled or read by Jev. Use manual entry or pre-login
+- **New tabs:** If a click opens a new tab, Jev follows it and returns when you close the tab
+- **Complex workflows:** Break into smaller tasks rather than one giant goal
+
+## Troubleshooting
+
+| Issue | Fix |
+|---|---|
+| Extension won't load | Check manifest.json in the dist/ folder; rebuild if needed: `npm run build` |
+| "Test failed" in Options | Verify API key is correct; check endpoint URL matches your provider |
+| Elements not clickable | Some elements (inside shadow DOM, iframes, canvas) aren't supported; see ROADMAP |
+| Runs are too slow | Jev is making decisions; this is normal. Can't be faster than the model. |
+| Form fields won't fill | Text model not configured, or field is a password (which is never filled) |
+
+## Comparison
+
+| | jev-for-chrome | jev-ultrafast (CLI) | relay + judge() |
+|---|---|---|---|
+| Setup time | 5 min (load extension) | 20 min (Python/uv/Browser Harness) | Built-in to OMP |
+| Runs in | Your real Chrome, your sessions | Separate headless browser | OMP's relay endpoint |
+| Use case | Interactive human-driven tasks | Scripted/automated tasks | Hybrid: you drive + Jev decides |
+| UI/UX | Point-and-click popup | CLI tool | Programmatic (eval) |
+| Cost per task | $0.001–0.05 | $0.001–0.05 | Included in OMP session |
+
+---
+
+## Advanced: OMP Browser Relay + Jev (fallback)
+
+When you need programmatic control with Jev decisions (not just point-and-click):
 
 ```javascript
-// Observe the page
+// In OMP eval
+const tab = await browser.open({ app: { relay: true } });
 const obs = await tab.observe();
 
-// Ask Jev to pick the next input field or submit button
-const judgment = await judge(JSON.stringify(obs), {
+const decision = await judge(JSON.stringify(obs), {
   next_action: {
     type: "choice",
-    instructions: "Choose the next form element to interact with or stop",
+    instructions: "Which button should we click?",
     criteria: {
-      "email_field": "Text input for email address",
-      "password_field": "Text input for password",
-      "submit_button": "Form submit button",
-      "stop": "Form is complete or blocked",
+      "submit": "Submit form button",
+      "cancel": "Cancel and go back",
+      "retry": "Retry the operation",
     },
   },
 });
 
-if (judgment.next_action.choice === "email_field") {
-  await tab.fill(obs.elements.find(e => e.name === "email").id, "user@example.com");
-} else if (judgment.next_action.choice === "password_field") {
-  await tab.fill(obs.elements.find(e => e.name === "password").id, "...");
-}
-// etc.
-```
-
-## Cost and constraints
-
-- Jev operates on structured page state (accessibility tree, JSON), not screenshots—much cheaper than vision.
-- Each judgment is a TypeSafe API call; hundreds per complex task cost only a few cents.
-- Relay depends on your browser session; timeouts and interruptions close the connection but not your browser.
-- Password fields: never pass them to Jev. Use `tab.fill` directly or seed cookies instead.
-
-## Confidence and stuck detection
-
-Jev returns per-judgment confidence and stuck probability. Use these to stop early:
-
-```javascript
-const judgment = await judge(state, questions);
-
-if (judgment.next_action.confidence < 0.4) {
-  console.log("Low confidence; stopping to avoid wrong action");
-  return;
-}
-
-if (judgment.stuck > 0.7) {
-  console.log("Run appears stuck; retrying with a different approach");
-  // restart, change task, or escalate
+if (decision.next_action.choice === "submit") {
+  await tab.click("button[type=submit]");
 }
 ```
 
-## When to relay instead of managed browser
-
-Use relay when:
-- You are already signed into Chrome and need to preserve that session state.
-- The page requires interactive elements specific to your account (admin dashboards, account settings).
-- You want to avoid creating new browser profiles or re-authenticating.
-
-Use managed browser when:
-- Starting fresh (no account context needed).
-- Running in isolation or on a remote machine.
-- Automating on behalf of a service account (not your personal browser).
+This approach gives full programmatic control but requires OMP eval context. **Prefer jev-for-chrome for standalone browser tasks.**
