@@ -1,3 +1,0 @@
-# Installed with OMP's native package installer.
-
-npm:pi-intercom@0.12.0
