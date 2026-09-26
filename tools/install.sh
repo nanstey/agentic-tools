@@ -11,6 +11,7 @@ TOOLS=(
   "gh-stack"
   "playwright-cli"
   "chrome-devtools-cli"
+  "agent-browser"
   "orca"
 )
 
@@ -24,7 +25,7 @@ Options:
   --help              Show this help message
   --check             Check which tools are installed (dry run)
   --install-all       Install all recommended tools
-  --install TOOL      Install a specific tool (gh, gh-stack, playwright-cli, chrome-devtools-cli, orca)
+  --install TOOL      Install a specific tool (gh, gh-stack, playwright-cli, chrome-devtools-cli, agent-browser, orca)
   --tool-help TOOL    Show help for a specific tool installer
 
 Environment:

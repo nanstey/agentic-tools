@@ -10,6 +10,7 @@ This repository depends on several external CLI tools for various skills:
 - **Stacked PRs extension** (`gh-stack`) — extends GitHub CLI for stacked PR support
 - **Playwright CLI** (`playwright-cli`) — browser automation for UI testing and screenshots
 - **Chrome DevTools CLI** (`chrome-devtools-cli`) — Chrome DevTools from the command line
+- **Agent Browser** (`agent-browser`) — native browser automation with Chrome DevTools Protocol
 - **Orca IDE CLI** (`orca`) — orchestration for coding agents (optional)
 
 Tools are **optional and independent** — you only need to install those required by skills you use.
@@ -141,6 +142,33 @@ npm install -g @playwright/cli@latest
   nvm install --lts
   npm install -g @playwright/cli@latest
   ```
+
+### Agent Browser (`agent-browser`)
+
+**Purpose:** Fast native Rust CLI and persistent daemon for browser automation through Chrome DevTools Protocol (CDP), with accessibility-tree snapshots, screenshots, and visual diffs
+
+**Docs:** https://github.com/vercel-labs/agent-browser
+
+**Status:** Recommended for fast browser automation and visual testing  
+**Installation:** npm package  
+**Prerequisites:** Node.js 20+, Chrome/Chromium (or run `agent-browser install` to download Chrome for Testing)  
+**Verify:** `agent-browser --version`
+
+**Skills requiring agent-browser:**
+- `agent-browser`
+
+**Install:**
+```bash
+bash tools/install.sh --install agent-browser
+```
+
+**Manual installation:**
+```bash
+npm install -g agent-browser
+agent-browser install
+```
+
+`cargo install agent-browser` is stale (crates.io has 0.19.0); npm is the supported installation route.
 
 ### Chrome DevTools CLI (`chrome-devtools-cli`)
 
@@ -320,6 +348,7 @@ bash tools/install.sh --install-all  # Install tools
 | `gh` | ✓ | ✓ | None |
 | `gh-stack` | ✓ | ✓ | GitHub CLI v2.0+ |
 | `playwright-cli` | ✓ | ✓ | Node.js 20+ |
+| `agent-browser` | ✓ | ✓ | Node.js 20+, Chrome/Chromium |
 | `chrome-devtools-cli` | ✓ | ✓ | Node.js v20.19+, Chrome/Chromium |
 | `orca` | ✓ (from source) | ✓ (brew) | Go 1.18+ (Linux only) |
 

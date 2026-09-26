@@ -80,7 +80,7 @@ below with OMP's native `omp install` command:
 
 | Repository path | Install destination | Purpose |
 | --- | --- | --- |
-| [`harness/omp/APPEND_SYSTEM.md`](harness/omp/APPEND_SYSTEM.md) | `~/.omp/agent/APPEND_SYSTEM.md` | Adds session lifecycle, bounded delegation, and collision-safe scratch-artifact guidance. |
+| [`harness/omp/APPEND_SYSTEM.md`](harness/omp/APPEND_SYSTEM.md) | `~/.omp/agent/APPEND_SYSTEM.md` | Adds session lifecycle, bounded delegation, collision-safe scratch-artifact guidance, and browser-tool routing that defaults to headless `agent-browser` over the user's real browser. |
 | [`harness/omp/plugins/pi-jev.txt`](harness/omp/plugins/pi-jev.txt) | Not copied; passed to `omp install` | Installs `npm:pi-jev@0.4.0`. OMP loads its legacy `pi.extensions` manifest through the Pi compatibility layer. |
 | [`harness/omp/status-line/apply.sh`](harness/omp/status-line/apply.sh) | Default and existing profile `config.yml` files (via `omp config`) | Selectively merges the versioned Nerd Font status-line schema. |
 
@@ -204,7 +204,7 @@ Focused planning skills below are optional and independently selectable; `propos
 | [`chrome-devtools-cli`](skills/tools/chrome-devtools-cli/SKILL.md) | Automate browser tasks and use Chrome DevTools from the CLI. Vendored from `ChromeDevTools/chrome-devtools-mcp` (Apache-2.0). |
 | [`typesafe-ai`](skills/tools/typesafe-ai/SKILL.md) | Build AI-powered software with TypeSafe System One models (Jev): typed judgments and probabilities from natural language and app state that code composes for routing, ranking, extraction, and verification. Vendored from `typesafe-ai/skills` (MIT). |
 | [`jev-ultrafast`](skills/tools/jev-ultrafast/SKILL.md) | Runs Jev Ultrafast through its pinned browser agent and verifies the requested page outcome. Use when a Chrome task benefits from its dynamic indexed action space. Upstream: `browser-use/jev-ultrafast` 0.1.0 at `1231850a0bf1a0c0341fe408ef1668dbbfdfac46` (MIT). |
-| [`agent-browser`](skills/tools/agent-browser/SKILL.md) | Runs Jev-driven browser tasks in a background Chromium using persistent, separately-authenticated profiles, so agents get your logins without touching your interactive Chrome. Uses `@jkudish/jev-browser` (MIT). |
+| [`agent-browser`](skills/tools/agent-browser/SKILL.md) | Fast headless browser testing and screenshots — a native Rust CLI and persistent daemon driving Chrome over CDP, with accessibility-tree snapshots addressed by compact `@eN` refs and snapshot/screenshot diffing. Upstream: `vercel-labs/agent-browser` (Apache-2.0). |
 
 ### Pull Requests
 
