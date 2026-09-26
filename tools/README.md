@@ -71,6 +71,18 @@ Each tool has its own installer script with consistent interface.
 ./install.sh --tool-help chrome-devtools-cli
 ```
 
+### `agent-browser`
+
+**What:** Native browser automation CLI with a persistent daemon driving Chrome over CDP  
+**Docs:** https://github.com/vercel-labs/agent-browser  
+**Required by:** `agent-browser` skill  
+**Prerequisites:** Node.js 20+, Chrome/Chromium or Chrome for Testing  
+
+```bash
+./install.sh --install agent-browser
+./install.sh --tool-help agent-browser
+```
+
 ### `orca`
 
 **What:** Orca IDE CLI for agent orchestration  
@@ -140,6 +152,7 @@ All tool installers are idempotent:
 | `gh-stack` | ✓ (requires gh) | ✓ (requires gh) | Extension |
 | `playwright-cli` | ✓ (npm) | ✓ (npm) | Requires Node.js 20+ |
 | `chrome-devtools-cli` | ✓ (npm) | ✓ (npm) | Requires Node.js v20.19+, Chrome |
+| `agent-browser` | ✓ (npm) | ✓ (npm) | Requires Node.js 20+, Chrome/Chromium or Chrome for Testing |
 | `orca` | ✓ (from source) | ✓ (brew) | Requires Go 1.18+ on Linux |
 
 ## Troubleshooting
