@@ -307,3 +307,26 @@ for entry in "${HARNESSES[@]}"; do
     done
   done
 done
+
+# Check and optionally install external tools
+check_tools() {
+  local tools_dir; tools_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/tools" && pwd)"
+  if [ ! -f "$tools_dir/install.sh" ]; then
+    echo "  [tools] no installer found at $tools_dir/install.sh, skipping"
+    return 0
+  fi
+  
+  echo "== Tools"
+  
+  # Just check; don't auto-install to respect idempotency and allow offline-first workflow
+  if ! bash "$tools_dir/install.sh" --check 2>&1 | sed 's/^/  /'; then
+    echo "  [tools] Some tools are missing. To install, run:"
+    echo "    bash $tools_dir/install.sh --install-all"
+    echo "  or install specific tools individually:"
+    echo "    bash $tools_dir/install.sh --install gh"
+    echo "    bash $tools_dir/install.sh --install playwright-cli"
+    echo "  See $tools_dir/README.md for details."
+  fi
+}
+
+check_tools
