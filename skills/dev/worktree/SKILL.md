@@ -12,6 +12,7 @@ disable-model-invocation: false
 Ensure a usable worktree exists for the requested branch, creating the branch and/or worktree as needed, then report the path.
 Works whether the branch exists locally, only on the remote, or not at all, and whether a worktree is already registered.
 Starting a new unit of work (feature, fix, task) without an explicit branch: derive a conventional `<type>/<slug>` branch name from the request and proceed; never start new work on the default branch's main checkout.
+Name new branches by the `branch` skill's rules: `<type>/<slug>` with a conventional type prefix only, never user, tool, or agent prefixes (`claude/`, `<git-username>/`, `worktree-`).
 Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 ## Required Inputs
@@ -31,20 +32,22 @@ Prefer Orca-managed worktrees so the checkout appears in the Orca IDE with metad
 
 1. Check `ORCA worktree list --json` for an existing worktree on `branch`; if one exists, reuse it and skip to step 3.
 2. Create: `ORCA worktree create --name <branch> --base-branch <ref> --json` (omit `--base-branch` to use the repo default base). Related to the current context: keep the inferred parent or pass `--parent-worktree active`; independent work: pass `--no-parent`. Read the absolute path from the JSON result.
+   Then compare the created branch (JSON result or `git -C <path> branch --show-current`) with the requested name. If Orca rewrote it (e.g. a username prefix), stop and report the mismatch instead of continuing on the rewritten branch.
 3. Report the path and resolution mode. Flag drift (`--help`, unknown flags) instead of guessing; the full version-matched reference is `ORCA skills get orca-cli`.
 
 ## Workflow (git backend)
 
 1. Run `git fetch --prune` to refresh remote refs.
 2. Check `git worktree list --porcelain` for an existing worktree on `branch`:
-   - If found and the directory exists, reuse it and skip to step 5.
+   - If found and the directory exists, reuse it and skip to step 6.
    - If registered but the directory is missing, run `git worktree prune`, then continue.
-3. Classify the branch:
+3. For a new branch, check the name matches `^(feat|fix|chore|docs|ci|style|refactor|test|perf|build)/[a-z0-9-]+$`; if not, rename it per the `branch` skill before creating.
+4. Classify the branch:
    - Local branch exists: `git worktree add <path> <branch>`.
    - Remote-only (`origin/<branch>`): `git worktree add <path> -b <branch> --track origin/<branch>`.
    - Doesn't exist: `git worktree add <path> -b <branch>` from the default branch tip (`origin/HEAD`).
-4. If `git worktree add` fails because the branch is checked out elsewhere, report that location instead of forcing.
-5. Report the absolute worktree path and how it was resolved (reused / created from local / tracked remote / new branch).
+5. If `git worktree add` fails because the branch is checked out elsewhere, report that location instead of forcing.
+6. Report the absolute worktree path and how it was resolved (reused / created from local / tracked remote / new branch).
 
 ## Safety Rules
 
