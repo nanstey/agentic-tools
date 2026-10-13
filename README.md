@@ -34,7 +34,7 @@ rather than symlinked because Pi may rewrite them locally.
 
 | Repository path | Install destination | Purpose |
 | --- | --- | --- |
-| `harness/pi/settings.json` | `$PI_AGENT_DIR/settings.json` | Defaults and Pi's extension package list, including `npm:pi-intercom@0.12.0` and `npm:pi-jev@0.4.0`. |
+| `harness/pi/settings.json` | `$PI_AGENT_DIR/settings.json` | Pi defaults (including codemode) and extension package list, including `npm:pi-intercom@0.12.0` and `npm:pi-jev@0.4.0`. |
 | `harness/pi/extensions/*.json` | `$PI_AGENT_DIR/extensions/` | Per-extension config. |
 | `harness/pi/extensions/pi-interactive-subagents/config.json` | `$PI_AGENT_DIR/extensions/pi-interactive-subagents/config.json` | Interactive-subagents config. |
 | `harness/pi/extensions/pi-intercom/config.json` | `$PI_AGENT_DIR/intercom/config.json` | Shared pi-intercom config: enabled inbound replies, no send confirmation, and reply hints. |
