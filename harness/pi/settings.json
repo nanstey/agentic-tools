@@ -1,6 +1,6 @@
 {
   "defaultProvider": "anthropic",
-  "defaultModel": "claude-opus-4-8",
+  "defaultModel": "claude-sonnet-5-5",
   "defaultThinkingLevel": "medium",
   "defaultTools": [
     "+codemode"
