@@ -56,7 +56,7 @@ If a command behaves unlike the docs, check for a shadowing binary first:
 | --- | --- |
 | `agent-browser` | **Default.** Headless test loops, many steps, fast screenshots, visual regression, any verification of code you are working on. |
 | `playwright-cli` | Cross-browser (Firefox/WebKit), Playwright API access, `generate-locator` for a committed spec. |
-| OMP browser relay | Only when the task needs the user's real login, extensions, or 2FA. It acts **as the user** — real attribution, real side effects. Try `auth`/`state`/`--auto-connect` here first. |
+| OMP browser relay | Only when the task must run **in the user's actual live profile** — their extensions, or acting as them with real attribution and side effects. For ordinary authed work, use a dedicated agent profile instead (see Authenticated, headless sessions). |
 | `visual-capture` | Producing polished UI evidence for a PR. |
 
 ## Test loop
@@ -176,18 +176,84 @@ Other capture notes:
 - `--screenshot-format jpeg --screenshot-quality N` for cheaper captures.
 - Video recording (`record start|stop`) requires `ffmpeg` on PATH.
 
-## Authenticated pages
+## Authenticated, headless sessions
 
-`agent-browser auth save|login|list` stores login profiles, and sessions persist cookies,
-localStorage, and IndexedDB. Passwords are never typed by a model. For sites that reject a
-fresh headless profile, import cookies from a real browser rather than scripting the login:
-see `agent-browser skills get core --full`.
+Default auth model: the agent **owns a profile namespace separate from your real Chrome**
+and creates/reuses a dedicated profile per identity+service on demand. It never points at
+`~/.config/google-chrome`, so your live Chrome is never locked, copied, or hijacked.
+
+> **Never `--profile` against `~/.config/google-chrome` while Chrome is running.** The live
+> profile holds a `SingletonLock`; a second Chrome against it conflicts and hijacks your
+> session. The agent root below sidesteps both. (Cookies on Linux are libsecret-encrypted
+> under the shared keyring, so a dedicated profile still decrypts normally — no app-bound
+> encryption as on Windows.)
+
+### Profile root and slug convention
+
+Key the profile by **identity+service, stable across tasks — not per-task**. A per-task
+profile re-logs in every run, which poisons services with login timeouts, device binding,
+or step-up 2FA. A persistent per-identity profile stays warm and looks like a real
+returning browser — exactly what timeout/cookie-sensitive services expect.
+
+```bash
+AB_ROOT="${XDG_DATA_HOME:-$HOME/.local/share}/agent-browser/profiles"
+slug="github-noel"            # <identity>-<service>, reused across tasks
+prof="$AB_ROOT/$slug"
+ns="ab-$slug"                 # isolate daemon sockets + restore state per identity
+```
+
+### Reuse headless (the common path)
+
+Pair every entry with a `--restore-check-*` so expired auth fails loudly instead of
+silently scraping a login wall:
+
+```bash
+agent-browser --namespace "$ns" --profile "$prof" \
+  --restore-check-url 'https://github.com/**' \
+  --restore-check-text 'Noel' \
+  open https://github.com
+```
+
+### First-time or re-auth — human in the loop, one time
+
+When the profile is new or its check fails, hand off a visible window for the login. The
+model never types credentials; you do the password and 2FA by hand.
+
+```bash
+agent-browser --namespace "$ns" --profile "$prof" --headed open https://github.com/login
+# log in by hand, then confirm and drop back to headless:
+agent-browser --namespace "$ns" --profile "$prof" is visible '[aria-label*="noel" i]'
+```
+
+### Lifecycle and concurrency
+
+- **Persist:** profiles live until you GC them. Delete `$prof` to retire an identity;
+  re-run the headful login to refresh a stale one.
+- **Concurrency:** one profile is one context. Serialize tasks that share an identity;
+  parallelize different identities (distinct `$prof` + `$ns`).
+
+### When replay beats a live profile
+
+For read-only scraping or many parallel one-shots, export once and replay instead of
+holding a profile — but treat replay as the **fragile** path (cookies go stale, can trip
+device/IP binding):
+
+```bash
+# with a Chrome started for remote debugging:
+agent-browser --auto-connect state save ./auth.json
+agent-browser --state ./auth.json --restore-check-text 'Noel' open https://github.com
+```
+
+Encrypt saved state at rest with `AGENT_BROWSER_ENCRYPTION_KEY` (64-char hex) and expire it
+with `AGENT_BROWSER_STATE_EXPIRE_DAYS`. `agent-browser auth save|login` additionally stores
+named login profiles for scripted form fills; see `agent-browser skills get core --full`.
 
 ## Boundaries
 
 - One session is one browser context; do not drive a single session from two concurrent
   tasks.
-- Sessions expire like any browser's. Landing on a login page means re-auth, not a bug.
+- Sessions expire like any browser's. Landing on a login page means re-auth, not a bug —
+  re-run the `--headed` login for that profile, don't script credentials.
 - A passing `wait` proves the condition held, not that the feature works — assert the
   observable result (`get text`, `diff snapshot`) too.
 - Diagnose failures with `agent-browser console` and `agent-browser errors` before
