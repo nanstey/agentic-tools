@@ -69,6 +69,15 @@ ask before the first push, even after the remote was created.
    ```
    Do not use `--push`. If creation or remote setup fails, report which one
    failed and leave the local repository otherwise unchanged.
+
+   Once the GitHub repository exists, add the project to Orca with the Orca CLI
+   by invoking `orca-repo` with the local repository path; it resolves the
+   executable, skips already-registered repositories, and runs:
+   ```sh
+   ORCA repo add --path "$REPO_PATH" --json
+   ```
+   Do not wait for the first push. When no Orca executable resolves, skip this
+   with a note; an Orca registration failure does not block the GitHub steps.
 4. Show the exact first-push command and stop for explicit confirmation. Only
    after the user confirms, publish `main`:
    ```sh
@@ -142,9 +151,7 @@ ask before the first push, even after the remote was created.
    A `403` or `404` from branch-protection creation or verification is a partial
    failure, not a successful policy configuration. Explain the response and the
    policy settings that remain unverified.
-8. If the Orca IDE runs this session, invoke `orca-repo` to register the
-   repository with Orca. Skip silently when Orca is not present.
-9. If the user provided architecture/stack context — or asks for worktree
+8. If the user provided architecture/stack context — or asks for worktree
    environments — invoke `worktree-env` against this repository as a final
    step, passing that context (services, env files, ports) as its inputs. Skip
    silently when no architecture context was provided and none was requested.
@@ -179,7 +186,7 @@ what requires pull requests and prevents direct pushes under this policy.
 
 Report the local repository path, GitHub owner/name, selected account,
 visibility, remote URL, first-push confirmation, merge-policy verification,
-branch-protection verification, the `orca-repo` outcome (invoked or not
-applicable), and the `worktree-env` outcome (invoked, skipped, or its reported
-result). On any failure, identify the completed steps, the exact failed command
+branch-protection verification, the Orca registration outcome (`repoId`,
+already registered, skipped with reason, or failed), and the `worktree-env`
+outcome (invoked, skipped, or its reported result). On any failure, identify the completed steps, the exact failed command
 or API response, and remaining manual action.
