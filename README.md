@@ -136,7 +136,6 @@ task:
 | [`conflicts`](skills/dev/conflicts/SKILL.md) | Resolve merge/rebase/cherry-pick/revert conflicts and continue the stopped operation. |
 | [`branch`](skills/dev/branch/SKILL.md) | Create a new branch for current/proposed changes, deriving a conventional `<type>/<slug>` name when none is given. |
 | [`worktree`](skills/dev/worktree/SKILL.md) | Create or reuse a git worktree for a branch — Orca-managed when the Orca IDE runs the repo, plain git otherwise — and report its path. Triggered before starting any new unit of work. |
-| [`prototype`](skills/dev/prototype/SKILL.md) | Build a throwaway prototype (interactive logic TUI or switchable UI variants) to answer a design question, then capture the answer and delete it. |
 
 ### Env
 
@@ -195,6 +194,7 @@ Focused planning skills below are optional and independently selectable; `propos
 | Skill | Description |
 | --- | --- |
 | [`visual-capture`](skills/visual/visual-capture/SKILL.md) | Capture screenshots and videos of a running site (before/after PR evidence, component crops, multi-page or scroll tours) by driving the `playwright-cli` tool. |
+| [`prototype`](skills/visual/prototype/SKILL.md) | Build a throwaway prototype (interactive logic TUI or switchable UI variants) to answer a design question, then capture the answer and delete it. |
 
 ### Tools
 
