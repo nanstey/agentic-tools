@@ -18,7 +18,6 @@
     "npm:@juicesharp/rpiv-voice",
     "npm:@tmustier/pi-raw-paste",
     "npm:@nanstey/pi-command-shortcuts",
-    "npm:@tigorhutasuhut/pi-rules",
     "npm:@nanstey/pi-auth-profiles",
     "npm:@maplezzk/pi-interactive-subagents",
     "npm:pi-intercom@0.12.0",
