@@ -7,8 +7,9 @@
  * profile does not set revert to the value pi inherited at startup, so
  * switching profiles never leaks a secret across profiles. Child processes
  * (subagents, tools) inherit the result. Used for e.g. TYPESAFE_API_KEY (pi-jev).
+ * Profile or secret file changes are picked up by a file watch plus per-input hooks.
  */
-import { readFileSync } from "node:fs";
+import { type FSWatcher, existsSync, readFileSync, watch } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
@@ -69,9 +70,47 @@ function apply(ctx: Pick<ExtensionContext, "cwd" | "isProjectTrusted">): void {
 	}
 }
 
+// `/profile use|default|clear` and `pi-secret` change files, not events, and extension
+// commands run before input hooks. Watch those files so the change lands immediately.
+const WATCH_KEY = Symbol.for("pi.profile-secrets.watchers");
+const WATCHED = new Set(["settings.json", "auth-profiles.json"]);
+
+function startWatching(ctx: ExtensionContext): void {
+	const g = globalThis as any;
+	for (const w of (g[WATCH_KEY] ?? []) as FSWatcher[]) w.close();
+	const watchers: FSWatcher[] = [];
+	g[WATCH_KEY] = watchers;
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	const onChange = (_event: string, file: string | Buffer | null) => {
+		const name = String(file ?? "");
+		if (!WATCHED.has(name) && !name.endsWith(".env")) return;
+		clearTimeout(timer);
+		timer = setTimeout(() => {
+			try {
+				apply(ctx);
+			} catch {
+				// ctx may be stale after a session switch; the next event re-applies.
+			}
+		}, 50);
+	};
+	for (const dir of [join(ctx.cwd, ".pi"), agentDir, join(agentDir, "secrets")]) {
+		if (!existsSync(dir)) continue;
+		try {
+			const w = watch(dir, onChange);
+			w.unref();
+			watchers.push(w);
+		} catch {
+			// Unwatchable directory: the per-input hooks still apply changes.
+		}
+	}
+}
+
 export default function (pi: ExtensionAPI) {
-	// Re-resolve on each input/turn so `/profile use|default|clear` takes effect immediately.
-	pi.on("session_start", async (_event, ctx) => apply(ctx));
+	pi.on("session_start", async (_event, ctx) => {
+		apply(ctx);
+		startWatching(ctx);
+	});
+	// Fallback re-resolve on each input/turn.
 	pi.on("input", async (_event, ctx) => apply(ctx));
 	pi.on("before_agent_start", async (_event, ctx) => apply(ctx));
 }
