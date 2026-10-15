@@ -40,7 +40,6 @@ model: inherit
 Body contract:
 
 - Imperative, single-role, and self-contained instructions.
-- Include stop-and-ask guidance when ambiguity affects behavior or safety.
 - Include the override rule: target repo `CLAUDE.md`/`AGENTS.md` wins on conflict.
 
 ## Required Inputs
@@ -58,11 +57,11 @@ Body contract:
 3. Ask only high-impact clarifying questions.
 4. Normalize/derive agent name and validate repo uniqueness.
 5. Create `agents/<name>.md` with compliant frontmatter and prompt body.
-6. Ensure prompt includes stop-and-ask gates and override rule.
+6. Ensure prompt includes the override rule.
 7. Add a concise `README.md` catalog entry under the Agents section.
 8. Verify naming alignment (`name`, filename, and references) and catalog sync.
 
-Stop and ask if request spans multiple agents, name conflicts with existing tools/agents, or ambiguity changes behavior/safety.
+Split multi-agent requests and choose a non-conflicting name.
 
 ## Safety Rules
 

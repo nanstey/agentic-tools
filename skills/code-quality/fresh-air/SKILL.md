@@ -31,8 +31,6 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
    - concrete improvement suggestion,
    - confidence.
 
-Stop and ask when evidence is missing or no mapped technique exists.
-
 ## Safety Rules
 
 - Never drop smells silently; if capacity is exceeded, process in explicit

@@ -37,8 +37,8 @@ PW="$(bash scripts/resolve-tool.sh)" || { echo "playwright-cli not found"; exit 
 command -v ffmpeg >/dev/null || { echo "ffmpeg not found (needed for PR-embeddable mp4)"; exit 1; }
 ```
 
-- `resolve-tool.sh` prints the command → use it as `$PW` for every playwright-cli call. Non-zero exit (neither binary nor npx package) → **stop and ask** before installing. Offer `npm install -g @playwright/cli@latest` (global) or a project-local `@playwright/cli` dev dependency; do not install without approval.
-- `ffmpeg` missing → **stop and ask** before installing (see Prerequisites). It is only needed for the `.webm`→`.mp4` transcode; a `.webm`-only capture can proceed without it.
+- `resolve-tool.sh` prints the command → use it as `$PW` for every playwright-cli call. Non-zero exit (neither binary nor npx package) → install a project-local `@playwright/cli` dev dependency (or use `npx`), avoiding global installs and manifest churn where `npx` works; record what was installed.
+- `ffmpeg` missing → continue with a `.webm`-only capture (it is only needed for the `.webm`→`.mp4` transcode) and note the omission.
 
 ## Bundled scripts
 
@@ -65,9 +65,9 @@ Load the companion [`playwright-cli`](../../tools/playwright-cli/SKILL.md) skill
 
 ## Workflow
 
-1. Preflight (above): load the companion `playwright-cli` skill, resolve its tool via `scripts/resolve-tool.sh`, and confirm `ffmpeg` is present (for the mp4 transcode); if either check fails, stop and ask before installing.
+1. Preflight (above): load the companion `playwright-cli` skill, resolve its tool via `scripts/resolve-tool.sh`, and confirm `ffmpeg` is present (for the mp4 transcode); if the playwright tool is missing, install it as above; a missing `ffmpeg` downgrades to `.webm`-only.
 2. Pick the medium from the table above; state the choice and why.
-3. Confirm the site is reachable at the base URL/port; if not, stop and ask (never capture an error page). If the walkthrough **mutates data** (creates/edits records), require an idempotent, uniquely named demo entity and a cleanup path before recording — prefer application/API cleanup, and scope any direct database cleanup to the generated identifier.
+3. Confirm the site is reachable at the base URL/port; if not, try to start the app from its documented dev command; never capture an error page. If the walkthrough **mutates data** (creates/edits records), require an idempotent, uniquely named demo entity and a cleanup path before recording — prefer application/API cleanup, and scope any direct database cleanup to the generated identifier.
 4. Resolve the per-branch capture dir by running the bundled `scripts/capture-dir.sh` and reading its printed path into `$CAP` (deterministic — reuses this branch's dir or creates a new timestamped one), then open a named session and fix capture settings (viewport, theme, device). Reuse the same session across pages.
 5. Capture:
    - Screenshots — full page and/or component crops.
@@ -77,7 +77,7 @@ Load the companion [`playwright-cli`](../../tools/playwright-cli/SKILL.md) skill
 8. Write outputs under `$CAP` and produce ready-to-paste PR markdown.
 9. Close the session — always, including on error (`trap 'playwright-cli -s=capture close' EXIT`).
 
-Stop-and-ask gates: `playwright-cli` tool absent (and install not yet approved), site unreachable, ambiguous before/after refs, or an artifact would land in the repo root.
+Resolve these yourself: tool absent (install), site unreachable (start it), ambiguous before/after refs (pick the merge-base vs head and record it), artifact would land in the repo root (redirect to a temp/evidence dir).
 
 ## playwright-cli Recipes
 
@@ -193,7 +193,7 @@ captures/                                  # gitignored; add to the target repo'
 - Never leave demo data behind; when a walkthrough mutates data, use a uniquely named entity and clean it up afterward.
 - Never bypass the `playwright-cli` skill with ad-hoc Puppeteer, `@playwright/test`, or MCP.
 - Never commit oversized assets; downscale and trim to PR-friendly sizes.
-- If the site or a route is unreachable, stop and ask rather than capturing a blank or error page.
+- If the site or a route is unreachable, fix or start it rather than capturing a blank or error page.
 
 ## Output Style
 

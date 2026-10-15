@@ -23,15 +23,15 @@ Inspect the target repository read-only. Write only the approved planning artifa
 
 ## Workflow
 
-1. State that this is planning-only: do not edit source or dependencies. Treat implementation imperatives such as “build,” “implement,” “ship,” or “wire up” as slice-planning scope, not permission to execute. If there is no approved artifact path or permission to propose one, ask the user and stop.
+1. State that this is planning-only: do not edit source or dependencies. Treat implementation imperatives such as “build,” “implement,” “ship,” or “wire up” as slice-planning scope, not permission to execute. If no artifact path is given, use the plan folder (create via `plan-init`) or a sensible default.
 2. Identify the smallest end-to-end behaviour that can be exposed and verified first, then trace the approved design through to its complete observable outcome.
 3. Define every slice needed to deliver that complete design, in execution order. For each, state the observable outcome, layers crossed, focused implementation boundary, verification method, and review/steering checkpoint.
 4. Reject a database-, service-, API-, or frontend-only phase unless it is explicitly justified bootstrap work. Restructure unjustified horizontal work into a vertical slice.
 5. For justified bootstrap work that cannot itself expose behaviour, state why, bound it tightly, and require a verification checkpoint before the first observable slice.
 6. Require each completed slice to record its verification result and, when review is requested, the opted-in reviewer's steering outcome before the next slice starts.
 7. Use checkpoints between planned slices to permit execution-time steering or re-planning when evidence changes; do not omit later required slices merely because they belong to a later execution wave.
-8. Record every material uncertainty. Investigate and cite repository or source evidence where possible; otherwise ask the user. Do not finalize while one remains open.
-9. Resolve the plan folder: reuse the change's existing folder, or run `plan-init` to create one. Write the complete slice-boundary artifact to `<plan-folder>/4-vertical-slices.md`, upsert its row in the README `## Design` table, and seed the README `## Slices` table with one numbered row per slice (leave `Spec`, `PR`, and `Status` blank). Recommend `speclist` when task-level execution steps are needed, one spec per slice. Then stop and present the artifact for explicit user review; do not begin implementation or invoke a follow-on skill.
+8. Record every material uncertainty. Investigate and cite repository or source evidence where possible; otherwise record it as an explicit assumption.
+9. Resolve the plan folder: reuse the change's existing folder, or run `plan-init` to create one. Write the complete slice-boundary artifact to `<plan-folder>/4-vertical-slices.md`, upsert its row in the README `## Design` table, and seed the README `## Slices` table with one numbered row per slice (leave `Spec`, `PR`, and `Status` blank). Recommend `speclist` when task-level execution steps are needed, one spec per slice. Then return the artifact path and decision packet; this skill is planning-only, so do not begin implementation.
 
 ## Safety Rules
 

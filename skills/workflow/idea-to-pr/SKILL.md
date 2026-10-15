@@ -22,7 +22,7 @@ Use the least coordination that preserves correctness. Keep one owner for global
 3. Constraints: deadline, compatibility requirements, and optional skipped stages.
 4. For a resumed run: the existing plan folder.
 
-If the idea is too vague to classify or acceptance criteria cannot be derived, stop and ask. In autopilot, the initial invocation authorizes ordinary discovery, planning, implementation, validation, commits, and PR creation within the agreed scope.
+If the idea is vague, derive acceptance criteria from the best reading and record them as assumptions. In autopilot, the initial invocation authorizes ordinary discovery, planning, implementation, validation, commits, and PR creation within the agreed scope.
 
 ## Orchestration Protocol
 
@@ -58,7 +58,7 @@ Required artifact and return contract
 
 Record each assignment and expected artifact in the README. Verify returned evidence, artifacts, and validation results before advancing.
 
-Treat a partial, blocked, cancelled, artifact-less, or gate-failed task as a blocked stage. Make at most one narrower retry; otherwise surface the evidence and stop. Keep reconnaissance focused on relevant paths, targeted reads, and package metadata. Do not scan lockfiles or dependency directories as source evidence.
+Treat a partial, blocked, cancelled, artifact-less, or gate-failed task as a blocked stage. Diagnose the failure, then retry with a narrower scope, different approach, or alternative tool as needed; escalate only after distinct approaches fail and no workaround exists. Keep reconnaissance focused on relevant paths, targeted reads, and package metadata. Do not scan lockfiles or dependency directories as source evidence.
 
 ## Workflow
 
@@ -89,7 +89,7 @@ Use the evidence packet rather than full raw findings:
 
 Every planning handoff in autopilot includes: **“This is an `idea-to-pr` autopilot run. The user has authorized ordinary planning transitions. Write the assigned artifact, report material risks, and return control without requesting plan approval.”**
 
-In `gated` mode, stop for explicit approval after the completed plan. In autopilot, proceed unless a material scope, safety, or design decision remains unresolved.
+In `gated` mode, stop for explicit approval after the completed plan. In autopilot, proceed; resolve design questions from evidence and ask only for unresolved product decisions.
 
 ### 4. Specification
 
@@ -111,7 +111,7 @@ For each slice, use the spec plus current decision packet. Dependent slices rema
 7. For large changes or on request, run an independent quality review using `principles` and/or `deep-review`; route accepted fixes through a new implementation step.
 8. Run `/git commit`, then `/pr`. Use `/pr stack` or `/pr restack` for dependent PRs. Update the README with the PR URL, status, evidence paths, and decision deviations.
 
-**GATE (gated mode):** require user approval before the next dependent slice. Autopilot proceeds after successful ordinary transitions and stops only for an unresolved material decision, destructive or externally consequential action not already authorized, unavailable required access/service, or a blocked validation/runtime gate.
+**GATE (gated mode):** require user approval before the next dependent slice. Autopilot proceeds after successful ordinary transitions and stops only for an unresolved product decision, a destructive or hard-to-reverse action not already authorized, or access that cannot be obtained or worked around. Fix blocked validation/runtime gates rather than stopping.
 
 ### 6. Close-out
 

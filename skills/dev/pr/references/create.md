@@ -20,7 +20,7 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 4. Analyze the branch diff against the target (`git log <base>..HEAD`, `git diff --stat <base>...HEAD`, `git diff <base>...HEAD`) to draft a title and a placeholder body.
 5. Create the PR with `gh pr create --draft --base <base> --title ... --body ...`.
 6. Run `/pr description` to write the full body from the diff.
-7. Verify by re-reading the PR and report the URL.
+7. Verify by re-reading the PR: the body must be the `/pr description` output (structured sections, not the placeholder) and the PR must be a draft. Report the URL.
 
 Stop as blocked if the branch has no commits ahead of base or push fails.
 
@@ -28,6 +28,7 @@ Stop as blocked if the branch has no commits ahead of base or push fails.
 
 - Never create a second PR when one already exists for the branch.
 - Never force-push or rewrite history; pushing the branch is the only allowed git mutation.
+- Never skip step 6: a PR whose body is a commit message or placeholder is not created correctly. Do not use `gh pr create --fill`.
 - Never write the final body inline; delegate it to `/pr description`.
 - Never mark the PR ready-for-review unless explicitly asked.
 - If unexpected working tree changes appear while you are working, stop as blocked and report the unexpected changes.

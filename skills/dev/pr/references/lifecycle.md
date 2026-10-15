@@ -22,7 +22,7 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
    - on `main` or `develop`, create a branch with `/git branch`, then `/git commit` the work;
    - otherwise, `/git commit` the work.
 3. Invoke `/pr info` to resolve and verify an existing PR.
-4. If no PR exists, invoke `/pr create`, then use its resulting PR as the target. Stop on any other `/pr info` gate.
+4. If no PR exists, invoke `/pr create` (never raw `gh pr create`, including `--fill`), then use its resulting PR as the target. `/pr create` must run `/pr description`; confirm the body has the structured sections (`## Summary`, `## Changes`, `## Testing`) and the PR is a draft. If not, run `/pr description` now. Stop on any other `/pr info` gate.
 5. Invoke `/pr review <PR> fix` once for the verified or newly created PR's current head, unless `review` is skipped, the author is not the viewer, or that head was already self-reviewed in this invocation. It reviews, applies fixes, validates, commits, and pushes. Findings it leaves unapplied are reported, not blockers; a validation failure, push failure, or unexpected state is a stop gate. Do not re-review the fix commit.
 6. Invoke `/pr monitor` for the same PR (re-resolved with `/pr info` if review pushed): `mode: once` by default, `mode: monitor` with `auto-merge`.
 7. With `auto-merge`, if `/pr monitor` returned `clean`, invoke `/pr merge` for the same PR. If it returned `blocked`, `/pr merge` stops at a gate, or the self-review left an unapplied `blocker` or `high` finding, report the blocker and do not merge.
@@ -36,6 +36,7 @@ Stop as blocked when setup fails, a setup delegate reaches its stop gate, or the
 - Never continue past a failed setup step or its stop gate; report it as blocked instead.
 - Never proceed when unexpected working-tree changes appear during setup.
 - Never post review comments or approve from the lifecycle; self-review is `fix` mode on your own PR only, once per head.
+- Never create a PR with raw `gh pr create` or reuse a commit message as the body; always go through `/pr create` and its `/pr description` step.
 - Never perform PR health or update work directly; invoke `/pr monitor`.
 - Never merge without `auto-merge`, and never merge directly; invoke `/pr merge` only after a `clean` `/pr monitor` result.
 

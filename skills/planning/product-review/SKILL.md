@@ -24,14 +24,14 @@ Inspect the target repository read-only. Write only the approved planning artifa
 
 ## Workflow
 
-1. State that this is planning-only: do not edit source or dependencies. Treat implementation imperatives such as “build,” “implement,” “ship,” or “wire up” as review scope, not permission to execute. If there is no approved artifact path or permission to propose one, ask the user and stop.
+1. State that this is planning-only: do not edit source or dependencies. Treat implementation imperatives such as “build,” “implement,” “ship,” or “wire up” as review scope, not permission to execute. If no artifact path is given, use the plan folder (create via `plan-init`) or a sensible default.
 2. Restate the problem in the user's terms and identify the affected workflow.
 3. Define the desired outcome and the observable success signal after shipping.
 4. Separate scope, non-goals, workflow steps, and exits from technical ideas. Park technical ideas that do not affect the outcome as follow-up questions for `system-architecture`.
-5. Record every material uncertainty. Investigate and cite repository or source evidence where possible; otherwise ask the user. Do not finalize while one remains open.
+5. Record every material uncertainty. Investigate and cite repository or source evidence where possible; otherwise record it as an explicit assumption.
 6. When a user-visible interaction cannot be settled in prose, offer a rough, non-integrated HTML mockup or equivalent visual artifact. Require an explicitly approved planning/mockup path before writing it.
-7. If feasibility blocks a product decision, stop and recommend `prototype` or `system-architecture`.
-8. Resolve the plan folder: reuse the change's existing folder, or run `plan-init` to create one. Write the review to `<plan-folder>/1-product-review.md`, upsert its row in the README `## Design` table, and optionally request the named reviewer's feedback. Then stop and present the artifact for explicit user review; do not begin implementation or invoke a follow-on skill.
+7. If feasibility blocks a product decision, run or recommend `prototype` or `system-architecture`.
+8. Resolve the plan folder: reuse the change's existing folder, or run `plan-init` to create one. Write the review to `<plan-folder>/1-product-review.md`, upsert its row in the README `## Design` table, and optionally request the named reviewer's feedback. Then return the artifact path and decision packet; this skill is planning-only, so do not begin implementation.
 
 ## Safety Rules
 

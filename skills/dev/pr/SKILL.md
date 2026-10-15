@@ -48,7 +48,8 @@ Never ask the user a question, request clarification, or wait for approval. Ever
 1. An explicit input in the invocation or the user's request.
 2. Repository instructions (`CLAUDE.md` / `AGENTS.md`, PR templates, `CONTRIBUTING*`).
 3. The documented default in the dispatched reference.
-4. Otherwise stop as `blocked`: make no further changes, report the blocker, and give the exact input or command that unblocks it.
+4. Otherwise use best judgment: choose the safest reversible option that satisfies the request and record it.
+5. Stop as `blocked` only when the action would be destructive or hard to reverse, or no workaround exists: make no further changes, report the blocker, and give the exact input or command that unblocks it.
 
 Invoking an action authorizes the mutations that action declares. Destructive extras (pruning branches, dissolving a stack, aborting an operation) run only when the invocation names them, never by prompt. References that say "stop" mean stop with a `blocked` report; they never mean ask.
 

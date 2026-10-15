@@ -21,17 +21,17 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
    - Otherwise derive `<type>/<slug>` from the change content or the user's description.
    - Slug is lowercase-hyphenated, concise, and free of redundant words.
 3. Pick the type prefix from the dominant change intent (`feat`, `fix`, `chore`, `docs`, `ci`, `style`, `refactor`, `test`, `perf`, `build`).
-4. If the working tree is clean and no change is described, stop and ask what the branch is for.
+4. If the working tree is clean and no change is described, derive a name from the current branch/recent commits and proceed.
 5. Create the branch with `git checkout -b <name>`, basing it on a fresh `origin/HEAD` when current work should not carry over; keep uncommitted changes when they belong on the new branch.
 6. Confirm `git branch --show-current` matches the intended `<type>/<slug>`; if it differs, stop and report.
 7. Report the created branch name and its base.
 
-Stop and ask if the name is ambiguous, collides with an existing branch, or the intended base is unclear.
+Pick a sensible name (suffix on collision) and default base (the repo default branch); record the choice.
 
 ## Safety Rules
 
 - Never commit, stash, or discard changes as an implicit side effect of branching.
-- Never overwrite or reset an existing branch; if the name exists, stop and ask.
+- Never overwrite or reset an existing branch; if the name exists, choose a suffixed name.
 - Never force-create from a stale base; fetch before basing a new branch on `origin/HEAD`.
 - Never invent a name when the change intent is unknown; ask instead.
 

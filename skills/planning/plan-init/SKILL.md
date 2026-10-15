@@ -19,8 +19,6 @@ This skill defines the canonical **Plan Folder Layout** and **README Index Contr
 2. Base plans directory, or permission to resolve and propose one.
 3. A slug for the folder, or permission to derive one.
 
-If intent is too vague to name a folder, stop and ask.
-
 ## Plan Folder Layout
 
 ```
@@ -78,9 +76,9 @@ Section ownership (each owner keeps its rows and links current every time it tou
 1. State that this is planning-only: do not edit source or dependencies. Treat implementation imperatives such as "build," "implement," "ship," or "wire up" as folder-setup scope, not permission to execute.
 2. Resolve the base plans directory by investigation, not guessing: prefer a documented or conventional spot (`docs/plans/`, `plans/`, `.plans/`, `rfcs/`, `design/`, `specs/`, `docs/specs/`), references in `CLAUDE.md` / `AGENTS.md` / `README`, or where existing plans already sit. If none exists, propose a sensible default and confirm before writing.
 3. Derive a short `<slug>` from the change; confirm if not given.
-4. If `<base>/<slug>/` already exists, stop and ask before reusing or overwriting it.
+4. If `<base>/<slug>/` already exists, reuse it if it matches the same change (never overwrite existing artifacts); otherwise append a numeric suffix.
 5. Create `<base>/<slug>/README.md` from the README Index Contract, filling title, `Status: planning`, and summary; leave the tables empty.
-6. Present the folder and README path for explicit user review and stop; do not begin planning artifacts, generate spec files, or invoke a follow-on skill.
+6. Return the folder and README path; do not generate planning artifacts or spec files in this skill.
 
 ## Safety Rules
 

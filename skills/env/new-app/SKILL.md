@@ -32,22 +32,21 @@ one, follow it on conflict.
 5. License choice — default `MIT` if unspecified.
 6. Optional: CI provider. Skip CI if the user declines.
 
-Stop and ask before scaffolding when any of these is missing:
+Infer missing inputs where possible (directory from name, stack from the request or environment). Ask before scaffolding only for what cannot be inferred:
 - Project name, target directory, or stack.
-- App scope — never invent features or product intent; ask what to build.
+- App scope — never invent features or product intent; this is a product decision, so ask what to build.
 
-If the instructions are ambiguous, or the scope is broad enough to need design
-decisions, offer to start a planning session first (for example, `scrutiny` or
-`proposal`) rather than guessing.
+If the scope is broad enough to need design decisions, run a planning session
+first (for example, `scrutiny` or `proposal`) rather than guessing.
 
 ## Workflow
 
-1. Gather inputs, restate the plan, and confirm the target directory. Stop and
-   ask if name, directory, stack, or app scope is unknown. If the request is
-   ambiguous, offer to start a planning session (for example,
+1. Gather inputs, restate the plan, and confirm the target directory. Infer
+   unknown name, directory, or stack; ask only if app scope is unknown. If the
+   request is ambiguous, run a planning session (for example,
    `scrutiny`/`proposal`) before scaffolding.
 2. Preflight. Confirm the target directory is nonexistent or empty. If it
-   exists and is non-empty, stop and ask. Verify `git` and the chosen stack's
+   exists and is non-empty, choose a fresh sibling directory name rather than touching it. Verify `git` and the chosen stack's
    initializer are present and runnable; flag anything missing before relying on
    it.
 3. Run the stack's first-party initializer in the target directory (for example,
@@ -70,8 +69,7 @@ decisions, offer to start a planning session first (for example, `scrutiny` or
 8. If the user wants a GitHub repository, offer to invoke `new-repo` after the
    local work is complete. Do not create or configure a remote in this skill.
 
-Stop and ask when name/directory/stack/scope is unknown or the target directory
-is non-empty. Offer a planning session when the request is ambiguous.
+Ask only when app scope is unknown. Never write into a non-empty directory.
 
 ## Implementation Notes
 

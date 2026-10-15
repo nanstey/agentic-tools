@@ -23,7 +23,7 @@ Every action loads exactly the mapped reference before execution:
 | `/git rebase [branch] [new_base]` | [`rebase.md`](references/rebase.md) |
 | `/git conflicts` | [`conflicts.md`](references/conflicts.md) |
 
-With no action, infer one only when the request names it unambiguously (for example "commit this" or "resolve these conflicts"); otherwise stop and ask which action to run. Reject an unknown action or more than one action word.
+With no action, infer one only when the request names it unambiguously (for example "commit this" or "resolve these conflicts"); otherwise choose the best-fit action from context. Reject an unknown action or more than one action word.
 
 ## Safety Dispatch Rules
 
