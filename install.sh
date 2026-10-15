@@ -151,7 +151,7 @@ install_subagents_builtin_patch() {
     echo "  [patch-subagents] -> $target (ok)"; return
   fi
   if ! command -v python3 >/dev/null 2>&1; then
-    echo "  [patch-subagents] python3 not found, skipping" >&2; return
+    echo "  [patch-subagents] python3 not found; $target NOT patched" >&2; return 1
   fi
   if python3 - "$target" <<'PY'
 import sys
@@ -169,6 +169,7 @@ PY
     echo "  [patch-subagents] -> $target (patched: builtin: extension entries pass through)"
   else
     echo "  [patch-subagents] upstream code changed; $target NOT patched. Update install_subagents_builtin_patch or drop it if upstream supports builtin:." >&2
+    return 1
   fi
 }
 
@@ -304,7 +305,8 @@ for entry in "${HARNESSES[@]}"; do
     fi
     # patch-subagents carries the path of the installed subagents index.ts.
     if [ "$type" = "patch-subagents" ]; then
-      install_subagents_builtin_patch "$pattern"; continue
+      install_subagents_builtin_patch "$pattern" || PATCH_FAILED=1
+      continue
     fi
     # OMP plugin manifests are repository metadata, not copied runtime config.
     if [ "$type" = "omp-plugin-manifest" ]; then
@@ -375,3 +377,10 @@ check_tools() {
 }
 
 check_tools
+
+# A failed required patch must not look like a successful install, but it should
+# not abort the unrelated installs above either, so fail only at the end.
+if [ "${PATCH_FAILED:-0}" = 1 ]; then
+  echo "install.sh: a required patch failed (see [patch-subagents] above)" >&2
+  exit 1
+fi
