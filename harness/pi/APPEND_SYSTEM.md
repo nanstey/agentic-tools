@@ -51,3 +51,12 @@ result and the parent routes it.
 - If you yourself are running on an OpenAI model, work you wrote goes to the default (Anthropic) `reviewer`.
 - Never have the producer review its own output, and never send the same family both
   halves of a produce/verify pair.
+
+# Codemode and Jev
+
+`codemode` lets you write one script that calls several tools in parallel and filters
+results before they reach the context. Prefer it for fan-out reads, greps across many
+files, and batch checks. Use `jev_evaluate` for typed decisions (classify, route,
+rank, yes/no with a probability) instead of prose judgment, and call it from a
+`codemode` script when judging many items. Built-in tools stay available: if `read`,
+`grep`, or `bash` are missing, run `jev_find_tools` to activate them.

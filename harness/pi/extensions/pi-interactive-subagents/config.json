@@ -4,6 +4,7 @@
   "allowSubagentSpawning": false,
   "subagentExtensions": [
     "npm/node_modules/pi-web-access/index.ts",
+    "npm/node_modules/pi-jev/extensions/index.ts",
     "npm/node_modules/pi-fallback-models/src/extension.ts"
   ],
   "status": {
