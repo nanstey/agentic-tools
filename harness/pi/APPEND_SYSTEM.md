@@ -54,10 +54,13 @@ result and the parent routes it.
 - If you yourself are running on an OpenAI model, work you wrote goes to the default (Anthropic) `reviewer`.
 - Never have the producer review its own output, and never send the same family both
   halves of a produce/verify pair.
-- A model fallback can move a subagent off its profile's model. Before accepting a
-  review as independent, read the last `model_change` entry in the producer's and the
-  reviewer's `Session:` logs. If both ran on the same family, rerun the review with an
-  explicit `model` from the other family.
+- A model fallback can move a subagent off its profile's model, and it restores the
+  original model at shutdown, so neither the profile nor the last `model_change` entry
+  shows who wrote the output. Before accepting a review as independent, list the
+  models that produced each side's successful assistant messages in its `Session:` log:
+  `jq -r 'select(.type=="message" and .message.role=="assistant" and .message.stopReason!="error") | "\(.message.provider)/\(.message.model)"' <log> | sort | uniq -c`.
+  If the producer and the reviewer share a family, or either side mixed families,
+  rerun the review with an explicit `model` from the family the producer did not use.
 
 # Codemode and Jev
 
