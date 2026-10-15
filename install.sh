@@ -20,7 +20,7 @@ PI_AGENT_DIR="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}"
 # every existing match, so a single pair can fan out to many destinations.
 HARNESSES=(
   "claude|$HOME/.claude|claude|skills:$HOME/.claude/skills;agents:$HOME/.claude/agents"
-  "pi|$PI_AGENT_DIR|pi|skills:$PI_AGENT_DIR/skills;agents:$PI_AGENT_DIR/agents;config:$PI_AGENT_DIR::$REPO_ROOT/harness/pi;config:$PI_AGENT_DIR/extensions::$REPO_ROOT/harness/pi/extensions;config:$PI_AGENT_DIR/extensions/pi-interactive-subagents::$REPO_ROOT/harness/pi/extensions/pi-interactive-subagents;config:$PI_AGENT_DIR/extensions/pi-extensions-i18n::$REPO_ROOT/harness/pi/extensions/pi-extensions-i18n;config:$PI_AGENT_DIR/intercom::$REPO_ROOT/harness/pi/extensions/pi-intercom;hoist:$PI_AGENT_DIR/npm::$REPO_ROOT/harness/pi/settings.json"
+  "pi|$PI_AGENT_DIR|pi|skills:$PI_AGENT_DIR/skills;agents:$PI_AGENT_DIR/agents;config:$PI_AGENT_DIR::$REPO_ROOT/harness/pi;config:$PI_AGENT_DIR/extensions::$REPO_ROOT/harness/pi/extensions;config:$PI_AGENT_DIR/extensions/pi-interactive-subagents::$REPO_ROOT/harness/pi/extensions/pi-interactive-subagents;config:$PI_AGENT_DIR/extensions/pi-extensions-i18n::$REPO_ROOT/harness/pi/extensions/pi-extensions-i18n;config:$PI_AGENT_DIR/intercom::$REPO_ROOT/harness/pi/extensions/pi-intercom;hoist:$PI_AGENT_DIR/npm::$REPO_ROOT/harness/pi/settings.json;patch-subagents:$PI_AGENT_DIR/npm/node_modules/@maplezzk/pi-interactive-subagents/pi-extension/subagents/index.ts"
   "omp|$HOME/.omp/agent|omp|skills:$HOME/.omp/agent/skills;skills:$HOME/.omp/profiles/*/agent/skills;agents:$HOME/.omp/agent/agents;agents:$HOME/.omp/profiles/*/agent/agents;config:$HOME/.omp/agent::$REPO_ROOT/harness/omp;config:$PI_AGENT_DIR/intercom::$REPO_ROOT/harness/pi/extensions/pi-intercom;omp-plugin-manifest:$REPO_ROOT/harness/omp/plugins/pi-intercom.txt;omp-plugin-manifest:$REPO_ROOT/harness/omp/plugins/pi-jev.txt;omp-status-line:$REPO_ROOT/harness/omp/status-line/apply.sh"
   "codex|$HOME/.codex|codex|skills:$HOME/.codex/skills"
   "cursor|$HOME/.cursor|cursor,cursor-agent|skills:$HOME/.cursor/skills"
@@ -134,6 +134,42 @@ install_pnpm_hoist() {
   printf '%s\n' "$line" >>"$rc"          # keep any other settings already present
   rm -rf "$npm_dir/node_modules" "$npm_dir/pnpm-lock.yaml"
   echo "  [hoist] -> $rc (set, store reset for flat reinstall)"
+}
+
+# @maplezzk/pi-interactive-subagents launches every child with --no-extensions,
+# which also disables Pi's compiled-in extensions (builtin:codemode), and its
+# subagentExtensions setting only accepts file paths. Patch the installed copy so
+# `builtin:<name>` entries pass straight through as `--extension builtin:<name>`.
+# Idempotent; re-run after the package is updated or reinstalled. Remove once
+# upstream supports builtin: entries. Fails loudly if the upstream code changed.
+install_subagents_builtin_patch() {
+  local target="$1"
+  if [ ! -f "$target" ]; then
+    echo "  [patch-subagents] $target not installed yet, skipping (re-run install.sh after pi installs packages)"; return
+  fi
+  if grep -qF 'startsWith("builtin:")' "$target"; then
+    echo "  [patch-subagents] -> $target (ok)"; return
+  fi
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "  [patch-subagents] python3 not found, skipping" >&2; return
+  fi
+  if python3 - "$target" <<'PY'
+import sys
+p = sys.argv[1]
+s = open(p).read()
+old = """    .map((extensionPath) => resolveSubagentExtensionPath(extensionPath))
+    .filter((extensionPath) => existsSync(extensionPath));"""
+new = """    .map((extensionPath) => (extensionPath.startsWith("builtin:") ? extensionPath : resolveSubagentExtensionPath(extensionPath)))
+    .filter((extensionPath) => extensionPath.startsWith("builtin:") || existsSync(extensionPath));"""
+if s.count(old) != 1:
+    sys.exit(1)
+open(p, "w").write(s.replace(old, new))
+PY
+  then
+    echo "  [patch-subagents] -> $target (patched: builtin: extension entries pass through)"
+  else
+    echo "  [patch-subagents] upstream code changed; $target NOT patched. Update install_subagents_builtin_patch or drop it if upstream supports builtin:." >&2
+  fi
 }
 
 install_typesafe_secret() {
@@ -265,6 +301,10 @@ for entry in "${HARNESSES[@]}"; do
     # hoist pairs encode NPMDIR::SETTINGS; they bypass the linker loop too.
     if [ "$type" = "hoist" ]; then
       install_pnpm_hoist "${pattern%%::*}" "${pattern##*::}"; continue
+    fi
+    # patch-subagents carries the path of the installed subagents index.ts.
+    if [ "$type" = "patch-subagents" ]; then
+      install_subagents_builtin_patch "$pattern"; continue
     fi
     # OMP plugin manifests are repository metadata, not copied runtime config.
     if [ "$type" = "omp-plugin-manifest" ]; then

@@ -38,7 +38,7 @@ rather than symlinked because Pi may rewrite them locally.
 | `harness/pi/APPEND_SYSTEM.md` | `$PI_AGENT_DIR/APPEND_SYSTEM.md` | Appends a delegation bias to Pi's system prompt (subagents exempt) a cross-model verification rule (route work to subagents, and have a different model family check it), and guidance to use `codemode` and `jev_evaluate`. |
 | `harness/pi/extensions/*.json` | `$PI_AGENT_DIR/extensions/` | Per-extension config. |
 | `harness/pi/extensions/pi-fallback.json` | `$PI_AGENT_DIR/extensions/pi-fallback.json` | Global model fallback chain for `pi-fallback-models`: `openai-codex/gpt-6.1-sol`, then `anthropic/claude-sonnet-5-5`, tried when the current model hits a quota, rate-limit, or provider error. |
-| `harness/pi/extensions/pi-interactive-subagents/config.json` | `$PI_AGENT_DIR/extensions/pi-interactive-subagents/config.json` | Interactive-subagents config: mux settings, `allowSubagentSpawning: false` so children cannot spawn, and `subagentExtensions` loading `pi-web-access` into children for `researcher`, `pi-jev` for `jev_evaluate`, and `pi-fallback-models` so children fail over too. |
+| `harness/pi/extensions/pi-interactive-subagents/config.json` | `$PI_AGENT_DIR/extensions/pi-interactive-subagents/config.json` | Interactive-subagents config: mux settings, `allowSubagentSpawning: false` so children cannot spawn, and `subagentExtensions` loading `pi-web-access` into children for `researcher`, `pi-jev` for `jev_evaluate`, `builtin:codemode` for `codemode` (needs the install-time patch below), and `pi-fallback-models` so children fail over too. |
 | `harness/pi/extensions/pi-extensions-i18n/config.json` | `$PI_AGENT_DIR/extensions/pi-extensions-i18n/config.json` | Locale for pi extension messages: `en-US`, because the library defaults to Chinese regardless of system locale. |
 | `harness/pi/extensions/pi-intercom/config.json` | `$PI_AGENT_DIR/intercom/config.json` | Shared pi-intercom config: enabled inbound replies, no send confirmation, and reply hints. |
 | `harness/pi/command-shortcuts.json` | `$PI_AGENT_DIR/command-shortcuts.json` | Command shortcut bindings. |
@@ -55,6 +55,14 @@ key with owner-only permissions to `~/.pi/agent/secrets/typesafe_api_key` for Pi
 and OMP, and to `~/.config/environment.d/90-typesafe.conf` so every harness can
 inherit it after the next login. Then run `/jev status`. Automatic routing, model
 selection, compaction, and orchestration remain opt-in.
+
+Pi launches subagent children with `--no-extensions`, which also disables its
+compiled-in `codemode`, and `@maplezzk/pi-interactive-subagents` only accepts file
+paths in `subagentExtensions`. `install.sh` therefore patches the installed
+package's `pi-extension/subagents/index.ts` so `builtin:<name>` entries pass
+through as `--extension builtin:<name>`. The patch is idempotent and fails loudly
+if the upstream code changes. Re-run `install.sh` after Pi installs or updates
+packages; drop the step once upstream supports `builtin:` entries.
 
 Secrets and machine-local state (`auth.json`, `auth-profiles/`, `web-search.json`,
 `trust.json`, sessions, run history) are git-ignored and never travel — re-auth
