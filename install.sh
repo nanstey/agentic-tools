@@ -244,6 +244,7 @@ install_pi_jev_auto_modes() {
   local source="$REPO_ROOT/harness/pi/pi-jev-auto.conf"
   local environment_dir="$HOME/.config/environment.d"
   local target="$environment_dir/91-pi-jev-auto.conf"
+  [ -d "$PI_AGENT_DIR" ] || { echo "  [environment] Pi not detected, skipping 91-pi-jev-auto.conf"; return 0; }
   [ -f "$source" ] || { echo "  [environment] missing $source" >&2; return 1; }
   mkdir -p "$environment_dir"
   cp "$source" "$target"

@@ -6,7 +6,9 @@
  * OpenRouter's System One endpoint. Pi's native TypeSafe classifier (codemode
  * `models.classify`) reads TYPESAFE_API_KEY only, so it never receives the
  * OpenRouter credential. PI_JEV_API_KEY is read by harness/pi/patches/pi-jev.patch.
- * A real TYPESAFE_API_KEY, or a PI_JEV_* value set by someone else, always wins.
+ * A real TYPESAFE_API_KEY, a PI_JEV_API_KEY set by someone else, or an explicit
+ * non-OpenRouter endpoint (PI_JEV_BASE_URL / TYPESAFE_BASE_URL) always wins; the
+ * OpenRouter key is never sent to another endpoint.
  * Values this extension set are removed again if the OpenRouter credential
  * disappears (e.g. profile switch).
  */
@@ -35,8 +37,10 @@ async function sync(ctx: ExtensionContext): Promise<void> {
 		owned = undefined;
 	}
 	if (!owned && env[KEY_VAR]?.trim()) return; // externally configured
+	// An explicit non-OpenRouter endpoint must never receive the OpenRouter key.
+	const foreignEndpoint = [env[URL_VAR], env.TYPESAFE_BASE_URL].some((u) => u?.trim() && u.trim() !== OPENROUTER_BASE);
 	let key: string | undefined;
-	if (!env.TYPESAFE_API_KEY?.trim()) {
+	if (!foreignEndpoint && !env.TYPESAFE_API_KEY?.trim()) {
 		try {
 			key = (await ctx.modelRegistry.getApiKeyForProvider("openrouter"))?.trim();
 		} catch {
@@ -45,7 +49,7 @@ async function sync(ctx: ExtensionContext): Promise<void> {
 	}
 	if (key) {
 		env[KEY_VAR] = key;
-		if (!env[URL_VAR]?.trim() || env[URL_VAR] === OPENROUTER_BASE) env[URL_VAR] = OPENROUTER_BASE;
+		env[URL_VAR] = OPENROUTER_BASE;
 		store[OWNED] = { key };
 	} else if (owned) {
 		release(env, owned);
