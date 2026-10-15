@@ -28,8 +28,8 @@ Inspect the target repository read-only. Write only the approved planning artifa
 3. Draft a call-stack tree for changed orchestration or control flow; use diff notation when it clarifies the change.
 4. Draft a file-tree diff and only the key types, signatures, invariants, and error boundaries that constrain implementation.
 5. Identify validation seams and the smallest checks that prove the proposed design.
-6. For an unsupported decision that would constrain implementation, pick the option best supported by repository evidence and record the alternatives and rationale; ask the user only if it is a product decision.
-7. Record every material uncertainty. Investigate and cite repository or source evidence where possible; otherwise choose the best-supported default, record it as an explicit assumption, and ask the user only if it is a product decision.
+6. For an unsupported decision that would constrain implementation, pick the option best supported by repository evidence and record the alternatives and rationale.
+7. Record every material uncertainty. Investigate and cite repository or source evidence where possible; otherwise record it as an explicit assumption.
 8. Resolve the plan folder: reuse the change's existing folder, or run `plan-init` to create one. Write the program-design artifact to `<plan-folder>/3-program-design.md`, upsert its row in the README `## Design` table, and optionally request the named reviewer's feedback. If no material decisions remain, recommend `vertical-slices` as the next task. Then return the artifact path and decision packet; this skill is planning-only, so do not begin implementation.
 
 ## Safety Rules

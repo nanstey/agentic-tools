@@ -12,7 +12,7 @@ disable-model-invocation: false
 Turn a change request into one written plan document that a human, team, or agent can read and act on.
 This is the self-contained planning path: one `proposal.md` covering the whole change, for small or trivial work that does not warrant separate product, architecture, program-design, and slice documents. For larger or riskier changes where each concern needs depth or independent review, use the focused skills (`product-review`, `system-architecture`, `program-design`, `vertical-slices`) instead. Pick one path per concern; do not also write a focused doc for something `proposal.md` already covers. If a concern later outgrows its section, promote it to its own doc, thin that section from `proposal.md`, and note the move in the README `## Decision log`.
 Discover context from the user and the codebase, resolve every uncertainty up front, then design the change.
-Make no assumptions in the plan: verify each fact by direct investigation; for what cannot be verified, choose a sensible default and label it an assumption. Ask the user only for product decisions.
+Make no assumptions in the plan: verify each fact by direct investigation; label what cannot be verified as an assumption.
 Read-only on the codebase; the only output is the plan file.
 Write the plan and the chat terse and deslopped: simple but exact language, no filler.
 Follow `CLAUDE.md` / `AGENTS.md` on conflict.
@@ -25,7 +25,6 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 4. Validation and verification tooling available.
 5. Plan folder (via `plan-init`), auto-resolved per the location rules below when not given.
 
-If intent is too vague to design against, infer the most plausible intent, state it, and proceed.
 
 ## Workflow
 
@@ -43,7 +42,6 @@ If intent is too vague to design against, infer the most plausible intent, state
 9. Return the plan; this skill is planning-only, so do not begin implementation.
 10. Report the plan path and how each open question was resolved (verified or answered).
 
-Ask only when an unverifiable uncertainty is a product decision; otherwise assume and record it.
 
 ## Plan Location
 

@@ -28,7 +28,6 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 4. Rank severity (`high`/`medium`/`low`) and include one intentional non-finding.
 5. Verify every finding maps to a reference ID and concrete code evidence.
 
-Mark custom smell labels and out-of-scope architecture suggestions as such rather than blocking on them.
 
 ## Safety Rules
 

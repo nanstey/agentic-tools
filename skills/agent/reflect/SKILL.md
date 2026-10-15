@@ -30,7 +30,6 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 7. Present the ranked proposals; apply low-risk, single-skill edits directly.
 8. On approval, apply changes following existing repo conventions, keeping README and other reference docs in sync.
 
-Ask only before edits that change safety behavior.
 
 ## Safety Rules
 

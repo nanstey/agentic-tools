@@ -28,7 +28,7 @@ Inspect the target repository read-only. Write only the approved planning artifa
 3. Describe component interactions, contracts, data models/transformations, persistence effects, failure paths, compatibility, and validation/observability needs.
 4. Use a sequence or data-flow diagram only when it makes an interaction clearer than concise prose.
 5. Defer call stacks, file placement, internal types, and method signatures to `program-design`.
-6. Record every material uncertainty. Investigate and cite repository or source evidence where possible; otherwise choose the best-supported default, record it as an explicit assumption, and ask the user only if it is a product decision.
+6. Record every material uncertainty. Investigate and cite repository or source evidence where possible; otherwise record it as an explicit assumption.
 7. Resolve the plan folder: reuse the change's existing folder, or run `plan-init` to create one. Write the architecture artifact to `<plan-folder>/2-system-architecture.md`, upsert its row in the README `## Design` table, and optionally request the named reviewer's feedback. Then return the artifact path and decision packet; this skill is planning-only, so do not begin implementation.
 
 ## Safety Rules

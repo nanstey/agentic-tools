@@ -24,7 +24,6 @@ Use the active environment's delegation mechanisms when a separate execution con
 4. Required validation and the tooling/methods it depends on.
 5. Constraints and delivery expectations (e.g. commit/PR).
 
-If no actionable target exists, infer it from context; ask only if intent is a product decision.
 
 ## Workflow
 
@@ -37,7 +36,6 @@ If no actionable target exists, infer it from context; ask only if intent is a p
 7. If a design changes during implementation, update the affected `## Design` doc or spec and append a dated entry to the README `## Decision log`; keep the plan folder consistent with what shipped.
 8. Summarize changes, validation, assumptions, and risks.
 
-Resolve ambiguous scope and architecture choices from repository evidence and record the decision. When validation is blocked, repair or substitute the nearest check and record the gap. Ask only for product decisions or irreversible actions.
 
 ## Safety Rules
 

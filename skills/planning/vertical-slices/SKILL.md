@@ -30,7 +30,7 @@ Inspect the target repository read-only. Write only the approved planning artifa
 5. For justified bootstrap work that cannot itself expose behaviour, state why, bound it tightly, and require a verification checkpoint before the first observable slice.
 6. Require each completed slice to record its verification result and, when review is requested, the opted-in reviewer's steering outcome before the next slice starts.
 7. Use checkpoints between planned slices to permit execution-time steering or re-planning when evidence changes; do not omit later required slices merely because they belong to a later execution wave.
-8. Record every material uncertainty. Investigate and cite repository or source evidence where possible; otherwise choose the best-supported default, record it as an explicit assumption, and ask the user only if it is a product decision.
+8. Record every material uncertainty. Investigate and cite repository or source evidence where possible; otherwise record it as an explicit assumption.
 9. Resolve the plan folder: reuse the change's existing folder, or run `plan-init` to create one. Write the complete slice-boundary artifact to `<plan-folder>/4-vertical-slices.md`, upsert its row in the README `## Design` table, and seed the README `## Slices` table with one numbered row per slice (leave `Spec`, `PR`, and `Status` blank). Recommend `speclist` when task-level execution steps are needed, one spec per slice. Then return the artifact path and decision packet; this skill is planning-only, so do not begin implementation.
 
 ## Safety Rules

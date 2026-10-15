@@ -36,7 +36,7 @@ Body sections should use this default order when relevant:
 1. `# Title`
 2. `## Core Contract` (include scope/tools; target repo `CLAUDE.md` or `AGENTS.md` overrides on conflict)
 3. `## Required Inputs`
-4. `## Workflow` (numbered; stop gates only for dangerous or hard-to-reverse actions)
+4. `## Workflow` (numbered)
 5. `## <Platform> Implementation Notes` (concrete commands)
 6. `## Safety Rules` (`Never ...` constraints)
 7. `## Output Style`
@@ -63,7 +63,7 @@ For a planning-only skill that writes an artifact rather than changing the targe
 6. Add concise `README.md` catalog entry.
 7. Verify naming alignment and section/policy compliance.
 
-Split multi-skill requests, pick a `CLEAR` name, and record assumptions; ask only if the ambiguity is a product decision.
+Split multi-skill requests and pick a `CLEAR` name.
 
 ## Safety Rules
 

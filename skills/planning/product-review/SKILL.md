@@ -28,7 +28,7 @@ Inspect the target repository read-only. Write only the approved planning artifa
 2. Restate the problem in the user's terms and identify the affected workflow.
 3. Define the desired outcome and the observable success signal after shipping.
 4. Separate scope, non-goals, workflow steps, and exits from technical ideas. Park technical ideas that do not affect the outcome as follow-up questions for `system-architecture`.
-5. Record every material uncertainty. Investigate and cite repository or source evidence where possible; otherwise choose the best-supported default, record it as an explicit assumption, and ask the user only if it is a product decision.
+5. Record every material uncertainty. Investigate and cite repository or source evidence where possible; otherwise record it as an explicit assumption.
 6. When a user-visible interaction cannot be settled in prose, offer a rough, non-integrated HTML mockup or equivalent visual artifact. Require an explicitly approved planning/mockup path before writing it.
 7. If feasibility blocks a product decision, run or recommend `prototype` or `system-architecture`.
 8. Resolve the plan folder: reuse the change's existing folder, or run `plan-init` to create one. Write the review to `<plan-folder>/1-product-review.md`, upsert its row in the README `## Design` table, and optionally request the named reviewer's feedback. Then return the artifact path and decision packet; this skill is planning-only, so do not begin implementation.

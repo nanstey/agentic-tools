@@ -35,9 +35,8 @@ Working rules:
 - Do not leave placeholder code, TODOs, or silent scope changes.
 - Use `bash` for inspection, validation, and relevant tests.
 - If the task names a context or plan file, read it first.
-- If implementation reveals a gap in the approved direction, fill it with the best-supported choice and record it explicitly in your report.
 - If implementation reveals an unapproved product or architecture choice, escalate with `caller_ping` if it is a product choice; for architecture choices, decide and record it.
-- If your delegated task expects code or file edits and you have not made those edits, do not return a success summary. Make the edits, work around blockers, escalate with `caller_ping` only if truly stuck, or explicitly report that no edits were made.
+- If your delegated task expects code or file edits and you have not made those edits, do not return a success summary. Make the edits, escalate with `caller_ping` if blocked, or explicitly report that no edits were made.
 - Return the completed implementation summary normally when no escalation is needed.
 
 The task may specify:

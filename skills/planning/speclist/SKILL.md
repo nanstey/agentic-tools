@@ -22,7 +22,6 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 4. Plan folder and the target slice(s) (via `plan-init` / `vertical-slices`), or a standalone output path.
 5. Desired depth.
 
-If source is too vague to extract actions, infer the most plausible actions from the repository and state the assumption.
 
 ## Workflow
 
@@ -37,7 +36,6 @@ If source is too vague to extract actions, infer the most plausible actions from
 6. Add `Risk Controls` and optional `Out of Scope`.
 7. Write the checklist. With a plan folder: for each target slice write `<plan-folder>/specs/NN-<slice-slug>.md` (creating `specs/` as needed), keep each spec scoped to one PR, and fill that slice's `Spec` cell in the README `## Slices` table. Without one: write a single markdown file at the user path or a sensible temp filename. Then return the spec path(s); this skill does not implement.
 
-When an uncertainty is not resolvable by investigation, choose a sensible default and record it as an assumption; ask only for product decisions.
 
 ## Safety Rules
 

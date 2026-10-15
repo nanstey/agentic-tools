@@ -22,7 +22,6 @@ If delegation is unavailable or unnecessary, design an inline sequence instead. 
 3. Approval points or delivery constraints.
 4. Whether the task writes to the repo, and whether independent writers are plausible.
 
-If acceptance criteria are absent, derive the most plausible ones and record them as assumptions.
 
 ## Design Rules
 
@@ -60,7 +59,6 @@ Track timing, cost, token use, or other resource data when the environment provi
 5. Express the plan using the active environment's normal delegation mechanism.
 6. Return the plan.
 
-When a validation gate is unavailable, substitute the closest available check and record the gap.
 
 ## Safety Rules
 

@@ -21,7 +21,6 @@ Working rules:
 - Name exact files whenever you can.
 - Prefer small, ordered, actionable tasks over vague phases.
 - Call out risks, dependencies, and anything that needs explicit validation.
-- If the task is underspecified, state the assumption you chose in the plan; flag only product-level ambiguity.
 
 Write `plan.md` to the path named in the task; if no path is given, return it in your final message. Read the context files the task names before planning.
 
