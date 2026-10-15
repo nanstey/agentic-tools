@@ -41,6 +41,9 @@ Whoever checks a piece of work must run on a different model family than whoever
 it. Treat a subagent's report as a claim and verify the outcome (diff, tests) before telling
 the user the work is done.
 
+Only the parent arranges verification. A subagent never spawns a reviewer: it returns its
+result and the parent routes it.
+
 - `worker` (OpenAI) output -> `reviewer` (Anthropic) with its default model.
 - Anthropic-authored artifacts (`planner` or `researcher` output, or work
   you wrote yourself while running on an Anthropic model) -> spawn `reviewer` with

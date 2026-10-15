@@ -298,6 +298,11 @@ for entry in "${HARNESSES[@]}"; do
           overwrite) overwritten=$((overwritten+1)) ;;
         esac
       done < <($collector)
+      # Retired tools leave dangling links behind; drop them so loaders that
+      # read every entry in the directory do not fail.
+      for stale in "$dir"/*; do
+        [ -L "$stale" ] && [ ! -e "$stale" ] && { rm -f "$stale"; echo "  [$type] removed dangling $(basename "$stale")"; }
+      done
       # One summary line per destination.
       summary="$ok ok"
       [ "$linked" -gt 0 ] && summary="$summary, $linked linked"

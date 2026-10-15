@@ -5,7 +5,8 @@ model: anthropic/claude-haiku-5-5
 thinking: low
 tools: read, grep, find, ls, bash, write
 system-prompt: append
-auto-exit: true
+auto-exit: false
+interactive: false
 spawning: false
 deny-tools: subagent, subagent_interrupt, subagents_list, subagent_resume
 ---
@@ -47,4 +48,4 @@ Explain how the pieces connect.
 Name the first file another agent should open and why.
 
 ## Escalation
-You are a leaf subagent. Never spawn, resume, or delegate to other agents. If you are blocked or need a decision only the parent can make, call `caller_ping` with one specific question; it ends this session and the parent resumes it with the answer. Do not use it for routine completion. Return the finished result normally.
+You are a leaf subagent. Never spawn, resume, or delegate to other agents. If you are blocked or need a decision only the parent can make, call `caller_ping` with one specific question; it ends this session and the parent resumes it with the answer. Do not use it for routine completion. Finish with your final summary as the last assistant message, then call `subagent_done`.

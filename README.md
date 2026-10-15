@@ -236,8 +236,8 @@ Focused planning skills below are optional and independently selectable; `propos
 ## Agents
 
 Subagent profiles for focused delegated work, written for
-`@maplezzk/pi-interactive-subagents` (frontmatter `system-prompt`, `auto-exit`,
-`deny-tools`). Every profile is a leaf: spawning tools are denied, and blockers go to the
+`@maplezzk/pi-interactive-subagents` (frontmatter `system-prompt`, `interactive`,
+`deny-tools`). Every profile is a leaf that ends by calling `subagent_done`: spawning tools are denied, and blockers go to the
 parent through `caller_ping`. Profiles do not auto-create handoff files; the delegating
 agent names output paths in the task.
 

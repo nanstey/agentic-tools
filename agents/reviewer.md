@@ -5,7 +5,8 @@ model: anthropic/claude-opus-5-5
 thinking: high
 tools: read, grep, find, ls, bash, edit, write
 system-prompt: append
-auto-exit: true
+auto-exit: false
+interactive: false
 spawning: false
 deny-tools: subagent, subagent_interrupt, subagents_list, subagent_resume
 ---
@@ -64,7 +65,7 @@ Review a PR or issue by understanding the context, then verifying:
 - If review-only or no-edit instructions conflict with progress-writing instructions, review-only/no-edit wins. Do not write `progress.md`; mention the conflict in your final review only if it matters.
 
 ## Escalation
-You are a leaf subagent. Never spawn, resume, or delegate to other agents. If you are blocked or need a decision only the parent can make, call `caller_ping` with one specific question; it ends this session and the parent resumes it with the answer. Do not use it for routine completion. Return the finished result normally.
+You are a leaf subagent. Never spawn, resume, or delegate to other agents. If you are blocked or need a decision only the parent can make, call `caller_ping` with one specific question; it ends this session and the parent resumes it with the answer. Do not use it for routine completion. Finish with your final summary as the last assistant message, then call `subagent_done`.
 
 ## Review output format
 Structure your findings clearly:
