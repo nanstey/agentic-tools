@@ -37,6 +37,8 @@ rather than symlinked because Pi may rewrite them locally.
 | `harness/pi/settings.json` | `$PI_AGENT_DIR/settings.json` | Pi defaults (including codemode) and extension package list, including `npm:pi-intercom@0.12.0`, `npm:pi-jev@0.4.0`, and `npm:pi-fallback-models@0.1.1`. |
 | `harness/pi/APPEND_SYSTEM.md` | `$PI_AGENT_DIR/APPEND_SYSTEM.md` | Appends a delegation bias to Pi's system prompt (subagents exempt) a cross-model verification rule (route work to subagents, and have a different model family check it), and guidance to use `codemode` and `jev_evaluate`. |
 | `harness/pi/extensions/*.json` | `$PI_AGENT_DIR/extensions/` | Per-extension config. |
+| `harness/pi/extensions/profile-secrets.ts` | `$PI_AGENT_DIR/extensions/profile-secrets.ts` | Exports the `NAME=value` secrets in `secrets/<profile>.env` into the environment while that `@nanstey/pi-auth-profiles` profile is active; unset names revert to the inherited value. |
+| `harness/pi/bin/pi-secret` | `$PI_AGENT_DIR/bin/pi-secret` | CLI to set, unset, and list per-profile secrets (`pi-secret -p work set TYPESAFE_API_KEY`). Prompts without echo; files are mode 600. `install.sh` also symlinks it to `~/.local/bin/pi-secret` so ordinary shells find it. Run `set` from a normal terminal, not inside Pi. |
 | `harness/pi/extensions/pi-fallback.json` | `$PI_AGENT_DIR/extensions/pi-fallback.json` | Global model fallback chain for `pi-fallback-models`: `openai-codex/gpt-6.1-sol`, then `anthropic/claude-sonnet-5-5`, tried when the current model hits a quota, rate-limit, or provider error. |
 | `harness/pi/extensions/pi-interactive-subagents/config.json` | `$PI_AGENT_DIR/extensions/pi-interactive-subagents/config.json` | Interactive-subagents config: mux settings, `allowSubagentSpawning: false` so children cannot spawn, and `subagentExtensions` loading `pi-web-access` into children for `researcher`, `pi-jev` for `jev_evaluate`, `builtin:codemode` for `codemode` (needs the install-time patch below), and `pi-fallback-models` so children fail over too. |
 | `harness/pi/extensions/pi-extensions-i18n/config.json` | `$PI_AGENT_DIR/extensions/pi-extensions-i18n/config.json` | Locale for pi extension messages: `en-US`, because the library defaults to Chinese regardless of system locale. |
@@ -53,10 +55,30 @@ under `$PI_AGENT_DIR/intercom`.
 `.env`, set `TYPESAFE_API_KEY`, and rerun `install.sh`. The installer copies the
 key with owner-only permissions to `~/.pi/agent/secrets/typesafe_api_key` for Pi
 and OMP, and to `~/.config/environment.d/90-typesafe.conf` so every harness can
-inherit it after the next login. Then run `/jev status`. Automatic routing, model
+inherit it after the next login. For a different key per auth profile, run
+`pi-secret -p work set TYPESAFE_API_KEY`; the `profile-secrets` extension exports it
+while that profile is active and falls back to the default key otherwise. Then run `/jev status`. Automatic routing, model
 selection, compaction, and orchestration remain opt-in.
 
-`install.sh` patches two installed third-party packages. Re-run it after Pi installs or updates
+### Per-profile secrets (`pi-secret`)
+
+`pi-secret [-p PROFILE] <command>` stores environment-variable secrets per
+`@nanstey/pi-auth-profiles` profile in `~/.pi/agent/secrets/<profile>.env` (mode 600).
+The `profile-secrets` extension exports them while that profile is active.
+Run `pi-secret help` for the full reference.
+
+| Command | Effect |
+| --- | --- |
+| `set NAME` | Store a secret. Prompts without echo, or reads one line from stdin. |
+| `unset NAME` | Remove a secret. |
+| `list` / `list --all` | List secret names (never values) for the profile / all profiles. |
+| `profile` | Print the resolved profile. |
+
+The profile is `-p PROFILE`, else the project's `authProfile`, else the global
+`defaultProfile`, else `default`. Run `set` from a normal terminal, not inside Pi,
+so the value stays out of the session transcript.
+
+`install.sh` patches three installed third-party packages. Re-run it after Pi installs or updates
 packages, because updates overwrite the patches. Each patch is idempotent. If upstream code
 changed, it reports an error and leaves the file untouched, and `install.sh` finishes the other
 installs and then exits 1.
@@ -65,6 +87,9 @@ installs and then exits 1.
   `--no-extensions`, which also disables its compiled-in `codemode`, and the package only
   accepts file paths in `subagentExtensions`. The patch makes `builtin:<name>` entries pass
   through as `--extension builtin:<name>`. Drop it once upstream supports that. Known gap: saving the interactive `/config:subagent extensions` chooser drops `builtin:` entries, so re-add `builtin:codemode` to the config afterwards.
+- **`pi-jev`:** 0.4.0 builds its SDK client once with the first API key and never rebuilds
+  it, so switching auth profile mid-session keeps the old key. The patch rebuilds the client
+  when the resolved key changes. Drop it once upstream does this.
 - **`pi-fallback-models`:** 0.1.1 classifies Anthropic's "You're out of extra usage" 400 as
   ignorable, so no fallback happens on that quota error. The patch adds that phrase to its
   quota patterns. Drop it once upstream recognizes it.
@@ -75,6 +100,14 @@ per machine with `/login`.
 
 To pull live config changes back into the repo, use the [`pi-sync`](.agents/skills/pi-sync/SKILL.md)
 skill (allowlist-based; it never reads or copies secrets).
+
+### Pi agent profiles
+
+The profiles under `agents/` are written for `@maplezzk/pi-interactive-subagents`
+(frontmatter `system-prompt`, `interactive`, `deny-tools`). Every profile ends by calling
+`subagent_done`: spawning tools are denied, and blockers go to the parent through
+`caller_ping`. Profiles do not auto-create handoff files; the delegating agent names
+output paths in the task.
 
 ### New machine bootstrap
 ```sh
@@ -250,11 +283,9 @@ Focused planning skills below are optional and independently selectable; `propos
 
 ## Agents
 
-Subagent profiles for focused delegated work, written for
-`@maplezzk/pi-interactive-subagents` (frontmatter `system-prompt`, `interactive`,
-`deny-tools`). Every profile is a leaf that ends by calling `subagent_done`: spawning tools are denied, and blockers go to the
-parent through `caller_ping`. Profiles do not auto-create handoff files; the delegating
-agent names output paths in the task.
+Subagent profiles for focused delegated work. Every profile is a leaf agent that
+never spawns further agents. Pi-specific runtime details are under
+[Pi agent profiles](#pi-agent-profiles) in the Pi harness section.
 
 | Agent | Model | Description |
 | --- | --- | --- |
