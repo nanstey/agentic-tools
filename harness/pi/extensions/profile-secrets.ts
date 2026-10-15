@@ -6,7 +6,7 @@
  * `pi-secret` CLI) into process.env while that profile is active. Variables a
  * profile does not set revert to the value pi inherited at startup, so
  * switching profiles never leaks a secret across profiles. Child processes
- * (subagents, tools) inherit the result. Used for e.g. TYPESAFE_API_KEY (pi-jev).
+ * (subagents, tools) inherit the result. Used for e.g. OPENROUTER_API_KEY or TYPESAFE_API_KEY (codemode Jev).
  * Profile or secret file changes are picked up by a file watch plus per-input hooks.
  */
 import { type FSWatcher, existsSync, readFileSync, watch } from "node:fs";

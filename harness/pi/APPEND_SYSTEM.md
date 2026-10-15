@@ -68,8 +68,11 @@ result and the parent routes it.
 
 `codemode` lets you write one script that calls several tools in parallel and filters
 results before they reach the context. Prefer it for fan-out reads, greps across many
-files, and batch checks. `scout`, `worker` and `reviewer` have it too. Use
-`jev_evaluate` for typed decisions (classify, route, rank, yes/no with a probability)
-instead of prose judgment, and call it from a `codemode` script when judging many items.
-`jev_evaluate` choice criteria must be a map of label to description, not a list. Built-in tools stay available: if `read`,
-`grep`, or `bash` are missing, run `jev_find_tools` to activate them.
+files, and batch checks. `scout`, `worker` and `reviewer` have it too.
+
+For typed decisions (classify, route, rank, yes/no with a probability) instead of prose
+judgment, call Jev from a `codemode` script: pick a model with
+`models.getAvailableOfType("classifier")` (never hardcode a provider; the available set
+depends on the active auth profile's credentials), then `models.classify(model, { state,
+questions })`. Choice `criteria` is a map of label to description. Check `stopReason`;
+classify does not throw. Batch many items with `Promise.all`.
