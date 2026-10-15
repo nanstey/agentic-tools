@@ -1,9 +1,4 @@
----
-name: conflicts
-description: Resolves in-progress merge/rebase/cherry-pick/revert conflicts and continues the git operation. Use when a git operation stops on conflicts.
----
-
-# Conflicts
+# Git conflicts
 
 ## Core Contract
 

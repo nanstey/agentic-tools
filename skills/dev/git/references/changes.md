@@ -1,9 +1,4 @@
----
-name: changes
-description: Inspects staged and unstaged changes and groups them into coherent change sets. Use when reviewing what changed before committing.
----
-
-# Changes
+# Git changes
 
 ## Core Contract
 

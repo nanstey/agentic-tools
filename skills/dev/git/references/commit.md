@@ -1,9 +1,4 @@
----
-name: commit
-description: Creates well-formed commit(s) from current changes with grouped diffs and clear messages. Use when current work is ready to commit.
----
-
-# Commit
+# Git commit
 
 ## Core Contract
 
@@ -21,7 +16,7 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 ## Workflow
 
-1. Use `changes` output (or equivalent diff review) to define commit groups.
+1. Use `/git changes` output (or equivalent diff review) to define commit groups.
 2. Confirm plan before staging when grouping/scope is ambiguous.
 3. Re-check `git status --porcelain` and diffs right before staging.
 4. Stage only intended hunks/files; avoid blind adds.

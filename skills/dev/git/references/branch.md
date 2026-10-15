@@ -1,11 +1,4 @@
----
-name: branch
-description: Creates a new git branch for current or proposed changes, deriving a conventional name when none is given. Use when the user wants to start a branch, e.g. `/branch <name?>`.
-user-invocable: true
-disable-model-invocation: false
----
-
-# Branch
+# Git branch
 
 ## Core Contract
 

@@ -17,10 +17,10 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 ## Workflow
 
-1. Run `changes` first to resolve the comparison scope and record the exact base and head refs. When an existing PR is found, use `/pr info` for its base and head.
-2. If `changes` reports uncommitted work:
-   - on `main` or `develop`, create a `branch`, then `commit` the work;
-   - otherwise, `commit` the work.
+1. Run `/git changes` first to resolve the comparison scope and record the exact base and head refs. When an existing PR is found, use `/pr info` for its base and head.
+2. If `/git changes` reports uncommitted work:
+   - on `main` or `develop`, create a branch with `/git branch`, then `/git commit` the work;
+   - otherwise, `/git commit` the work.
 3. Invoke `/pr info` to resolve and verify an existing PR.
 4. If no PR exists, invoke `/pr create`, then use its resulting PR as the target. Stop on any other `/pr info` gate.
 5. Invoke `/pr monitor` for the verified or newly created PR: `mode: once` by default, `mode: monitor` with `auto-merge`.

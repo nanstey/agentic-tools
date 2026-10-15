@@ -72,7 +72,7 @@ Load the companion [`playwright-cli`](../../tools/playwright-cli/SKILL.md) skill
 5. Capture:
    - Screenshots — full page and/or component crops.
    - Videos — record the interaction to `.webm`, then transcode to `.mp4` for PR embedding.
-6. Before/after — capture each state with **identical** settings and label old/new. Prefer a base-ref `worktree` (see `worktree` skill) running its own dev server, or a deployed preview, so you don't rebuild in place.
+6. Before/after — capture each state with **identical** settings and label old/new. Prefer a base-ref worktree (see `/git worktree`) running its own dev server, or a deployed preview, so you don't rebuild in place.
 7. Transcode and size for the target; keep the PR mp4 under GitHub's limit (~10 MB).
 8. Write outputs under `$CAP` and produce ready-to-paste PR markdown.
 9. Close the session — always, including on error (`trap 'playwright-cli -s=capture close' EXIT`).
@@ -180,7 +180,7 @@ captures/                                  # gitignored; add to the target repo'
 
 ## Composition
 
-- Pair with the `worktree` skill to run the base ref for the "before" state without disturbing the working tree.
+- Pair with `/git worktree` to run the base ref for the "before" state without disturbing the working tree.
 - Feed the emitted markdown to `/pr description`; within the `pr` workflow, capture before pushing so the description carries the evidence.
 
 ## Safety Rules

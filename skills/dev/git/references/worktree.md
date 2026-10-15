@@ -1,18 +1,11 @@
----
-name: worktree
-description: Creates or reuses a git worktree for a branch and reports its ready-to-use path, using Orca-managed worktrees when the Orca IDE runs this repo. Use before starting any new unit of work (feature, fix, task) and when the user wants to work on a branch in its own worktree, e.g. `/worktree <branch-name>`.
-user-invocable: true
-disable-model-invocation: false
----
-
-# Worktree
+# Git worktree
 
 ## Core Contract
 
 Ensure a usable worktree exists for the requested branch, creating the branch and/or worktree as needed, then report the path.
 Works whether the branch exists locally, only on the remote, or not at all, and whether a worktree is already registered.
 Starting a new unit of work (feature, fix, task) without an explicit branch: derive a conventional `<type>/<slug>` branch name from the request and proceed; never start new work on the default branch's main checkout.
-Name new branches by the `branch` skill's rules: `<type>/<slug>` with a conventional type prefix only, never user, tool, or agent prefixes (`claude/`, `<git-username>/`, `worktree-`).
+Name new branches by `/git branch`'s rules: `<type>/<slug>` with a conventional type prefix only, never user, tool, or agent prefixes (`claude/`, `<git-username>/`, `worktree-`).
 Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 ## Required Inputs
@@ -41,7 +34,7 @@ Prefer Orca-managed worktrees so the checkout appears in the Orca IDE with metad
 2. Check `git worktree list --porcelain` for an existing worktree on `branch`:
    - If found and the directory exists, reuse it and skip to step 6.
    - If registered but the directory is missing, run `git worktree prune`, then continue.
-3. For a new branch, check the name matches `^(feat|fix|chore|docs|ci|style|refactor|test|perf|build)/[a-z0-9-]+$`; if not, rename it per the `branch` skill before creating.
+3. For a new branch, check the name matches `^(feat|fix|chore|docs|ci|style|refactor|test|perf|build)/[a-z0-9-]+$`; if not, rename it per `/git branch` before creating.
 4. Classify the branch:
    - Local branch exists: `git worktree add <path> <branch>`.
    - Remote-only (`origin/<branch>`): `git worktree add <path> -b <branch> --track origin/<branch>`.

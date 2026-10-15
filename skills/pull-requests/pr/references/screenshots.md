@@ -115,7 +115,7 @@ Inventory the hosted attachment URLs and the local capture paths still present i
 
 - Triggered standalone (`/pr screenshots`) or as a step of `/pr description`, which calls this skill before finalizing the body so UI PRs carry current evidence.
 - Within the `pr` workflow, run before the description sync so the refreshed evidence is wired into the final body.
-- Delegates all capture to `visual-capture`; pairs with `worktree` for the before state.
+- Delegates all capture to `visual-capture`; pairs with `/git worktree` for the before state.
 
 ## Safety Rules
 

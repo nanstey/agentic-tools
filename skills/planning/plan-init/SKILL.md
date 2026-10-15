@@ -11,7 +11,7 @@ disable-model-invocation: false
 
 Create one plan folder and its README index for a change. Write the folder and a README scaffold only; do not pre-generate design artifacts or spec files. Each planning skill writes its own file into the folder as needed and registers it in the README index.
 
-This skill defines the canonical **Plan Folder Layout** and **README Index Contract** that the other planning skills and `build` reference. Inspect the target repository read-only aside from creating the folder and README; target-repository `AGENTS.md` or `CLAUDE.md` instructions override this skill on conflict.
+This skill defines the canonical **Plan Folder Layout** and **README Index Contract** that the other planning skills and `/git build` reference. Inspect the target repository read-only aside from creating the folder and README; target-repository `AGENTS.md` or `CLAUDE.md` instructions override this skill on conflict.
 
 ## Required Inputs
 

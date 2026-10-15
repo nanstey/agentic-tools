@@ -129,13 +129,7 @@ task:
 
 | Skill | Description |
 | --- | --- |
-| [`changes`](skills/dev/changes/SKILL.md) | Summarize staged/unstaged changes into logical groups and flag unrelated edits. Read-only. |
-| [`build`](skills/dev/build/SKILL.md) | Implements scoped changes from context, plans, or speclists through verifiable phases with up-front success criteria and per-phase validation. |
-| [`commit`](skills/dev/commit/SKILL.md) | Group current changes into clean commit(s), run hooks, and push to `origin` by default. |
-| [`rebase`](skills/dev/rebase/SKILL.md) | Rebase onto latest `main`/`develop`; hand conflicts to `conflicts`; force-push with lease. |
-| [`conflicts`](skills/dev/conflicts/SKILL.md) | Resolve merge/rebase/cherry-pick/revert conflicts and continue the stopped operation. |
-| [`branch`](skills/dev/branch/SKILL.md) | Create a new branch for current/proposed changes, deriving a conventional `<type>/<slug>` name when none is given. |
-| [`worktree`](skills/dev/worktree/SKILL.md) | Create or reuse a git worktree for a branch — Orca-managed when the Orca IDE runs the repo, plain git otherwise — and report its path. Triggered before starting any new unit of work. |
+| [`git`](skills/dev/git/SKILL.md) | Runs everyday git workflows from one command — branching, worktrees, change review, commits, rebasing, conflict resolution, and scoped builds. Use when work needs a branch or worktree, changes need grouping or committing, a branch needs rebasing, a stopped merge/rebase has conflicts, or a plan needs building through verifiable phases. |
 
 ### Env
 

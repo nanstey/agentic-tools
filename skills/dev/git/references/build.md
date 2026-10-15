@@ -1,11 +1,4 @@
----
-name: build
-description: Implements scoped changes from context, plans, or speclists through verifiable phases with up-front success criteria and per-phase validation. Use when execution should start from existing requirements.
-user-invocable: true
-disable-model-invocation: false
----
-
-# Build
+# Git build
 
 ## Core Contract
 
@@ -29,10 +22,10 @@ If no actionable target or intent exists, stop and ask.
 ## Workflow
 
 1. Classify input, restate objective, and define behavioural success criteria up front.
-2. Assess branch fitness: if the current branch is unsuitable or the tree is dirty, run `/branch` or `/worktree` before editing.
+2. Assess branch fitness: if the current branch is unsuitable or the tree is dirty, run `/git branch` or `/git worktree` before editing.
 3. Confirm validation tooling is available and runnable; acquire or flag missing tooling before relying on it.
 4. Decompose into individually verifiable phases.
-5. For each phase: implement focused edits, and validate its success criteria, update speclist checkboxes only after validation, then run `/commit`.
+5. For each phase: implement focused edits, and validate its success criteria, update speclist checkboxes only after validation, then run `/git commit`.
 6. When all phases pass, run `/pr`. In a plan folder, set the slice's `PR` and `Status` cells in the README `## Slices` table and update the top-level `Status`.
 7. If a design changes during implementation, update the affected `## Design` doc or spec and append a dated entry to the README `## Decision log`; keep the plan folder consistent with what shipped.
 8. Summarize changes, validation, assumptions, and risks.
@@ -41,10 +34,10 @@ Stop and ask when scope is ambiguous, architecture choices are unresolved, or va
 
 ## Safety Rules
 
-- Never advance, `/commit`, or `/pr` a phase whose success criteria are unvalidated.
+- Never advance, `/git commit`, or `/pr` a phase whose success criteria are unvalidated.
 - Never claim validation ran when it did not; distinguish executed checks from proposed checks.
 - Never rely on validation tooling without first confirming it is available and runnable.
-- Never `/commit`, push, or `/pr` unless the request includes shipping; when it does, treat them as phase and completion steps.
+- Never `/git commit`, push, or `/pr` unless the request includes shipping; when it does, treat them as phase and completion steps.
 - Never treat ambiguous intent as approval for broad refactors.
 - Never delegate work without a clear purpose, relevant context, required evidence, and expected result.
 - Never revert or overwrite unrelated user changes, or use destructive git/file operations, without explicit approval.
