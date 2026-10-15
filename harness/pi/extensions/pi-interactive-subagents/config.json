@@ -3,7 +3,8 @@
   "herdrMode": "split",
   "allowSubagentSpawning": false,
   "subagentExtensions": [
-    "npm/node_modules/pi-web-access/index.ts"
+    "npm/node_modules/pi-web-access/index.ts",
+    "npm/node_modules/pi-fallback-models/src/extension.ts"
   ],
   "status": {
     "enabled": true
