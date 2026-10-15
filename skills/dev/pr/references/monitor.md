@@ -6,13 +6,15 @@
 
 The engine returns one of:
 
-- `clean`: a final same-head resnapshot confirms no unresolved review feedback and every required check is terminal and non-failing;
+- `clean`: the PR is ready for review (not a draft) and a final same-head resnapshot confirms no unresolved review feedback and every required check is terminal and non-failing;
 - `pending`: no blocker remains and another cycle is required, including when required CI for the current head is queued, pending, or in progress; this is not success; or
 - `blocked`: a delegate stop gate, non-actionable feedback, external failure, validation failure, unexpected working-tree state, authentication/rate-limit problem, ambiguous PR, or no-progress condition prevents safe completion.
 
 `once` returns immediately after one cycle and never sleeps. `monitor` returns on `clean` or `blocked`; on `pending`, it waits for the configured interval (60 seconds by default) before another cycle.
 
-Delegate to `/pr info`, `/pr comments`, `/pr ci`, `/pr rebase` (or its required `/pr stack` handoff), and `/pr description`. Do not reproduce their remediation, validation, publication, thread-finalization, or screenshot internals; preserve every delegate's safety and stop gates.
+While watching, the cycle auto-fixes actionable review threads and failing required CI (steps 3-4); nothing waits on the user.
+
+Delegate to `/pr info`, `/pr comments`, `/pr ci`, `/pr ready`, `/pr rebase` (or its required `/pr stack` handoff), and `/pr description`. Do not reproduce their remediation, validation, publication, thread-finalization, or screenshot internals; preserve every delegate's safety and stop gates.
 
 ## Required Inputs
 
@@ -34,10 +36,12 @@ Delegate to `/pr info`, `/pr comments`, `/pr ci`, `/pr rebase` (or its required 
 6. Run `/pr description` once for the cycle's entry head when no publication occurred, or once for the published head when it did. This is description-once-per-head: across monitor cycles, do not run it again for an already-described head. Preserve its mandatory screenshot handling and stop gates.
 7. Once the relevant branch state is confirmed published, invoke `/pr comments` to finalize deferred replies and resolutions. Use the newly published head when publication occurred; otherwise use the already-published verified entry head. Keep blocked feedback unresolved as that skill requires.
 8. Resnapshot with `/pr info`, unresolved-review discovery, and current-head required CI. If the head changed outside the single publication, discard prior observations and return `pending` unless a stop gate applies; the next monitor cycle or invocation will reconcile the new head.
-9. Classify the resnapshot:
+9. Classify the resnapshot (draft transition per step 10):
    - if any required check is queued, pending, or in progress and no actionable remediation remains, return `pending`;
    - if unresolved feedback remains, dispatch it only when it is new actionable feedback; otherwise return `blocked` for non-progress;
    - if all required checks are terminal and non-failing and no unresolved feedback remains, take one final complete resnapshot. Return `clean` only when that confirmation reports the identical head OID and the same clean conditions; otherwise return `pending` for a changed/pending head or `blocked` for an incomplete/error snapshot.
+
+10. Draft transition: if the resnapshot would otherwise be `clean` but `isDraft` is true, invoke `/pr ready` once per monitor invocation. Required CI may run only on ready PRs, so the draft snapshot is incomplete. On success return `pending` (not `clean`): the ready transition can start a fuller CI suite, and the next cycle (automatic in `monitor` mode; next invocation in `once` mode) is the follow-up monitor for the ready head. If `/pr ready` stops, or the PR is a draft again after conversion, return `blocked`. Skip when the user's scope forbids marking ready.
 
 ## GitHub Implementation Notes
 
@@ -54,8 +58,9 @@ Delegate to `/pr info`, `/pr comments`, `/pr ci`, `/pr rebase` (or its required 
 - Never duplicate delegate internals, bypass a delegate's stop gate, publish partial remediation, or force-push outside `/pr rebase` or its stack handoff.
 - Never reply to or resolve review feedback before its remediation is published.
 - Never spin: do not re-dispatch unchanged feedback or failures without new evidence, and stop on inherited stop gates or non-progress.
-- Never return `clean` without the final complete same-head clean resnapshot.
+- Never mark ready except through `/pr ready` after a would-be-clean draft snapshot, and never more than once per invocation.
+- Never return `clean` for a draft PR, or without the final complete same-head clean resnapshot.
 
 ## Output Style
 
-Report the verified PR, mode, result state, final head OID, final feedback and required-CI snapshot, waits, and any blocker. Include whether remediation changed local state, whether publication occurred, and whether the description was updated.
+Report the verified PR, mode, result state, final head OID, final feedback and required-CI snapshot, waits, and any blocker. Include whether remediation changed local state, whether publication occurred, and whether the description was updated, and whether the PR was marked ready.

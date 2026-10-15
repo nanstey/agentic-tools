@@ -3,7 +3,8 @@
 ## Core Contract
 
 Address unresolved PR review threads end-to-end on the current branch.
-Default tool is `gh`. Follow `CLAUDE.md` / `AGENTS.md` on conflict.
+Default tool is `gh`.
+Scope: threads on your own branch's PR. To review a PR (own or others') or post review comments on someone else's PR, use [`review.md`](review.md). Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 ## Required Inputs
 
@@ -37,6 +38,8 @@ Default tool is `gh`. Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 8. Leave unresolved threads open and report blockers.
 
 Treat feedback that implies product/architecture decisions or high-risk trade-offs as blocked: leave it unresolved and report it.
+
+Findings from `/pr review` on your own PR are not threads; `/pr review <target> fix` applies them using the safety rules below.
 
 ## Safety Rules
 
