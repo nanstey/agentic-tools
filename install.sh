@@ -225,14 +225,10 @@ install_jev_key_patch() {
 '    if (!this.client) {
       this.client = new TypeSafeClient({ apiKey: key });
     }' \
-'    if (!this.client || this.clientKey !== key) {
+'    if (!this.client || (this as any).clientKey !== key) {
       this.client = new TypeSafeClient({ apiKey: key });
-      this.clientKey = key;
-    }' || return 1
-  patch_installed_file patch-jev "$1" 'private clientKey' \
-'  private client: TypeSafeClient | null = null;' \
-'  private client: TypeSafeClient | null = null;
-  private clientKey: string | null = null;'
+      (this as any).clientKey = key;
+    }'
 }
 
 # Installed OMP npm plugins as "name@version" lines, read from omp's JSON
@@ -327,7 +323,6 @@ link_one() {
   fi
 }
 
-install_pi_secret_link
 install_typesafe_secret
 
 for entry in "${HARNESSES[@]}"; do
@@ -411,6 +406,9 @@ for entry in "${HARNESSES[@]}"; do
     done
   done
 done
+
+# After the harness loop so a fresh install has copied the CLI first.
+install_pi_secret_link
 
 # Check and optionally install external tools
 check_tools() {
