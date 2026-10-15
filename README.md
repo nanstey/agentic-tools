@@ -210,19 +210,7 @@ Focused planning skills below are optional and independently selectable; `propos
 
 | Skill | Description |
 | --- | --- |
-| [`pr`](skills/pull-requests/pr/SKILL.md) | Runs the PR creation and maintenance checklist for the current branch, optionally through to merge with `--auto-merge`. |
-| [`pr-info`](skills/pull-requests/pr-info/SKILL.md) | Find and verify the branch PR (or a URL) and load its metadata. Read-only. |
-| [`pr-monitor`](skills/pull-requests/pr-monitor/SKILL.md) | Reconciles one verified open PR to a stable review-ready state. |
-| [`pr-merge`](skills/pull-requests/pr-merge/SKILL.md) | Marks a verified PR ready for review and squash-merges it when required CI passes and no review thread is unresolved. |
-| [`pr-ci`](skills/pull-requests/pr-ci/SKILL.md) | Diagnose failed PR CI jobs, fix root causes, validate, commit, and push. |
-| [`pr-create`](skills/pull-requests/pr-create/SKILL.md) | Create a draft PR for the current branch when none exists. |
-| [`pr-comments`](skills/pull-requests/pr-comments/SKILL.md) | Triage unresolved review threads, apply fixes, validate, commit, push, and resolve/reply. |
-| [`pr-description`](skills/pull-requests/pr-description/SKILL.md) | Sync the PR title and description to current branch changes and maintain checklist accuracy. |
-| [`pr-screenshots`](skills/pull-requests/pr-screenshots/SKILL.md) | Keep a PR's screenshots and UI clips in sync with the current UI implementation, capturing or refreshing them (as PR attachments, never committed) when the branch changes UI. |
-| [`pr-rebase`](skills/pull-requests/pr-rebase/SKILL.md) | Rebase onto latest `origin/develop`, resolve conflicts, and force-push with lease. |
-| [`pr-restack`](skills/pull-requests/pr-restack/SKILL.md) | Rebase dependent PR stacks and repoint downstream branches to correct bases. |
-| [`pr-split`](skills/pull-requests/pr-split/SKILL.md) | Split a large branch/PR into smaller reviewable units, proposing parallel PRs or a stacked series. |
-| [`gh-stack`](skills/pull-requests/gh-stack/SKILL.md) | Create and manage GitHub native stacked-PR stacks via the gh-stack CLI or Stacks REST API, with fallback when the feature is unavailable. |
+| [`pr`](skills/pull-requests/pr/SKILL.md) | Runs PR creation, maintenance, and stacked-PR workflows from one command. Use when a branch or pull request needs creation, reconciliation, remediation, publication, merge, or stack management. |
 
 ### Issues
 

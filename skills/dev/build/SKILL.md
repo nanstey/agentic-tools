@@ -18,7 +18,7 @@ Use the active environment's delegation mechanisms when a separate execution con
 ## Required Inputs
 
 1. Source: a plan folder `README.md`, `context`, `plan`, or `speclist` (inline or filepath). If absent, derive a minimal plan from intent.
-   - Given a plan-folder README: read it for the big picture, follow its `## Design` docs for context, and take the target slice's `specs/NN-*.md` as the phase checklist. Build one slice per PR unless told otherwise; stack dependent slices via `/gh-stack` or `/pr-restack`.
+   - Given a plan-folder README: read it for the big picture, follow its `## Design` docs for context, and take the target slice's `specs/NN-*.md` as the phase checklist. Build one slice per PR unless told otherwise; stack dependent slices via `/pr --stack` or `/pr --restack`.
 2. Outcome and boundaries.
 3. Success criteria stated as observable behaviour (BDD/TDD), not implementation details.
 4. Required validation and the tooling/methods it depends on.

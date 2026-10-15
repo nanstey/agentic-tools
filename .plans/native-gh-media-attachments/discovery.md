@@ -14,17 +14,16 @@ Replace repository-authored screenshot and clip publishing workarounds with GitH
 
 ## Current repository behaviour
 
-- `skills/pull-requests/pr-screenshots/SKILL.md:12-15,43-58` owns capture applicability, delegates capture, publishes assets, and edits the PR body.
-- `skills/pull-requests/pr-screenshots/SKILL.md:60-98` prefers the third-party `gh-image` extension, requires a browser `user_session` cookie, falls back to drag-drop/handoff, then separately edits the PR body.
-- `skills/pull-requests/pr-screenshots/SKILL.md:106-123` encodes obsolete safety/output claims that native `gh` attachment endpoints do not exist.
-- `skills/visual/visual-capture/SKILL.md:66-80,149-179` produces off-tree screenshots and MP4 clips plus paste-ready Markdown; publishing guidance still requires UI drag-drop.
-- `skills/pull-requests/pr-description/SKILL.md:20-35,88-105` invokes `pr-screenshots`, preserves attachments, and separately writes/verifies PR body content. Its generic REST fallback remains useful for text-only failures but cannot replace native media upload.
-- `skills/pull-requests/pr-create/SKILL.md` creates a PR before invoking description/screenshot refresh; native `gh pr edit --attach` therefore fits the current composition without redesigning PR creation.
+- `skills/pull-requests/pr/SKILL.md`'s `--screenshots` workflow owns capture applicability, delegates capture, publishes assets, and edits the PR body.
+- That workflow uses the native attachment flow and preserves a pending handoff path.
+- `visual-capture` produces off-tree screenshots and MP4 clips plus paste-ready Markdown.
+- The `--description` workflow preserves attachments, while its generic REST fallback remains text-only.
+- The `--create` workflow creates a PR before description/screenshot refresh; native `gh pr edit --attach` therefore fits without redesigning creation.
 - Issue skills and generic PR comment skills have no repository-owned screenshot upload flow. Browser upload helpers capture/input files but do not publish GitHub PR evidence.
 
 ## Decision
 
-One PR-sized slice. Update `pr-screenshots` as the publishing owner and `visual-capture` as its artifact handoff. Keep `pr-description` composition unchanged unless wording must clarify that `pr-screenshots` performs the native attachment edit. Do not broaden issue/comment skills without an existing screenshot workflow.
+One PR-sized slice. Update `/pr --screenshots` as the publishing owner and `visual-capture` as its artifact handoff. Keep `/pr --description` composition unchanged unless wording must clarify that it performs the native attachment edit. Do not broaden issue/comment skills without an existing screenshot workflow.
 
 Use a temporary body file that references local capture paths, then execute one `gh pr edit <number> --body-file <file> --attach <path>...` command. This lets `gh` upload and rewrite in one operation, preserves Markdown alt text, avoids shell quoting hazards, and prevents a second body mutation. Re-read the PR body to verify hosted attachment URLs replaced local paths.
 
