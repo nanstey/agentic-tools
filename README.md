@@ -129,14 +129,8 @@ task:
 
 | Skill | Description |
 | --- | --- |
-| [`changes`](skills/dev/changes/SKILL.md) | Summarize staged/unstaged changes into logical groups and flag unrelated edits. Read-only. |
-| [`build`](skills/dev/build/SKILL.md) | Implements scoped changes from context, plans, or speclists through verifiable phases with up-front success criteria and per-phase validation. |
-| [`commit`](skills/dev/commit/SKILL.md) | Group current changes into clean commit(s), run hooks, and push to `origin` by default. |
-| [`rebase`](skills/dev/rebase/SKILL.md) | Rebase onto latest `main`/`develop`; hand conflicts to `conflicts`; force-push with lease. |
-| [`conflicts`](skills/dev/conflicts/SKILL.md) | Resolve merge/rebase/cherry-pick/revert conflicts and continue the stopped operation. |
-| [`branch`](skills/dev/branch/SKILL.md) | Create a new branch for current/proposed changes, deriving a conventional `<type>/<slug>` name when none is given. |
-| [`worktree`](skills/dev/worktree/SKILL.md) | Create or reuse a git worktree for a branch — Orca-managed when the Orca IDE runs the repo, plain git otherwise — and report its path. Triggered before starting any new unit of work. |
-| [`prototype`](skills/dev/prototype/SKILL.md) | Build a throwaway prototype (interactive logic TUI or switchable UI variants) to answer a design question, then capture the answer and delete it. |
+| [`git`](skills/dev/git/SKILL.md) | Runs everyday git workflows from one command — branching, worktrees, change review, commits, rebasing and conflict resolution. Use when work needs a branch or worktree, changes need grouping or committing, a branch needs rebasing, or a stopped merge/rebase has conflicts. |
+| [`pr`](skills/dev/pr/SKILL.md) | Runs PR creation, maintenance, and stacked-PR workflows from one command. Use when a branch or pull request needs creation, reconciliation, remediation, publication, merge, or stack management. |
 
 ### Env
 
@@ -167,6 +161,7 @@ Focused planning skills below are optional and independently selectable; `propos
 | --- | --- |
 | [`idea-to-pr`](skills/workflow/idea-to-pr/SKILL.md) | Takes an idea from evidence-backed discovery through built, tested, and validated pull requests. Use when a feature idea or change request should be driven end-to-end to review-ready PRs. |
 | [`flow-design`](skills/workflow/flow-design/SKILL.md) | Designs a platform-neutral delegation plan with roles, gates, and return contracts. Use when a task needs coordinated execution designed before work begins. |
+| [`build`](skills/workflow/build/SKILL.md) | Implements scoped changes from context, plans, or speclists through verifiable phases with up-front success criteria and per-phase validation. Use when execution should start from existing requirements. |
 
 ### Agent
 
@@ -195,6 +190,7 @@ Focused planning skills below are optional and independently selectable; `propos
 | Skill | Description |
 | --- | --- |
 | [`visual-capture`](skills/visual/visual-capture/SKILL.md) | Capture screenshots and videos of a running site (before/after PR evidence, component crops, multi-page or scroll tours) by driving the `playwright-cli` tool. |
+| [`prototype`](skills/visual/prototype/SKILL.md) | Build a throwaway prototype (interactive logic TUI or switchable UI variants) to answer a design question, then capture the answer and delete it. |
 
 ### Tools
 
@@ -205,12 +201,6 @@ Focused planning skills below are optional and independently selectable; `propos
 | [`typesafe-ai`](skills/tools/typesafe-ai/SKILL.md) | Build AI-powered software with TypeSafe System One models (Jev): typed judgments and probabilities from natural language and app state that code composes for routing, ranking, extraction, and verification. Vendored from `typesafe-ai/skills` (MIT). |
 | [`jev-ultrafast`](skills/tools/jev-ultrafast/SKILL.md) | Runs Jev Ultrafast through its pinned browser agent and verifies the requested page outcome. Use when a Chrome task benefits from its dynamic indexed action space. Upstream: `browser-use/jev-ultrafast` 0.1.0 at `1231850a0bf1a0c0341fe408ef1668dbbfdfac46` (MIT). |
 | [`agent-browser`](skills/tools/agent-browser/SKILL.md) | Fast headless browser testing and screenshots — a native Rust CLI and persistent daemon driving Chrome over CDP, with accessibility-tree snapshots addressed by compact `@eN` refs and snapshot/screenshot diffing. Upstream: `vercel-labs/agent-browser` (Apache-2.0). |
-
-### Pull Requests
-
-| Skill | Description |
-| --- | --- |
-| [`pr`](skills/pull-requests/pr/SKILL.md) | Runs PR creation, maintenance, and stacked-PR workflows from one command. Use when a branch or pull request needs creation, reconciliation, remediation, publication, merge, or stack management. |
 
 ### Issues
 

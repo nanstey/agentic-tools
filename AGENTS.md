@@ -55,7 +55,7 @@ Use the matching authoring skill instead of copying conventions from here:
 ## Adding a new tool
 
 - **Global skill:** add `skills/<category>/<name>/SKILL.md`; mirror
-  `skills/pull-requests/pr/SKILL.md`.
+  `skills/dev/pr/SKILL.md`.
 - **Repo-local authoring skill:** add `.agents/skills/<name>/SKILL.md`; mirror
   `.agents/skills/make-skill/SKILL.md` or `.agents/skills/make-agent/SKILL.md`.
 - **Agent:** add `agents/<name>.md`; mirror `agents/code-reviewer.md` and use

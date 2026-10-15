@@ -3,7 +3,7 @@
 ## Core Contract
 
 Ensure the PR's visual evidence matches the current UI implementation on the branch.
-Decide whether screenshots/clips are *applicable*, detect *stale or missing* evidence, and refresh it by delegating capture to the [`visual-capture`](../../visual/visual-capture/SKILL.md) skill (which drives `playwright-cli`).
+Decide whether screenshots/clips are *applicable*, detect *stale or missing* evidence, and refresh it by delegating capture to the [`visual-capture`](../../../visual/visual-capture/SKILL.md) skill (which drives `playwright-cli`).
 Do the decision and PR-body wiring here; never capture with ad-hoc tooling.
 Default tool for PR reads/writes is `gh`. Follow the target repo's `CLAUDE.md` / `AGENTS.md` on conflict.
 
@@ -115,7 +115,7 @@ Inventory the hosted attachment URLs and the local capture paths still present i
 
 - Triggered standalone (`/pr screenshots`) or as a step of `/pr description`, which calls this skill before finalizing the body so UI PRs carry current evidence.
 - Within the `pr` workflow, run before the description sync so the refreshed evidence is wired into the final body.
-- Delegates all capture to `visual-capture`; pairs with `worktree` for the before state.
+- Delegates all capture to `visual-capture`; pairs with `/git worktree` for the before state.
 
 ## Safety Rules
 

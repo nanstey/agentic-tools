@@ -15,8 +15,8 @@ This is the manual path: when the repo has GitHub native Stacked PRs enabled (PR
 8. Create backup refs for every branch before rewriting.
 9. Execute bottom-up restack:
    - checkout/reset branch to `origin/<branch>`,
-   - delegate rebase mechanics to `/rebase` (transplant mode when needed, `push=false`),
-   - let `/conflicts` handle pauses,
+   - delegate rebase mechanics to `/git rebase` (transplant mode when needed, `push=false`),
+   - let `/git conflicts` handle pauses,
    - refresh lockfile when package manifests/lockfile changed,
    - run typecheck before push,
    - verify branch shape (`range-diff`, branch log) against plan,
