@@ -20,7 +20,7 @@ PI_AGENT_DIR="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}"
 # every existing match, so a single pair can fan out to many destinations.
 HARNESSES=(
   "claude|$HOME/.claude|claude|skills:$HOME/.claude/skills;agents:$HOME/.claude/agents"
-  "pi|$PI_AGENT_DIR|pi|skills:$PI_AGENT_DIR/skills;agents:$PI_AGENT_DIR/agents;config:$PI_AGENT_DIR::$REPO_ROOT/harness/pi;config:$PI_AGENT_DIR/extensions::$REPO_ROOT/harness/pi/extensions;config:$PI_AGENT_DIR/bin::$REPO_ROOT/harness/pi/bin;config:$PI_AGENT_DIR/extensions/pi-interactive-subagents::$REPO_ROOT/harness/pi/extensions/pi-interactive-subagents;config:$PI_AGENT_DIR/extensions/pi-extensions-i18n::$REPO_ROOT/harness/pi/extensions/pi-extensions-i18n;config:$PI_AGENT_DIR/intercom::$REPO_ROOT/harness/pi/extensions/pi-intercom;hoist:$PI_AGENT_DIR/npm::$REPO_ROOT/harness/pi/settings.json;patch-fallback:$PI_AGENT_DIR/npm/node_modules/pi-fallback-models/src/extension.ts;patch-subagent-widget:$PI_AGENT_DIR/npm/node_modules/@maplezzk/pi-interactive-subagents/pi-extension/subagents/subagent-done.ts"
+  "pi|$PI_AGENT_DIR|pi|skills:$PI_AGENT_DIR/skills;agents:$PI_AGENT_DIR/agents;config:$PI_AGENT_DIR::$REPO_ROOT/harness/pi;config:$PI_AGENT_DIR/extensions::$REPO_ROOT/harness/pi/extensions;config:$PI_AGENT_DIR/bin::$REPO_ROOT/harness/pi/bin;config:$PI_AGENT_DIR/extensions/pi-interactive-subagents::$REPO_ROOT/harness/pi/extensions/pi-interactive-subagents;config:$PI_AGENT_DIR/extensions/pi-extensions-i18n::$REPO_ROOT/harness/pi/extensions/pi-extensions-i18n;config:$PI_AGENT_DIR/intercom::$REPO_ROOT/harness/pi/extensions/pi-intercom;hoist:$PI_AGENT_DIR/npm::$REPO_ROOT/harness/pi/settings.json;patch-fallback:$PI_AGENT_DIR/npm/node_modules/pi-fallback-models/src/extension.ts;patch-subagent-widget:$PI_AGENT_DIR/npm/node_modules/@maplezzk/pi-interactive-subagents/pi-extension/subagents/subagent-done.ts;patch-jev-client:$PI_AGENT_DIR/npm/node_modules/pi-jev"
   "omp|$HOME/.omp/agent|omp|skills:$HOME/.omp/agent/skills;skills:$HOME/.omp/profiles/*/agent/skills;agents:$HOME/.omp/agent/agents;agents:$HOME/.omp/profiles/*/agent/agents;config:$HOME/.omp/agent::$REPO_ROOT/harness/omp;config:$PI_AGENT_DIR/intercom::$REPO_ROOT/harness/pi/extensions/pi-intercom;omp-plugin-manifest:$REPO_ROOT/harness/omp/plugins/pi-intercom.txt;omp-plugin-manifest:$REPO_ROOT/harness/omp/plugins/pi-jev.txt;omp-status-line:$REPO_ROOT/harness/omp/status-line/apply.sh"
   "codex|$HOME/.codex|codex|skills:$HOME/.codex/skills"
 )
@@ -188,6 +188,30 @@ install_subagent_widget_patch() {
 '    denied = []; // widget shows available tools only'
 }
 
+# pi-jev@0.7.0 builds its SDK client once and keeps a stale base URL, so a
+# profile switch keeps billing the first profile's key and endpoint. Apply
+# harness/pi/patches/pi-jev-client-cache.patch (a unified diff) to rebuild the
+# client whenever the resolved key or base URL changes. Remove once upstream does.
+install_jev_client_patch() {
+  local pkg="$1" label=patch-jev-client
+  local patch_file="$REPO_ROOT/harness/pi/patches/pi-jev-client-cache.patch"
+  if [ ! -f "$pkg/src/jev.ts" ]; then
+    echo "  [$label] $pkg not installed yet, skipping (re-run install.sh after pi installs packages)"; return 0
+  fi
+  if ! command -v patch >/dev/null 2>&1; then
+    echo "  [$label] patch not found; $pkg NOT patched" >&2; return 1
+  fi
+  if patch -R -p1 -s -f --dry-run -d "$pkg" <"$patch_file" >/dev/null 2>&1; then
+    echo "  [$label] -> $pkg (ok)"; return 0
+  fi
+  if patch -p1 -s -f -d "$pkg" <"$patch_file" >/dev/null 2>&1; then
+    echo "  [$label] -> $pkg (patched)"
+  else
+    echo "  [$label] upstream code changed; $pkg NOT patched. Update $patch_file or drop it if upstream fixed this." >&2
+    return 1
+  fi
+}
+
 # Expose pi-secret to ordinary shells: $PI_AGENT_DIR/bin is only on PATH inside Pi.
 install_pi_secret_link() {
   [ -x "$PI_AGENT_DIR/bin/pi-secret" ] || return 0
@@ -343,6 +367,10 @@ for entry in "${HARNESSES[@]}"; do
     # patch-* types carry the path of the installed package file to patch.
     if [ "$type" = "patch-subagent-widget" ]; then
       install_subagent_widget_patch "$pattern" || PATCH_FAILED=1
+      continue
+    fi
+    if [ "$type" = "patch-jev-client" ]; then
+      install_jev_client_patch "$pattern" || PATCH_FAILED=1
       continue
     fi
     if [ "$type" = "patch-fallback" ]; then
