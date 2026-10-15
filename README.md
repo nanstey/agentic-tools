@@ -34,17 +34,27 @@ rather than symlinked because Pi may rewrite them locally.
 
 | Repository path | Install destination | Purpose |
 | --- | --- | --- |
-| `harness/pi/settings.json` | `$PI_AGENT_DIR/settings.json` | Pi defaults (including codemode) and extension package list, including `npm:pi-intercom@0.12.0`, and `npm:pi-fallback-models@0.1.1`. |
-| `harness/pi/APPEND_SYSTEM.md` | `$PI_AGENT_DIR/APPEND_SYSTEM.md` | Appends a delegation bias to Pi's system prompt (subagents exempt) a cross-model verification rule (route work to subagents, and have a different model family check it), and guidance to use `codemode` (including `models.classify()` for Jev). |
+| `harness/pi/settings.json` | `$PI_AGENT_DIR/settings.json` | Pi defaults (including codemode) and extension package list, including `npm:pi-intercom@0.12.0`, `npm:pi-fallback-models@0.1.1`, and `npm:pi-jev@0.7.0`; `-jev_find_tools` removes the redundant tool router. |
+| `harness/pi/pi-jev-auto.conf` | `~/.config/environment.d/91-pi-jev-auto.conf` | Enables Jev auto routing/skills, thinking, and tool guard; disables auto-model (`PI_JEV_AUTO_MODEL=0`), agent dispatch (`PI_JEV_AGENTS=0`), and compaction (`PI_JEV_COMPACT=0`, pi-jev 0.7.0 drops context) for Linux/systemd user sessions. `install.sh` copies this config when Pi is installed. The variables are user-wide, so OMP's pinned `pi-jev` also reads `PI_JEV_AUTO=1` and routes its prompts through Jev. |
+| `harness/pi/APPEND_SYSTEM.md` | `$PI_AGENT_DIR/APPEND_SYSTEM.md` | Appends a main-agent model policy (user-selected model, provider/failure fallback only), a delegation bias to Pi's system prompt (subagents exempt) a cross-model verification rule (route work to subagents, and have a different model family check it), a Jev-tier role table (primary and opposite-provider fallback) for choosing subagent models, and guidance to use `codemode` (including `models.classify()` for Jev). |
+| `harness/pi/patches/pi-jev.patch` | applied to `$PI_AGENT_DIR/npm/node_modules/pi-jev/` (`src/jev.ts`, `extensions/index.ts`) | Unified diff that `install.sh` applies to `pi-jev`: rebuilds its SDK client on credential changes, adds `PI_JEV_API_KEY`, and disables auto-thinking in subagents. Not copied. |
 | `harness/pi/extensions/*.json` | `$PI_AGENT_DIR/extensions/` | Per-extension config. |
 | `harness/pi/extensions/profile-secrets.ts` | `$PI_AGENT_DIR/extensions/profile-secrets.ts` | Exports the `NAME=value` secrets in `secrets/<profile>.env` into the environment while that `@nanstey/pi-auth-profiles` profile is active; unset names revert to the inherited value. |
 | `harness/pi/bin/pi-secret` | `$PI_AGENT_DIR/bin/pi-secret` | CLI to set, unset, and list per-profile secrets (`pi-secret -p work set TYPESAFE_API_KEY`). Prompts without echo; files are mode 600. `install.sh` also symlinks it to `~/.local/bin/pi-secret` so ordinary shells find it. Run `set` from a normal terminal, not inside Pi. |
+| `harness/pi/extensions/jev-router-openrouter-fallback.ts` | `$PI_AGENT_DIR/extensions/jev-router-openrouter-fallback.ts` | When no `TYPESAFE_API_KEY` is set but the active profile has OpenRouter auth, sets `PI_JEV_API_KEY` and `PI_JEV_BASE_URL` so pi-jev's tools bill to OpenRouter's System One endpoint. Pi's native classifier never sees the OpenRouter key. A real TypeSafe key or an external `PI_JEV_*` value always wins. |
 | `harness/pi/extensions/pi-fallback.json` | `$PI_AGENT_DIR/extensions/pi-fallback.json` | Global model fallback chain for `pi-fallback-models`: `openai-codex/gpt-6.1-sol`, then `anthropic/claude-sonnet-5-5`, tried when the current model hits a quota, rate-limit, or provider error. |
 | `harness/pi/extensions/pi-interactive-subagents/config.json` | `$PI_AGENT_DIR/extensions/pi-interactive-subagents/config.json` | Interactive-subagents config: mux settings plus `allowSubagentSpawning` and `subagentExtensions` (`pi-web-access`, `pi-fallback-models`), which package 3.10.1 ignores; children inherit installed extensions and agent profiles deny spawning via `deny-tools`. Kept for older package versions. |
 | `harness/pi/extensions/pi-extensions-i18n/config.json` | `$PI_AGENT_DIR/extensions/pi-extensions-i18n/config.json` | Locale for pi extension messages: `en-US`, because the library defaults to Chinese regardless of system locale. |
 | `harness/pi/extensions/pi-intercom/config.json` | `$PI_AGENT_DIR/intercom/config.json` | Shared pi-intercom config: enabled inbound replies, no send confirmation, and reply hints. |
 | `harness/pi/command-shortcuts.json` | `$PI_AGENT_DIR/command-shortcuts.json` | Command shortcut bindings. |
 | `harness/pi/keybindings.json` | `$PI_AGENT_DIR/keybindings.json` | Custom keybindings. |
+
+The main agent stays on the user's selected model unless a provider/failure fallback is
+needed. Context- and scale-based model selection applies only to subagent tasks.
+Subagent tier and thinking come from a `codemode` `models.classify()` call (see `APPEND_SYSTEM.md`). After installation, start Pi from a
+new login session so `environment.d` applies, or export `PI_JEV_AUTO_MODEL=0` in the
+launching shell before restarting Pi. Remove any shell startup override that sets
+`PI_JEV_AUTO_MODEL=1`; do not enable `--jev-auto-model` or `/jev auto-model on`.
 
 When either Pi or OMP is installed, `install.sh` copies the same
 `harness/pi/extensions/pi-intercom/config.json` source to
@@ -83,7 +93,7 @@ The profile is `-p PROFILE`, else the project's `authProfile`, else the global
 `defaultProfile`, else `default`. Run `set` from a normal terminal, not inside Pi,
 so the value stays out of the session transcript.
 
-`install.sh` patches two installed third-party packages. Re-run it after Pi installs or updates
+`install.sh` patches three installed third-party packages. Re-run it after Pi installs or updates
 packages, because updates overwrite the patches. Each patch is idempotent. If upstream code
 changed, it reports an error and leaves the file untouched, and `install.sh` finishes the other
 installs and then exits 1.
@@ -94,6 +104,11 @@ installs and then exits 1.
 - **`pi-fallback-models`:** 0.1.1 classifies Anthropic's "You're out of extra usage" 400 as
   ignorable, so no fallback happens on that quota error. The patch adds that phrase to its
   quota patterns. Drop it once upstream recognizes it.
+- **`pi-jev`:** 0.7.0 builds its SDK client once, so a profile switch keeps the first profile's
+  key and endpoint. `harness/pi/patches/pi-jev.patch` (a unified diff applied with `patch`)
+  rebuilds the client when the resolved key or base URL changes, reads `PI_JEV_API_KEY` ahead of
+  `TYPESAFE_API_KEY`, and skips auto-thinking in subagents so the model suffix stays in force.
+  Drop it once upstream does.
 
 Secrets and machine-local state (`auth.json`, `auth-profiles/`, `web-search.json`,
 `trust.json`, sessions, run history) are git-ignored and never travel — re-auth

@@ -1,0 +1,52 @@
+--- a/extensions/index.ts
++++ b/extensions/index.ts
+@@ -54,7 +54,7 @@
+     description:
+       "Classify each prompt and set the reasoning level (escalate for planning/debugging, de-escalate for short mechanical tasks) without changing the model",
+     type: "boolean",
+-    default: envAutoEnabledFor("PI_JEV_THINKING"),
++    default: envAutoEnabledFor("PI_JEV_THINKING") && !process.env.PI_SUBAGENT_NAME, // subagents keep the parent-selected level
+   });
+ 
+   pi.registerFlag("jev-auto", {
+--- a/src/jev.ts
++++ b/src/jev.ts
+@@ -19,6 +19,8 @@
+ 
+ /** Resolve the API key together with where it came from, for status reporting. */
+ export function resolveApiKeySource(): { key: string; source: ApiKeySource; origin: string } | null {
++  const jevKey = process.env.PI_JEV_API_KEY?.trim();
++  if (jevKey) return { key: jevKey, source: "env", origin: "$PI_JEV_API_KEY" };
+   const envKey = process.env.TYPESAFE_API_KEY?.trim();
+   if (envKey) return { key: envKey, source: "env", origin: "$TYPESAFE_API_KEY" };
+ 
+@@ -45,6 +47,8 @@
+ 
+ export class JevClient {
+   private client: TypeSafeClient | null = null;
++  private clientKey = "";
++  private clientBaseURL: string | null = null;
+   private apiKey: string | null = null;
+   private apiKeySetInSession = false;
+   private baseURL: string | null = null;
+@@ -74,7 +78,7 @@
+   }
+ 
+   public getBaseURL(): string | null {
+-    return resolveBaseURL() || this.baseURL;
++    return resolveBaseURL();
+   }
+ 
+   public setApiKey(key: string): void {
+@@ -89,8 +93,10 @@
+     if (!key && !baseURL) {
+       throw new Error("Missing TYPESAFE_API_KEY. Set it in environment, ~/.pi/agent/secrets/typesafe_api_key, or set PI_JEV_BASE_URL for a compatible local endpoint.");
+     }
+-    if (!this.client) {
++    if (!this.client || this.clientKey !== (key ?? "") || this.clientBaseURL !== baseURL) {
+       this.client = new TypeSafeClient({ apiKey: key ?? "", ...(baseURL ? { baseURL } : {}) });
++      this.clientKey = key ?? "";
++      this.clientBaseURL = baseURL;
+     }
+     return this.client;
+   }

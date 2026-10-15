@@ -20,7 +20,7 @@ PI_AGENT_DIR="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}"
 # every existing match, so a single pair can fan out to many destinations.
 HARNESSES=(
   "claude|$HOME/.claude|claude|skills:$HOME/.claude/skills;agents:$HOME/.claude/agents"
-  "pi|$PI_AGENT_DIR|pi|skills:$PI_AGENT_DIR/skills;agents:$PI_AGENT_DIR/agents;config:$PI_AGENT_DIR::$REPO_ROOT/harness/pi;config:$PI_AGENT_DIR/extensions::$REPO_ROOT/harness/pi/extensions;config:$PI_AGENT_DIR/bin::$REPO_ROOT/harness/pi/bin;config:$PI_AGENT_DIR/extensions/pi-interactive-subagents::$REPO_ROOT/harness/pi/extensions/pi-interactive-subagents;config:$PI_AGENT_DIR/extensions/pi-extensions-i18n::$REPO_ROOT/harness/pi/extensions/pi-extensions-i18n;config:$PI_AGENT_DIR/intercom::$REPO_ROOT/harness/pi/extensions/pi-intercom;hoist:$PI_AGENT_DIR/npm::$REPO_ROOT/harness/pi/settings.json;patch-fallback:$PI_AGENT_DIR/npm/node_modules/pi-fallback-models/src/extension.ts;patch-subagent-widget:$PI_AGENT_DIR/npm/node_modules/@maplezzk/pi-interactive-subagents/pi-extension/subagents/subagent-done.ts"
+  "pi|$PI_AGENT_DIR|pi|skills:$PI_AGENT_DIR/skills;agents:$PI_AGENT_DIR/agents;config:$PI_AGENT_DIR::$REPO_ROOT/harness/pi;config:$PI_AGENT_DIR/extensions::$REPO_ROOT/harness/pi/extensions;config:$PI_AGENT_DIR/bin::$REPO_ROOT/harness/pi/bin;config:$PI_AGENT_DIR/extensions/pi-interactive-subagents::$REPO_ROOT/harness/pi/extensions/pi-interactive-subagents;config:$PI_AGENT_DIR/extensions/pi-extensions-i18n::$REPO_ROOT/harness/pi/extensions/pi-extensions-i18n;config:$PI_AGENT_DIR/intercom::$REPO_ROOT/harness/pi/extensions/pi-intercom;hoist:$PI_AGENT_DIR/npm::$REPO_ROOT/harness/pi/settings.json;patch-fallback:$PI_AGENT_DIR/npm/node_modules/pi-fallback-models/src/extension.ts;patch-subagent-widget:$PI_AGENT_DIR/npm/node_modules/@maplezzk/pi-interactive-subagents/pi-extension/subagents/subagent-done.ts;patch-jev-client:$PI_AGENT_DIR/npm/node_modules/pi-jev"
   "omp|$HOME/.omp/agent|omp|skills:$HOME/.omp/agent/skills;skills:$HOME/.omp/profiles/*/agent/skills;agents:$HOME/.omp/agent/agents;agents:$HOME/.omp/profiles/*/agent/agents;config:$HOME/.omp/agent::$REPO_ROOT/harness/omp;config:$PI_AGENT_DIR/intercom::$REPO_ROOT/harness/pi/extensions/pi-intercom;omp-plugin-manifest:$REPO_ROOT/harness/omp/plugins/pi-intercom.txt;omp-plugin-manifest:$REPO_ROOT/harness/omp/plugins/pi-jev.txt;omp-status-line:$REPO_ROOT/harness/omp/status-line/apply.sh"
   "codex|$HOME/.codex|codex|skills:$HOME/.codex/skills"
 )
@@ -188,6 +188,34 @@ install_subagent_widget_patch() {
 '    denied = []; // widget shows available tools only'
 }
 
+# pi-jev@0.7.0 builds its SDK client once and keeps a stale base URL, so a
+# profile switch keeps billing the first profile's key and endpoint. It also reads
+# only TYPESAFE_API_KEY (shared with Pi's native classifier) and auto-adjusts
+# thinking inside subagents. Apply harness/pi/patches/pi-jev.patch (a unified
+# diff) to rebuild the client when the key or base URL changes, prefer
+# PI_JEV_API_KEY, and skip auto-thinking in subagents. Remove once upstream does.
+install_jev_client_patch() {
+  local pkg="$1" label=patch-jev-client
+  local patch_file="$REPO_ROOT/harness/pi/patches/pi-jev.patch"
+  if [ ! -f "$pkg/src/jev.ts" ]; then
+    echo "  [$label] $pkg not installed yet, skipping (re-run install.sh after pi installs packages)"; return 0
+  fi
+  if ! command -v patch >/dev/null 2>&1; then
+    echo "  [$label] patch not found; $pkg NOT patched" >&2; return 1
+  fi
+  if patch -R -p1 -s -f --dry-run -d "$pkg" <"$patch_file" >/dev/null 2>&1; then
+    echo "  [$label] -> $pkg (ok)"; return 0
+  fi
+  # Dry-run first: a multi-hunk patch can otherwise fail halfway and leave the package half-patched.
+  if patch -p1 -s -f --dry-run -d "$pkg" <"$patch_file" >/dev/null 2>&1 \
+    && patch -p1 -s -f -d "$pkg" <"$patch_file" >/dev/null 2>&1; then
+    echo "  [$label] -> $pkg (patched)"
+  else
+    echo "  [$label] upstream code changed; $pkg NOT patched. Update $patch_file or drop it if upstream fixed this." >&2
+    return 1
+  fi
+}
+
 # Expose pi-secret to ordinary shells: $PI_AGENT_DIR/bin is only on PATH inside Pi.
 install_pi_secret_link() {
   [ -x "$PI_AGENT_DIR/bin/pi-secret" ] || return 0
@@ -207,6 +235,21 @@ install_typesafe_secret() {
   chmod 600 "$secret_dir/typesafe_api_key" "$environment_dir/90-typesafe.conf"
   echo "  [secret] -> $secret_dir/typesafe_api_key"
   echo "  [environment] -> $environment_dir/90-typesafe.conf (active after next login)"
+}
+
+# pi-jev reads these only while its extension initializes. Install the
+# versioned harness config into the user's environment so every future Pi
+# session keeps model routing off and the other automatic modes on.
+install_pi_jev_auto_modes() {
+  local source="$REPO_ROOT/harness/pi/pi-jev-auto.conf"
+  local environment_dir="$HOME/.config/environment.d"
+  local target="$environment_dir/91-pi-jev-auto.conf"
+  [ -d "$PI_AGENT_DIR" ] || { echo "  [environment] Pi not detected, skipping 91-pi-jev-auto.conf"; return 0; }
+  [ -f "$source" ] || { echo "  [environment] missing $source" >&2; return 1; }
+  mkdir -p "$environment_dir"
+  cp "$source" "$target"
+  chmod 644 "$target"
+  echo "  [environment] -> $target (active after next login)"
 }
 
 # Installed OMP npm plugins as "name@version" lines, read from omp's JSON
@@ -302,6 +345,7 @@ link_one() {
 }
 
 install_typesafe_secret
+install_pi_jev_auto_modes
 
 for entry in "${HARNESSES[@]}"; do
   IFS='|' read -r name detect_dir bins typemap <<<"$entry"
@@ -328,6 +372,10 @@ for entry in "${HARNESSES[@]}"; do
     # patch-* types carry the path of the installed package file to patch.
     if [ "$type" = "patch-subagent-widget" ]; then
       install_subagent_widget_patch "$pattern" || PATCH_FAILED=1
+      continue
+    fi
+    if [ "$type" = "patch-jev-client" ]; then
+      install_jev_client_patch "$pattern" || PATCH_FAILED=1
       continue
     fi
     if [ "$type" = "patch-fallback" ]; then

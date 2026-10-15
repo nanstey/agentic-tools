@@ -37,13 +37,13 @@ Diff is always `git diff <baseRefOid>..<headRefOid>` (see `info.md` "Authoritati
 
 ### 3. Spawn 3 reviewers in parallel
 
-Spawn all three in a single `subagent` batch with read-only tools (no edit/write, no `gh` mutations, no git state changes). Each receives the shared context and its template below. Wait for all three; a failed or empty reviewer is reported as a gap, not retried more than once.
+Spawn all three in a single `subagent` batch, each `agent: "reviewer"` with its perspective in the task (no per-perspective profiles exist), and read-only tools (no edit/write, no `gh` mutations, no git state changes). Each receives the shared context and its template below. Wait for all three; a failed or empty reviewer is reported as a gap, not retried more than once.
 
-| Reviewer | Perspective |
+| Perspective | Focus |
 | --- | --- |
-| `review-correctness` | Bugs, logic errors, edge cases, error handling, concurrency, regressions, API/contract breaks |
-| `review-design` | Architecture, boundaries, naming, duplication, maintainability, repo conventions, docs |
-| `review-risk` | Security, tests and coverage gaps, performance, data/migration/operational risk, dependency changes |
+| correctness | Bugs, logic errors, edge cases, error handling, concurrency, regressions, API/contract breaks |
+| design | Architecture, boundaries, naming, duplication, maintainability, repo conventions, docs |
+| risk | Security, tests and coverage gaps, performance, data/migration/operational risk, dependency changes |
 
 ### 4. Spawn the synthesizer
 
@@ -80,9 +80,9 @@ Return findings only, in this exact format, one block per finding, or `NONE`:
 
 Perspective lines:
 
-- `review-correctness`: "Correctness: bugs, logic errors, off-by-one, null/empty/boundary inputs, error paths, race conditions, resource leaks, behavior regressions, broken callers/contracts."
-- `review-design`: "Design: architecture and module boundaries, abstraction fit, duplication, naming, complexity, consistency with existing patterns and repo instructions, public API shape, missing/stale docs."
-- `review-risk`: "Risk: security (injection, authn/authz, secrets, unsafe input), missing or weak tests for changed behavior, performance (hot paths, N+1, unbounded work), migration/rollback/config/operational risk, dependency changes."
+- correctness: "Correctness: bugs, logic errors, off-by-one, null/empty/boundary inputs, error paths, race conditions, resource leaks, behavior regressions, broken callers/contracts."
+- design: "Design: architecture and module boundaries, abstraction fit, duplication, naming, complexity, consistency with existing patterns and repo instructions, public API shape, missing/stale docs."
+- risk: "Risk: security (injection, authn/authz, secrets, unsafe input), missing or weak tests for changed behavior, performance (hot paths, N+1, unbounded work), migration/rollback/config/operational risk, dependency changes."
 
 Synthesizer prompt:
 

@@ -11,6 +11,14 @@ publishing, spending money, touching secrets or shared systems). A skill or prof
 says "stop and ask" for anything else is overridden by this rule. After repeated distinct
 approaches fail, report what was tried and the exact input that would unblock you.
 
+# Main-agent model policy
+
+Keep the main agent on the user's selected model. Do not switch it based on task
+context, complexity, scale, or a Jev recommendation. Only provider/failure fallback
+(quota, rate-limit, auth, or provider errors) may change it without a user request.
+Keep `pi-jev` auto-model disabled. Choose models
+by task context and scale only when dispatching subagents, using the table below.
+
 # Delegation bias
 
 If you have no `subagent` tool, you are a subagent: ignore this section and do the
@@ -46,6 +54,52 @@ question; answer it by resuming that session with `subagent_resume`.
 A subagent that "exited without output" has failed, not finished. Before retrying, read the
 last entries of its `Session:` log for `stopReason`/`errorMessage`. On a quota, auth, or
 rate-limit error, retry on a different model family instead of the same profile.
+
+# Subagent model by task scale
+
+For subagent tasks only, pick the profile by role, then the model tier and thinking level
+from Jev. Run one `codemode` call: `models.getAvailableOfType("classifier")`, then
+`models.classify(model, { state, questions })` with `state = { task, context }`. Put the
+task text in `task`; in `context` put `role`, files touched, producer family, ambiguity,
+stakes, and blast radius. Ask two `choice` questions:
+
+- `tier`: `quick` (small, mechanical, low stakes), `standard` (a few files or steps, clear
+  requirements), `high` (many files, ambiguity, subtle reasoning, sizable blast radius),
+  `premium` (large, irreversible, or security-critical).
+- `thinking`: `minimal`, `low`, `medium`, `high`, `xhigh`.
+
+Use the returned `choice` for each. If its `confidence` is below 0.6, round up one step.
+Use the tier, not any model Jev names. If Jev is unavailable, judge both from files
+touched, steps, ambiguity, and blast radius, and round up when unsure.
+
+Pass the primary as `model` to `subagent`, with the thinking level as a suffix: `model: "openai-codex/gpt-5.6-terra:high"`. Agent profiles set no `thinking:`, so this suffix is the only source. The fallback is on the opposite provider, because
+quota is per provider: a same-provider sibling usually shares the exhausted quota.
+
+| Role | quick | standard | high | premium |
+| --- | --- | --- | --- | --- |
+| `scout` | haiku-5-5 → gpt-6-luna | sonnet-5-5 → gpt-5.6-terra | sonnet-5-5 → gpt-6.1-sol | sonnet-5-5 → gpt-6.1-sol |
+| `researcher` | haiku-5-5 → gpt-6-luna | sonnet-5-5 → gpt-5.6-terra | sonnet-5-5 → gpt-6.1-sol | opus-5-5 → gpt-6.1-sol |
+| `planner` | sonnet-5-5 → gpt-5.6-terra | sonnet-5-5 → gpt-5.6-terra | fable-5-1 → gpt-6.1-sol | fable-5-1 → gpt-6.1-sol |
+| `worker` | gpt-6-luna → haiku-5-5 | gpt-5.6-terra → sonnet-5-5 | gpt-6.1-sol → sonnet-5-5 | gpt-6.1-sol → opus-5-5 |
+| `reviewer` of OpenAI work | haiku-5-5 → sonnet-5-5 | sonnet-5-5 → opus-5-5 | opus-5-5 → sonnet-5-5 | opus-5-5 → fable-5-1 |
+| `reviewer` of Anthropic work | gpt-6-luna → gpt-5.6-terra | gpt-5.6-terra → gpt-6.1-sol | gpt-6.1-sol → gpt-5.6-terra | gpt-6.1-sol → gpt-6-astra |
+
+Names starting `haiku`, `sonnet`, `opus`, `fable` are `anthropic/claude-*`; names starting `gpt` are
+`openai-codex/*`. Each cell is `primary → fallback`.
+
+Fallback rules:
+
+- On a quota, rate-limit, or auth failure (read the `Session:` log for `stopReason`/`errorMessage`),
+  respawn once on the fallback. Do not retry the exhausted provider in the same turn.
+- Producer roles (`scout`, `researcher`, `planner`, `worker`) may cross providers. Record the
+  family that actually produced the output; the verification rules below use it, not the
+  role's usual family.
+- `reviewer` never crosses families, because that breaks independence. Its fallback stays in the
+  one allowed family. If that family is exhausted too, wait or report to the user; do not
+  review on the producer's family.
+- `pi-fallback-models` can also move a child to another model by itself. After any run,
+  confirm the models actually used with the `jq` check below before relying on it.
+- Main-thread model routing is disabled (`pi-jev` auto-model off). The model you pass runs unless provider/failure fallback intervenes.
 
 # Cross-model verification
 
@@ -89,3 +143,5 @@ judgment, call Jev from a `codemode` script: pick a model with
 depends on the active auth profile's credentials), then `models.classify(model, { state,
 questions })`. Choice `criteria` is a map of label to description. Check `stopReason`;
 classify does not throw. Batch many items with `Promise.all`.
+
+To tier a delegated task, classify it as described under "Subagent model by task scale". The result is a recommendation only; it never spawns or switches anything.
