@@ -1,16 +1,9 @@
----
-name: pr-split
-description: Splits a large branch or PR into smaller, independently reviewable units by grouping changes and proposing parallel PRs or a stacked series. Use when a changeset is too big to review well and should be broken up.
-user-invocable: true
-disable-model-invocation: false
----
-
 # PR Split
 
 ## Core Contract
 
 Break one oversized branch/PR into a set of smaller, coherent, reviewable units.
-Discovery is delegated to the `changes` skill; PR creation/restacking is delegated to `pr-create` and `pr-restack`.
+Discovery is delegated to the `changes` skill; PR creation/restacking is delegated to `/pr create` and `/pr restack`.
 Prefer parallel (orthogonal) PRs; use a stacked series only when changes truly depend on each other.
 Always propose the split structure and get explicit approval before any history rewrite.
 Follow `CLAUDE.md` / `AGENTS.md` on conflict.
@@ -24,7 +17,7 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 ## Workflow
 
-1. Load the changeset with `changes` (which resolves the diff base via `pr-info`/`scope`) to get logical groups and flagged/out-of-place items.
+1. Load the changeset with `changes` (which resolves the diff base via `/pr info`/`scope`) to get logical groups and flagged/out-of-place items.
 2. Read branch/PR intent (`git log --oneline <base>..<head>`, PR metadata) to name the units.
 3. Build a dependency map between groups: shared files, symbol/import edges, test-to-code links.
 4. Classify each group as **orthogonal** (no dependency) or **dependent** (builds on another).
@@ -34,8 +27,8 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
    - Note any group too small/large and suggest merges or further splits.
 6. Present the proposal (units, files/hunks, order, PR type, rationale) and **stop for approval**.
 7. On approval, execute per unit: create branch from the correct base, move the relevant changes, and commit.
-   - Parallel PRs: open each via `pr-create`.
-   - Stacked series: if GitHub native Stacked PRs are available (probe per `gh-stack`), build and publish the stack with `gh-stack` (`init`/`submit`, or `link` for existing branches); otherwise open PRs via `pr-create` and keep the stack aligned with `pr-restack`.
+   - Parallel PRs: open each via `/pr create`.
+   - Stacked series: if GitHub native Stacked PRs are available (probe per `/pr stack`), build and publish the stack with `/pr stack` (`init`/`submit`, or `link` for existing branches); otherwise open PRs via `/pr create` and keep the stack aligned with `/pr restack`.
 8. Verify each unit builds on the intended base and report the resulting PR set.
 
 Stop and ask if dependencies are ambiguous, a group cannot be cleanly separated, or the split would rewrite already-reviewed history.

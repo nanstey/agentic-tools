@@ -1,8 +1,3 @@
----
-name: pr-ci
-description: Investigates and fixes failed PR CI jobs end-to-end for the current branch. Use when branch CI failures need resolution.
----
-
 # PR CI
 
 ## Core Contract
@@ -19,7 +14,7 @@ Default flow includes fix, validation, commit, and push unless user scopes it do
 
 ## Workflow
 
-1. Resolve PR via `pr-info`.
+1. Resolve PR via `/pr info`.
 2. Read failed completed checks/runs (`gh pr checks`, `gh run view --log`).
 3. Group failures by root cause; keep evidence per group.
 4. Classify each root cause: real code issue, already fixed, flaky, external, or unclear.

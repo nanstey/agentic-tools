@@ -1,16 +1,11 @@
----
-name: pr-restack
-description: Restacks dependent branches after upstream rebase/merge/force-push changes. Use when a PR stack needs bases realigned.
----
-
 # PR Restack
 
 Rebase a dependent PR stack onto updated upstream branches while preserving each branch's unique commits.
-This is the manual path: when the repo has GitHub native Stacked PRs enabled (PR `stack` object non-null, or `gh stack` tracking exists), prefer `gh-stack` (`gh stack sync` / `gh stack rebase`) and use this skill only as its fallback.
+This is the manual path: when the repo has GitHub native Stacked PRs enabled (PR `stack` object non-null, or `gh stack` tracking exists), prefer `/pr stack` (`gh stack sync` / `gh stack rebase`) and use this skill only as its fallback.
 
 ## Workflow
 
-1. Check for a native stack first (see `gh-stack`); if present and usable, delegate there and stop.
+1. Check for a native stack first (see `/pr stack`); if present and usable, delegate there and stop.
 2. Gather inputs: stack order/top branch, known upstream changes, and merge style if known.
 3. Fetch and map stack from PR metadata (`headRefName`, `baseRefName`, PR state).
 4. Determine root base (bottom PR base) and fast-forward local root base to `origin/<root-base>`.

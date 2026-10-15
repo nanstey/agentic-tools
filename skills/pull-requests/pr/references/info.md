@@ -1,14 +1,9 @@
----
-name: pr-info
-description: Finds the PR for the current branch (or URL), verifies it, and returns key metadata. Use when PR context is needed before PR work.
----
-
 # PR Info
 
 ## Core Contract
 
 Resolve one PR for the current branch (or provided URL/number) and return core metadata.
-This skill is read-only and is the front-door step for `pr-*` workflows.
+This skill is read-only and is the front-door step for `/pr *` workflows.
 Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 ## Required Inputs
@@ -22,13 +17,13 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 2. Otherwise resolve from branch using the same `gh pr view --json ...` query, then fallback `gh pr list --head <branch>` and fetch the selected PR with that query.
 3. Verify `headRefName` matches current branch.
 4. Return `number,title,body,url,headRefName,headRefOid,baseRefName,baseRefOid,state,isDraft,author,mergeStateStatus`.
-5. Also fetch the stack membership via `gh api repos/{owner}/{repo}/pulls/{number} --jq '.stack'`; when non-null, flag that the PR is a layer of a GitHub native stack (see `gh-stack`) and include number/size/position.
+5. Also fetch the stack membership via `gh api repos/{owner}/{repo}/pulls/{number} --jq '.stack'`; when non-null, flag that the PR is a layer of a GitHub native stack (see `/pr stack`) and include number/size/position.
 
 Stop and ask if no PR, multiple matches, branch mismatch, or PR is closed/merged unexpectedly.
 
 ## Authoritative diff comparison
 
-`baseRefOid`/`headRefOid` define the PR's true comparison; this skill owns that resolution for every `pr-*` consumer.
+`baseRefOid`/`headRefOid` define the PR's true comparison; this skill owns that resolution for every `/pr *` consumer.
 
 - Diff the PR with `git diff <baseRefOid>..<headRefOid>` (`git log`/`git diff --stat` likewise). Never substitute a local `develop`/`origin/develop` ref — those can be stale or unrelated to the PR base.
 - Verify local `HEAD` equals `headRefOid` before diffing against `HEAD`; if they differ, report the checkout as stale/unpushed rather than presenting a local diff as the PR diff.

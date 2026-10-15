@@ -1,10 +1,3 @@
----
-name: pr-screenshots
-description: Keeps a PR's screenshots and UI clips in sync with the current UI implementation, capturing or refreshing them when the branch changes user-facing UI. Use when a PR touches UI and its visual evidence may be missing or stale.
-user-invocable: true
-disable-model-invocation: false
----
-
 # PR Screenshots
 
 ## Core Contract
@@ -16,8 +9,8 @@ Default tool for PR reads/writes is `gh`. Follow the target repo's `CLAUDE.md` /
 
 ## Required Inputs
 
-1. PR URL if provided, else current branch (resolve via `pr-info`).
-2. The branch changeset (`pr-info`'s authoritative comparison) to judge whether UI changed.
+1. PR URL if provided, else current branch (resolve via `/pr info`).
+2. The branch changeset (`/pr info`'s authoritative comparison) to judge whether UI changed.
 3. A runnable site/dev server for the branch (base URL/port) when capture is needed.
 4. Artifact publish outcome: a completed native `gh pr edit --body-file <temp> --attach <path>` edit, or a pending handoff with artifact paths and paste-ready local Markdown (never the repo root).
 
@@ -33,7 +26,7 @@ Use a before/after pair **only** when the PR's review question is explicitly a v
 
 ## Applicability
 
-Screenshots are applicable only when the branch changes user-facing UI. Judge from `pr-info`'s authoritative comparison (`git diff <baseRefOid>..<headRefOid>`):
+Screenshots are applicable only when the branch changes user-facing UI. Judge from `/pr info`'s authoritative comparison (`git diff <baseRefOid>..<headRefOid>`):
 
 - **Applicable**: changes to components/views/templates/styles/pages, or files under UI dirs (e.g. `components/`, `pages/`, `app/`, `src/ui/`, `*.tsx/.jsx/.vue/.svelte`, `*.css/.scss`).
 - **Not applicable**: backend-only, config, docs, tests, tooling, or non-visual refactors.
@@ -42,7 +35,7 @@ If not applicable, report "no UI change — screenshots not required" and stop w
 
 ## Workflow
 
-1. Resolve the PR via `pr-info`; if no PR exists, stop and suggest `pr-create`.
+1. Resolve the PR via `/pr info`; if no PR exists, stop and suggest `/pr create`.
 2. Analyze the PR diff (`git diff <baseRefOid>..<headRefOid>`, `git diff --stat <baseRefOid>..<headRefOid>`) and decide applicability above. If not applicable, stop with that outcome.
 3. Read the current PR body and inventory existing visual evidence: embedded images, attached `user-images.githubusercontent.com` / `github.com/user-attachments` links, and any `<details>Screenshots</details>` blocks.
 4. Classify the evidence:
@@ -120,7 +113,7 @@ Inventory the hosted attachment URLs and the local capture paths still present i
 
 ## Composition
 
-- Triggered standalone (`/pr-screenshots`) or as a step of `pr-description`, which calls this skill before finalizing the body so UI PRs carry current evidence.
+- Triggered standalone (`/pr screenshots`) or as a step of `/pr description`, which calls this skill before finalizing the body so UI PRs carry current evidence.
 - Within the `pr` workflow, run before the description sync so the refreshed evidence is wired into the final body.
 - Delegates all capture to `visual-capture`; pairs with `worktree` for the before state.
 

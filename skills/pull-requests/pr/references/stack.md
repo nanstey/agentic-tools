@@ -1,10 +1,3 @@
----
-name: gh-stack
-description: Creates and manages GitHub native stacked-PR stacks via the gh-stack CLI or Stacks REST API, with fallback when the feature is unavailable. Use when creating, linking, syncing, inspecting, or dissolving a stack of dependent branches/PRs.
-user-invocable: true
-disable-model-invocation: false
----
-
 # GH Stack
 
 ## Core Contract
@@ -12,7 +5,7 @@ disable-model-invocation: false
 Drive GitHub's native stacked-PR tooling for one repository: create, grow, publish, sync, link, inspect, and dissolve stacks.
 Stacked PRs are not widely enabled; always probe capability first and state the active tier before acting.
 Run every operation non-interactively; interactive TUIs are stop-and-ask gates.
-Delegate conflict resolution to `conflicts`, single-branch rebase mechanics to `rebase`, and manual stack restacking to `pr-restack`.
+Delegate conflict resolution to `conflicts`, single-branch rebase mechanics to `rebase`, and manual stack restacking to `/pr restack`.
 Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 Command and API details load on demand:
@@ -41,8 +34,8 @@ A custom SSH remote host alias (e.g. `github.com-work`) breaks `gh stack`/`gh` r
 | Tier | Condition | Capability |
 | --- | --- | --- |
 | T1 | extension + feature | Full `gh stack` CLI |
-| T2 | feature only | Read/link/extend/dissolve via `gh api`; rebasing via `pr-restack` |
-| T3 | no feature | Report probe evidence; fall back to `pr-restack` / `rebase` |
+| T2 | feature only | Read/link/extend/dissolve via `gh api`; rebasing via `/pr restack` |
+| T3 | no feature | Report probe evidence; fall back to `/pr restack` / `rebase` |
 
 ## Workflow
 
@@ -64,7 +57,7 @@ A custom SSH remote host alias (e.g. `github.com-work`) breaks `gh stack`/`gh` r
      4. **Close lower PRs** with a fold-in comment referencing the survivor; leave their branches intact (non-destructive).
      5. **Refresh** the survivor's title/body to describe the full changeset, since the top PR's title usually covers only its own layer.
    - **Dissolve (T1/T2)**: confirm with the user first, then `gh stack unstack [<n>] [--local]` or `POST .../stacks/{n}/unstack`. Report PRs left stacked (merged/merging/queued cannot be removed).
-   - **Any (T3)**: report why native stacks are unavailable; hand the task to `pr-restack` (stack) or `rebase` (single branch).
+   - **Any (T3)**: report why native stacks are unavailable; hand the task to `/pr restack` (stack) or `rebase` (single branch).
 3. For mid-stack fixes and review feedback, follow the recipes in `references/workflows.md`: commit on the layer that owns the change, `gh stack rebase --upstack` (or full `rebase`), then `gh stack push` — never patch a lower-layer concern into a higher branch.
 4. After mutating operations, verify with an inspect call and report per-branch/PR outcomes.
 

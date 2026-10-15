@@ -1,8 +1,3 @@
----
-name: pr-rebase
-description: Rebases the current branch onto its PR base and force-pushes with lease. Use when syncing a PR branch with its target base.
-disable-model-invocation: true
----
 
 # PR rebase (base-aware)
 
@@ -12,8 +7,8 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 ## Steps
 
-1. Resolve PR with `pr-info` and capture `baseRefName`, title, body, and `stack`.
-2. If `stack` is non-null, the PR is a layer of a GitHub native stack: stop and use `gh-stack` (`gh stack rebase`/`sync`) instead — rebasing one layer in isolation desyncs the layers above.
+1. Resolve PR with `/pr info` and capture `baseRefName`, title, body, and `stack`.
+2. If `stack` is non-null, the PR is a layer of a GitHub native stack: stop and use `/pr stack` (`gh stack rebase`/`sync`) instead — rebasing one layer in isolation desyncs the layers above.
 3. If no PR exists, ask whether to use generic `rebase` base detection or an explicit base.
 4. Delegate to `rebase` with base pinned to PR base.
 5. Let `conflicts` handle pauses.

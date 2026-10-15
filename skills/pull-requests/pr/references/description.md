@@ -1,8 +1,3 @@
----
-name: pr-description
-description: Refreshes PR titles and descriptions to match the current branch changeset. Use when the PR title or body has drifted from the code.
----
-
 # PR Description
 
 ## Core Contract
@@ -19,14 +14,14 @@ Default behavior is to update the PR directly once rewritten.
 
 ## Workflow
 
-1. Resolve PR via `pr-info`.
-2. If no PR exists, stop and suggest `pr-create`.
+1. Resolve PR via `/pr info`.
+2. If no PR exists, stop and suggest `/pr create`.
 3. Read current title, body, and metadata.
 4. Before drift analysis or drafting, apply applicable `AGENTS.md` / `CLAUDE.md` instructions already supplied by the active environment. Do not search for more context files. Inspect standard PR guidance only: case-insensitive `pull_request_template.md` files at the repository root, `.github/`, or `docs/`; templates in `.github/PULL_REQUEST_TEMPLATE/*.md`; and `CONTRIBUTING*` files at those same locations when present or explicitly linked by that guidance.
 5. Select applicable repository guidance and a PR template. With multiple templates, infer the best match from the existing PR body and change type. Stop and ask only when materially different template choices remain ambiguous. Apply guidance in this order: applicable repository instructions and explicit PR guidance, selected template, still-relevant existing PR content, then this skill's default template and style. Repository guidance can change section names, order, and required fields.
-6. Analyze the exact PR changes over `pr-info`'s authoritative comparison: `git diff <baseRefOid>..<headRefOid>`, `git diff --stat <baseRefOid>..<headRefOid>`, and `git log <baseRefOid>..<headRefOid>` for the commit list.
+6. Analyze the exact PR changes over `/pr info`'s authoritative comparison: `git diff <baseRefOid>..<headRefOid>`, `git diff --stat <baseRefOid>..<headRefOid>`, and `git log <baseRefOid>..<headRefOid>` for the commit list.
 7. Identify drift: stale title, missing changes, stale bullets, stale/complete checklist items.
-8. If the branch changes user-facing UI, run `pr-screenshots` to ensure the PR's visual evidence is current before finalizing the body. `pr-screenshots` performs the attachment-bearing body edit; preserve its refreshed attachments when syncing description text. Skip for non-UI changesets.
+8. If the branch changes user-facing UI, run `/pr screenshots` to ensure the PR's visual evidence is current before finalizing the body. `/pr screenshots` performs the attachment-bearing body edit; preserve its refreshed attachments when syncing description text. Skip for non-UI changesets.
 9. Draft the body using selected repository guidance and template. Use the default `Template` only to fill gaps that repository guidance does not cover.
 10. Self-review the draft once against the checks below, revise, then move on. One pass — not a loop.
    - **Repository guidance**: follow the selected guidance and template. Preserve every required field and any template comment that must remain.
@@ -90,12 +85,12 @@ Be terse (see the `terse` skill). Treat the word counts as ceilings, not targets
 - Do not credit agents (Claude Code, Codex, etc.) for writing the description.
 - Do not reference filepaths in the summary.
 - Do not reference uncommitted plan files.
-- Screenshots/clips belong as PR attachments, never committed to the repo; delegate their capture and refresh to `pr-screenshots`, which owns the attachment-bearing body edit.
+- Screenshots/clips belong as PR attachments, never committed to the repo; delegate their capture and refresh to `/pr screenshots`, which owns the attachment-bearing body edit.
 
 ## Implementation Notes
 
 - Update the title with `gh pr edit <number> --title <title>` only when it has drifted; skip the flag otherwise to avoid a no-op edit.
-- If `gh pr edit --body-file <file>` fails on the deprecated `projectCards` GraphQL field (`repository.pullRequest.projectCards`), it does **not** update the body. Fall back to the text-only REST API: `gh api -X PATCH repos/<owner>/<repo>/pulls/<number> -F body=@<file>` (resolve `<owner>/<repo>` via `gh repo view --json nameWithOwner -q .nameWithOwner`). REST PATCH cannot carry media attachments; those belong to `pr-screenshots`' native `gh pr edit --attach` edit. The same REST call accepts `-F title=<title>` when the `gh pr edit` title update also fails.
+- If `gh pr edit --body-file <file>` fails on the deprecated `projectCards` GraphQL field (`repository.pullRequest.projectCards`), it does **not** update the body. Fall back to the text-only REST API: `gh api -X PATCH repos/<owner>/<repo>/pulls/<number> -F body=@<file>` (resolve `<owner>/<repo>` via `gh repo view --json nameWithOwner -q .nameWithOwner`). REST PATCH cannot carry media attachments; those belong to `/pr screenshots`' native `gh pr edit --attach` edit. The same REST call accepts `-F title=<title>` when the `gh pr edit` title update also fails.
 - Always verify by re-reading afterward: `gh pr view <number> --json title,body -q '.title, .body'`.
 
 ## Safety Rules
@@ -109,7 +104,7 @@ Be terse (see the `terse` skill). Treat the word counts as ceilings, not targets
 - Never let the default template override selected repository guidance or still-relevant existing PR content.
 - Never check off a checklist item unless the changeset supports that inference with reasonable confidence.
 - Never preserve stale descriptive bullets that conflict with the current branch state, even when retaining the required field or template comment that contains them.
-- Never leave stale screenshots in a UI PR body; refresh via `pr-screenshots`, and never commit the artifacts to the repo.
+- Never leave stale screenshots in a UI PR body; refresh via `/pr screenshots`, and never commit the artifacts to the repo.
 - Never overwrite unrelated user work in the repository while gathering context.
 - If unexpected working tree changes appear while you are working, stop and ask the user how to proceed.
 

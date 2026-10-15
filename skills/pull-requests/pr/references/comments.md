@@ -1,8 +1,3 @@
----
-name: pr-comments
-description: Resolves unresolved PR review comments with code changes, validation, and thread follow-up. Use when review feedback must be addressed end-to-end.
----
-
 # Address PR Comments
 
 ## Core Contract
@@ -18,7 +13,7 @@ Default tool is `gh`. Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 ## Workflow
 
-1. Resolve PR via `pr-info`.
+1. Resolve PR via `/pr info`.
 2. Load unresolved threads (prefer GraphQL for thread-level state).
 3. Triage each thread: implement, already-addressed, explain non-action, or escalate.
 4. Apply worthwhile code changes with minimal scope.

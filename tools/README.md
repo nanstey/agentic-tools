@@ -27,7 +27,7 @@ Each tool has its own installer script with consistent interface.
 
 **What:** Command-line tool for GitHub management  
 **Docs:** https://cli.github.com  
-**Required by:** `gh-stack`, `pr-*` skills  
+**Required by:** `/pr`
 **Prerequisites:** None  
 
 ```bash
@@ -39,7 +39,7 @@ Each tool has its own installer script with consistent interface.
 
 **What:** GitHub CLI extension for stacked pull requests  
 **Docs:** https://github.com/github/gh-stack  
-**Required by:** `gh-stack` skill  
+**Required by:** `/pr stack`
 **Prerequisites:** GitHub CLI v2.0+  
 
 ```bash

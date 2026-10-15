@@ -51,8 +51,7 @@ cd /path/to/skills && TOOLS_SKIP=orca,gh-stack bash tools/install.sh --install-a
 **Verify:** `gh --version`
 
 **Skills requiring gh:**
-- `pr*` (all PR skills)
-- `gh-stack`
+- `pr`
 - `issue-create`
 
 **Install:**
@@ -87,7 +86,7 @@ sudo pacman -S github-cli
 **Verify:** `gh stack --version`
 
 **Skills requiring gh-stack:**
-- `gh-stack`
+- `/pr stack`
 
 **Install:**
 ```bash
@@ -221,7 +220,7 @@ brew install chromium
 **Skills requiring orca:**
 - `worktree` (automatically detects and uses when available)
 - `worktree-env` (automatically detects and uses when available)
-- `pr-merge` (uses for cleanup)
+- `/pr merge` (uses for cleanup)
 
 **Install:**
 ```bash

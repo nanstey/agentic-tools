@@ -19,7 +19,7 @@ Follow the target repo's `CLAUDE.md` / `AGENTS.md` on conflict.
 1. Base URL of the running site and the routes/selectors of interest.
 2. What changed, so the medium and framing fit the change.
 3. Before/after scope: which git refs or states to compare (skip for a plain capture).
-   For a PR feature walkthrough, prefer a final-state capture from `HEAD` over a commit delta (see `pr-screenshots` Evidence Model).
+   For a PR feature walkthrough, prefer a final-state capture from `HEAD` over a commit delta (see `/pr screenshots` Evidence Model).
 4. Output/publish target (default a per-branch dir under `captures/`; a project asset dir when embedding).
 5. Viewport/theme/device preferences (defaults: desktop `1280x800`, project default theme).
 
@@ -172,16 +172,16 @@ captures/                                  # gitignored; add to the target repo'
 
 ## PR Integration
 
-- Emit a ready-to-paste block for the PR body and hand off to `pr-screenshots`: include each off-tree `$CAP` path and its Markdown alt text.
+- Emit a ready-to-paste block for the PR body and hand off to `/pr screenshots`: include each off-tree `$CAP` path and its Markdown alt text.
   - Before/after in a two-column table, or wrapped in `<details><summary>Screenshots</summary>…</details>`.
   - When the block tells a results story, order it Before, After, Bridge (`before-after-bridge`): prior state, improved state, then the approach.
-- `pr-screenshots` publishes those assets with its native `gh pr edit --attach` flow. Do not duplicate that recipe here. Do not rely on `.webm` embedding; provide the `.mp4` path for PR attachment. Screenshots may use a project's explicitly tracked asset dir (e.g. `public/`, `docs/assets/`) when that project requests it.
+- `/pr screenshots` publishes those assets with its native `gh pr edit --attach` flow. Do not duplicate that recipe here. Do not rely on `.webm` embedding; provide the `.mp4` path for PR attachment. Screenshots may use a project's explicitly tracked asset dir (e.g. `public/`, `docs/assets/`) when that project requests it.
 - Keep each asset under GitHub's per-file limit (~10 MB free / 100 MB paid); raise `crf`/reduce width to fit.
 
 ## Composition
 
 - Pair with the `worktree` skill to run the base ref for the "before" state without disturbing the working tree.
-- Feed the emitted markdown to `pr-description`; within the `pr` workflow, capture before pushing so the description carries the evidence.
+- Feed the emitted markdown to `/pr description`; within the `pr` workflow, capture before pushing so the description carries the evidence.
 
 ## Safety Rules
 
