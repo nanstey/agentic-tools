@@ -130,6 +130,7 @@ task:
 | Skill | Description |
 | --- | --- |
 | [`git`](skills/dev/git/SKILL.md) | Runs everyday git workflows from one command — branching, worktrees, change review, commits, rebasing and conflict resolution. Use when work needs a branch or worktree, changes need grouping or committing, a branch needs rebasing, or a stopped merge/rebase has conflicts. |
+| [`pr`](skills/dev/pr/SKILL.md) | Runs PR creation, maintenance, and stacked-PR workflows from one command. Use when a branch or pull request needs creation, reconciliation, remediation, publication, merge, or stack management. |
 
 ### Env
 
@@ -200,12 +201,6 @@ Focused planning skills below are optional and independently selectable; `propos
 | [`typesafe-ai`](skills/tools/typesafe-ai/SKILL.md) | Build AI-powered software with TypeSafe System One models (Jev): typed judgments and probabilities from natural language and app state that code composes for routing, ranking, extraction, and verification. Vendored from `typesafe-ai/skills` (MIT). |
 | [`jev-ultrafast`](skills/tools/jev-ultrafast/SKILL.md) | Runs Jev Ultrafast through its pinned browser agent and verifies the requested page outcome. Use when a Chrome task benefits from its dynamic indexed action space. Upstream: `browser-use/jev-ultrafast` 0.1.0 at `1231850a0bf1a0c0341fe408ef1668dbbfdfac46` (MIT). |
 | [`agent-browser`](skills/tools/agent-browser/SKILL.md) | Fast headless browser testing and screenshots — a native Rust CLI and persistent daemon driving Chrome over CDP, with accessibility-tree snapshots addressed by compact `@eN` refs and snapshot/screenshot diffing. Upstream: `vercel-labs/agent-browser` (Apache-2.0). |
-
-### Pull Requests
-
-| Skill | Description |
-| --- | --- |
-| [`pr`](skills/pull-requests/pr/SKILL.md) | Runs PR creation, maintenance, and stacked-PR workflows from one command. Use when a branch or pull request needs creation, reconciliation, remediation, publication, merge, or stack management. |
 
 ### Issues
 
