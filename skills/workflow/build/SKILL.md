@@ -1,4 +1,11 @@
-# Git build
+---
+name: build
+description: Implements scoped changes from context, plans, or speclists through verifiable phases with up-front success criteria and per-phase validation. Use when execution should start from existing requirements.
+user-invocable: true
+disable-model-invocation: false
+---
+
+# Build
 
 ## Core Contract
 

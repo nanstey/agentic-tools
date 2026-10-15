@@ -129,7 +129,7 @@ task:
 
 | Skill | Description |
 | --- | --- |
-| [`git`](skills/dev/git/SKILL.md) | Runs everyday git workflows from one command — branching, worktrees, change review, commits, rebasing, conflict resolution, and scoped builds. Use when work needs a branch or worktree, changes need grouping or committing, a branch needs rebasing, a stopped merge/rebase has conflicts, or a plan needs building through verifiable phases. |
+| [`git`](skills/dev/git/SKILL.md) | Runs everyday git workflows from one command — branching, worktrees, change review, commits, rebasing and conflict resolution. Use when work needs a branch or worktree, changes need grouping or committing, a branch needs rebasing, or a stopped merge/rebase has conflicts. |
 
 ### Env
 
@@ -160,6 +160,7 @@ Focused planning skills below are optional and independently selectable; `propos
 | --- | --- |
 | [`idea-to-pr`](skills/workflow/idea-to-pr/SKILL.md) | Takes an idea from evidence-backed discovery through built, tested, and validated pull requests. Use when a feature idea or change request should be driven end-to-end to review-ready PRs. |
 | [`flow-design`](skills/workflow/flow-design/SKILL.md) | Designs a platform-neutral delegation plan with roles, gates, and return contracts. Use when a task needs coordinated execution designed before work begins. |
+| [`build`](skills/workflow/build/SKILL.md) | Implements scoped changes from context, plans, or speclists through verifiable phases with up-front success criteria and per-phase validation. Use when execution should start from existing requirements. |
 
 ### Agent
 
