@@ -40,7 +40,7 @@ rather than symlinked because Pi may rewrite them locally.
 | `harness/pi/extensions/profile-secrets.ts` | `$PI_AGENT_DIR/extensions/profile-secrets.ts` | Exports the `NAME=value` secrets in `secrets/<profile>.env` into the environment while that `@nanstey/pi-auth-profiles` profile is active; unset names revert to the inherited value. |
 | `harness/pi/bin/pi-secret` | `$PI_AGENT_DIR/bin/pi-secret` | CLI to set, unset, and list per-profile secrets (`pi-secret -p work set TYPESAFE_API_KEY`). Prompts without echo; files are mode 600. `install.sh` also symlinks it to `~/.local/bin/pi-secret` so ordinary shells find it. Run `set` from a normal terminal, not inside Pi. |
 | `harness/pi/extensions/pi-fallback.json` | `$PI_AGENT_DIR/extensions/pi-fallback.json` | Global model fallback chain for `pi-fallback-models`: `openai-codex/gpt-6.1-sol`, then `anthropic/claude-sonnet-5-5`, tried when the current model hits a quota, rate-limit, or provider error. |
-| `harness/pi/extensions/pi-interactive-subagents/config.json` | `$PI_AGENT_DIR/extensions/pi-interactive-subagents/config.json` | Interactive-subagents config: mux settings, `allowSubagentSpawning: false` so children cannot spawn, and `subagentExtensions` loading `pi-web-access` into children for `researcher`, `builtin:codemode` for `codemode` (needs the install-time patch below), and `pi-fallback-models` so children fail over too. |
+| `harness/pi/extensions/pi-interactive-subagents/config.json` | `$PI_AGENT_DIR/extensions/pi-interactive-subagents/config.json` | Interactive-subagents config: mux settings, `allowSubagentSpawning: false` so children cannot spawn, and `subagentExtensions` loading `pi-web-access` into children for `researcher` and `pi-fallback-models` so children fail over too. |
 | `harness/pi/extensions/pi-extensions-i18n/config.json` | `$PI_AGENT_DIR/extensions/pi-extensions-i18n/config.json` | Locale for pi extension messages: `en-US`, because the library defaults to Chinese regardless of system locale. |
 | `harness/pi/extensions/pi-intercom/config.json` | `$PI_AGENT_DIR/intercom/config.json` | Shared pi-intercom config: enabled inbound replies, no send confirmation, and reply hints. |
 | `harness/pi/command-shortcuts.json` | `$PI_AGENT_DIR/command-shortcuts.json` | Command shortcut bindings. |
@@ -88,10 +88,9 @@ packages, because updates overwrite the patches. Each patch is idempotent. If up
 changed, it reports an error and leaves the file untouched, and `install.sh` finishes the other
 installs and then exits 1.
 
-- **`@maplezzk/pi-interactive-subagents`:** Pi launches subagent children with
-  `--no-extensions`, which also disables its compiled-in `codemode`, and the package only
-  accepts file paths in `subagentExtensions`. The patch makes `builtin:<name>` entries pass
-  through as `--extension builtin:<name>`. Drop it once upstream supports that. Known gap: saving the interactive `/config:subagent extensions` chooser drops `builtin:` entries, so re-add `builtin:codemode` to the config afterwards.
+- **`@maplezzk/pi-interactive-subagents`:** the child widget prints a "N denied" count for
+  tools that are never registered. The patch keeps that list empty so the widget shows only
+  available tools. Drop it once upstream makes the list optional.
 - **`pi-fallback-models`:** 0.1.1 classifies Anthropic's "You're out of extra usage" 400 as
   ignorable, so no fallback happens on that quota error. The patch adds that phrase to its
   quota patterns. Drop it once upstream recognizes it.
