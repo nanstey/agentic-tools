@@ -12,7 +12,7 @@ Default tool is `gh`. After a confirmed merge, a linked Orca-managed worktree is
 
 ## Workflow
 
-1. Invoke `/pr info` to resolve and verify one open PR and record its `number`, `title`, `isDraft`, and `headRefOid`. Stop on its no-PR, multiple-PR, branch-mismatch, closed, merged, or other stop gate. Stop and ask if `/pr info` flags the PR as a layer of a GitHub native stack.
+1. Invoke `/pr info` to resolve and verify one open PR and record its `number`, `title`, `isDraft`, and `headRefOid`. Stop on its no-PR, multiple-PR, branch-mismatch, closed, merged, or other stop gate. Stop as blocked if `/pr info` flags the PR as a layer of a GitHub native stack.
 2. If `isDraft` is true, mark the PR ready for review.
 3. Snapshot required CI for the current head. Stop if any required check is failing, cancelled, timed out, action-required, queued, pending, or in progress. If no checks are reported, apply the no-CI rule below instead of treating it as a pass or a failure.
 4. Snapshot unresolved review threads. Stop if any thread is unresolved.
@@ -23,7 +23,7 @@ Default tool is `gh`. After a confirmed merge, a linked Orca-managed worktree is
    - **Primary checkout** (`git rev-parse --path-format=absolute --git-dir` equals `git rev-parse --path-format=absolute --git-common-dir`): follow the primary checkout notes below. Never remove it.
    - **Linked worktree**: automatically detect and remove the current Orca-managed worktree using the Orca cleanup notes below. Invoking `pr-merge` preauthorizes this removal once its conditions pass: do not ask for confirmation, offer cleanup, or defer it because it is destructive or ends the session. Skip cleanup silently outside Orca.
 
-Stop and ask when a gate blocks, GitHub rejects the merge, or the PR head moves during the workflow.
+Stop as blocked when a gate blocks, GitHub rejects the merge, or the PR head moves during the workflow.
 
 ## GitHub Implementation Notes
 
@@ -57,7 +57,7 @@ Only enter this step after this workflow's merge succeeded and was confirmed abo
 1. Resolve the executable once, following the `orca-cli` skill stub: use `ORCA_CLI_COMMAND` when set; otherwise `orca-dev` when the session exposes `ORCA_DEV_REPO_ROOT`; otherwise `orca-ide` on Linux outside an Orca-managed terminal; otherwise `orca`. On Linux without a reliable managed-terminal hint, use `orca-ide` to avoid launching the GNOME screen reader. Below, `ORCA` is a placeholder for this executable, not a literal command or a shell variable; substitute the resolved executable, quoting its path if needed.
 2. Check that the selected executable resolves (for example, `command -v` in a POSIX shell). If unavailable, skip cleanup silently. Do not fall through to a different executable. Load its version-matched guide with `ORCA skills get orca-cli` before running Orca commands.
 3. From the unchanged current cwd, run `ORCA worktree current --json`. Require a successful exit and valid JSON with `ok: true` identifying the enclosing worktree for that cwd, with `isMainWorktree` false; if it is true, follow the primary checkout notes instead. Missing, failed, malformed, or non-ok results mean skip cleanup silently; environment hints alone never authorize removal. Do not select a different worktree or change directories.
-4. Finish all reporting and any other commands before removal. Tell the user that the PR was merged and the current Orca worktree will now be removed. **This destroys the current worktree and ends its session; that is not grounds to ask, refuse, or defer.**
+4. Finish all reporting and any other commands before removal. Tell the user that the PR was merged and the current Orca worktree will now be removed. **This destroys the current worktree and ends its session; that is not grounds to refuse or defer.**
 5. Run exactly `ORCA worktree rm --worktree active --force --json`, substituting only the resolved executable (the default form is `orca worktree rm --worktree active --force --json`). Run it without a confirmation prompt. This must be the final command: do not append verification, reporting commands, or other follow-up work.
 
 ## Safety Rules

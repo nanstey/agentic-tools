@@ -43,12 +43,12 @@ If not applicable, report "no UI change — screenshots not required" and stop w
    - **Stale**: evidence exists but predates UI-affecting commits, or clearly shows a superseded UI (changed routes/components since the asset was added).
    - **Current**: evidence covers the changed surfaces and postdates the latest UI-affecting commit.
    If **Current**, report that and stop — do not recapture.
-5. For missing/stale evidence, confirm the branch's site is reachable at the base URL/port; if not, stop and ask (never capture an error page).
+5. For missing/stale evidence, confirm the branch's site is reachable at the base URL/port; if not, stop as blocked (never capture an error page).
 6. Build the **evidence matrix** (see **Evidence Model**), then delegate capture to `visual-capture`: pick the medium (static → screenshot, interaction/scroll/flow → video) and capture each matrix row from final `HEAD`. Capture a before/after pair (via a base-ref `worktree`) only when the PR's review question is an explicit visual replacement/regression, and label the exact refs.
 7. Build the complete intended body and attach the artifacts with the single native edit in **Native Attach Recipe**. The body preserves unrelated content and references every local capture path once with alt text. Do not fabricate attachment URLs.
 8. After every attempted native attach command, re-read the body and inventory hosted attachment URLs and remaining local capture paths. A nonzero exit may have updated the PR with successful uploads; report that partial state and do not blindly retry, because a retry can duplicate uploads. If preflight failed, instead confirm the pending handoff includes artifact paths and a paste-ready block. On a private repo, an anonymous fetch returning 404/403 for a hosted attachment URL is expected, not a failure.
 
-Stop-and-ask gates: `gh` older than 2.99.0, missing GitHub authentication or push access, a non-`github.com` host (GHES is unsupported), more than 50 attachment files, site unreachable, ambiguous before/after refs, capture tooling unavailable (per `visual-capture` preflight), or an artifact landing in the repo. A failed native-attach preflight takes the handoff path; never make a partial attach attempt.
+Blocking gates: `gh` older than 2.99.0, missing GitHub authentication or push access, a non-`github.com` host (GHES is unsupported), more than 50 attachment files, site unreachable, ambiguous before/after refs, capture tooling unavailable (per `visual-capture` preflight), or an artifact landing in the repo. A failed native-attach preflight takes the handoff path; never make a partial attach attempt.
 
 ## Artifact Handling
 
@@ -122,7 +122,7 @@ Inventory the hosted attachment URLs and the local capture paths still present i
 - Never commit captured screenshots or videos to the repo (including the repo root); attach them to the PR instead.
 - Never add image/video files to the branch changeset to satisfy this skill.
 - Never recapture when existing evidence already reflects the current UI.
-- Never capture a blank or error page; if the site is unreachable, stop and ask.
+- Never capture a blank or error page; if the site is unreachable, stop as blocked.
 - Never vary viewport/theme/device between before and after (enforced by `visual-capture`).
 - Never bypass `visual-capture`/`playwright-cli` with ad-hoc Puppeteer, `@playwright/test`, or MCP.
 - Never commit artifacts or force-push a throwaway image commit to host attachments; use native `gh pr edit --attach` or the pending handoff, never branch history.
@@ -130,7 +130,7 @@ Inventory the hosted attachment URLs and the local capture paths still present i
 - Never run the attachment edit when any native preflight gate fails.
 - Never blindly retry an attachment command after a nonzero exit; re-read the body and report any partial upload state first.
 - Never overwrite unrelated PR body content while inserting screenshot references.
-- If unexpected working tree changes appear while you are working, stop and ask the user how to proceed.
+- If unexpected working tree changes appear while you are working, stop as blocked and report the unexpected changes.
 
 ## Output Style
 

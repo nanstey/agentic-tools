@@ -69,7 +69,7 @@ gh stack submit --auto                     # link PRs (already-open PRs are dete
 
 ### Collapsing a stack into one PR
 
-Fold an entire stack into a single PR. **Destructive** — confirm survivor, close-vs-leave-open, and squash-vs-preserve before running (defaults: survivor = top PR, leave lower branches intact, preserve commits).
+Fold an entire stack into a single PR. **Destructive** — run only when the invocation names collapsing; use these defaults unless the invocation overrides them ( survivor = top PR, leave lower branches intact, preserve commits).
 
 Preflight (both tiers) — verify the survivor descends from every lower head:
 
@@ -78,7 +78,7 @@ Preflight (both tiers) — verify the survivor descends from every lower head:
 git merge-base --is-ancestor <lower-head> <survivor-head> || echo "ABORT: <lower-head> not an ancestor"
 ```
 
-Abort and ask if any check fails (diverged/non-linear stack).
+Stop as blocked if any check fails (diverged/non-linear stack).
 
 **T1 (gh stack CLI):**
 

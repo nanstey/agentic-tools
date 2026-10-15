@@ -11,7 +11,7 @@ This is the manual path: when the repo has GitHub native Stacked PRs enabled (PR
 4. Determine root base (bottom PR base) and fast-forward local root base to `origin/<root-base>`.
 5. Detect drift per branch (upstream rewritten, merged, advanced, or removed commits).
 6. Build a per-branch plan: current base, new base, commits kept/dropped, risks, lease SHA.
-7. Present plan and wait for explicit user approval.
+7. Record the plan in the output; invoking `/pr restack` authorizes executing it. Stop as blocked instead if the plan has a risk flagged below.
 8. Create backup refs for every branch before rewriting.
 9. Execute bottom-up restack:
    - checkout/reset branch to `origin/<branch>`,
@@ -26,13 +26,13 @@ This is the manual path: when the repo has GitHub native Stacked PRs enabled (PR
 
 ## Safety Rules
 
-- Never execute before user approves the plan.
+- Never execute without a recorded plan.
 - Never use plain `--force`; use `--force-with-lease`.
 - Never rewrite branches without backup refs.
 - Never continue when branch base or intent is ambiguous.
-- Stop on non-trivial conflicts or unexpected commit drops and ask.
+- Stop as blocked on non-trivial conflicts or unexpected commit drops; report them.
 - Do not proceed to next branch if current branch fails validation.
 
 ## Output Style
 
-Report root base used, plan approval status, per-branch `old base -> new base` and `before -> after` SHA, push status, updated PR bases, backups created, and unresolved risks.
+Report root base used, the recorded plan, per-branch `old base -> new base` and `before -> after` SHA, push status, updated PR bases, backups created, and unresolved risks.

@@ -5,14 +5,14 @@
 Break one oversized branch/PR into a set of smaller, coherent, reviewable units.
 Discovery is delegated to the `changes` skill; PR creation/restacking is delegated to `/pr create` and `/pr restack`.
 Prefer parallel (orthogonal) PRs; use a stacked series only when changes truly depend on each other.
-Always propose the split structure and get explicit approval before any history rewrite.
+Always record the split structure before any history rewrite; invoking `/pr split` authorizes executing it unless the invocation says plan-only.
 Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 ## Required Inputs
 
-1. Current branch and its base (default base: repo convention or `develop`).
+1. Current branch and its base (default base: repo convention, else the `origin/HEAD` default branch).
 2. Source scope: current branch, a named branch, or a PR/URL.
-3. Preferred PR tool (default `gh`) and whether execution is wanted now or plan-only.
+3. Preferred PR tool (default `gh`) and whether the invocation is plan-only (default: execute).
 4. Any constraints on grouping (must-ship-together files, review-size target).
 
 ## Workflow
@@ -25,17 +25,17 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
    - Orthogonal groups → **parallel PRs**, each branched from base.
    - Dependent groups → **stacked series** ordered base → leaf, each PR based on the prior.
    - Note any group too small/large and suggest merges or further splits.
-6. Present the proposal (units, files/hunks, order, PR type, rationale) and **stop for approval**.
-7. On approval, execute per unit: create branch from the correct base, move the relevant changes, and commit.
+6. Record the proposal (units, files/hunks, order, PR type, rationale) in the output; stop here if plan-only.
+7. Execute per unit: create branch from the correct base, move the relevant changes, and commit.
    - Parallel PRs: open each via `/pr create`.
    - Stacked series: if GitHub native Stacked PRs are available (probe per `/pr stack`), build and publish the stack with `/pr stack` (`init`/`submit`, or `link` for existing branches); otherwise open PRs via `/pr create` and keep the stack aligned with `/pr restack`.
 8. Verify each unit builds on the intended base and report the resulting PR set.
 
-Stop and ask if dependencies are ambiguous, a group cannot be cleanly separated, or the split would rewrite already-reviewed history.
+Stop as blocked if dependencies are ambiguous, a group cannot be cleanly separated, or the split would rewrite already-reviewed history.
 
 ## Safety Rules
 
-- Never rewrite history, create branches, or move commits before the proposal is approved.
+- Never rewrite history, create branches, or move commits before the proposal is recorded.
 - Never split a dependent group into parallel PRs; broken intermediate states are not acceptable.
 - Never delegate away the dependency analysis — grouping order is this skill's responsibility.
 - Never drop or duplicate changes across units; every hunk from the source lands in exactly one unit.
@@ -44,4 +44,4 @@ Stop and ask if dependencies are ambiguous, a group cannot be cleanly separated,
 
 ## Output Style
 
-Report source scope and base, the proposed units (name, files/hunks, PR type, base, order), the dependency rationale, approval gate outcome, and—if executed—the created branches/PRs with bases.
+Report source scope and base, the proposed units (name, files/hunks, PR type, base, order), the dependency rationale, plan-only or executed, and—if executed—the created branches/PRs with bases.
