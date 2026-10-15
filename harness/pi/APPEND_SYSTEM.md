@@ -57,13 +57,22 @@ rate-limit error, retry on a different model family instead of the same profile.
 
 # Subagent model by task scale
 
-For subagent tasks only, pick the profile by role, then the model by tier. Get the tier from Jev: call `jev_route`
-(or `codemode` `models.classify`) with the task text and take the returned tier
-(quick, standard, high, premium). Use the tier, not the model it names; that model
-ignores the role's family. If Jev is unavailable, judge the tier yourself from files
+For subagent tasks only, pick the profile by role, then the model tier and thinking level
+from Jev. Run one `codemode` call: `models.getAvailableOfType("classifier")`, then
+`models.classify(model, { state, questions })` with `state = { task, context }`. Put the
+task text in `task`; in `context` put `role`, files touched, producer family, ambiguity,
+stakes, and blast radius. Ask two `choice` questions:
+
+- `tier`: `quick` (small, mechanical, low stakes), `standard` (a few files or steps, clear
+  requirements), `high` (many files, ambiguity, subtle reasoning, sizable blast radius),
+  `premium` (large, irreversible, or security-critical).
+- `thinking`: `minimal`, `low`, `medium`, `high`, `xhigh`.
+
+Use the returned `choice` for each. If its `confidence` is below 0.6, round up one step.
+Use the tier, not any model Jev names. If Jev is unavailable, judge both from files
 touched, steps, ambiguity, and blast radius, and round up when unsure.
 
-Pass the primary as `model` to `subagent`. The fallback is on the opposite provider, because
+Pass the primary as `model` to `subagent`, with the thinking level as a suffix: `model: "openai-codex/gpt-5.6-terra:high"`. Agent profiles set no `thinking:`, so this suffix is the only source. The fallback is on the opposite provider, because
 quota is per provider: a same-provider sibling usually shares the exhausted quota.
 
 | Role | quick | standard | high | premium |
@@ -90,8 +99,7 @@ Fallback rules:
   review on the producer's family.
 - `pi-fallback-models` can also move a child to another model by itself. After any run,
   confirm the models actually used with the `jq` check below before relying on it.
-- Main-thread model routing is disabled (`pi-jev` auto-model off; `pi-jev-model-router`
-  removed). The model you pass runs unless provider/failure fallback intervenes.
+- Main-thread model routing is disabled (`pi-jev` auto-model off). The model you pass runs unless provider/failure fallback intervenes.
 
 # Cross-model verification
 
@@ -136,4 +144,4 @@ depends on the active auth profile's credentials), then `models.classify(model, 
 questions })`. Choice `criteria` is a map of label to description. Check `stopReason`;
 classify does not throw. Batch many items with `Promise.all`.
 
-To tier a delegated task, call `jev_route` on the task text and read the tier. It is a recommendation only; it never spawns or switches anything.
+To tier a delegated task, classify it as described under "Subagent model by task scale". The result is a recommendation only; it never spawns or switches anything.
