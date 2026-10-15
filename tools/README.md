@@ -39,7 +39,7 @@ Each tool has its own installer script with consistent interface.
 
 **What:** GitHub CLI extension for stacked pull requests  
 **Docs:** https://github.com/github/gh-stack  
-**Required by:** `/pr --stack`
+**Required by:** `/pr stack`
 **Prerequisites:** GitHub CLI v2.0+  
 
 ```bash

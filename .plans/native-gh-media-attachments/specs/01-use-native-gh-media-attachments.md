@@ -2,7 +2,7 @@
 
 ## Objective
 
-Cut PR screenshot/clip publishing over to GitHub CLI v2.99.0+ native repeatable `--attach` on a single `gh pr edit --body-file` operation, owned by `/pr --screenshots`, with `visual-capture` handing off capture paths and `/pr --description` wording aligned.
+Cut PR screenshot/clip publishing over to GitHub CLI v2.99.0+ native repeatable `--attach` on a single `gh pr edit --body-file` operation, owned by `/pr screenshots`, with `visual-capture` handing off capture paths and `/pr description` wording aligned.
 
 ## Implementation
 
@@ -15,7 +15,7 @@ Ordered; each item is implementation-owned and verifiable by reading the named f
 
 ### `skills/visual/visual-capture/SKILL.md`
 
-- [x] The PR Integration section hands publishing to `/pr --screenshots`, which attaches assets natively via `gh pr edit --attach`; this skill emits the off-tree paths and paste-ready local Markdown that feed that step. Do not duplicate the recipe. Keep the `.webm` caveat, tracked-asset-dir exception, and size guidance.
+- [x] The PR Integration section hands publishing to `/pr screenshots`, which attaches assets natively via `gh pr edit --attach`; this skill emits the off-tree paths and paste-ready local Markdown that feed that step. Do not duplicate the recipe. Keep the `.webm` caveat, tracked-asset-dir exception, and size guidance.
 - [x] Confirm frontmatter and all capture workflow, recipes, output layout, and gotchas sections are unchanged.
 
 ### Cross-file sweep
@@ -37,8 +37,8 @@ QA-owned. Non-consequential CLI checks and static content checks; no live mutati
 - [x] The consolidated workflow removes superseded third-party upload guidance.
 - [x] Drag-drop appears only as an explicitly framed `--screenshots` preflight-failure fallback.
 - [x] No text claims native `gh` body attachments are unavailable.
-- [x] `visual-capture` hands paths and paste-ready local Markdown to `/pr --screenshots` without duplicating the recipe.
-- [x] `/pr --description` refreshes evidence through the unified screenshots workflow and retains a text-only REST fallback.
+- [x] `visual-capture` hands paths and paste-ready local Markdown to `/pr screenshots` without duplicating the recipe.
+- [x] `/pr description` refreshes evidence through the unified screenshots workflow and retains a text-only REST fallback.
 - [x] The relevant frontmatter and README catalog entries remain valid.
 - [x] Given the delivery PR body describing this change and its handoff fallback, when the flow's degraded path is exercised on paper (preflight gate fails), then the documented outcome is a paste-ready evidence block plus artifact paths with attach marked pending — no partial `--attach` attempt.
 
@@ -53,7 +53,7 @@ QA-owned. Non-consequential CLI checks and static content checks; no live mutati
 - Preflight gates fail closed to the handoff path — an old `gh`, missing push access, or a GHES host never reaches a partial edit.
 - The temp body file lives outside the repo tree and is removed after the edit, so the branch diff cannot gain body or media files.
 - Existing PR body content is read before the edit and preserved verbatim outside the evidence section.
-- `/pr --description` retains its text-only REST PATCH fallback, explicitly unable to carry attachments.
+- `/pr description` retains its text-only REST PATCH fallback, explicitly unable to carry attachments.
 
 ## Out of Scope
 

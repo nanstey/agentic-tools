@@ -15,7 +15,7 @@
 
 ## Decision log
 - 2026-09-02 — Autopilot run started; treat GitHub CLI v2.99.0 native `--attach` as the target integration.
-- 2026-09-02 — Discovery and proposal completed: one PR-sized slice updates `/pr --screenshots` and `visual-capture`; issue/comment flows remain unchanged.
+- 2026-09-02 — Discovery and proposal completed: one PR-sized slice updates `/pr screenshots` and `visual-capture`; issue/comment flows remain unchanged.
 - 2026-09-02 — Slice specification assigned from [proposal.md](./proposal.md); expected artifact: `specs/01-use-native-gh-media-attachments.md` with separate implementation and QA-owned scenario checklists.
 - 2026-09-02 — Specification completed. Delivery branch `docs/native-gh-media-attachments` was created from refreshed `origin/HEAD` (`cfc01c5`).
 - 2026-09-02 — Preflight: no package manager or project test runner applies; baseline `git diff --check` passed. GitHub access is authenticated to `github.com/nanstey/agentic-tools` with `ADMIN` permission. System `gh` is 2.45.0 and lacks `--attach`; validate native help with an ephemeral official v2.99.0 binary without changing workstation dependencies.

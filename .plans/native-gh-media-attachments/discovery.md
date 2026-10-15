@@ -23,7 +23,7 @@ Replace repository-authored screenshot and clip publishing workarounds with GitH
 
 ## Decision
 
-One PR-sized slice. Update `/pr --screenshots` as the publishing owner and `visual-capture` as its artifact handoff. Keep `/pr --description` composition unchanged unless wording must clarify that it performs the native attachment edit. Do not broaden issue/comment skills without an existing screenshot workflow.
+One PR-sized slice. Update `/pr screenshots` as the publishing owner and `visual-capture` as its artifact handoff. Keep `/pr description` composition unchanged unless wording must clarify that it performs the native attachment edit. Do not broaden issue/comment skills without an existing screenshot workflow.
 
 Use a temporary body file that references local capture paths, then execute one `gh pr edit <number> --body-file <file> --attach <path>...` command. This lets `gh` upload and rewrite in one operation, preserves Markdown alt text, avoids shell quoting hazards, and prevents a second body mutation. Re-read the PR body to verify hosted attachment URLs replaced local paths.
 

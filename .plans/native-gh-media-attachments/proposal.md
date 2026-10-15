@@ -3,12 +3,12 @@
 ## Purpose
 
 - **Goal**: PR screenshot/clip publishing uses GitHub CLI v2.99.0+ native repeatable `--attach` on one `gh pr edit` command intended to update the body, with no third-party extension, browser cookie, or drag-drop dependency.
-- **Current reality**: the former screenshot workflow required a clean cutover to the unified `/pr --screenshots` action; `visual-capture` no longer directs publishing itself.
+- **Current reality**: the former screenshot workflow required a clean cutover to the unified `/pr screenshots` action; `visual-capture` no longer directs publishing itself.
 - **Options weighed**:
   1. Keep `gh-image` as preferred and add `--attach` as a fallback — rejected; keeps the cookie-based third-party dependency alive with no benefit.
   2. Broaden the change to issue/comment skills — rejected; no repository-owned issue/comment screenshot flow exists, so there is nothing to cut over.
   3. Upload via `--attach` on a no-op comment, then reference URLs in the body — rejected; two mutations, leaves a stray comment.
-- **Chosen path**: clean cutover. `/pr --screenshots` owns one `gh pr edit <number> --body-file <temp> --attach <path>...` command; `visual-capture` supplies off-tree capture paths and paste-ready local Markdown; superseded upload guidance is removed.
+- **Chosen path**: clean cutover. `/pr screenshots` owns one `gh pr edit <number> --body-file <temp> --attach <path>...` command; `visual-capture` supplies off-tree capture paths and paste-ready local Markdown; superseded upload guidance is removed.
 
 ## User story & scenarios
 
@@ -25,12 +25,12 @@ Scenarios:
 ## Behaviour
 
 **Given** a PR with missing/stale visual evidence, no more than 50 captures under the gitignored `captures/` dir, `gh` >= 2.99.0 authenticated with push access to a github.com repo
-**When** `/pr --screenshots` writes the full intended body (existing content plus a Markdown evidence section referencing each local capture path exactly once, with alt text) to a temp file and runs one `gh pr edit <number> --body-file <temp> --attach <path>` (one `--attach` per asset)
+**When** `/pr screenshots` writes the full intended body (existing content plus a Markdown evidence section referencing each local capture path exactly once, with alt text) to a temp file and runs one `gh pr edit <number> --body-file <temp> --attach <path>` (one `--attach` per asset)
 **Then** a zero exit means a re-read of the PR body must show each local path rewritten to a hosted attachment URL with its Markdown alt text preserved and no local paths remaining.
 
 **Given** an attachment attempt returns nonzero
 **When** some files upload and others fail
-**Then** `/pr --screenshots` still re-reads the PR body, inventories hosted URLs and remaining local paths, reports the exact partial state, and does not blindly retry because successful uploads can be duplicated.
+**Then** `/pr screenshots` still re-reads the PR body, inventories hosted URLs and remaining local paths, reports the exact partial state, and does not blindly retry because successful uploads can be duplicated.
 
 **Given** `gh --version` reports < 2.99.0
 **When** preflight runs
@@ -53,7 +53,7 @@ Scenarios:
 Deterministic static validation (planning repo has no test suite for skill prose; validation is search-based):
 
 1. Frontmatter/catalog integrity: both changed `SKILL.md` files keep valid frontmatter (`name`, `description`, flags) matching the repository's existing skill layout.
-2. Obsolete-guidance sweep: search `/pr --screenshots` content and `skills/visual/visual-capture/SKILL.md` for superseded upload guidance.
+2. Obsolete-guidance sweep: search `/pr screenshots` content and `skills/visual/visual-capture/SKILL.md` for superseded upload guidance.
 3. Consistency sweep: the unified PR skill owns the attachment recipe; `visual-capture` hands off paths/Markdown and does not duplicate the `gh pr edit` recipe.
 
 Non-consequential CLI smoke (no live mutation):
@@ -65,7 +65,7 @@ Runtime evidence: a real upload MUST use a relevant delivery PR only (e.g. the P
 
 ## Architecture
 
-- **Ownership**: `/pr --screenshots` is the single publishing owner; `visual-capture` remains capture-only, producing off-tree artifacts under `captures/` plus paste-ready local Markdown (paths + alt text).
+- **Ownership**: `/pr screenshots` is the single publishing owner; `visual-capture` remains capture-only, producing off-tree artifacts under `captures/` plus paste-ready local Markdown (paths + alt text).
 - **One-command body edit** (rejected default was upload-then-edit as two steps): build the complete intended body in a temp file referencing local capture paths, then run one `gh pr edit <number> --body-file <temp> --attach <file>` per asset. `gh` can upload successful files and update the PR even when another attachment fails, so this is not atomic. Re-read the body after every attempt, including a nonzero exit, report hosted URLs and remaining local paths, and do not blindly retry.
 - **Duplicate prevention**: the body generator references each attached asset exactly once; assets absent from the Markdown would be appended by `gh`, so the reference-once invariant is the contract between body generation and the `--attach` list.
 - **Preflight gates** (replacing the `gh-image` preflight): `gh` >= 2.99.0; `gh auth status` OK; push access to the repo; host is github.com (GHES unsupported); and no more than 50 attachment files. Any failure → handoff path (paths + paste-ready block, attach pending); drag-drop survives only as the described manual step within that fallback.
@@ -76,7 +76,7 @@ Runtime evidence: a real upload MUST use a relevant delivery PR only (e.g. the P
 ## Affected areas
 
 - `skills/pull-requests/pr/SKILL.md` — consolidate the `--screenshots` native attach flow and `--description` wording.
-- `skills/visual/visual-capture/SKILL.md` — hand off paths/local Markdown to `/pr --screenshots`; keep capture behavior unchanged.
+- `skills/visual/visual-capture/SKILL.md` — hand off paths/local Markdown to `/pr screenshots`; keep capture behavior unchanged.
 - Unchanged: PR creation composition, issue skills, PR-comment skills, and browser upload helpers.
 
 ## Implementation phases

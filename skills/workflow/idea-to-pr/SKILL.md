@@ -109,7 +109,7 @@ For each slice, use the spec plus current decision packet. Dependent slices rema
 5. For runnable behaviour, use a separate QA step to boot the app and observe every Given/When/Then scenario end-to-end. Use `playwright-cli` for browser-facing behaviour or equivalent CLI/API verification otherwise. QA returns per-scenario evidence and checks only `## Test Scenarios`; unit tests alone do not prove runtime behaviour.
 6. For user-facing UI, run `visual-capture` only after QA passes. Store evidence outside git and hand its paths to the PR step.
 7. For large changes or on request, run an independent quality review using `principles` and/or `deep-review`; route accepted fixes through a new implementation step.
-8. Run `commit`, then `pr`. Use `/pr --stack` or `/pr --restack` for dependent PRs. Update the README with the PR URL, status, evidence paths, and decision deviations.
+8. Run `commit`, then `pr`. Use `/pr stack` or `/pr restack` for dependent PRs. Update the README with the PR URL, status, evidence paths, and decision deviations.
 
 **GATE (gated mode):** require user approval before the next dependent slice. Autopilot proceeds after successful ordinary transitions and stops only for an unresolved material decision, destructive or externally consequential action not already authorized, unavailable required access/service, or a blocked validation/runtime gate.
 

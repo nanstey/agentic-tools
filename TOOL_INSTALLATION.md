@@ -86,7 +86,7 @@ sudo pacman -S github-cli
 **Verify:** `gh stack --version`
 
 **Skills requiring gh-stack:**
-- `/pr --stack`
+- `/pr stack`
 
 **Install:**
 ```bash
@@ -220,7 +220,7 @@ brew install chromium
 **Skills requiring orca:**
 - `worktree` (automatically detects and uses when available)
 - `worktree-env` (automatically detects and uses when available)
-- `/pr --merge` (uses for cleanup)
+- `/pr merge` (uses for cleanup)
 
 **Install:**
 ```bash
