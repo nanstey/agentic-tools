@@ -72,33 +72,40 @@ function apply(ctx: Pick<ExtensionContext, "cwd" | "isProjectTrusted">): void {
 
 // `/profile use|default|clear` and `pi-secret` change files, not events, and extension
 // commands run before input hooks. Watch those files so the change lands immediately.
-const WATCH_KEY = Symbol.for("pi.profile-secrets.watchers");
-const WATCHED = new Set(["settings.json", "auth-profiles.json"]);
+// Parent directories are watched too, so a `.pi` or `secrets` dir created later is noticed
+// (every change re-attaches the watchers).
+const WATCH_KEY = Symbol.for("pi.profile-secrets.watch");
+const WATCHED = new Set(["settings.json", "auth-profiles.json", ".pi", "secrets"]);
+type WatchState = { watchers: FSWatcher[]; timer?: ReturnType<typeof setTimeout> };
+const state: WatchState = ((globalThis as any)[WATCH_KEY] ??= { watchers: [] });
+
+function stopWatching(): void {
+	clearTimeout(state.timer);
+	for (const w of state.watchers.splice(0)) w.close();
+}
 
 function startWatching(ctx: ExtensionContext): void {
-	const g = globalThis as any;
-	for (const w of (g[WATCH_KEY] ?? []) as FSWatcher[]) w.close();
-	const watchers: FSWatcher[] = [];
-	g[WATCH_KEY] = watchers;
-	let timer: ReturnType<typeof setTimeout> | undefined;
+	stopWatching();
 	const onChange = (_event: string, file: string | Buffer | null) => {
 		const name = String(file ?? "");
 		if (!WATCHED.has(name) && !name.endsWith(".env")) return;
-		clearTimeout(timer);
-		timer = setTimeout(() => {
+		clearTimeout(state.timer);
+		state.timer = setTimeout(() => {
 			try {
 				apply(ctx);
+				startWatching(ctx);
 			} catch {
 				// ctx may be stale after a session switch; the next event re-applies.
 			}
 		}, 50);
 	};
-	for (const dir of [join(ctx.cwd, ".pi"), agentDir, join(agentDir, "secrets")]) {
+	for (const dir of [ctx.cwd, join(ctx.cwd, ".pi"), agentDir, join(agentDir, "secrets")]) {
 		if (!existsSync(dir)) continue;
 		try {
 			const w = watch(dir, onChange);
+			w.on("error", () => w.close());
 			w.unref();
-			watchers.push(w);
+			state.watchers.push(w);
 		} catch {
 			// Unwatchable directory: the per-input hooks still apply changes.
 		}
@@ -110,6 +117,7 @@ export default function (pi: ExtensionAPI) {
 		apply(ctx);
 		startWatching(ctx);
 	});
+	pi.on("session_shutdown", async () => stopWatching());
 	// Fallback re-resolve on each input/turn.
 	pi.on("input", async (_event, ctx) => apply(ctx));
 	pi.on("before_agent_start", async (_event, ctx) => apply(ctx));
