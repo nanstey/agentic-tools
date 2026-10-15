@@ -1,7 +1,7 @@
 ---
 name: pr
 description: Runs PR creation, maintenance, and stacked-PR workflows from one command. Use when a branch or pull request needs creation, reconciliation, remediation, publication, merge, or stack management.
-argument-hint: "[info|monitor|merge|ci|create|comments|description|screenshots|rebase|restack|split|stack|auto-merge] [PR-URL-or-number]"
+argument-hint: "[info|monitor|merge|ci|create|comments|review|description|screenshots|rebase|restack|split|stack|auto-merge] [PR-URL-or-number] [fix|comment]"
 user-invocable: true
 disable-model-invocation: false
 ---
@@ -24,6 +24,7 @@ With no action, load [`references/lifecycle.md`](references/lifecycle.md) and ru
 | `/pr ci [target]` | [`ci.md`](references/ci.md) |
 | `/pr create [target]` | [`create.md`](references/create.md) |
 | `/pr comments [target]` | [`comments.md`](references/comments.md) |
+| `/pr review [target] [fix\|comment]` | [`review.md`](references/review.md) |
 | `/pr description [target]` | [`description.md`](references/description.md) |
 | `/pr screenshots [target]` | [`screenshots.md`](references/screenshots.md) |
 | `/pr rebase [target]` | [`rebase.md`](references/rebase.md) |
