@@ -20,7 +20,7 @@ PI_AGENT_DIR="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}"
 # every existing match, so a single pair can fan out to many destinations.
 HARNESSES=(
   "claude|$HOME/.claude|claude|skills:$HOME/.claude/skills;agents:$HOME/.claude/agents"
-  "pi|$PI_AGENT_DIR|pi|skills:$PI_AGENT_DIR/skills;agents:$PI_AGENT_DIR/agents;config:$PI_AGENT_DIR::$REPO_ROOT/harness/pi;config:$PI_AGENT_DIR/extensions::$REPO_ROOT/harness/pi/extensions;config:$PI_AGENT_DIR/bin::$REPO_ROOT/harness/pi/bin;config:$PI_AGENT_DIR/extensions/pi-interactive-subagents::$REPO_ROOT/harness/pi/extensions/pi-interactive-subagents;config:$PI_AGENT_DIR/extensions/pi-extensions-i18n::$REPO_ROOT/harness/pi/extensions/pi-extensions-i18n;config:$PI_AGENT_DIR/intercom::$REPO_ROOT/harness/pi/extensions/pi-intercom;hoist:$PI_AGENT_DIR/npm::$REPO_ROOT/harness/pi/settings.json;patch-subagents:$PI_AGENT_DIR/npm/node_modules/@maplezzk/pi-interactive-subagents/pi-extension/subagents/index.ts;patch-fallback:$PI_AGENT_DIR/npm/node_modules/pi-fallback-models/src/extension.ts"
+  "pi|$PI_AGENT_DIR|pi|skills:$PI_AGENT_DIR/skills;agents:$PI_AGENT_DIR/agents;config:$PI_AGENT_DIR::$REPO_ROOT/harness/pi;config:$PI_AGENT_DIR/extensions::$REPO_ROOT/harness/pi/extensions;config:$PI_AGENT_DIR/bin::$REPO_ROOT/harness/pi/bin;config:$PI_AGENT_DIR/extensions/pi-interactive-subagents::$REPO_ROOT/harness/pi/extensions/pi-interactive-subagents;config:$PI_AGENT_DIR/extensions/pi-extensions-i18n::$REPO_ROOT/harness/pi/extensions/pi-extensions-i18n;config:$PI_AGENT_DIR/intercom::$REPO_ROOT/harness/pi/extensions/pi-intercom;hoist:$PI_AGENT_DIR/npm::$REPO_ROOT/harness/pi/settings.json;patch-fallback:$PI_AGENT_DIR/npm/node_modules/pi-fallback-models/src/extension.ts;patch-subagent-widget:$PI_AGENT_DIR/npm/node_modules/@maplezzk/pi-interactive-subagents/pi-extension/subagents/subagent-done.ts"
   "omp|$HOME/.omp/agent|omp|skills:$HOME/.omp/agent/skills;skills:$HOME/.omp/profiles/*/agent/skills;agents:$HOME/.omp/agent/agents;agents:$HOME/.omp/profiles/*/agent/agents;config:$HOME/.omp/agent::$REPO_ROOT/harness/omp;config:$PI_AGENT_DIR/intercom::$REPO_ROOT/harness/pi/extensions/pi-intercom;omp-plugin-manifest:$REPO_ROOT/harness/omp/plugins/pi-intercom.txt;omp-plugin-manifest:$REPO_ROOT/harness/omp/plugins/pi-jev.txt;omp-status-line:$REPO_ROOT/harness/omp/status-line/apply.sh"
   "codex|$HOME/.codex|codex|skills:$HOME/.codex/skills"
 )
@@ -168,20 +168,6 @@ PY
   fi
 }
 
-# @maplezzk/pi-interactive-subagents launches every child with --no-extensions,
-# which also disables Pi's compiled-in extensions (builtin:codemode), and its
-# subagentExtensions setting only accepts file paths. Patch the installed copy so
-# `builtin:<name>` entries pass straight through as `--extension builtin:<name>`.
-# Re-run after the package is updated or reinstalled. Remove once upstream
-# supports builtin: entries.
-install_subagents_builtin_patch() {
-  patch_installed_file patch-subagents "$1" 'startsWith("builtin:")' \
-'    .map((extensionPath) => resolveSubagentExtensionPath(extensionPath))
-    .filter((extensionPath) => existsSync(extensionPath));' \
-'    .map((extensionPath) => (extensionPath.startsWith("builtin:") ? extensionPath : resolveSubagentExtensionPath(extensionPath)))
-    .filter((extensionPath) => extensionPath.startsWith("builtin:") || existsSync(extensionPath));'
-}
-
 # pi-fallback-models@0.1.1 classifies Anthropic's "You're out of extra usage"
 # 400 invalid_request_error as ignorable, so no fallback happens on the exact
 # failure that motivated it. Add that phrase to its quota patterns. Remove once
@@ -190,6 +176,16 @@ install_fallback_quota_patch() {
   patch_installed_file patch-fallback "$1" '|out of extra usage/i;' \
 '|plan limit|no more (?:fast )?requests|billing/i;' \
 '|plan limit|no more (?:fast )?requests|billing|out of extra usage/i;'
+}
+
+# @maplezzk/pi-interactive-subagents' child widget lists denied tools, but denied
+# tools are never registered, so the list is noise next to the available tools.
+# Keep `denied` empty so the widget shows only what the child can use. Remove
+# once upstream makes it optional.
+install_subagent_widget_patch() {
+  patch_installed_file patch-subagent-widget "$1" 'denied = []; // widget shows available tools only' \
+'    denied = parseDeniedTools(deniedToolsValue);' \
+'    denied = []; // widget shows available tools only'
 }
 
 # Expose pi-secret to ordinary shells: $PI_AGENT_DIR/bin is only on PATH inside Pi.
@@ -330,8 +326,8 @@ for entry in "${HARNESSES[@]}"; do
       install_pnpm_hoist "${pattern%%::*}" "${pattern##*::}"; continue
     fi
     # patch-* types carry the path of the installed package file to patch.
-    if [ "$type" = "patch-subagents" ]; then
-      install_subagents_builtin_patch "$pattern" || PATCH_FAILED=1
+    if [ "$type" = "patch-subagent-widget" ]; then
+      install_subagent_widget_patch "$pattern" || PATCH_FAILED=1
       continue
     fi
     if [ "$type" = "patch-fallback" ]; then
