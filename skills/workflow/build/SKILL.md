@@ -24,7 +24,6 @@ Use the active environment's delegation mechanisms when a separate execution con
 4. Required validation and the tooling/methods it depends on.
 5. Constraints and delivery expectations (e.g. commit/PR).
 
-
 ## Workflow
 
 1. Classify input, restate objective, and define behavioural success criteria up front.
@@ -35,7 +34,6 @@ Use the active environment's delegation mechanisms when a separate execution con
 6. When all phases pass, run `/pr`. In a plan folder, set the slice's `PR` and `Status` cells in the README `## Slices` table and update the top-level `Status`.
 7. If a design changes during implementation, update the affected `## Design` doc or spec and append a dated entry to the README `## Decision log`; keep the plan folder consistent with what shipped.
 8. Summarize changes, validation, assumptions, and risks.
-
 
 ## Safety Rules
 

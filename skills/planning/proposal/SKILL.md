@@ -25,7 +25,6 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 4. Validation and verification tooling available.
 5. Plan folder (via `plan-init`), auto-resolved per the location rules below when not given.
 
-
 ## Workflow
 
 1. State that this is planning-only: do not edit source or dependencies. Treat implementation imperatives such as “build,” “implement,” “ship,” or “wire up” as planning scope, not permission to execute.
@@ -41,7 +40,6 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 8. Write the plan to `<plan-folder>/proposal.md` per the contract below, upsert its row in the README `## Design` table, and seed the README `## Slices` table from the implementation phases (one numbered row per phase; leave `Spec`, `PR`, and `Status` blank).
 9. Return the plan; this skill is planning-only, so do not begin implementation.
 10. Report the plan path and how each open question was resolved (verified or answered).
-
 
 ## Plan Location
 

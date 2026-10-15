@@ -28,7 +28,6 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 4. Rank severity (`high`/`medium`/`low`) and include one intentional non-finding.
 5. Verify every finding maps to a reference ID and concrete code evidence.
 
-
 ## Safety Rules
 
 - Never label something a smell without evidence in the reviewed code.

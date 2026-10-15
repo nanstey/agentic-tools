@@ -31,7 +31,6 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 5. If parent is requested, resolve parent deterministically and create GraphQL sub-issue link.
 6. Verify issue fields and parent linkage with API readback.
 
-
 ## Safety Rules
 
 - Never create an issue without confirming minimally sufficient title/body intent.

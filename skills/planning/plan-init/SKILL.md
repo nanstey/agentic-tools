@@ -19,7 +19,6 @@ This skill defines the canonical **Plan Folder Layout** and **README Index Contr
 2. Base plans directory, or permission to resolve and propose one.
 3. A slug for the folder, or permission to derive one.
 
-
 ## Plan Folder Layout
 
 ```

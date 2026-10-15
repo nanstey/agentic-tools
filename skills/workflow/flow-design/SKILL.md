@@ -22,7 +22,6 @@ If delegation is unavailable or unnecessary, design an inline sequence instead. 
 3. Approval points or delivery constraints.
 4. Whether the task writes to the repo, and whether independent writers are plausible.
 
-
 ## Design Rules
 
 ### Least coordination first
@@ -58,7 +57,6 @@ Track timing, cost, token use, or other resource data when the environment provi
 4. Define validation gates, runtime checks, return contracts, and caller-requested approval points.
 5. Express the plan using the active environment's normal delegation mechanism.
 6. Return the plan.
-
 
 ## Safety Rules
 
