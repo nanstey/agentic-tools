@@ -3,7 +3,7 @@
 ## Core Contract
 
 Create exactly one PR for the current branch against the correct base.
-Default tool is `gh`. Default target branch is `develop`; PR opens as draft unless asked otherwise.
+Default tool is `gh`. Default target branch is the repository default branch (`origin/HEAD`); PR opens as draft unless asked otherwise.
 Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 ## Required Inputs
@@ -16,13 +16,13 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 1. Resolve PR state via `/pr info`; if a PR already exists, report it and stop.
 2. Confirm the branch is pushed; push with `git push -u origin <branch>` if needed.
-3. Determine the target branch (explicit input > repo convention > `develop`).
+3. Determine the target branch (explicit input > repo convention > `origin/HEAD` default branch).
 4. Analyze the branch diff against the target (`git log <base>..HEAD`, `git diff --stat <base>...HEAD`, `git diff <base>...HEAD`) to draft a title and a placeholder body.
 5. Create the PR with `gh pr create --draft --base <base> --title ... --body ...`.
 6. Run `/pr description` to write the full body from the diff.
 7. Verify by re-reading the PR and report the URL.
 
-Stop and ask if the branch has no commits ahead of base, the base is ambiguous, or push fails.
+Stop as blocked if the branch has no commits ahead of base or push fails.
 
 ## Safety Rules
 
@@ -30,8 +30,8 @@ Stop and ask if the branch has no commits ahead of base, the base is ambiguous, 
 - Never force-push or rewrite history; pushing the branch is the only allowed git mutation.
 - Never write the final body inline; delegate it to `/pr description`.
 - Never mark the PR ready-for-review unless explicitly asked.
-- If unexpected working tree changes appear while you are working, stop and ask the user how to proceed.
+- If unexpected working tree changes appear while you are working, stop as blocked and report the unexpected changes.
 
 ## Output Style
 
-Report PR number/URL, base used, draft state, push performed or not, and any gate that required a user decision.
+Report PR number/URL, base used, draft state, push performed or not, and any blocker.

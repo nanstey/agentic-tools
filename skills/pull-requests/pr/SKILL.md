@@ -39,6 +39,17 @@ Load every referenced workflow before acting and preserve its stop gates, safety
 
 Never bypass a referenced workflow's verification, approval, or stop gate. Do not silently substitute a direct implementation for a dispatched workflow.
 
+## Non-Interactive Policy
+
+Never ask the user a question, request clarification, or wait for approval. Every decision resolves in this order:
+
+1. An explicit input in the invocation or the user's request.
+2. Repository instructions (`CLAUDE.md` / `AGENTS.md`, PR templates, `CONTRIBUTING*`).
+3. The documented default in the dispatched reference.
+4. Otherwise stop as `blocked`: make no further changes, report the blocker, and give the exact input or command that unblocks it.
+
+Invoking an action authorizes the mutations that action declares. Destructive extras (pruning branches, dissolving a stack, aborting an operation) run only when the invocation names them, never by prompt. References that say "stop" mean stop with a `blocked` report; they never mean ask.
+
 ## Output Behavior
 
 Report the selected action, resolved target, workflow outcome, and any inherited blocker. Each detailed reference defines additional required output.

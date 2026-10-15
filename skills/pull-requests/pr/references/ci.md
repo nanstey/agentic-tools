@@ -23,7 +23,7 @@ Default flow includes fix, validation, commit, and push unless user scopes it do
 7. Commit and push only when code changed and validation passed.
 8. Report rerun guidance and unresolved flaky/external blockers.
 
-Stop and ask before risky architecture/product decisions or ambiguous trade-offs.
+Stop as blocked on risky architecture/product decisions or ambiguous trade-offs; report the options and do not choose.
 
 ## Safety Rules
 
@@ -35,7 +35,7 @@ Stop and ask before risky architecture/product decisions or ambiguous trade-offs
 - Never force-push unless explicitly requested.
 - Never overwrite or revert unrelated user changes.
 - Never fabricate code changes for flaky or infrastructure failures.
-- If unexpected changes appear while working, stop and ask the user how to proceed.
+- If unexpected changes appear while working, stop as blocked and report the unexpected changes.
 
 ## Output Style
 

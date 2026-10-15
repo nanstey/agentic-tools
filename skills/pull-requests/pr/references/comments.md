@@ -36,7 +36,7 @@ Default tool is `gh`. Follow `CLAUDE.md` / `AGENTS.md` on conflict.
    - Then resolve the thread via GraphQL `resolveReviewThread` if appropriate.
 8. Leave unresolved threads open and report blockers.
 
-Stop and ask when feedback implies product/architecture decisions or high-risk trade-offs.
+Treat feedback that implies product/architecture decisions or high-risk trade-offs as blocked: leave it unresolved and report it.
 
 ## Safety Rules
 
@@ -46,7 +46,7 @@ Stop and ask when feedback implies product/architecture decisions or high-risk t
 - Never push or resolve threads if validation is failing.
 - Never force-push unless explicitly requested.
 - Never overwrite or revert unrelated user changes.
-- If unexpected changes appear while working, stop and ask the user how to proceed.
+- If unexpected changes appear while working, stop as blocked and report the unexpected changes.
 
 ## Output Style
 
