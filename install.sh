@@ -20,7 +20,7 @@ PI_AGENT_DIR="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}"
 # every existing match, so a single pair can fan out to many destinations.
 HARNESSES=(
   "claude|$HOME/.claude|claude|skills:$HOME/.claude/skills;agents:$HOME/.claude/agents"
-  "pi|$PI_AGENT_DIR|pi|skills:$PI_AGENT_DIR/skills;agents:$PI_AGENT_DIR/agents;config:$PI_AGENT_DIR::$REPO_ROOT/harness/pi;config:$PI_AGENT_DIR/extensions::$REPO_ROOT/harness/pi/extensions;config:$PI_AGENT_DIR/bin::$REPO_ROOT/harness/pi/bin;config:$PI_AGENT_DIR/extensions/pi-interactive-subagents::$REPO_ROOT/harness/pi/extensions/pi-interactive-subagents;config:$PI_AGENT_DIR/extensions/pi-extensions-i18n::$REPO_ROOT/harness/pi/extensions/pi-extensions-i18n;config:$PI_AGENT_DIR/intercom::$REPO_ROOT/harness/pi/extensions/pi-intercom;hoist:$PI_AGENT_DIR/npm::$REPO_ROOT/harness/pi/settings.json;patch-subagents:$PI_AGENT_DIR/npm/node_modules/@maplezzk/pi-interactive-subagents/pi-extension/subagents/index.ts;patch-fallback:$PI_AGENT_DIR/npm/node_modules/pi-fallback-models/src/extension.ts;patch-jev:$PI_AGENT_DIR/npm/node_modules/pi-jev/src/jev.ts"
+  "pi|$PI_AGENT_DIR|pi|skills:$PI_AGENT_DIR/skills;agents:$PI_AGENT_DIR/agents;config:$PI_AGENT_DIR::$REPO_ROOT/harness/pi;config:$PI_AGENT_DIR/extensions::$REPO_ROOT/harness/pi/extensions;config:$PI_AGENT_DIR/bin::$REPO_ROOT/harness/pi/bin;config:$PI_AGENT_DIR/extensions/pi-interactive-subagents::$REPO_ROOT/harness/pi/extensions/pi-interactive-subagents;config:$PI_AGENT_DIR/extensions/pi-extensions-i18n::$REPO_ROOT/harness/pi/extensions/pi-extensions-i18n;config:$PI_AGENT_DIR/intercom::$REPO_ROOT/harness/pi/extensions/pi-intercom;hoist:$PI_AGENT_DIR/npm::$REPO_ROOT/harness/pi/settings.json;patch-subagents:$PI_AGENT_DIR/npm/node_modules/@maplezzk/pi-interactive-subagents/pi-extension/subagents/index.ts;patch-fallback:$PI_AGENT_DIR/npm/node_modules/pi-fallback-models/src/extension.ts"
   "omp|$HOME/.omp/agent|omp|skills:$HOME/.omp/agent/skills;skills:$HOME/.omp/profiles/*/agent/skills;agents:$HOME/.omp/agent/agents;agents:$HOME/.omp/profiles/*/agent/agents;config:$HOME/.omp/agent::$REPO_ROOT/harness/omp;config:$PI_AGENT_DIR/intercom::$REPO_ROOT/harness/pi/extensions/pi-intercom;omp-plugin-manifest:$REPO_ROOT/harness/omp/plugins/pi-intercom.txt;omp-plugin-manifest:$REPO_ROOT/harness/omp/plugins/pi-jev.txt;omp-status-line:$REPO_ROOT/harness/omp/status-line/apply.sh"
   "codex|$HOME/.codex|codex|skills:$HOME/.codex/skills"
   "cursor|$HOME/.cursor|cursor,cursor-agent|skills:$HOME/.cursor/skills"
@@ -216,21 +216,6 @@ install_typesafe_secret() {
   echo "  [environment] -> $environment_dir/90-typesafe.conf (active after next login)"
 }
 
-# pi-jev@0.4.0 builds its SDK client once with the first API key it sees and
-# never rebuilds it, so a key change (e.g. switching auth profile mid-session)
-# is ignored. Rebuild the client whenever the resolved key changes. Remove once
-# upstream does this.
-install_jev_key_patch() {
-  patch_installed_file patch-jev "$1" 'clientKey' \
-'    if (!this.client) {
-      this.client = new TypeSafeClient({ apiKey: key });
-    }' \
-'    if (!this.client || (this as any).clientKey !== key) {
-      this.client = new TypeSafeClient({ apiKey: key });
-      (this as any).clientKey = key;
-    }'
-}
-
 # Installed OMP npm plugins as "name@version" lines, read from omp's JSON
 # listing. Whitespace is stripped so each entry's adjacent name/version keys
 # match as one token; names and versions never contain whitespace.
@@ -350,10 +335,6 @@ for entry in "${HARNESSES[@]}"; do
     # patch-* types carry the path of the installed package file to patch.
     if [ "$type" = "patch-subagents" ]; then
       install_subagents_builtin_patch "$pattern" || PATCH_FAILED=1
-      continue
-    fi
-    if [ "$type" = "patch-jev" ]; then
-      install_jev_key_patch "$pattern" || PATCH_FAILED=1
       continue
     fi
     if [ "$type" = "patch-fallback" ]; then
