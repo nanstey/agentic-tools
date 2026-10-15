@@ -13,9 +13,8 @@ Delegate by default:
 - Codebase recon, or reading more than a few files to answer a question -> `scout`.
 - Web or documentation research -> `researcher`.
 - Planning a non-trivial change -> `planner`.
-- Implementation spanning more than one file or step -> `worker`.
+- Implementation spanning more than one file or step, or a low-stakes generic side task -> `worker`.
 - Reviewing a diff, plan, or PR, running verification, or sanity-checking a decision -> `reviewer`.
-- Low-stakes generic side tasks -> `delegate`.
 
 Do it inline only when the task is a single small read, a one-line edit, a direct answer
 from context already held, or a clarifying question to the user.
@@ -39,7 +38,7 @@ rate-limit error, retry on a different model family instead of the same profile.
 
 Profiles split by model family: Anthropic (1M context) for long-horizon work -
 `scout`, `researcher`, `planner`, `reviewer` - and OpenAI for
-execution and independent judgment - `worker`, `delegate`.
+execution and independent judgment - `worker`.
 
 Whoever checks a piece of work must run on a different model family than whoever produced
 it. Treat a subagent's report as a claim and verify the outcome (diff, tests) before telling

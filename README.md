@@ -246,7 +246,6 @@ agent names output paths in the task.
 | Agent | Model | Description |
 | --- | --- | --- |
 | [`worker`](agents/worker.md) | `openai-codex/gpt-6.1-sol` | Implementation agent for normal tasks and approved plans. Single writer thread; escalates unapproved decisions via `caller_ping`. |
-| [`delegate`](agents/delegate.md) | `openai-codex/gpt-6-luna` | Lightweight, low-cost generic subagent with no default reads. General-purpose delegated execution. |
 | [`scout`](agents/scout.md) | `anthropic/claude-haiku-5-5` | Fast codebase recon that returns compressed context for handoff. Writes `context.md`. |
 | [`researcher`](agents/researcher.md) | `anthropic/claude-sonnet-5-5` | Autonomous web researcher — searches, evaluates, and synthesizes a focused research brief into `research.md`. |
 | [`planner`](agents/planner.md) | `anthropic/claude-fable-5-1` | Creates concrete implementation plans from context and requirements. Read-only; writes `plan.md`. |
