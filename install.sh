@@ -189,12 +189,14 @@ install_subagent_widget_patch() {
 }
 
 # pi-jev@0.7.0 builds its SDK client once and keeps a stale base URL, so a
-# profile switch keeps billing the first profile's key and endpoint. Apply
-# harness/pi/patches/pi-jev-client-cache.patch (a unified diff) to rebuild the
-# client whenever the resolved key or base URL changes. Remove once upstream does.
+# profile switch keeps billing the first profile's key and endpoint. It also reads
+# only TYPESAFE_API_KEY (shared with Pi's native classifier) and auto-adjusts
+# thinking inside subagents. Apply harness/pi/patches/pi-jev.patch (a unified
+# diff) to rebuild the client when the key or base URL changes, prefer
+# PI_JEV_API_KEY, and skip auto-thinking in subagents. Remove once upstream does.
 install_jev_client_patch() {
   local pkg="$1" label=patch-jev-client
-  local patch_file="$REPO_ROOT/harness/pi/patches/pi-jev-client-cache.patch"
+  local patch_file="$REPO_ROOT/harness/pi/patches/pi-jev.patch"
   if [ ! -f "$pkg/src/jev.ts" ]; then
     echo "  [$label] $pkg not installed yet, skipping (re-run install.sh after pi installs packages)"; return 0
   fi
@@ -204,7 +206,9 @@ install_jev_client_patch() {
   if patch -R -p1 -s -f --dry-run -d "$pkg" <"$patch_file" >/dev/null 2>&1; then
     echo "  [$label] -> $pkg (ok)"; return 0
   fi
-  if patch -p1 -s -f -d "$pkg" <"$patch_file" >/dev/null 2>&1; then
+  # Dry-run first: a multi-hunk patch can otherwise fail halfway and leave the package half-patched.
+  if patch -p1 -s -f --dry-run -d "$pkg" <"$patch_file" >/dev/null 2>&1 \
+    && patch -p1 -s -f -d "$pkg" <"$patch_file" >/dev/null 2>&1; then
     echo "  [$label] -> $pkg (patched)"
   else
     echo "  [$label] upstream code changed; $pkg NOT patched. Update $patch_file or drop it if upstream fixed this." >&2

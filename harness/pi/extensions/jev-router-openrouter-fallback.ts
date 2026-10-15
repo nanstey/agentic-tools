@@ -1,57 +1,54 @@
 /**
- * jev-router-openrouter-fallback — let Jev plugins use OpenRouter auth.
+ * jev-router-openrouter-fallback — let pi-jev use OpenRouter auth.
  *
- * Jev plugins read TYPESAFE_API_KEY (and optional TYPESAFE_API_URL / TYPESAFE_BASE_URL) from
- * the environment on every Jev call. When no TypeSafe key is set but the active
- * auth profile has OpenRouter credentials, point the key and URL
- * variables at OpenRouter's System One endpoint, so `models.classify()` and other Jev
- * plugins bill to OpenRouter. A real TYPESAFE_API_KEY always wins. Values this extension set are
- * removed again if the OpenRouter credential disappears (e.g. profile switch).
+ * When no real TYPESAFE_API_KEY is set but the active auth profile has OpenRouter
+ * credentials, set PI_JEV_API_KEY and PI_JEV_BASE_URL so pi-jev's tools bill to
+ * OpenRouter's System One endpoint. Pi's native TypeSafe classifier (codemode
+ * `models.classify`) reads TYPESAFE_API_KEY only, so it never receives the
+ * OpenRouter credential. PI_JEV_API_KEY is read by harness/pi/patches/pi-jev.patch.
+ * A real TYPESAFE_API_KEY, or a PI_JEV_* value set by someone else, always wins.
+ * Values this extension set are removed again if the OpenRouter credential
+ * disappears (e.g. profile switch).
  */
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
-// Plugins disagree on what "URL" means: some want the full endpoint, the TypeSafe SDK wants the base.
-const OPENROUTER_URLS = {
-	TYPESAFE_API_URL: "https://openrouter.ai/api/v1/systemone", // full endpoint (legacy plugins)
-	TYPESAFE_BASE_URL: "https://openrouter.ai/api", // TypeSafe SDK, pi-jev, pi-jev-context-curator (base)
-} as const;
-type Owned = { key: string; urls: string[] };
+const KEY_VAR = "PI_JEV_API_KEY";
+const URL_VAR = "PI_JEV_BASE_URL";
+const OPENROUTER_BASE = "https://openrouter.ai/api";
+
 // Kept on globalThis so ownership survives an extension reload (module state would be lost).
 const OWNED = Symbol.for("pi.jev-openrouter-fallback.owned");
-const store = globalThis as unknown as Record<symbol, Owned | undefined>;
+const store = globalThis as unknown as Record<symbol, { key: string } | undefined>;
 
-// Remove only the URL values this extension set; leave external overrides alone.
-function release(env: NodeJS.ProcessEnv, owned: Owned, removeKey: boolean): void {
-	for (const name of owned.urls) {
-		if (env[name] === OPENROUTER_URLS[name as keyof typeof OPENROUTER_URLS]) delete env[name];
-	}
-	if (removeKey && env.TYPESAFE_API_KEY === owned.key) delete env.TYPESAFE_API_KEY;
+// Remove only the values this extension set; leave external overrides alone.
+function release(env: NodeJS.ProcessEnv, owned: { key: string }): void {
+	if (env[KEY_VAR] === owned.key) delete env[KEY_VAR];
+	if (env[URL_VAR] === OPENROUTER_BASE) delete env[URL_VAR];
 	store[OWNED] = undefined;
 }
 
 async function sync(ctx: ExtensionContext): Promise<void> {
 	const env = process.env;
-	let ours = store[OWNED];
-	if (ours && env.TYPESAFE_API_KEY !== ours.key) {
-		release(env, ours, false); // someone else owns the key now; drop our URLs
-		ours = undefined;
+	let owned = store[OWNED];
+	if (owned && env[KEY_VAR] !== owned.key) {
+		release(env, owned); // someone else owns PI_JEV_API_KEY now
+		owned = undefined;
 	}
-	if (!ours && env.TYPESAFE_API_KEY?.trim()) return; // real TypeSafe key
+	if (!owned && env[KEY_VAR]?.trim()) return; // externally configured
 	let key: string | undefined;
-	try {
-		key = (await ctx.modelRegistry.getApiKeyForProvider("openrouter"))?.trim();
-	} catch {
-		key = undefined;
+	if (!env.TYPESAFE_API_KEY?.trim()) {
+		try {
+			key = (await ctx.modelRegistry.getApiKeyForProvider("openrouter"))?.trim();
+		} catch {
+			key = undefined;
+		}
 	}
 	if (key) {
-		const urls = (Object.keys(OPENROUTER_URLS) as (keyof typeof OPENROUTER_URLS)[]).filter(
-			(name) => ours?.urls.includes(name) || !env[name]?.trim(),
-		);
-		env.TYPESAFE_API_KEY = key;
-		for (const name of urls) env[name] = OPENROUTER_URLS[name as keyof typeof OPENROUTER_URLS];
-		store[OWNED] = { key, urls };
-	} else if (ours) {
-		release(env, ours, true);
+		env[KEY_VAR] = key;
+		if (!env[URL_VAR]?.trim() || env[URL_VAR] === OPENROUTER_BASE) env[URL_VAR] = OPENROUTER_BASE;
+		store[OWNED] = { key };
+	} else if (owned) {
+		release(env, owned);
 	}
 }
 
