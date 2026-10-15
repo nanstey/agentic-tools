@@ -58,9 +58,11 @@ result and the parent routes it.
   original model at shutdown, so neither the profile nor the last `model_change` entry
   shows who wrote the output. Before accepting a review as independent, list the
   models that produced each side's successful assistant messages in its `Session:` log:
-  `jq -r 'select(.type=="message" and .message.role=="assistant" and .message.stopReason!="error") | "\(.message.provider)/\(.message.model)"' <log> | sort | uniq -c`.
-  If the producer and the reviewer share a family, or either side mixed families,
-  rerun the review with an explicit `model` from the family the producer did not use.
+  `jq -r 'select(.type=="message" and .message.role=="assistant" and (.message.stopReason|IN("error","aborted")|not)) | "\(.message.provider)/\(.message.model)"' <log> | sort | uniq -c`.
+  - Producer used one family, reviewer used the same family or mixed: rerun the review
+    with an explicit `model` from the other family.
+  - Producer mixed families: no reviewer family is independent. Do not claim a
+    cross-family review; report that to the user, or rerun the production on one family.
 
 # Codemode and Jev
 
