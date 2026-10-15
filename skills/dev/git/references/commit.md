@@ -25,7 +25,7 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 7. Commit and push (`git push -u` on first branch push).
 8. If tree is clean, report and stop.
 
-Stop and ask before committing on protected branches or if unexpected changes appear.
+On a protected branch, create a new branch first. Leave unexpected changes uncommitted.
 
 ## Safety Rules
 
@@ -35,7 +35,7 @@ Stop and ask before committing on protected branches or if unexpected changes ap
 - Confirm before committing on `main`, `develop`, or another protected base.
 - Do not bypass failing hooks with `--no-verify` unless explicitly told.
 - Push to `origin` by default; skip push only if the user asks.
-- If unexpected or unrelated changes appear, stop and ask the user how to proceed.
+- If unexpected or unrelated changes appear, exclude them from the commit and mention them in the report.
 
 ## Output Style
 

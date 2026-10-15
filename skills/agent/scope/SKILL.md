@@ -31,7 +31,7 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 3. If no uncommitted changes, default to branch-delta scope against the resolved base.
 4. For a PR, use the base/head from `/pr info`. Otherwise resolve a target branch/ref automatically (explicit target, then `main`/`develop`, then tracked upstream merge-base) and record its resolved SHA — a local branch name is a candidate, not proof of the base. Ask only if unresolved.
 5. Restate final scope and exclusions.
-6. If scope is still uncertain and could change conclusions, ask the user to clarify before proceeding.
+6. If scope is still uncertain and could change conclusions, choose the most plausible scope, state the assumption, and proceed.
 
 ## Safety Rules
 

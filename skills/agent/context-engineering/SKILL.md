@@ -7,7 +7,7 @@ disable-model-invocation: false
 
 # Context Engineering Audit
 
-Apply context engineering best practices to `<scope>`. If no scope is given, ask the user to specify one (e.g., "this skill", "CLAUDE.md", "the tool definitions in X", "this project").
+Apply context engineering best practices to `<scope>`. If no scope is given, default to the most relevant one in context (e.g., "this skill", "CLAUDE.md", "the tool definitions in X", "this project").
 
 ## Step 0 — Parse Scope
 

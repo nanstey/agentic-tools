@@ -12,7 +12,7 @@ disable-model-invocation: false
 Turn a change request into one written plan document that a human, team, or agent can read and act on.
 This is the self-contained planning path: one `proposal.md` covering the whole change, for small or trivial work that does not warrant separate product, architecture, program-design, and slice documents. For larger or riskier changes where each concern needs depth or independent review, use the focused skills (`product-review`, `system-architecture`, `program-design`, `vertical-slices`) instead. Pick one path per concern; do not also write a focused doc for something `proposal.md` already covers. If a concern later outgrows its section, promote it to its own doc, thin that section from `proposal.md`, and note the move in the README `## Decision log`.
 Discover context from the user and the codebase, resolve every uncertainty up front, then design the change.
-Make no assumptions in the plan: verify each fact by direct investigation, or ask the user. Repeat until no open questions remain.
+Make no assumptions in the plan: verify each fact by direct investigation; for what cannot be verified, choose a sensible default and label it an assumption. Ask the user only for product decisions.
 Read-only on the codebase; the only output is the plan file.
 Write the plan and the chat terse and deslopped: simple but exact language, no filler.
 Follow `CLAUDE.md` / `AGENTS.md` on conflict.
@@ -25,7 +25,7 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 4. Validation and verification tooling available.
 5. Plan folder (via `plan-init`), auto-resolved per the location rules below when not given.
 
-If intent is too vague to design against, stop and ask.
+If intent is too vague to design against, infer the most plausible intent, state it, and proceed.
 
 ## Workflow
 
@@ -40,10 +40,10 @@ If intent is too vague to design against, stop and ask.
 6. Decompose into vertical slices, each independently shippable and verifiable.
 7. Resolve the plan folder per the rules below.
 8. Write the plan to `<plan-folder>/proposal.md` per the contract below, upsert its row in the README `## Design` table, and seed the README `## Slices` table from the implementation phases (one numbered row per phase; leave `Spec`, `PR`, and `Status` blank).
-9. Present the plan for explicit user review and stop; do not begin implementation or invoke a follow-on skill.
+9. Return the plan; this skill is planning-only, so do not begin implementation.
 10. Report the plan path and how each open question was resolved (verified or answered).
 
-Stop and ask whenever an uncertainty is not verifiable by investigation; do not design past it.
+Ask only when an unverifiable uncertainty is a product decision; otherwise assume and record it.
 
 ## Plan Location
 
@@ -75,7 +75,7 @@ Code snippets only when they convey the change more succinctly than prose. Diagr
 - Never modify the codebase; this skill investigates and plans only.
 - Never treat an implementation imperative as permission to edit source, invoke a build workflow, or proceed past the review gate.
 - Explicit approval of the plan selects a later, separate planning or build phase; it never authorizes source edits within this skill.
-- Never state an assumption as fact; verify it by investigation or ask the user.
+- Never state an assumption as fact; verify it by investigation or label it an assumption.
 - Never finalize the plan while open questions remain; resolve them all first.
 - Never design past an uncertainty that investigation cannot settle without asking first.
 - Never pad the plan; cut anything that does not help a reader act.

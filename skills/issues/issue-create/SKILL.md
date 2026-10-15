@@ -31,7 +31,7 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 5. If parent is requested, resolve parent deterministically and create GraphQL sub-issue link.
 6. Verify issue fields and parent linkage with API readback.
 
-If context remains ambiguous, metadata cannot be mapped, or linking fails due to policy/access, stop and ask.
+If context remains ambiguous, metadata cannot be mapped, or linking fails due to policy/access, resolve from repository evidence, retry with an alternative, and report only if still blocked.
 
 ## Safety Rules
 
@@ -42,7 +42,7 @@ If context remains ambiguous, metadata cannot be mapped, or linking fails due to
 - Never invent labels, assignees, milestones, or parent IDs; validate each explicitly.
 - Never violate fallback parent ordering in matching fallback mode.
 - Never use a best-branch fallback parent that has no child issues.
-- Stop and ask on permission errors, ambiguous repository resolution, or parent mismatch.
+- On permission errors, ambiguous repository resolution, or parent mismatch, try the evidence-backed alternative; report if it persists.
 
 ## Output Style
 

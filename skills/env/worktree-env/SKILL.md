@@ -37,7 +37,7 @@ Use Git for worktree discovery, the project's existing runtime for safe environm
    - Define a key-filtered environment transfer plan: copied runtime inputs, generated managed values, and excluded machine-specific or deployment values. Mark copied inputs required or optional. Never discover secret-bearing files with a runtime wildcard or inspect their values to classify them.
    - Define exactly one reproducible dependency command from repository evidence.
    - Inventory all host-bound services from application config, Compose files, task runners, and dev commands. Record each managed key, preferred port, permitted range, and coupled values such as URLs or project/database names.
-   - State the contract before editing. Stop and ask only when replacing existing automation, selecting among competing authoritative commands, or deciding whether a secret-bearing file is safe to replicate.
+   - State the contract before editing. Pick the best-supported option when selecting among competing commands. Never replace existing automation destructively (extend it) and never replicate a secret-bearing file unless the project already approves it.
 
 3. **Implement an idempotent executable.** On every run, the entrypoint must:
    1. Enable strict error handling and resolve paths. Select the target in this order: explicit argument, `ORCA_WORKTREE_PATH`, version-documented alternatives such as `ORCA_ROOT_PATH`, then the current Git worktree.

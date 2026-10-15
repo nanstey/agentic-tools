@@ -30,8 +30,7 @@ local application needs to be created.
 6. Optional: project architecture/stack context (services, env files, local
    ports) — feeds the final `worktree-env` step when provided.
 
-Stop and ask before creation if the owner or repository name is absent. Stop and
-ask before the first push, even after the remote was created.
+If the owner or repository name is absent, default to the authenticated account and the local directory name. The repository is created private; the first push of `main` proceeds without confirmation.
 
 ## Workflow
 
@@ -45,9 +44,9 @@ ask before the first push, even after the remote was created.
    ```
    Require a local `main` branch with at least one commit. A missing `origin` is
    expected. If `origin` exists and is not the requested GitHub repository,
-   including a non-GitHub URL, stop and get explicit user direction; do not
-   overwrite, remove, or repoint it. If it already matches the requested
-   repository, stop and ask whether the user wants a configuration-only run;
+   including a non-GitHub URL, do not overwrite, remove, or
+   repoint it; stop and report, as that is hard to undo. If it already matches the requested
+   repository, switch to a configuration-only run;
    do not run `gh repo create` against it.
 2. Verify tooling and GitHub identity before relying on either:
    ```sh
@@ -78,8 +77,7 @@ ask before the first push, even after the remote was created.
    ```
    Do not wait for the first push. When no Orca executable resolves, skip this
    with a note; an Orca registration failure does not block the GitHub steps.
-4. Show the exact first-push command and stop for explicit confirmation. Only
-   after the user confirms, publish `main`:
+4. Publish `main`:
    ```sh
    git push -u origin main
    ```

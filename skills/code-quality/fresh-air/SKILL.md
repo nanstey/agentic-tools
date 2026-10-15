@@ -31,7 +31,7 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
    - concrete improvement suggestion,
    - confidence.
 
-Stop and ask when evidence is missing or no mapped technique exists.
+Gather the missing evidence; when no mapped technique exists, choose the nearest and note the mismatch.
 
 ## Safety Rules
 

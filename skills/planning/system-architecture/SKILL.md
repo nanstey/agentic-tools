@@ -23,13 +23,13 @@ Inspect the target repository read-only. Write only the approved planning artifa
 
 ## Workflow
 
-1. State that this is planning-only: do not edit source or dependencies. Treat implementation imperatives such as “build,” “implement,” “ship,” or “wire up” as architecture scope, not permission to execute. If there is no approved artifact path or permission to propose one, ask the user and stop.
+1. State that this is planning-only: do not edit source or dependencies. Treat implementation imperatives such as “build,” “implement,” “ship,” or “wire up” as architecture scope, not permission to execute. If no artifact path is given, use the plan folder (create via `plan-init`) or a sensible default.
 2. Map the existing boundaries and identify the decisions this change must settle.
 3. Describe component interactions, contracts, data models/transformations, persistence effects, failure paths, compatibility, and validation/observability needs.
 4. Use a sequence or data-flow diagram only when it makes an interaction clearer than concise prose.
 5. Defer call stacks, file placement, internal types, and method signatures to `program-design`.
-6. Record every material uncertainty. Investigate and cite repository or source evidence where possible; otherwise ask the user. Do not finalize while one remains open.
-7. Resolve the plan folder: reuse the change's existing folder, or run `plan-init` to create one. Write the architecture artifact to `<plan-folder>/2-system-architecture.md`, upsert its row in the README `## Design` table, and optionally request the named reviewer's feedback. Then stop and present the artifact for explicit user review; do not begin implementation or invoke a follow-on skill.
+6. Record every material uncertainty. Investigate and cite repository or source evidence where possible; otherwise choose the best-supported default, record it as an explicit assumption, and ask the user only if it is a product decision.
+7. Resolve the plan folder: reuse the change's existing folder, or run `plan-init` to create one. Write the architecture artifact to `<plan-folder>/2-system-architecture.md`, upsert its row in the README `## Design` table, and optionally request the named reviewer's feedback. Then return the artifact path and decision packet; this skill is planning-only, so do not begin implementation.
 
 ## Safety Rules
 

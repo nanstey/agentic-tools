@@ -26,7 +26,7 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 ## Safety Rules
 
 - Never run on, or force-push, protected base branches.
-- Never rebase with a dirty working tree; commit or stash first (ask the user).
+- Never rebase with a dirty working tree; stash first, then restore after.
 - Use `--force-with-lease`, never plain `--force`.
 - Do not resolve conflicts inline; delegate to `/git conflicts`.
 - Only abort the rebase if the user asks.
@@ -35,4 +35,4 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 ## Output Style
 
-Report branch and `before -> after` SHA, mode used, conflict handling status, push/lease result, and any stop-and-ask gates.
+Report branch and `before -> after` SHA, mode used, conflict handling status, push/lease result, and any gates.

@@ -21,16 +21,16 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 6. Continue operation with the correct `--continue` command; repeat until complete. If the rebase was started by `/pr stack`, continue with `gh stack rebase --continue` (or `gh stack modify --continue`), not `git rebase --continue`.
 7. Report outcomes; do not push unless asked.
 
-If no operation is active, report and stop. If a resolution is ambiguous, stop and ask.
+If no operation is active, report and stop. If a resolution is ambiguous, pick the one that preserves both sides' intent, and record it.
 
 ## Safety Rules
 
 - Never blindly accept one side; resolve by meaning and intent.
-- Ask the user when a resolution is ambiguous after using available context.
+- When ambiguous after using available context, keep both intents, verify with tests, and record the choice.
 - Never leave conflict markers in committed files.
 - Only abort the operation if the user requests it.
 - Do not push as part of this skill unless explicitly asked.
-- If unexpected changes appear, stop and ask the user how to proceed.
+- If unexpected changes appear, leave unrelated changes untouched and proceed with only the relevant ones.
 
 ## Output Style
 

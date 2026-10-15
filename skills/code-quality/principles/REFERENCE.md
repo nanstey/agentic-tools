@@ -61,7 +61,7 @@ Paths in this reference are relative to the skill directory
 
 - When selected principles conflict, prefer the lower `priority_level`.
 - Record the deferred principle as a guardrail, not a discard.
-- If resolving conflict changes scope/timeline/architecture, stop and ask first.
+- If resolving conflict changes scope/timeline/architecture, pick the higher-priority principle and record the tradeoff.
 
 ## Sources
 
