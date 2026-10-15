@@ -209,6 +209,20 @@ install_typesafe_secret() {
   echo "  [environment] -> $environment_dir/90-typesafe.conf (active after next login)"
 }
 
+# pi-jev reads these only while its extension initializes. Install the
+# versioned harness config into the user's environment so every future Pi
+# session keeps model routing off and the other automatic modes on.
+install_pi_jev_auto_modes() {
+  local source="$REPO_ROOT/harness/pi/pi-jev-auto.conf"
+  local environment_dir="$HOME/.config/environment.d"
+  local target="$environment_dir/91-pi-jev-auto.conf"
+  [ -f "$source" ] || { echo "  [environment] missing $source" >&2; return 1; }
+  mkdir -p "$environment_dir"
+  cp "$source" "$target"
+  chmod 644 "$target"
+  echo "  [environment] -> $target (active after next login)"
+}
+
 # Installed OMP npm plugins as "name@version" lines, read from omp's JSON
 # listing. Whitespace is stripped so each entry's adjacent name/version keys
 # match as one token; names and versions never contain whitespace.
@@ -302,6 +316,7 @@ link_one() {
 }
 
 install_typesafe_secret
+install_pi_jev_auto_modes
 
 for entry in "${HARNESSES[@]}"; do
   IFS='|' read -r name detect_dir bins typemap <<<"$entry"

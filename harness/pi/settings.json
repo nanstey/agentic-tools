@@ -3,7 +3,8 @@
   "defaultModel": "claude-sonnet-5-5",
   "defaultThinkingLevel": "medium",
   "defaultTools": [
-    "+codemode"
+    "+codemode",
+    "-jev_find_tools"
   ],
   "npmCommand": [
     "pnpm"
@@ -21,7 +22,8 @@
     "npm:@nanstey/pi-auth-profiles",
     "npm:@maplezzk/pi-interactive-subagents",
     "npm:pi-intercom@0.12.0",
-    "npm:pi-fallback-models@0.1.1"
+    "npm:pi-fallback-models@0.1.1",
+    "npm:pi-jev@0.7.0"
   ],
   "theme": "dark"
 }
