@@ -20,7 +20,7 @@ PI_AGENT_DIR="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}"
 # every existing match, so a single pair can fan out to many destinations.
 HARNESSES=(
   "claude|$HOME/.claude|claude|skills:$HOME/.claude/skills;agents:$HOME/.claude/agents"
-  "pi|$PI_AGENT_DIR|pi|skills:$PI_AGENT_DIR/skills;agents:$PI_AGENT_DIR/agents;config:$PI_AGENT_DIR::$REPO_ROOT/harness/pi;config:$PI_AGENT_DIR/extensions::$REPO_ROOT/harness/pi/extensions;config:$PI_AGENT_DIR/extensions/pi-interactive-subagents::$REPO_ROOT/harness/pi/extensions/pi-interactive-subagents;config:$PI_AGENT_DIR/extensions/pi-extensions-i18n::$REPO_ROOT/harness/pi/extensions/pi-extensions-i18n;config:$PI_AGENT_DIR/intercom::$REPO_ROOT/harness/pi/extensions/pi-intercom;hoist:$PI_AGENT_DIR/npm::$REPO_ROOT/harness/pi/settings.json"
+  "pi|$PI_AGENT_DIR|pi|skills:$PI_AGENT_DIR/skills;agents:$PI_AGENT_DIR/agents;config:$PI_AGENT_DIR::$REPO_ROOT/harness/pi;config:$PI_AGENT_DIR/extensions::$REPO_ROOT/harness/pi/extensions;config:$PI_AGENT_DIR/extensions/pi-interactive-subagents::$REPO_ROOT/harness/pi/extensions/pi-interactive-subagents;config:$PI_AGENT_DIR/extensions/pi-extensions-i18n::$REPO_ROOT/harness/pi/extensions/pi-extensions-i18n;config:$PI_AGENT_DIR/intercom::$REPO_ROOT/harness/pi/extensions/pi-intercom;hoist:$PI_AGENT_DIR/npm::$REPO_ROOT/harness/pi/settings.json;patch-subagents:$PI_AGENT_DIR/npm/node_modules/@maplezzk/pi-interactive-subagents/pi-extension/subagents/index.ts;patch-fallback:$PI_AGENT_DIR/npm/node_modules/pi-fallback-models/src/extension.ts"
   "omp|$HOME/.omp/agent|omp|skills:$HOME/.omp/agent/skills;skills:$HOME/.omp/profiles/*/agent/skills;agents:$HOME/.omp/agent/agents;agents:$HOME/.omp/profiles/*/agent/agents;config:$HOME/.omp/agent::$REPO_ROOT/harness/omp;config:$PI_AGENT_DIR/intercom::$REPO_ROOT/harness/pi/extensions/pi-intercom;omp-plugin-manifest:$REPO_ROOT/harness/omp/plugins/pi-intercom.txt;omp-plugin-manifest:$REPO_ROOT/harness/omp/plugins/pi-jev.txt;omp-status-line:$REPO_ROOT/harness/omp/status-line/apply.sh"
   "codex|$HOME/.codex|codex|skills:$HOME/.codex/skills"
   "cursor|$HOME/.cursor|cursor,cursor-agent|skills:$HOME/.cursor/skills"
@@ -134,6 +134,63 @@ install_pnpm_hoist() {
   printf '%s\n' "$line" >>"$rc"          # keep any other settings already present
   rm -rf "$npm_dir/node_modules" "$npm_dir/pnpm-lock.yaml"
   echo "  [hoist] -> $rc (set, store reset for flat reinstall)"
+}
+
+# Idempotent literal patch of an installed third-party package file.
+# Usage: patch_installed_file LABEL TARGET MARKER OLD NEW
+# Skips (0) when TARGET is not installed yet, reports ok (0) when MARKER is
+# already present, patches (0) when OLD occurs exactly once, and otherwise
+# leaves the file untouched and returns 1 (also when python3 is missing).
+patch_installed_file() {
+  local label="$1" target="$2" marker="$3" old="$4" new="$5"
+  if [ ! -f "$target" ]; then
+    echo "  [$label] $target not installed yet, skipping (re-run install.sh after pi installs packages)"; return 0
+  fi
+  if grep -qF -- "$marker" "$target"; then
+    echo "  [$label] -> $target (ok)"; return 0
+  fi
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "  [$label] python3 not found; $target NOT patched" >&2; return 1
+  fi
+  if PATCH_OLD="$old" PATCH_NEW="$new" python3 - "$target" <<'PY'
+import os, sys
+p = sys.argv[1]
+s = open(p).read()
+old, new = os.environ["PATCH_OLD"], os.environ["PATCH_NEW"]
+if s.count(old) != 1:
+    sys.exit(1)
+open(p, "w").write(s.replace(old, new))
+PY
+  then
+    echo "  [$label] -> $target (patched)"
+  else
+    echo "  [$label] upstream code changed; $target NOT patched. Update the patch in install.sh or drop it if upstream fixed this." >&2
+    return 1
+  fi
+}
+
+# @maplezzk/pi-interactive-subagents launches every child with --no-extensions,
+# which also disables Pi's compiled-in extensions (builtin:codemode), and its
+# subagentExtensions setting only accepts file paths. Patch the installed copy so
+# `builtin:<name>` entries pass straight through as `--extension builtin:<name>`.
+# Re-run after the package is updated or reinstalled. Remove once upstream
+# supports builtin: entries.
+install_subagents_builtin_patch() {
+  patch_installed_file patch-subagents "$1" 'startsWith("builtin:")' \
+'    .map((extensionPath) => resolveSubagentExtensionPath(extensionPath))
+    .filter((extensionPath) => existsSync(extensionPath));' \
+'    .map((extensionPath) => (extensionPath.startsWith("builtin:") ? extensionPath : resolveSubagentExtensionPath(extensionPath)))
+    .filter((extensionPath) => extensionPath.startsWith("builtin:") || existsSync(extensionPath));'
+}
+
+# pi-fallback-models@0.1.1 classifies Anthropic's "You're out of extra usage"
+# 400 invalid_request_error as ignorable, so no fallback happens on the exact
+# failure that motivated it. Add that phrase to its quota patterns. Remove once
+# upstream recognizes it.
+install_fallback_quota_patch() {
+  patch_installed_file patch-fallback "$1" '|out of extra usage/i;' \
+'|plan limit|no more (?:fast )?requests|billing/i;' \
+'|plan limit|no more (?:fast )?requests|billing|out of extra usage/i;'
 }
 
 install_typesafe_secret() {
@@ -266,6 +323,15 @@ for entry in "${HARNESSES[@]}"; do
     if [ "$type" = "hoist" ]; then
       install_pnpm_hoist "${pattern%%::*}" "${pattern##*::}"; continue
     fi
+    # patch-* types carry the path of the installed package file to patch.
+    if [ "$type" = "patch-subagents" ]; then
+      install_subagents_builtin_patch "$pattern" || PATCH_FAILED=1
+      continue
+    fi
+    if [ "$type" = "patch-fallback" ]; then
+      install_fallback_quota_patch "$pattern" || PATCH_FAILED=1
+      continue
+    fi
     # OMP plugin manifests are repository metadata, not copied runtime config.
     if [ "$type" = "omp-plugin-manifest" ]; then
       install_omp_plugin_manifest "$pattern"; continue
@@ -335,3 +401,10 @@ check_tools() {
 }
 
 check_tools
+
+# A failed required patch must not look like a successful install, but it should
+# not abort the unrelated installs above either, so fail only at the end.
+if [ "${PATCH_FAILED:-0}" = 1 ]; then
+  echo "install.sh: a required patch failed (see [patch-*] above)" >&2
+  exit 1
+fi

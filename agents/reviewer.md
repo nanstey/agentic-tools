@@ -3,7 +3,7 @@ name: reviewer
 description: Versatile review specialist for code diffs, plans, proposed solutions, codebase health, and PR/issue validation
 model: anthropic/claude-opus-5-5
 thinking: high
-tools: read, grep, find, ls, bash, edit, write
+tools: read, grep, find, ls, bash, edit, write, codemode, jev_evaluate
 system-prompt: append
 auto-exit: false
 interactive: false

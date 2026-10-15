@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "fallbacks": [
+    "openai-codex/gpt-6.1-sol",
+    "anthropic/claude-sonnet-5-5"
+  ]
+}

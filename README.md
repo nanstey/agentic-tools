@@ -34,10 +34,11 @@ rather than symlinked because Pi may rewrite them locally.
 
 | Repository path | Install destination | Purpose |
 | --- | --- | --- |
-| `harness/pi/settings.json` | `$PI_AGENT_DIR/settings.json` | Pi defaults (including codemode) and extension package list, including `npm:pi-intercom@0.12.0` and `npm:pi-jev@0.4.0`. |
-| `harness/pi/APPEND_SYSTEM.md` | `$PI_AGENT_DIR/APPEND_SYSTEM.md` | Appends a delegation bias to Pi's system prompt (subagents exempt) and a cross-model verification rule: route work to subagents, and have a different model family check it. |
+| `harness/pi/settings.json` | `$PI_AGENT_DIR/settings.json` | Pi defaults (including codemode) and extension package list, including `npm:pi-intercom@0.12.0`, `npm:pi-jev@0.4.0`, and `npm:pi-fallback-models@0.1.1`. |
+| `harness/pi/APPEND_SYSTEM.md` | `$PI_AGENT_DIR/APPEND_SYSTEM.md` | Appends a delegation bias to Pi's system prompt (subagents exempt) a cross-model verification rule (route work to subagents, and have a different model family check it), and guidance to use `codemode` and `jev_evaluate`. |
 | `harness/pi/extensions/*.json` | `$PI_AGENT_DIR/extensions/` | Per-extension config. |
-| `harness/pi/extensions/pi-interactive-subagents/config.json` | `$PI_AGENT_DIR/extensions/pi-interactive-subagents/config.json` | Interactive-subagents config: mux settings, `allowSubagentSpawning: false` so children cannot spawn, and `subagentExtensions` loading `pi-web-access` into children for `researcher`. |
+| `harness/pi/extensions/pi-fallback.json` | `$PI_AGENT_DIR/extensions/pi-fallback.json` | Global model fallback chain for `pi-fallback-models`: `openai-codex/gpt-6.1-sol`, then `anthropic/claude-sonnet-5-5`, tried when the current model hits a quota, rate-limit, or provider error. |
+| `harness/pi/extensions/pi-interactive-subagents/config.json` | `$PI_AGENT_DIR/extensions/pi-interactive-subagents/config.json` | Interactive-subagents config: mux settings, `allowSubagentSpawning: false` so children cannot spawn, and `subagentExtensions` loading `pi-web-access` into children for `researcher`, `pi-jev` for `jev_evaluate`, `builtin:codemode` for `codemode` (needs the install-time patch below), and `pi-fallback-models` so children fail over too. |
 | `harness/pi/extensions/pi-extensions-i18n/config.json` | `$PI_AGENT_DIR/extensions/pi-extensions-i18n/config.json` | Locale for pi extension messages: `en-US`, because the library defaults to Chinese regardless of system locale. |
 | `harness/pi/extensions/pi-intercom/config.json` | `$PI_AGENT_DIR/intercom/config.json` | Shared pi-intercom config: enabled inbound replies, no send confirmation, and reply hints. |
 | `harness/pi/command-shortcuts.json` | `$PI_AGENT_DIR/command-shortcuts.json` | Command shortcut bindings. |
@@ -54,6 +55,19 @@ key with owner-only permissions to `~/.pi/agent/secrets/typesafe_api_key` for Pi
 and OMP, and to `~/.config/environment.d/90-typesafe.conf` so every harness can
 inherit it after the next login. Then run `/jev status`. Automatic routing, model
 selection, compaction, and orchestration remain opt-in.
+
+`install.sh` patches two installed third-party packages. Re-run it after Pi installs or updates
+packages, because updates overwrite the patches. Each patch is idempotent. If upstream code
+changed, it reports an error and leaves the file untouched, and `install.sh` finishes the other
+installs and then exits 1.
+
+- **`@maplezzk/pi-interactive-subagents`:** Pi launches subagent children with
+  `--no-extensions`, which also disables its compiled-in `codemode`, and the package only
+  accepts file paths in `subagentExtensions`. The patch makes `builtin:<name>` entries pass
+  through as `--extension builtin:<name>`. Drop it once upstream supports that. Known gap: saving the interactive `/config:subagent extensions` chooser drops `builtin:` entries, so re-add `builtin:codemode` to the config afterwards.
+- **`pi-fallback-models`:** 0.1.1 classifies Anthropic's "You're out of extra usage" 400 as
+  ignorable, so no fallback happens on that quota error. The patch adds that phrase to its
+  quota patterns. Drop it once upstream recognizes it.
 
 Secrets and machine-local state (`auth.json`, `auth-profiles/`, `web-search.json`,
 `trust.json`, sessions, run history) are git-ignored and never travel — re-auth
@@ -245,7 +259,6 @@ agent names output paths in the task.
 | Agent | Model | Description |
 | --- | --- | --- |
 | [`worker`](agents/worker.md) | `openai-codex/gpt-6.1-sol` | Implementation agent for normal tasks and approved plans. Single writer thread; escalates unapproved decisions via `caller_ping`. |
-| [`delegate`](agents/delegate.md) | `openai-codex/gpt-6-luna` | Lightweight, low-cost generic subagent with no default reads. General-purpose delegated execution. |
 | [`scout`](agents/scout.md) | `anthropic/claude-haiku-5-5` | Fast codebase recon that returns compressed context for handoff. Writes `context.md`. |
 | [`researcher`](agents/researcher.md) | `anthropic/claude-sonnet-5-5` | Autonomous web researcher — searches, evaluates, and synthesizes a focused research brief into `research.md`. |
 | [`planner`](agents/planner.md) | `anthropic/claude-fable-5-1` | Creates concrete implementation plans from context and requirements. Read-only; writes `plan.md`. |
