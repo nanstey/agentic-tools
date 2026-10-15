@@ -127,7 +127,8 @@ With `fix`:
 3. Minimal scope: one fix per finding, no unrelated edits or refactors.
 4. Validate touched areas (repo's tests/lint/typecheck). On failure: do not commit or push; report.
 5. Commit (one commit per logical group; message references finding ids) and push, following the `comments.md` safety rules (no empty commits, no force-push, never overwrite unrelated changes, stop as `blocked` on unexpected changes).
-6. Do not reply to or resolve threads; this is not a thread workflow (use `/pr comments` for that).
+6. `/pr` lifecycle invokes this mode by default on its own PR, once per head (see `lifecycle.md`).
+7. Do not reply to or resolve threads; this is not a thread workflow (use `/pr comments` for that).
 
 ## Others' PR
 
