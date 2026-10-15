@@ -38,6 +38,7 @@ rather than symlinked because Pi may rewrite them locally.
 | `harness/pi/APPEND_SYSTEM.md` | `$PI_AGENT_DIR/APPEND_SYSTEM.md` | Appends a delegation bias to Pi's system prompt (subagents exempt) and a cross-model verification rule: route work to subagents, and have a different model family check it. |
 | `harness/pi/extensions/*.json` | `$PI_AGENT_DIR/extensions/` | Per-extension config. |
 | `harness/pi/extensions/pi-interactive-subagents/config.json` | `$PI_AGENT_DIR/extensions/pi-interactive-subagents/config.json` | Interactive-subagents config: mux settings, `allowSubagentSpawning: false` so children cannot spawn, and `subagentExtensions` loading `pi-web-access` into children for `researcher`. |
+| `harness/pi/extensions/pi-extensions-i18n/config.json` | `$PI_AGENT_DIR/extensions/pi-extensions-i18n/config.json` | Locale for pi extension messages: `en-US`, because the library defaults to Chinese regardless of system locale. |
 | `harness/pi/extensions/pi-intercom/config.json` | `$PI_AGENT_DIR/intercom/config.json` | Shared pi-intercom config: enabled inbound replies, no send confirmation, and reply hints. |
 | `harness/pi/command-shortcuts.json` | `$PI_AGENT_DIR/command-shortcuts.json` | Command shortcut bindings. |
 | `harness/pi/keybindings.json` | `$PI_AGENT_DIR/keybindings.json` | Custom keybindings. |
