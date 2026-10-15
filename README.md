@@ -64,7 +64,7 @@ installs and then exits 1.
 - **`@maplezzk/pi-interactive-subagents`:** Pi launches subagent children with
   `--no-extensions`, which also disables its compiled-in `codemode`, and the package only
   accepts file paths in `subagentExtensions`. The patch makes `builtin:<name>` entries pass
-  through as `--extension builtin:<name>`. Drop it once upstream supports that.
+  through as `--extension builtin:<name>`. Drop it once upstream supports that. Known gap: saving the interactive `/config:subagent extensions` chooser drops `builtin:` entries, so re-add `builtin:codemode` to the config afterwards.
 - **`pi-fallback-models`:** 0.1.1 classifies Anthropic's "You're out of extra usage" 400 as
   ignorable, so no fallback happens on that quota error. The patch adds that phrase to its
   quota patterns. Drop it once upstream recognizes it.
