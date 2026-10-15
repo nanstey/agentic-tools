@@ -56,13 +56,18 @@ and OMP, and to `~/.config/environment.d/90-typesafe.conf` so every harness can
 inherit it after the next login. Then run `/jev status`. Automatic routing, model
 selection, compaction, and orchestration remain opt-in.
 
-Pi launches subagent children with `--no-extensions`, which also disables its
-compiled-in `codemode`, and `@maplezzk/pi-interactive-subagents` only accepts file
-paths in `subagentExtensions`. `install.sh` therefore patches the installed
-package's `pi-extension/subagents/index.ts` so `builtin:<name>` entries pass
-through as `--extension builtin:<name>`. The patch is idempotent and fails loudly
-if the upstream code changes. Re-run `install.sh` after Pi installs or updates
-packages; drop the step once upstream supports `builtin:` entries.
+`install.sh` patches two installed third-party packages. Re-run it after Pi installs or updates
+packages, because updates overwrite the patches. Each patch is idempotent. If upstream code
+changed, it reports an error and leaves the file untouched, and `install.sh` finishes the other
+installs and then exits 1.
+
+- **`@maplezzk/pi-interactive-subagents`:** Pi launches subagent children with
+  `--no-extensions`, which also disables its compiled-in `codemode`, and the package only
+  accepts file paths in `subagentExtensions`. The patch makes `builtin:<name>` entries pass
+  through as `--extension builtin:<name>`. Drop it once upstream supports that.
+- **`pi-fallback-models`:** 0.1.1 classifies Anthropic's "You're out of extra usage" 400 as
+  ignorable, so no fallback happens on that quota error. The patch adds that phrase to its
+  quota patterns. Drop it once upstream recognizes it.
 
 Secrets and machine-local state (`auth.json`, `auth-profiles/`, `web-search.json`,
 `trust.json`, sessions, run history) are git-ignored and never travel — re-auth
