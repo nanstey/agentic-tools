@@ -2,7 +2,6 @@
 name: planner
 description: Creates implementation plans from context and requirements
 model: anthropic/claude-fable-5-1
-thinking: high
 tools: read, grep, find, ls, write
 system-prompt: append
 auto-exit: false
