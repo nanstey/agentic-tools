@@ -13,24 +13,6 @@
       "label": "Codex CLI",
       "kind": "slash commands",
       "url": "https://developers.openai.com/codex/cli/slash-commands"
-    },
-    {
-      "id": "cursor",
-      "label": "Cursor (CLI + chat)",
-      "kind": "built-in slash commands",
-      "url": "https://cursor.com/docs/cli/reference/slash-commands"
-    },
-    {
-      "id": "hermes",
-      "label": "Hermes Agent",
-      "kind": "built-in slash commands",
-      "url": "https://hermes-agent.nousresearch.com/docs/reference/slash-commands"
-    },
-    {
-      "id": "openclaw",
-      "label": "OpenClaw",
-      "kind": "built-in slash commands",
-      "url": "https://docs.openclaw.ai/tools/slash-commands"
     }
   ],
   "names": {
@@ -62,39 +44,6 @@
       "plan", "plugins", "ps", "quit", "raw", "resume", "review",
       "sandbox-add-read-dir", "side", "skills", "status", "statusline", "stop",
       "theme", "title", "vim"
-    ],
-    "cursor": [
-      "about", "ask", "auto-run", "commands", "compress", "copy-conversation-id",
-      "copy-request-id", "feedback", "help", "logout", "max-mode", "mcp",
-      "migrate-to-skills", "model", "models", "new-chat", "plan", "quit",
-      "resume", "rules", "sandbox", "setup-terminal", "summarize", "usage", "vim"
-    ],
-    "hermes": [
-      "agents", "background", "bg", "branch", "browser", "btw", "bundles", "busy",
-      "clear", "codex-runtime", "compress", "config", "copy", "cron", "curator",
-      "debug", "exit", "fast", "footer", "fork", "gateway", "goal", "gquota",
-      "handoff", "help", "history", "image", "indicator", "insights", "kanban",
-      "model", "new", "paste", "personality", "platform", "platforms", "plugins",
-      "profile", "q", "quit", "queue", "reasoning", "redraw", "reload",
-      "reload-mcp", "reload-skills", "reload_mcp", "reload_skills", "reset",
-      "resume", "rollback", "save", "sb", "sessions", "skin", "skills", "snap",
-      "snapshot", "status", "statusbar", "steer", "stop", "subgoal", "switch",
-      "tasks", "title", "tools", "toolsets", "undo", "usage", "verbose", "voice",
-      "yolo"
-    ],
-    "openclaw": [
-      "acp", "activation", "agents", "allowlist", "approve", "bash", "bot-help",
-      "bot-logs", "bot-ping", "bot-upgrade", "bot-version", "btw", "card",
-      "codex", "commands", "compact", "config", "context", "crestodian", "debug",
-      "diagnostics", "dock-discord", "dock-mattermost", "dock-slack",
-      "dock-telegram", "dock_discord", "dock_mattermost", "dock_slack",
-      "dock_telegram", "dreaming", "elev", "elevated", "exec", "export",
-      "export-session", "export-trajectory", "fast", "focus", "help", "id", "mcp",
-      "model", "models", "new", "pair", "phone", "plugin", "plugins", "q", "queue",
-      "reason", "reasoning", "reset", "restart", "send", "session", "side", "skill",
-      "status", "steer", "stop", "subagents", "t", "tasks", "tell", "think",
-      "thinking", "tools", "trace", "trajectory", "tts", "unfocus", "usage",
-      "v", "verbose", "voice", "whoami"
     ]
   }
 }
