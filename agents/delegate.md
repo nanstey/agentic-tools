@@ -3,7 +3,7 @@ name: delegate
 description: Lightweight, low-cost generic subagent with no default reads
 model: openai-codex/gpt-6-luna
 thinking: medium
-tools: read, grep, find, ls, bash, edit, write, codemode, jev_evaluate
+tools: read, grep, find, ls, bash, edit, write, jev_evaluate
 system-prompt: append
 auto-exit: false
 interactive: false
