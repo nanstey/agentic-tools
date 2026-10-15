@@ -31,6 +31,10 @@ slices; the harness delivers the result. Do not poll, sleep, or tail logs. Never
 assume a result before it arrives. A subagent that calls `caller_ping` has exited with a
 question; answer it by resuming that session with `subagent_resume`.
 
+A subagent that "exited without output" has failed, not finished. Before retrying, read the
+last entries of its `Session:` log for `stopReason`/`errorMessage`. On a quota, auth, or
+rate-limit error, retry on a different model family instead of the same profile.
+
 # Cross-model verification
 
 Profiles split by model family: Anthropic (1M context) for long-horizon work -
