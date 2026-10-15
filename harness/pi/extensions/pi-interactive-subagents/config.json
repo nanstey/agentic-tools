@@ -1,6 +1,10 @@
 {
   "mux": "orca",
   "herdrMode": "split",
+  "allowSubagentSpawning": false,
+  "subagentExtensions": [
+    "npm/node_modules/pi-web-access/index.ts"
+  ],
   "status": {
     "enabled": true
   }

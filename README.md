@@ -35,8 +35,9 @@ rather than symlinked because Pi may rewrite them locally.
 | Repository path | Install destination | Purpose |
 | --- | --- | --- |
 | `harness/pi/settings.json` | `$PI_AGENT_DIR/settings.json` | Pi defaults (including codemode) and extension package list, including `npm:pi-intercom@0.12.0` and `npm:pi-jev@0.4.0`. |
+| `harness/pi/APPEND_SYSTEM.md` | `$PI_AGENT_DIR/APPEND_SYSTEM.md` | Appends a delegation bias to Pi's system prompt (subagents exempt) and a cross-model verification rule: route work to subagents, and have a different model family check it. |
 | `harness/pi/extensions/*.json` | `$PI_AGENT_DIR/extensions/` | Per-extension config. |
-| `harness/pi/extensions/pi-interactive-subagents/config.json` | `$PI_AGENT_DIR/extensions/pi-interactive-subagents/config.json` | Interactive-subagents config. |
+| `harness/pi/extensions/pi-interactive-subagents/config.json` | `$PI_AGENT_DIR/extensions/pi-interactive-subagents/config.json` | Interactive-subagents config: mux settings, `allowSubagentSpawning: false` so children cannot spawn, and `subagentExtensions` loading `pi-web-access` into children for `researcher`. |
 | `harness/pi/extensions/pi-intercom/config.json` | `$PI_AGENT_DIR/intercom/config.json` | Shared pi-intercom config: enabled inbound replies, no send confirmation, and reply hints. |
 | `harness/pi/command-shortcuts.json` | `$PI_AGENT_DIR/command-shortcuts.json` | Command shortcut bindings. |
 | `harness/pi/keybindings.json` | `$PI_AGENT_DIR/keybindings.json` | Custom keybindings. |
@@ -234,15 +235,24 @@ Focused planning skills below are optional and independently selectable; `propos
 
 ## Agents
 
-Claude Code subagents for focused delegated work.
+Subagent profiles for focused delegated work, written for
+`@maplezzk/pi-interactive-subagents` (frontmatter `system-prompt`, `interactive`,
+`deny-tools`). Every profile is a leaf that ends by calling `subagent_done`: spawning tools are denied, and blockers go to the
+parent through `caller_ping`. Profiles do not auto-create handoff files; the delegating
+agent names output paths in the task.
 
-| Agent | Description |
-| --- | --- |
-| [`worker`](agents/worker.md) | Implementation agent for normal tasks and approved oracle handoffs. Single writer thread; escalates unapproved decisions via `contact_supervisor`. |
-| [`scout`](agents/scout.md) | Fast codebase recon that returns compressed context for handoff. Writes `context.md`. |
-| [`researcher`](agents/researcher.md) | Autonomous web researcher — searches, evaluates, and synthesizes a focused research brief into `research.md`. |
-| [`planner`](agents/planner.md) | Creates concrete implementation plans from context and requirements. Read-only; writes `plan.md`. |
-| [`reviewer`](agents/reviewer.md) | Versatile review specialist for code diffs, plans, proposed solutions, codebase health, and PR/issue validation. |
-| [`context-builder`](agents/context-builder.md) | Analyzes requirements and codebase; generates `context.md` and `meta-prompt.md` for planning and subagent handoffs. |
-| [`oracle`](agents/oracle.md) | High-context decision-consistency oracle that protects inherited state and prevents drift. Read-only. |
-| [`delegate`](agents/delegate.md) | Lightweight, low-cost generic subagent with no default reads. General-purpose delegated execution. |
+| Agent | Model | Description |
+| --- | --- | --- |
+| [`worker`](agents/worker.md) | `openai-codex/gpt-6.1-sol` | Implementation agent for normal tasks and approved plans. Single writer thread; escalates unapproved decisions via `caller_ping`. |
+| [`delegate`](agents/delegate.md) | `openai-codex/gpt-6-luna` | Lightweight, low-cost generic subagent with no default reads. General-purpose delegated execution. |
+| [`scout`](agents/scout.md) | `anthropic/claude-haiku-5-5` | Fast codebase recon that returns compressed context for handoff. Writes `context.md`. |
+| [`researcher`](agents/researcher.md) | `anthropic/claude-sonnet-5-5` | Autonomous web researcher — searches, evaluates, and synthesizes a focused research brief into `research.md`. |
+| [`planner`](agents/planner.md) | `anthropic/claude-fable-5-1` | Creates concrete implementation plans from context and requirements. Read-only; writes `plan.md`. |
+| [`reviewer`](agents/reviewer.md) | `anthropic/claude-opus-5-5` | Versatile review specialist for code diffs, plans, proposed solutions, codebase health, and PR/issue validation. |
+
+Model routing: Anthropic (1M context) handles long-horizon reading, research, planning, and
+review; OpenAI handles implementation and independent judgment. Work is checked by a
+different model family than produced it, so `reviewer` defaults to Anthropic to check
+`worker` output, and the parent overrides it to `openai-codex/gpt-6.1-sol` to check
+Anthropic-authored plans and context. The rule lives in
+[`harness/pi/APPEND_SYSTEM.md`](harness/pi/APPEND_SYSTEM.md).
