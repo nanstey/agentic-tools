@@ -5,7 +5,7 @@
 
 Prepare the current branch for an open pull request, self-review it with automatic fixes, then invoke `/pr monitor` with `mode: once`. This skill owns setup only; `/pr monitor` owns all subsequent PR health and update work.
 
-With `auto-merge`, invoke `/pr monitor` with `mode: monitor` instead, and when it returns `clean`, invoke `/pr merge` for the same PR. `/pr merge` owns the ready-for-review conversion, merge gates, and squash merge; this skill never merges directly.
+With `auto-merge`, invoke `/pr monitor` with `mode: monitor` instead, and when it returns `clean`, invoke `/pr merge` for the same PR. `/pr monitor` marks the draft ready (via `/pr ready`) once its draft snapshot is clean and then re-observes the ready head; `/pr merge` owns merge gates, and squash merge; this skill never merges directly.
 
 Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
