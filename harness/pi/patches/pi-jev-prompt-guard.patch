@@ -1,0 +1,23 @@
+--- a/src/thinking.ts
++++ b/src/thinking.ts
+@@ -41,8 +41,8 @@
+ /** Short, mechanical prompts stay cheap; long ones get the default. */
+ const SHORT_PROMPT_CHARS = 240;
+ 
+-export function classifyThinkingNeed(prompt: string): ThinkingNeed {
+-  const text = prompt.trim();
++export function classifyThinkingNeed(prompt: string | undefined): ThinkingNeed {
++  const text = (prompt ?? "").trim();
+   if (!text) return { level: "minimal", confidence: 0.5, reason: "empty prompt" };
+ 
+   if (ESCALATE.test(text)) {
+--- a/extensions/index.ts
++++ b/extensions/index.ts
+@@ -119,6 +119,7 @@
+   });
+ 
+   pi.on("before_agent_start", async (event, ctx) => {
++    if (typeof event.prompt !== "string") (event as any).prompt = "";
+     if (agents.enabled && /\b(architecture|refactor|security review|entire repo|parallel|multiple agents|complex migration)\b/i.test(event.prompt)) {
+       await agents.dispatch(event.prompt, ctx, true);
+     }

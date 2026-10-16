@@ -20,7 +20,7 @@ PI_AGENT_DIR="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}"
 # every existing match, so a single pair can fan out to many destinations.
 HARNESSES=(
   "claude|$HOME/.claude|claude|skills:$HOME/.claude/skills;agents:$HOME/.claude/agents"
-  "pi|$PI_AGENT_DIR|pi|skills:$PI_AGENT_DIR/skills;agents:$PI_AGENT_DIR/agents;config:$PI_AGENT_DIR::$REPO_ROOT/harness/pi;config:$PI_AGENT_DIR/extensions::$REPO_ROOT/harness/pi/extensions;config:$PI_AGENT_DIR/bin::$REPO_ROOT/harness/pi/bin;config:$PI_AGENT_DIR/extensions/pi-interactive-subagents::$REPO_ROOT/harness/pi/extensions/pi-interactive-subagents;config:$PI_AGENT_DIR/extensions/pi-extensions-i18n::$REPO_ROOT/harness/pi/extensions/pi-extensions-i18n;config:$PI_AGENT_DIR/intercom::$REPO_ROOT/harness/pi/extensions/pi-intercom;hoist:$PI_AGENT_DIR/npm::$REPO_ROOT/harness/pi/settings.json;patch-fallback:$PI_AGENT_DIR/npm/node_modules/pi-fallback-models/src/extension.ts;patch-subagent-widget:$PI_AGENT_DIR/npm/node_modules/@maplezzk/pi-interactive-subagents/pi-extension/subagents/subagent-done.ts;patch-jev-client:$PI_AGENT_DIR/npm/node_modules/pi-jev"
+  "pi|$PI_AGENT_DIR|pi|skills:$PI_AGENT_DIR/skills;agents:$PI_AGENT_DIR/agents;config:$PI_AGENT_DIR::$REPO_ROOT/harness/pi;config:$PI_AGENT_DIR/extensions::$REPO_ROOT/harness/pi/extensions;config:$PI_AGENT_DIR/bin::$REPO_ROOT/harness/pi/bin;config:$PI_AGENT_DIR/extensions/pi-interactive-subagents::$REPO_ROOT/harness/pi/extensions/pi-interactive-subagents;config:$PI_AGENT_DIR/extensions/pi-extensions-i18n::$REPO_ROOT/harness/pi/extensions/pi-extensions-i18n;config:$PI_AGENT_DIR/intercom::$REPO_ROOT/harness/pi/extensions/pi-intercom;hoist:$PI_AGENT_DIR/npm::$REPO_ROOT/harness/pi/settings.json;patch-fallback:$PI_AGENT_DIR/npm/node_modules/pi-fallback-models/src/extension.ts;patch-subagent-widget:$PI_AGENT_DIR/npm/node_modules/@maplezzk/pi-interactive-subagents/pi-extension/subagents/subagent-done.ts;patch-jev-client:$PI_AGENT_DIR/npm/node_modules/pi-jev;patch-jev-prompt-guard:$PI_AGENT_DIR/npm/node_modules/pi-jev"
   "omp|$HOME/.omp/agent|omp|skills:$HOME/.omp/agent/skills;skills:$HOME/.omp/profiles/*/agent/skills;agents:$HOME/.omp/agent/agents;agents:$HOME/.omp/profiles/*/agent/agents;config:$HOME/.omp/agent::$REPO_ROOT/harness/omp;config:$PI_AGENT_DIR/intercom::$REPO_ROOT/harness/pi/extensions/pi-intercom;omp-plugin-manifest:$REPO_ROOT/harness/omp/plugins/pi-intercom.txt;omp-plugin-manifest:$REPO_ROOT/harness/omp/plugins/pi-jev.txt;omp-status-line:$REPO_ROOT/harness/omp/status-line/apply.sh"
   "codex|$HOME/.codex|codex|skills:$HOME/.codex/skills"
 )
@@ -195,8 +195,21 @@ install_subagent_widget_patch() {
 # diff) to rebuild the client when the key or base URL changes, prefer
 # PI_JEV_API_KEY, and skip auto-thinking in subagents. Remove once upstream does.
 install_jev_client_patch() {
-  local pkg="$1" label=patch-jev-client
-  local patch_file="$REPO_ROOT/harness/pi/patches/pi-jev.patch"
+  apply_jev_patch "$1" patch-jev-client "$REPO_ROOT/harness/pi/patches/pi-jev.patch"
+}
+
+# pi-jev@0.7.0 assumes before_agent_start's event.prompt is a string, but runs
+# started by sendCustomMessage (e.g. subagent results) have none, so
+# classifyThinkingNeed throws "Cannot read properties of undefined (reading
+# 'trim')". Apply harness/pi/patches/pi-jev-prompt-guard.patch. Kept separate from
+# pi-jev.patch so machines that already applied that one still get this fix.
+# Remove once upstream guards it.
+install_jev_prompt_guard_patch() {
+  apply_jev_patch "$1" patch-jev-prompt-guard "$REPO_ROOT/harness/pi/patches/pi-jev-prompt-guard.patch"
+}
+
+apply_jev_patch() {
+  local pkg="$1" label="$2" patch_file="$3"
   if [ ! -f "$pkg/src/jev.ts" ]; then
     echo "  [$label] $pkg not installed yet, skipping (re-run install.sh after pi installs packages)"; return 0
   fi
@@ -376,6 +389,10 @@ for entry in "${HARNESSES[@]}"; do
     fi
     if [ "$type" = "patch-jev-client" ]; then
       install_jev_client_patch "$pattern" || PATCH_FAILED=1
+      continue
+    fi
+    if [ "$type" = "patch-jev-prompt-guard" ]; then
+      install_jev_prompt_guard_patch "$pattern" || PATCH_FAILED=1
       continue
     fi
     if [ "$type" = "patch-fallback" ]; then
