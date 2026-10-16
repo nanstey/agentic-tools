@@ -93,11 +93,26 @@ Bundle multiple skills only when lock-step coupled (direct references, shared
 contract/schema change, or required atomic shipping). Explain why in the commit
 message/body.
 
+## Pi changes must live in the repo
+
+Never fix or tune Pi only in the local installation (`~/.pi/agent/`, including
+`npm/node_modules/`). A local-only edit is lost on reinstall and absent on other
+machines. Commit every Pi change here and let `install.sh` apply it:
+
+- **Config or extension files:** add under `harness/pi/`.
+- **Patches to installed third-party packages:** add a unified diff under
+  `harness/pi/patches/` plus an idempotent `install.sh` step (mirror
+  `install_jev_prompt_guard_patch`). Use a new patch file rather than editing one
+  machines may already have applied.
+- Verify by restoring the pristine package files, running `install.sh` twice
+  (`patched`, then `ok`), and update the `README.md` harness table.
+
 ## Things to avoid
 
 - Putting `SKILL.md` at `skills/` root.
 - Mixing artifact types (agents in skill dirs or skills in `agents/`).
 - Letting `name:` drift from file/directory name.
 - Copying tools into harness dirs (installer symlinks instead).
+- Editing the local Pi install (`~/.pi/agent/`) without committing the change here.
 - Committing harness secrets, machine-local state, or absolute paths.
 - Creating new top-level docs unless requested.
