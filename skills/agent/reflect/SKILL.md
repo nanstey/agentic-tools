@@ -15,7 +15,7 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 ## Required Inputs
 
-1. The current session history (problems encountered, dead ends, retries, eventual solutions).
+1. The session history (problems encountered, dead ends, retries, eventual solutions): the current session, or a session log file the invoker names. Read a supplied log selectively (search, index ranges, error lines) instead of loading it whole.
 2. Optional scope hint (specific skills, scripts, or docs to focus on).
 3. Whether to stop at proposals or also implement approved changes.
 
