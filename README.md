@@ -110,6 +110,8 @@ session, 5 per 24 hours (`PI_IMPROVE_MAX_REFLECTIONS_PER_DAY`), 3 workers per re
 `AGENTIC_TOOLS_REPO` overrides it. Run `/reflect` by hand on any session log or report.
 The repo is public, so briefs and PRs must stay redacted; the prompts require it.
 
+Offline tests (no models, worktrees, or PRs): `harness/pi/tests/pi-improve.test.sh` covers option parsing, caps and dedupe under concurrency, the reviewer-family rule, the kill switch, and a sandboxed idempotent install. `harness/pi/tests/fixtures/seeded-defect.jsonl` is a session log with one seeded harness defect for checking `/reflect` by hand. These files are not installed.
+
 ### Per-profile secrets (`pi-secret`)
 
 `pi-secret [-p PROFILE] <command>` stores environment-variable secrets per
