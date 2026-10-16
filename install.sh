@@ -20,7 +20,7 @@ PI_AGENT_DIR="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}"
 # every existing match, so a single pair can fan out to many destinations.
 HARNESSES=(
   "claude|$HOME/.claude|claude|skills:$HOME/.claude/skills;agents:$HOME/.claude/agents"
-  "pi|$PI_AGENT_DIR|pi|skills:$PI_AGENT_DIR/skills;agents:$PI_AGENT_DIR/agents;config:$PI_AGENT_DIR::$REPO_ROOT/harness/pi;config:$PI_AGENT_DIR/extensions::$REPO_ROOT/harness/pi/extensions;config:$PI_AGENT_DIR/bin::$REPO_ROOT/harness/pi/bin;config:$PI_AGENT_DIR/extensions/pi-interactive-subagents::$REPO_ROOT/harness/pi/extensions/pi-interactive-subagents;config:$PI_AGENT_DIR/extensions/pi-extensions-i18n::$REPO_ROOT/harness/pi/extensions/pi-extensions-i18n;config:$PI_AGENT_DIR/intercom::$REPO_ROOT/harness/pi/extensions/pi-intercom;hoist:$PI_AGENT_DIR/npm::$REPO_ROOT/harness/pi/settings.json;vendor-git:$PI_AGENT_DIR/vendor::$REPO_ROOT/harness/pi/vendor;patch-fallback:$PI_AGENT_DIR/npm/node_modules/pi-fallback-models/src/extension.ts;patch-subagent-widget:$PI_AGENT_DIR/npm/node_modules/@maplezzk/pi-interactive-subagents/pi-extension/subagents/subagent-done.ts;patch-jev-client:$PI_AGENT_DIR/npm/node_modules/pi-jev;patch-jev-prompt-guard:$PI_AGENT_DIR/npm/node_modules/pi-jev"
+  "pi|$PI_AGENT_DIR|pi|skills:$PI_AGENT_DIR/skills;agents:$PI_AGENT_DIR/agents;config:$PI_AGENT_DIR::$REPO_ROOT/harness/pi;config:$PI_AGENT_DIR/extensions::$REPO_ROOT/harness/pi/extensions;config:$PI_AGENT_DIR/bin::$REPO_ROOT/harness/pi/bin;config:$PI_AGENT_DIR/prompts::$REPO_ROOT/harness/pi/prompts;config:$PI_AGENT_DIR/extensions/pi-interactive-subagents::$REPO_ROOT/harness/pi/extensions/pi-interactive-subagents;config:$PI_AGENT_DIR/extensions/pi-extensions-i18n::$REPO_ROOT/harness/pi/extensions/pi-extensions-i18n;config:$PI_AGENT_DIR/intercom::$REPO_ROOT/harness/pi/extensions/pi-intercom;hoist:$PI_AGENT_DIR/npm::$REPO_ROOT/harness/pi/settings.json;vendor-git:$PI_AGENT_DIR/vendor::$REPO_ROOT/harness/pi/vendor;patch-fallback:$PI_AGENT_DIR/npm/node_modules/pi-fallback-models/src/extension.ts;patch-subagent-widget:$PI_AGENT_DIR/npm/node_modules/@maplezzk/pi-interactive-subagents/pi-extension/subagents/subagent-done.ts;patch-jev-client:$PI_AGENT_DIR/npm/node_modules/pi-jev;patch-jev-prompt-guard:$PI_AGENT_DIR/npm/node_modules/pi-jev"
   "omp|$HOME/.omp/agent|omp|skills:$HOME/.omp/agent/skills;skills:$HOME/.omp/profiles/*/agent/skills;agents:$HOME/.omp/agent/agents;agents:$HOME/.omp/profiles/*/agent/agents;config:$HOME/.omp/agent::$REPO_ROOT/harness/omp;config:$PI_AGENT_DIR/intercom::$REPO_ROOT/harness/pi/extensions/pi-intercom;omp-plugin-manifest:$REPO_ROOT/harness/omp/plugins/pi-intercom.txt;omp-plugin-manifest:$REPO_ROOT/harness/omp/plugins/pi-jev.txt;omp-status-line:$REPO_ROOT/harness/omp/status-line/apply.sh"
   "codex|$HOME/.codex|codex|skills:$HOME/.codex/skills"
 )
@@ -229,11 +229,33 @@ apply_jev_patch() {
   fi
 }
 
-# Expose pi-secret to ordinary shells: $PI_AGENT_DIR/bin is only on PATH inside Pi.
-install_pi_secret_link() {
-  [ -x "$PI_AGENT_DIR/bin/pi-secret" ] || return 0
-  mkdir -p "$HOME/.local/bin"
-  echo "  [link] pi-secret: $(link_one "$HOME/.local/bin/pi-secret" "$PI_AGENT_DIR/bin/pi-secret")"
+# Expose the Pi CLIs to ordinary shells: $PI_AGENT_DIR/bin is only on PATH inside Pi.
+install_pi_cli_links() {
+  local cli
+  for cli in pi-secret pi-improve; do
+    [ -x "$PI_AGENT_DIR/bin/$cli" ] || continue
+    mkdir -p "$HOME/.local/bin"
+    echo "  [link] $cli: $(link_one "$HOME/.local/bin/$cli" "$PI_AGENT_DIR/bin/$cli")"
+  done
+}
+
+# pi-improve (the self-improvement loop) needs the agentic-tools checkout it
+# opens worktrees against. Record the main worktree here, outside the repo, since
+# the agent/skill symlinks it could infer it from dangle when install.sh last ran
+# from a worktree that has since been removed. AGENTIC_TOOLS_REPO overrides it.
+install_self_improve_repo() {
+  [ -d "$PI_AGENT_DIR" ] || return 0
+  local common root
+  common="$(git -C "$REPO_ROOT" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
+  [ -n "$common" ] || { echo "  [self-improve] $REPO_ROOT is not a git checkout; repo path not recorded" >&2; return 0; }
+  if [ "$(basename "$common")" = ".git" ]; then root="$(dirname "$common")"; else root="$common"; fi
+  mkdir -p "$PI_AGENT_DIR/self-improve"
+  if [ -f "$PI_AGENT_DIR/self-improve/repo" ] && [ "$(cat "$PI_AGENT_DIR/self-improve/repo")" = "$root" ]; then
+    echo "  [self-improve] -> $PI_AGENT_DIR/self-improve/repo (ok)"
+  else
+    printf '%s\n' "$root" > "$PI_AGENT_DIR/self-improve/repo"
+    echo "  [self-improve] -> $PI_AGENT_DIR/self-improve/repo (set to $root)"
+  fi
 }
 
 install_typesafe_secret() {
@@ -507,8 +529,9 @@ for entry in "${HARNESSES[@]}"; do
   done
 done
 
-# After the harness loop so a fresh install has copied the CLI first.
-install_pi_secret_link
+# After the harness loop so a fresh install has copied the CLIs first.
+install_pi_cli_links
+install_self_improve_repo
 
 # Check and optionally install external tools
 check_tools() {

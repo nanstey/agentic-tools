@@ -42,6 +42,10 @@ rather than symlinked because Pi may rewrite them locally.
 | `harness/pi/extensions/*.json` | `$PI_AGENT_DIR/extensions/` | Per-extension config. |
 | `harness/pi/extensions/profile-secrets.ts` | `$PI_AGENT_DIR/extensions/profile-secrets.ts` | Exports the `NAME=value` secrets in `secrets/<profile>.env` into the environment while that `@nanstey/pi-auth-profiles` profile is active; unset names revert to the inherited value. |
 | `harness/pi/bin/pi-secret` | `$PI_AGENT_DIR/bin/pi-secret` | CLI to set, unset, and list per-profile secrets (`pi-secret -p work set TYPESAFE_API_KEY`). Prompts without echo; files are mode 600. `install.sh` also symlinks it to `~/.local/bin/pi-secret` so ordinary shells find it. Run `set` from a normal terminal, not inside Pi. |
+| `harness/pi/extensions/self-improve.ts` | `$PI_AGENT_DIR/extensions/self-improve.ts` | Starts the [self-improvement loop](#self-improvement-loop): registers the `report_harness_issue` tool (agents call it on harness-caused procedural problems) and the `/self-improve` command (`status`, `now [note]`, `on`, `off`). Queued reports spawn a background reflection when the run settles. Not loaded in loop-started sessions (`PI_SELF_IMPROVE_CHILD`). |
+| `harness/pi/bin/pi-improve` | `$PI_AGENT_DIR/bin/pi-improve` | Loop plumbing: `reflect` (detached headless `/reflect` session), `start` (worktree plus one `/improve` session, in an Orca terminal when Orca is reachable), `digest` (compact session-log view), `status`, `repo`. Also symlinked to `~/.local/bin/pi-improve`. Caps and the kill switch live here. |
+| `harness/pi/prompts/reflect.md` | `$PI_AGENT_DIR/prompts/reflect.md` | `/reflect [report.json \| session.jsonl]`: runs the [`reflect`](skills/agent/reflect/SKILL.md) skill unattended on a session log, limited to harness-caused problems. Dedupes against open PRs and branches, then starts one `pi-improve start` run per real improvement (max 3) in place of the skill's approval step. Never edits files itself. |
+| `harness/pi/prompts/improve.md` | `$PI_AGENT_DIR/prompts/improve.md` | `/improve <brief.md>`: end-to-end worker for one improvement in its own worktree: scope, implement, test, cross-family review, verify, and open the PR for human review. |
 | `harness/pi/extensions/jev-router-openrouter-fallback.ts` | `$PI_AGENT_DIR/extensions/jev-router-openrouter-fallback.ts` | When no `TYPESAFE_API_KEY` is set but the active profile has OpenRouter auth, sets `PI_JEV_API_KEY` and `PI_JEV_BASE_URL` so pi-jev's tools bill to OpenRouter's System One endpoint. Pi's native classifier never sees the OpenRouter key. A real TypeSafe key or an external `PI_JEV_*` value always wins. |
 | `harness/pi/extensions/collapse-tools.ts` | `$PI_AGENT_DIR/extensions/collapse-tools.ts` | Collapses tool output after all `session_start` handlers run, overriding `pi-diff`'s default of expanding it. |
 | `harness/pi/extensions/pi-fallback.json` | `$PI_AGENT_DIR/extensions/pi-fallback.json` | Global model fallback chain for `pi-fallback-models`: `openai-codex/gpt-6.1-sol`, then `anthropic/claude-sonnet-5-5`, tried when the current model hits a quota, rate-limit, or provider error. |
@@ -78,6 +82,33 @@ shared by all profiles, copy `.env.example` to the git-ignored `.env`, set `TYPE
 rerun `install.sh`; it writes the key with owner-only permissions to
 `~/.pi/agent/secrets/typesafe_api_key` and `~/.config/environment.d/90-typesafe.conf`.
 A stored `/login` credential outranks an environment variable for the same provider.
+
+### Self-improvement loop
+
+When an agent hits a procedural problem caused by the harness itself (a wrong or stale
+skill, agent profile, system-prompt rule, tool config, or installer gap), it calls
+`report_harness_issue`. The loop then runs unattended:
+
+1. When the run settles, `pi-improve reflect` starts a detached headless Pi session that runs
+   `/reflect` against the previous session's log (log under `$PI_AGENT_DIR/self-improve/logs/`).
+2. `/reflect` finds the root cause, checks it is real and not already fixed or in review, and
+   for each distinct improvement (max 3) runs `pi-improve start <slug>` with a self-contained,
+   redacted brief.
+3. `pi-improve start` creates a dedicated worktree of this repo (Orca-managed when Orca is
+   reachable, else `git worktree`) and launches one Pi session there running `/improve`.
+   That session scopes, implements, tests, gets a review from a different model family,
+   verifies, and opens a PR. A human reviews and merges; nothing merges itself.
+
+Guards: loop-started sessions cannot report back (no recursion); one reflection per source
+session, 5 per 24 hours (`PI_IMPROVE_MAX_REFLECTIONS_PER_DAY`), 3 workers per reflection
+(`PI_IMPROVE_MAX_WORKERS`). Kill switch: `/self-improve off`, `PI_SELF_IMPROVE=0`, or the file
+`$PI_AGENT_DIR/self-improve/disabled`. `pi-improve status` lists runs;
+`PI_IMPROVE_DRY_RUN=1` prints what `reflect`/`start` would do. Defaults: workers run
+`openai-codex/gpt-6.1-sol` at high thinking and the reviewer is the opposite family
+(`PI_IMPROVE_WORKER_MODEL`, `PI_IMPROVE_REVIEWER_MODEL`, `PI_IMPROVE_REFLECT_MODEL`).
+`install.sh` records the main checkout in `$PI_AGENT_DIR/self-improve/repo`;
+`AGENTIC_TOOLS_REPO` overrides it. Run `/reflect` by hand on any session log or report.
+The repo is public, so briefs and PRs must stay redacted; the prompts require it.
 
 ### Per-profile secrets (`pi-secret`)
 
