@@ -102,9 +102,21 @@ function disabled() {
 // in $STATE/repo, else the repo that the installed agent/skill symlinks point
 // into. The recorded path comes first because those symlinks dangle when
 // install.sh last ran from a worktree that has since been removed.
+function gitRoot(c) {
+	const top = run("git", ["-C", c, "rev-parse", "--path-format=absolute", "--git-common-dir"]);
+	if (!top.ok) return null;
+	// Main worktree = parent of the shared .git dir.
+	return path.basename(top.stdout) === ".git" ? path.dirname(top.stdout) : top.stdout;
+}
+
 function resolveRepo() {
+	// An explicit override is authoritative: never silently fall back to another repo.
+	if (process.env.AGENTIC_TOOLS_REPO) {
+		const root = gitRoot(process.env.AGENTIC_TOOLS_REPO);
+		if (!root) die(`AGENTIC_TOOLS_REPO=${process.env.AGENTIC_TOOLS_REPO} is not a git repository`, 2);
+		return root;
+	}
 	const candidates = [];
-	if (process.env.AGENTIC_TOOLS_REPO) candidates.push(process.env.AGENTIC_TOOLS_REPO);
 	try {
 		candidates.push(fs.readFileSync(path.join(STATE, "repo"), "utf8").trim());
 	} catch {}
@@ -122,11 +134,8 @@ function resolveRepo() {
 		}
 	}
 	for (const c of candidates) {
-		const top = run("git", ["-C", c, "rev-parse", "--path-format=absolute", "--git-common-dir"]);
-		if (!top.ok) continue;
-		// Main worktree = parent of the shared .git dir.
-		const common = top.stdout;
-		const root = path.basename(common) === ".git" ? path.dirname(common) : common;
+		const root = gitRoot(c);
+		if (!root) continue;
 		if (fs.existsSync(path.join(root, "install.sh")) && fs.existsSync(path.join(root, "harness"))) return root;
 	}
 	die("cannot locate the agentic-tools repo; set AGENTIC_TOOLS_REPO or run install.sh", 2);

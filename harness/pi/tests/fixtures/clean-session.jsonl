@@ -1,0 +1,5 @@
+{"type":"session","version":3,"id":"fixture-0002","timestamp":"2026-01-01T00:00:00.000Z","cwd":"/work/example-project"}
+{"type":"message","id":"b1","parentId":null,"timestamp":"2026-01-01T00:00:01.000Z","message":{"role":"user","content":[{"type":"text","text":"Format the changelog using the changelog skill."}]}}
+{"type":"message","id":"b2","parentId":"b1","timestamp":"2026-01-01T00:00:02.000Z","message":{"role":"assistant","content":[{"type":"toolCall","id":"t1","name":"bash","arguments":{"command":"node scripts/format-changelog.js CHANGELOG.md"}}],"stopReason":"toolUse"}}
+{"type":"message","id":"b3","parentId":"b2","timestamp":"2026-01-01T00:00:03.000Z","message":{"role":"toolResult","toolCallId":"t1","toolName":"bash","isError":false,"content":[{"type":"text","text":"formatted"}]}}
+{"type":"message","id":"b4","parentId":"b3","timestamp":"2026-01-01T00:00:04.000Z","message":{"role":"assistant","content":[{"type":"text","text":"Changelog formatted."}],"stopReason":"stop"}}

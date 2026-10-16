@@ -46,6 +46,12 @@ fails "unqualified model rejected" bash -c "echo '$BRIEF' | '$P' start a --model
 fails "short brief rejected" bash -c "echo short | '$P' start a --dry-run"
 fails "worker cannot start work" bash -c "echo '$BRIEF' | PI_SELF_IMPROVE_CHILD=worker '$P' start a --dry-run"
 
+# explicit repo override is authoritative
+new_env
+fails "AGENTIC_TOOLS_REPO that is not a repo is an error, not a fallback" env AGENTIC_TOOLS_REPO=/nonexistent bash -c "echo '$BRIEF' | '$P' start a"
+SCR=$(mktemp -d); git -C "$SCR" init -q -b main
+echo "$BRIEF" | env AGENTIC_TOOLS_REPO=$SCR "$P" start a --dry-run 2>&1 | grep -q "cannot locate\|not a git" && bad "override to a bare git repo is accepted" || ok "override to any git repo is accepted"
+
 # kill switch
 new_env
 touch "$PI_CODING_AGENT_DIR/self-improve/disabled"
