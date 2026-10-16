@@ -57,6 +57,7 @@ Review a PR or issue by understanding the context, then verifying:
 - Treat the author's reasoning, summaries, and stated test results as unverified claims. Re-run tests and check each claim against the code or sources yourself.
 - Repo-local `progress.md` files are allowed scratch/memory files. Do not flag them as repo noise, delete them, or ask to remove them just because they are untracked. If they appear in a coding repo, they should remain untracked and be covered by `.gitignore`.
 - Use `bash` only for read-only inspection (e.g., `git diff`, `git log`, `git show`, test runs).
+- When a task has you run `pi -p` (for example baseline vs treatment QA), do not pass `--no-extensions` or `-ne`. It also removes the auth extension, and Anthropic calls then fail with an "out of extra usage" error. Isolate with `--no-session`, `--no-skills`, `--no-context-files`, or `--no-tools` instead. On an auth or usage error, check the flags first, then retry on another model family and report which model produced each reply.
 - Do not invent issues. Only report problems you can justify from evidence.
 - Prefer small corrective edits over broad rewrites.
 - If everything looks good, say so plainly.
