@@ -50,6 +50,8 @@ rather than symlinked because Pi may rewrite them locally.
 | `harness/pi/extensions/pi-intercom/config.json` | `$PI_AGENT_DIR/intercom/config.json` | Shared pi-intercom config: enabled inbound replies, no send confirmation, and reply hints. |
 | `harness/pi/command-shortcuts.json` | `$PI_AGENT_DIR/command-shortcuts.json` | Command shortcut bindings. |
 | `harness/pi/keybindings.json` | `$PI_AGENT_DIR/keybindings.json` | Custom keybindings. |
+| `harness/pi/vendor/*.txt` | cloned to `$PI_AGENT_DIR/vendor/<host>/<path>` | Pinned `<url> <commit>` manifests for git repos that Pi's `git:` source cannot install (monorepos with one extension package per subdirectory and no root manifest). `install.sh` clones each at its commit; `settings.json` lists the subdirectories as relative local packages. |
+| `harness/pi/vendor/pr83-glitch-pi-extensions.txt` | `$PI_AGENT_DIR/vendor/github.com/pr83-glitch/Pr83-glitch-Pi-Extensions` | [Pr83-glitch Pi Extensions](https://github.com/pr83-glitch/Pr83-glitch-Pi-Extensions) at commit `d5fb0f6`. Loaded subdirectories: `sleek-ui` (themes, status bars, split-diff edit blocks, side panel on `Ctrl+\`, `/sleek` settings stored in `~/.pi/agent/sleek.json`). `modgate` is not loaded. |
 
 The main agent stays on the user's selected model unless a provider/failure fallback is
 needed. Context- and scale-based model selection applies only to subagent tasks.

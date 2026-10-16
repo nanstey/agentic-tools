@@ -1,0 +1,6 @@
+# <git url> <commit>
+# Monorepo of Pi extensions (sleek-ui, edit-message, modgate), one package per
+# subdirectory and no manifest at the root. Pi's git: source cannot address a
+# subdirectory, so install.sh clones this at the pinned commit and
+# settings.json references the subdirectories as relative local packages.
+https://github.com/pr83-glitch/Pr83-glitch-Pi-Extensions d5fb0f63c84268fad769c4e3f3d33761cbb51e5a
