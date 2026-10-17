@@ -58,9 +58,13 @@ assigned work yourself. Subagents never spawn further subagents.
 
 For a user-requested worktree task, create the worktree with Orca CLI
 (`orca worktree create --name <name> --no-parent --json`, without `--agent`; use
-`orca-ide` on Linux outside Orca terminals), then spawn a Pi session with `subagent`
-and `cwd` set to the new worktree path. Choose its profile and model by the task-scale
-rules below. Do not launch Orca-hosted agents.
+`orca-ide` on Linux outside Orca terminals). Then start a standalone Pi session in it,
+not a `subagent`: a subagent stays attached to this session and closes when it finishes.
+Write the task to a file outside the worktree. Run
+`orca terminal create --worktree path:<worktree-path> --title <name> --command 'pi --model <model> --thinking <level> "$(cat <task-file>)"' --json`.
+Pick the model and thinking level by the task-scale rules below. The session stays open
+for the user to continue. Do not launch Orca-hosted agents (`--agent`, `orca agent launch`).
+Do not wait for this session: report the worktree path and terminal handle, then continue.
 
 Otherwise, default to delegating substantive work to subagents via `subagent` rather than
 doing it inline. Reserve the main thread for: decomposition, dispatch, integration, and
