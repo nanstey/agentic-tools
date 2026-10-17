@@ -20,7 +20,7 @@ PI_AGENT_DIR="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}"
 # every existing match, so a single pair can fan out to many destinations.
 HARNESSES=(
   "claude|$HOME/.claude|claude|skills:$HOME/.claude/skills;agents:$HOME/.claude/agents"
-  "pi|$PI_AGENT_DIR|pi|skills:$PI_AGENT_DIR/skills;agents:$PI_AGENT_DIR/agents;config:$PI_AGENT_DIR::$REPO_ROOT/harness/pi;config:$PI_AGENT_DIR/extensions::$REPO_ROOT/harness/pi/extensions;config:$PI_AGENT_DIR/bin::$REPO_ROOT/harness/pi/bin;config:$PI_AGENT_DIR/extensions/pi-interactive-subagents::$REPO_ROOT/harness/pi/extensions/pi-interactive-subagents;config:$PI_AGENT_DIR/extensions/pi-extensions-i18n::$REPO_ROOT/harness/pi/extensions/pi-extensions-i18n;config:$PI_AGENT_DIR/intercom::$REPO_ROOT/harness/pi/extensions/pi-intercom;hoist:$PI_AGENT_DIR/npm::$REPO_ROOT/harness/pi/settings.json;patch-fallback:$PI_AGENT_DIR/npm/node_modules/pi-fallback-models/src/extension.ts;patch-subagent-widget:$PI_AGENT_DIR/npm/node_modules/@maplezzk/pi-interactive-subagents/pi-extension/subagents/subagent-done.ts;patch-jev-client:$PI_AGENT_DIR/npm/node_modules/pi-jev;patch-jev-prompt-guard:$PI_AGENT_DIR/npm/node_modules/pi-jev"
+  "pi|$PI_AGENT_DIR|pi|skills:$PI_AGENT_DIR/skills;agents:$PI_AGENT_DIR/agents;config:$PI_AGENT_DIR::$REPO_ROOT/harness/pi;config:$PI_AGENT_DIR/extensions::$REPO_ROOT/harness/pi/extensions;config:$PI_AGENT_DIR/bin::$REPO_ROOT/harness/pi/bin;config:$PI_AGENT_DIR/extensions/pi-interactive-subagents::$REPO_ROOT/harness/pi/extensions/pi-interactive-subagents;config:$PI_AGENT_DIR/extensions/pi-extensions-i18n::$REPO_ROOT/harness/pi/extensions/pi-extensions-i18n;config:$PI_AGENT_DIR/intercom::$REPO_ROOT/harness/pi/extensions/pi-intercom;hoist:$PI_AGENT_DIR/npm::$REPO_ROOT/harness/pi/settings.json;vendor-git:$PI_AGENT_DIR/vendor::$REPO_ROOT/harness/pi/vendor;patch-fallback:$PI_AGENT_DIR/npm/node_modules/pi-fallback-models/src/extension.ts;patch-subagent-widget:$PI_AGENT_DIR/npm/node_modules/@maplezzk/pi-interactive-subagents/pi-extension/subagents/subagent-done.ts;patch-jev-client:$PI_AGENT_DIR/npm/node_modules/pi-jev;patch-jev-prompt-guard:$PI_AGENT_DIR/npm/node_modules/pi-jev"
   "omp|$HOME/.omp/agent|omp|skills:$HOME/.omp/agent/skills;skills:$HOME/.omp/profiles/*/agent/skills;agents:$HOME/.omp/agent/agents;agents:$HOME/.omp/profiles/*/agent/agents;config:$HOME/.omp/agent::$REPO_ROOT/harness/omp;config:$PI_AGENT_DIR/intercom::$REPO_ROOT/harness/pi/extensions/pi-intercom;omp-plugin-manifest:$REPO_ROOT/harness/omp/plugins/pi-intercom.txt;omp-plugin-manifest:$REPO_ROOT/harness/omp/plugins/pi-jev.txt;omp-status-line:$REPO_ROOT/harness/omp/status-line/apply.sh"
   "codex|$HOME/.codex|codex|skills:$HOME/.codex/skills"
 )
@@ -299,6 +299,63 @@ omp_install_package() {
   return "$rc"
 }
 
+# Pi installs a git source as a whole package and has no syntax for a
+# subdirectory, so a monorepo whose root carries no pi manifest (one extension
+# package per subdirectory) cannot be installed with `git:`. Each line of a
+# harness/pi/vendor/*.txt manifest names `<url> <full-40-char-commit>`; the repo
+# is cloned at that exact commit under $PI_AGENT_DIR/vendor/<host>/<path> and
+# settings.json lists the subdirectories as relative local packages
+# (`./vendor/<host>/<path>/<dir>`), which Pi resolves from the settings file.
+# Idempotent: a clone already at the pinned commit is left alone; any other
+# state is fetched and reset to it. A path that exists but is not a git clone
+# is skipped, never deleted. Returns non-zero if any entry failed, because Pi
+# silently skips a local package path that does not exist.
+install_vendor_git() {
+  local vendor_dir="$1" manifest_dir="$2" manifest url commit dest rel head tmp failed=0
+  if [ ! -d "$manifest_dir" ]; then echo "  [vendor-git] no source $manifest_dir, skipping"; return; fi
+  if ! command -v git >/dev/null 2>&1; then echo "  [vendor-git] git not on PATH, skipping"; return; fi
+  for manifest in "$manifest_dir"/*.txt; do
+    [ -f "$manifest" ] || continue
+    while read -r url commit _ || [ -n "$url" ]; do
+      case "$url" in ''|\#*) continue ;; esac
+      if [ -z "$commit" ] || ! [[ "$commit" =~ ^[0-9a-f]{40}$ ]]; then
+        echo "  [vendor-git] $manifest: '$url' needs a full 40-char commit SHA, skipping" >&2; failed=1; continue
+      fi
+      rel="${url#*://}"; rel="${rel#git@}"; rel="${rel/://}"; rel="${rel%.git}"; rel="${rel%/}"
+      if ! [[ "$rel" =~ ^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)+$ ]] || [[ "/$rel/" == *"/../"* ]]; then
+        echo "  [vendor-git] $manifest: cannot derive a safe path from '$url', skipping" >&2; failed=1; continue
+      fi
+      dest="$vendor_dir/$rel"
+      if [ -d "$dest/.git" ]; then
+        head="$(git -C "$dest" rev-parse HEAD 2>/dev/null || true)"
+        if [ "$head" = "$commit" ]; then echo "  [vendor-git] -> $dest (ok)"; continue; fi
+        if git -C "$dest" fetch -q origin "$commit" 2>/dev/null || git -C "$dest" fetch -q origin; then
+          if git -C "$dest" -c advice.detachedHead=false checkout -q --force "$commit"; then
+            echo "  [vendor-git] -> $dest (updated to ${commit:0:12})"
+          else
+            echo "  [vendor-git] $dest: commit $commit not found" >&2; failed=1
+          fi
+        else
+          echo "  [vendor-git] $dest: fetch failed, keeping ${head:0:12}" >&2; failed=1
+        fi
+        continue
+      fi
+      if [ -e "$dest" ]; then
+        echo "  [vendor-git] $dest exists but is not a git clone, skipping" >&2; failed=1; continue
+      fi
+      mkdir -p "$(dirname "$dest")"
+      tmp="$(mktemp -d "$vendor_dir/.clone.XXXXXX")"
+      if git clone -q -- "$url" "$tmp" && git -C "$tmp" -c advice.detachedHead=false checkout -q "$commit" \
+         && mv "$tmp" "$dest"; then
+        echo "  [vendor-git] -> $dest (cloned at ${commit:0:12})"
+      else
+        echo "  [vendor-git] $dest: clone of $url at $commit failed" >&2; rm -rf "$tmp"; failed=1
+      fi
+    done <"$manifest"
+  done
+  return "$failed"
+}
+
 # Install each uncommented package specification in an OMP plugin manifest using
 # OMP's native installer. The manifest is repository metadata, not runtime config.
 # An npm:<name>@<version> spec already present at that exact version is skipped:
@@ -381,6 +438,10 @@ for entry in "${HARNESSES[@]}"; do
     # hoist pairs encode NPMDIR::SETTINGS; they bypass the linker loop too.
     if [ "$type" = "hoist" ]; then
       install_pnpm_hoist "${pattern%%::*}" "${pattern##*::}"; continue
+    fi
+    # vendor-git pairs encode VENDORDIR::MANIFESTDIR (pinned git clones).
+    if [ "$type" = "vendor-git" ]; then
+      install_vendor_git "${pattern%%::*}" "${pattern##*::}" || PATCH_FAILED=1; continue
     fi
     # patch-* types carry the path of the installed package file to patch.
     if [ "$type" = "patch-subagent-widget" ]; then
