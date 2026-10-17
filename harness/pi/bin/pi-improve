@@ -26,13 +26,16 @@ const LAUNCH = path.join(STATE, "launch");
 const LOGS = path.join(STATE, "logs");
 
 const num = (v, d) => (Number.isFinite(Number(v)) && v !== undefined && v !== "" ? Number(v) : d);
-const MAX_REFLECTIONS_PER_DAY = num(process.env.PI_IMPROVE_MAX_REFLECTIONS_PER_DAY, 5);
-const MAX_WORKERS_PER_REFLECTION = num(process.env.PI_IMPROVE_MAX_WORKERS, 3);
+// Policy defaults live in self-improve.json next to bin/ (installed to $PI_AGENT_DIR);
+// environment variables override them.
+const CONFIG = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "self-improve.json"), "utf8"));
+const MAX_REFLECTIONS_PER_DAY = num(process.env.PI_IMPROVE_MAX_REFLECTIONS_PER_DAY, CONFIG.maxReflectionsPerDay);
+const MAX_WORKERS_PER_REFLECTION = num(process.env.PI_IMPROVE_MAX_WORKERS, CONFIG.maxWorkersPerReflection);
 
-const WORKER_MODEL = process.env.PI_IMPROVE_WORKER_MODEL || "openai-codex/gpt-6.1-sol";
-const WORKER_THINKING = process.env.PI_IMPROVE_WORKER_THINKING || "high";
-const REFLECT_MODEL = process.env.PI_IMPROVE_REFLECT_MODEL || ""; // empty = user's Pi default
-const REFLECT_THINKING = process.env.PI_IMPROVE_REFLECT_THINKING || "";
+const WORKER_MODEL = process.env.PI_IMPROVE_WORKER_MODEL || CONFIG.workerModel;
+const WORKER_THINKING = process.env.PI_IMPROVE_WORKER_THINKING || CONFIG.workerThinking;
+const REFLECT_MODEL = process.env.PI_IMPROVE_REFLECT_MODEL || CONFIG.reflectModel; // empty = user's Pi default
+const REFLECT_THINKING = process.env.PI_IMPROVE_REFLECT_THINKING || CONFIG.reflectThinking;
 
 function die(msg, code = 1) {
 	process.stderr.write(`pi-improve: ${msg}\n`);
@@ -229,7 +232,7 @@ const family = (model) => {
 function reviewerModelFor(workerModel) {
 	const wf = family(workerModel);
 	if (!wf) die(`model "${workerModel}" must be a recognizable provider/model so its family can be checked`, 2);
-	const reviewer = process.env.PI_IMPROVE_REVIEWER_MODEL || (wf === "anthropic" ? "openai-codex/gpt-6.1-sol:high" : "anthropic/claude-opus-5-5:high");
+	const reviewer = process.env.PI_IMPROVE_REVIEWER_MODEL || CONFIG.reviewerModelByWorkerFamily[wf];
 	const rf = family(reviewer);
 	if (!rf) die(`reviewer model "${reviewer}" must be a recognizable anthropic/openai provider/model`, 2);
 	if (rf === wf) die(`reviewer ${reviewer} is the same model family as worker ${workerModel}; cross-family review is required`, 2);
@@ -326,7 +329,7 @@ function cmdStart(argv) {
 	let brief = "";
 	if (pos[1] && pos[1] !== "-") brief = fs.readFileSync(path.resolve(pos[1]), "utf8");
 	else if (!process.stdin.isTTY) brief = fs.readFileSync(0, "utf8");
-	if (brief.trim().length < 80) die("brief is empty or too short; describe problem, evidence, and desired change", 2);
+	if (!brief.trim()) die("brief is empty; describe problem, evidence, and desired change", 2);
 
 	const repo = resolveRepo();
 	const name = `self-improve-${slug}`;
@@ -534,7 +537,7 @@ function help() {
 
 Environment: PI_SELF_IMPROVE=0 disables the loop (or touch ${path.join(STATE, "disabled")}),
 AGENTIC_TOOLS_REPO, PI_IMPROVE_{WORKER,REFLECT,REVIEWER}_MODEL, PI_IMPROVE_{WORKER,REFLECT}_THINKING,
-PI_IMPROVE_MAX_REFLECTIONS_PER_DAY (5), PI_IMPROVE_MAX_WORKERS per reflection (3),
+PI_IMPROVE_MAX_REFLECTIONS_PER_DAY, PI_IMPROVE_MAX_WORKERS per reflection (defaults: self-improve.json),
 PI_IMPROVE_NO_ORCA=1, PI_IMPROVE_DRY_RUN=1 (reflect/start only print what they would do), PI_BIN.
 State: ${STATE}`);
 }

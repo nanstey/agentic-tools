@@ -43,7 +43,7 @@ echo "$dry" | jq -e '.reviewer|startswith("anthropic/")' >/dev/null && ok "defau
 fails "same-family reviewer rejected" bash -c "echo '$BRIEF' | PI_IMPROVE_REVIEWER_MODEL=anthropic/x '$P' start a --model anthropic/y --dry-run"
 fails "routed same-family reviewer rejected" bash -c "echo '$BRIEF' | PI_IMPROVE_REVIEWER_MODEL=openrouter/anthropic/claude-opus-5-5 '$P' start a --model anthropic/y --dry-run"
 fails "unqualified model rejected" bash -c "echo '$BRIEF' | '$P' start a --model gpt --dry-run"
-fails "short brief rejected" bash -c "echo short | '$P' start a --dry-run"
+fails "empty brief rejected" bash -c "echo '' | '$P' start a --dry-run"
 fails "worker cannot start work" bash -c "echo '$BRIEF' | PI_SELF_IMPROVE_CHILD=worker '$P' start a --dry-run"
 
 # explicit repo override is authoritative
@@ -81,7 +81,7 @@ check "--force repeats a reflection" "$P" reflect "$SB/d.json" --force
 SBH=$(mktemp -d)
 first=$(HOME=$SBH PI_CODING_AGENT_DIR=$SBH/.pi/agent bash "$REPO/install.sh" 2>&1)
 second=$(HOME=$SBH PI_CODING_AGENT_DIR=$SBH/.pi/agent bash "$REPO/install.sh" 2>&1)
-for f in extensions/self-improve.ts bin/pi-improve prompts/reflect.md prompts/improve.md self-improve/repo; do
+for f in self-improve.json extensions/self-improve.ts bin/pi-improve prompts/reflect.md prompts/improve.md self-improve/repo; do
   [ -e "$SBH/.pi/agent/$f" ] && ok "install provides $f" || bad "install provides $f"
 done
 [ -x "$SBH/.local/bin/pi-improve" ] && ok "install links pi-improve into ~/.local/bin" || bad "install links pi-improve into ~/.local/bin"
