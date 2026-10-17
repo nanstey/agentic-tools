@@ -243,7 +243,7 @@ task:
 | [`new-app`](skills/env/new-app/SKILL.md) | Scaffolds a new local software project from scratch — folder structure, git, README, LICENSE, .gitignore, optional CI, and a first commit — delegating language-specific init to the ecosystem's own tool. Use when starting a brand-new local application. |
 | [`new-repo`](skills/env/new-repo/SKILL.md) | Creates and configures a private GitHub repository for an existing local git project, including protected-main and squash-only policy. Use when a local repository needs a GitHub remote. |
 | [`orca-repo`](skills/env/orca-repo/SKILL.md) | Registers an existing local git repository with the Orca IDE and verifies it is tracked, optionally setting its base ref. Use when a local repository should appear in Orca. |
-| [`handoff`](skills/env/handoff/SKILL.md) | Hands a task off to a new standalone Pi session in a fresh Orca worktree, then stops work on it. Use when the user asks to run, continue, or give a task in a new worktree or to another agent. |
+| [`handoff`](skills/env/handoff/SKILL.md) | Hands a task off to a new standalone Pi session in a fresh Orca worktree that drives it to review-ready PRs with idea-to-pr, then stops work on it. Use when the user asks to run, continue, or give a task in a new worktree or to another agent. |
 
 ### Planning
 
