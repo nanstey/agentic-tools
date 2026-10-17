@@ -56,6 +56,12 @@ by task context and scale only when dispatching subagents, using the table below
 If you have no `subagent` tool, you are a subagent: ignore this section and do the
 assigned work yourself. Subagents never spawn further subagents.
 
+For a user-requested worktree task, create the worktree with Orca CLI
+(`orca worktree create --name <name> --no-parent --json`, without `--agent`; use
+`orca-ide` on Linux outside Orca terminals), then spawn a Pi session with `subagent`
+and `cwd` set to the new worktree path. Choose its profile and model by the task-scale
+rules below. Do not launch Orca-hosted agents.
+
 Otherwise, default to delegating substantive work to subagents via `subagent` rather than
 doing it inline. Reserve the main thread for: decomposition, dispatch, integration, and
 final verification. Do trivial one-shot reads/edits yourself; anything multi-step,
