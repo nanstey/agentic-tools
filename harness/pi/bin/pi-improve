@@ -99,9 +99,7 @@ function disabled() {
 // ---- repo discovery -------------------------------------------------------
 
 // The agentic-tools repo: $AGENTIC_TOOLS_REPO, else the path install.sh recorded
-// in $STATE/repo, else the repo that the installed agent/skill symlinks point
-// into. The recorded path comes first because those symlinks dangle when
-// install.sh last ran from a worktree that has since been removed.
+// in $STATE/repo.
 function gitRoot(c) {
 	const top = run("git", ["-C", c, "rev-parse", "--path-format=absolute", "--git-common-dir"]);
 	if (!top.ok) return null;
@@ -116,28 +114,12 @@ function resolveRepo() {
 		if (!root) die(`AGENTIC_TOOLS_REPO=${process.env.AGENTIC_TOOLS_REPO} is not a git repository`, 2);
 		return root;
 	}
-	const candidates = [];
+	let recorded = "";
 	try {
-		candidates.push(fs.readFileSync(path.join(STATE, "repo"), "utf8").trim());
+		recorded = fs.readFileSync(path.join(STATE, "repo"), "utf8").trim();
 	} catch {}
-	for (const sub of ["agents", "skills"]) {
-		const dir = path.join(AGENT_DIR, sub);
-		let names = [];
-		try {
-			names = fs.readdirSync(dir);
-		} catch {}
-		for (const n of names) {
-			try {
-				const real = fs.realpathSync(path.join(dir, n));
-				if (real !== path.join(dir, n)) candidates.push(path.dirname(real));
-			} catch {}
-		}
-	}
-	for (const c of candidates) {
-		const root = gitRoot(c);
-		if (!root) continue;
-		if (fs.existsSync(path.join(root, "install.sh")) && fs.existsSync(path.join(root, "harness"))) return root;
-	}
+	const root = recorded && gitRoot(recorded);
+	if (root && fs.existsSync(path.join(root, "install.sh")) && fs.existsSync(path.join(root, "harness"))) return root;
 	die("cannot locate the agentic-tools repo; set AGENTIC_TOOLS_REPO or run install.sh", 2);
 }
 
@@ -205,9 +187,7 @@ function parseArgs(argv) {
 
 // ---- spawning -------------------------------------------------------------
 
-function piBin() {
-	return process.env.PI_BIN || "pi";
-}
+const PI_BIN = process.env.PI_BIN || "pi";
 
 // Detached background process whose output goes to a log file.
 function spawnDetached(script, log, cwd) {
@@ -302,30 +282,33 @@ function cmdReflect(argv) {
 	const id = `reflect-${stamp()}-${key.slice(0, 6)}`;
 
 	const repo = resolveRepo();
+	reviewerModelFor(WORKER_MODEL); // fail early on a bad worker/reviewer pair; `start` picks the reviewer itself
 	const log = path.join(LOGS, `${id}.log`);
 	const rec = { id, kind: "reflect", startedAt: new Date().toISOString(), sourceKey: key, source, input: abs, log, backend: "headless", cwd: repo };
-	const argv2 = [piBin(), "-p", "--approve", "--name", id, ...modelArgs(REFLECT_MODEL, REFLECT_THINKING), `/reflect ${piArg(abs)}`];
+	const argv2 = [PI_BIN, "-p", "--approve", "--name", id, ...modelArgs(REFLECT_MODEL, REFLECT_THINKING), `/reflect ${piArg(abs)}`];
 
 	// Check and reserve under one lock: the record is written before any launch,
 	// so a concurrent call sees it and counts against the cap.
 	withLock(() => {
 		const runs = readRuns();
-		const dup = runs.find((r) => r.kind === "reflect" && r.sourceKey === key);
+		const dup = runs.find((r) => r.kind === "reflect" && r.sourceKey === key && r.state !== "failed");
 		if (dup && !flags.force) die(`already reflected on this session (${dup.id}); use --force to repeat`, 4);
 		const dayAgo = Date.now() - 24 * 3600 * 1000;
-		const recent = runs.filter((r) => r.kind === "reflect" && Date.parse(r.startedAt) > dayAgo).length;
+		const recent = runs.filter((r) => r.kind === "reflect" && r.state !== "failed" && Date.parse(r.startedAt) > dayAgo).length;
 		if (recent >= MAX_REFLECTIONS_PER_DAY && !flags.force)
 			die(`reflection cap reached (${recent}/${MAX_REFLECTIONS_PER_DAY} in 24h); use --force to override`, 4);
 		if (!flags["dry-run"]) writeRun({ ...rec, state: "starting" });
 	});
-	const script = writeLaunchScript(id, {
-		cwd: repo,
-		env: { PI_SELF_IMPROVE_CHILD: "reflect", PI_SELF_IMPROVE_RUN: id, PI_IMPROVE_REVIEWER_MODEL: reviewerModelFor(WORKER_MODEL) },
-		argv: argv2,
-	}, !!flags["dry-run"]);
-	if (flags["dry-run"]) return out({ dryRun: true, ...rec, script, command: argv2 });
-	rec.pid = spawnDetached(script, log, repo);
-	writeRun({ ...rec, state: "started" });
+	const dry = !!flags["dry-run"];
+	try {
+		const script = writeLaunchScript(id, { cwd: repo, env: { PI_SELF_IMPROVE_CHILD: "reflect", PI_SELF_IMPROVE_RUN: id }, argv: argv2 }, dry);
+		if (dry) return out({ dryRun: true, ...rec, script, command: argv2 });
+		rec.pid = spawnDetached(script, log, repo);
+		writeRun({ ...rec, state: "started" });
+	} catch (e) {
+		writeRun({ ...rec, state: "failed", error: e.message });
+		die(`could not start the reflection: ${e.message}`);
+	}
 	out(rec);
 }
 
@@ -355,7 +338,7 @@ function cmdStart(argv) {
 	const briefFile = path.join(BRIEFS, `${id}.md`);
 	const log = path.join(LOGS, `${id}.log`);
 	const env = { PI_SELF_IMPROVE_CHILD: "worker", PI_SELF_IMPROVE_RUN: id, PI_IMPROVE_REVIEWER_MODEL: reviewer };
-	const workerArgv = (headless) => [piBin(), ...(headless ? ["-p"] : []), "--approve", "--name", `improve:${slug}`, ...modelArgs(workerModel, thinking), `/improve ${piArg(briefFile)}`];
+	const workerArgv = (headless) => [PI_BIN, ...(headless ? ["-p"] : []), "--approve", "--name", `improve:${slug}`, ...modelArgs(workerModel, thinking), `/improve ${piArg(briefFile)}`];
 	const rec = { id, kind: "worker", startedAt: new Date().toISOString(), parent, slug, log, brief: briefFile, model: workerModel };
 
 	if (dry) {
@@ -383,72 +366,76 @@ function cmdStart(argv) {
 		die(msg);
 	};
 
-	// 1. Worktree.
-	mkdirs(BRIEFS, LOGS);
-	const useOrca = !flags["no-orca"] && orcaReachable();
-	let worktree;
-	let branch;
-	run("git", ["-C", repo, "fetch", "origin", base.replace(/^origin\//, "")], { timeout: 90_000 });
-	if (useOrca) {
-		const r = orca(["worktree", "create", "--repo", `path:${repo}`, "--name", name, "--base-branch", base, "--no-parent", "--setup", "skip", "--json"], { timeout: 120_000 });
-		if (r.ok) {
-			try {
-				const wt = JSON.parse(r.stdout).result.worktree;
-				worktree = wt.path;
-				branch = String(wt.branch).replace(/^refs\/heads\//, "");
-			} catch {}
+	try {
+		// 1. Worktree.
+		mkdirs(BRIEFS, LOGS);
+		const useOrca = !flags["no-orca"] && orcaReachable();
+		let worktree;
+		let branch;
+		run("git", ["-C", repo, "fetch", "origin", base.replace(/^origin\//, "")], { timeout: 90_000 });
+		if (useOrca) {
+			const r = orca(["worktree", "create", "--repo", `path:${repo}`, "--name", name, "--base-branch", base, "--no-parent", "--setup", "skip", "--json"], { timeout: 120_000 });
+			if (r.ok) {
+				try {
+					const wt = JSON.parse(r.stdout).result.worktree;
+					worktree = wt.path;
+					branch = String(wt.branch).replace(/^refs\/heads\//, "");
+				} catch {}
+			}
 		}
-	}
-	if (!worktree) {
-		worktree = path.join(STATE, "worktrees", name);
-		mkdirs(path.dirname(worktree));
-		const r = run("git", ["-C", repo, "worktree", "add", "-b", name, worktree, base], { timeout: 120_000 });
-		if (!r.ok) fail("failed", `git worktree add failed: ${r.stderr}`);
-		branch = name;
-	}
-	rec.worktree = worktree;
-	rec.branch = branch;
-
-	// 2. Brief (kept outside the worktree so it is never committed).
-	fs.writeFileSync(
-		briefFile,
-		`${[
-			"<!-- generated by pi-improve start -->",
-			"## Run parameters",
-			`- worktree: ${worktree}`,
-			`- branch: ${branch}`,
-			`- base: ${base}`,
-			`- repo: ${repo} (main checkout; never edit it)`,
-			`- reviewer model (different family than the worker): ${reviewer}`,
-			`- run id: ${id} (parent: ${parent})`,
-			"",
-			"## Brief",
-			"",
-		].join("\n")}${brief.trim()}\n`,
-	);
-
-	// 3. Worker session: a visible interactive Orca terminal, else detached headless.
-	let backend = "headless";
-	if (useOrca) {
-		const script = writeLaunchScript(id, { cwd: worktree, env, argv: workerArgv(false) });
-		const title = `improve:${slug}`;
-		const r = orca(["terminal", "create", "--worktree", `path:${worktree}`, "--title", title, "--command", `bash ${shq(script)}`, "--json"], { timeout: 60_000 });
-		if (r.ok) backend = "orca";
-		else {
-			// The failure may have come after the terminal started. Only fall back to
-			// headless when Orca confirms no such terminal exists, to avoid two workers.
-			const l = orca(["terminal", "list", "--worktree", `path:${worktree}`, "--json"], { timeout: 30_000 });
-			if (!l.ok) fail("launch-unknown", `orca terminal create failed and the result could not be verified (${r.stderr.slice(0, 200)}); check Orca for an "${title}" terminal in ${worktree} before retrying`);
-			if (l.stdout.includes(title)) backend = "orca";
-			else rec.note = `orca terminal failed (${r.stderr.slice(0, 200)}); fell back to headless`;
+		if (!worktree) {
+			worktree = path.join(STATE, "worktrees", name);
+			mkdirs(path.dirname(worktree));
+			const r = run("git", ["-C", repo, "worktree", "add", "-b", name, worktree, base], { timeout: 120_000 });
+			if (!r.ok) fail("failed", `git worktree add failed: ${r.stderr}`);
+			branch = name;
 		}
+		rec.worktree = worktree;
+		rec.branch = branch;
+
+		// 2. Brief (kept outside the worktree so it is never committed).
+		fs.writeFileSync(
+			briefFile,
+			`${[
+				"<!-- generated by pi-improve start -->",
+				"## Run parameters",
+				`- worktree: ${worktree}`,
+				`- branch: ${branch}`,
+				`- base: ${base}`,
+				`- repo: ${repo} (main checkout; never edit it)`,
+				`- reviewer model (different family than the worker): ${reviewer}`,
+				`- run id: ${id} (parent: ${parent})`,
+				"",
+				"## Brief",
+				"",
+			].join("\n")}${brief.trim()}\n`,
+		);
+
+		// 3. Worker session: a visible interactive Orca terminal, else detached headless.
+		let backend = "headless";
+		if (useOrca) {
+			const script = writeLaunchScript(id, { cwd: worktree, env, argv: workerArgv(false) });
+			const title = `improve:${slug}`;
+			const r = orca(["terminal", "create", "--worktree", `path:${worktree}`, "--title", title, "--command", `bash ${shq(script)}`, "--json"], { timeout: 60_000 });
+			if (r.ok) backend = "orca";
+			else {
+				// The failure may have come after the terminal started. Only fall back to
+				// headless when Orca confirms no such terminal exists, to avoid two workers.
+				const l = orca(["terminal", "list", "--worktree", `path:${worktree}`, "--json"], { timeout: 30_000 });
+				if (!l.ok) fail("launch-unknown", `orca terminal create failed and the result could not be verified (${r.stderr.slice(0, 200)}); check Orca for an "${title}" terminal in ${worktree} before retrying`);
+				if (l.stdout.includes(title)) backend = "orca";
+				else rec.note = `orca terminal failed (${r.stderr.slice(0, 200)}); fell back to headless`;
+			}
+		}
+		if (backend === "headless") {
+			const script = writeLaunchScript(`${id}-headless`, { cwd: worktree, env, argv: workerArgv(true) });
+			rec.pid = spawnDetached(script, log, worktree);
+		}
+		rec.backend = backend;
+		writeRun({ ...rec, state: "started" });
+	} catch (e) {
+		fail("failed", e.message);
 	}
-	if (backend === "headless") {
-		const script = writeLaunchScript(`${id}-headless`, { cwd: worktree, env, argv: workerArgv(true) });
-		rec.pid = spawnDetached(script, log, worktree);
-	}
-	rec.backend = backend;
-	writeRun({ ...rec, state: "started" });
 	out(rec);
 }
 
@@ -470,8 +457,7 @@ const clip = (s, n) => {
 	s = String(s ?? "").replace(/\s+/g, " ").trim();
 	return s.length > n ? `${s.slice(0, n)}…(+${s.length - n})` : s;
 };
-const textOf = (content) =>
-	typeof content === "string" ? content : (content || []).map((b) => (b.type === "text" ? b.text : b.type === "toolCall" ? "" : "")).join(" ");
+const textOf = (content) => (typeof content === "string" ? content : (content || []).map((b) => (b.type === "text" ? b.text : "")).join(" "));
 
 // Compact, line-per-event view of a session log so a reflector can find the
 // failures without paging through megabytes of JSONL.
