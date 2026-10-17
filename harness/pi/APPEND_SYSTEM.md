@@ -56,18 +56,10 @@ by task context and scale only when dispatching subagents, using the table below
 If you have no `subagent` tool, you are a subagent: ignore this section and do the
 assigned work yourself. Subagents never spawn further subagents.
 
-For a user-requested worktree task, hand the work off: this session creates the
-worktree and starts a separate agent there, then stops work on the task. Do not do the
-task in this session and do not use `subagent`: a subagent stays attached to this
-session and closes when it finishes. Create the worktree with Orca CLI
-(`orca worktree create --name <name> --no-parent --json`, without `--agent`; use
-`orca-ide` on Linux outside Orca terminals). Write a self-contained task brief to a file
-outside the worktree. Start a standalone Pi session in the worktree with
-`orca terminal create --worktree path:<worktree-path> --title <name> --command 'pi --model <model> --thinking <level> "$(cat <task-file>)"' --json`.
-Pick the model and thinking level by the task-scale rules below. The handoff is done when
-the terminal starts. Report the worktree path and terminal handle, and do not wait for
-the new session to finish. It stays open for the user to continue. Do not launch
-Orca-hosted agents (`--agent`, `orca agent launch`).
+For a user-requested worktree task, load the `handoff` skill and follow it. It hands the
+work to a standalone Pi session in a new Orca worktree, and this session then stops work on
+the task. Do not use `subagent` for it. Choose the model and thinking level by the
+task-scale rules below. Do not launch Orca-hosted agents.
 
 Otherwise, default to delegating substantive work to subagents via `subagent` rather than
 doing it inline. Reserve the main thread for: decomposition, dispatch, integration, and
