@@ -1,0 +1,12 @@
+{
+  "maxReflectionsPerDay": 5,
+  "maxWorkersPerReflection": 3,
+  "workerModel": "openai-codex/gpt-6.1-sol",
+  "workerThinking": "high",
+  "reflectModel": "",
+  "reflectThinking": "",
+  "reviewerModelByWorkerFamily": {
+    "anthropic": "openai-codex/gpt-6.1-sol:high",
+    "openai": "anthropic/claude-opus-5-5:high"
+  }
+}

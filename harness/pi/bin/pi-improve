@@ -1,0 +1,549 @@
+#!/usr/bin/env node
+// pi-improve — plumbing for Pi's harness self-improvement loop.
+//
+// Loop: the `self-improve` extension (or a human) calls `reflect`, which starts a
+// detached headless Pi session running `/reflect`. That session reads the
+// previous session log (`digest`), and for each worthwhile harness improvement
+// calls `start`, which creates a dedicated worktree of the agentic-tools repo
+// and launches one Pi session there running `/improve` (scope, implement,
+// review, test, verify, publish the PR for human review).
+//
+// State lives outside the repo in $PI_AGENT_DIR/self-improve/. Run `pi-improve
+// help` for the reference. Zero dependencies; needs node, git, pi, and gh (the
+// last only inside the sessions it launches). Orca is used when reachable.
+"use strict";
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
+const crypto = require("node:crypto");
+const { spawn, spawnSync } = require("node:child_process");
+
+const AGENT_DIR = process.env.PI_CODING_AGENT_DIR || path.join(os.homedir(), ".pi", "agent");
+const STATE = path.join(AGENT_DIR, "self-improve");
+const RUNS = path.join(STATE, "runs");
+const BRIEFS = path.join(STATE, "briefs");
+const LAUNCH = path.join(STATE, "launch");
+const LOGS = path.join(STATE, "logs");
+
+const num = (v, d) => (Number.isFinite(Number(v)) && v !== undefined && v !== "" ? Number(v) : d);
+// Policy defaults live in self-improve.json next to bin/ (installed to $PI_AGENT_DIR);
+// environment variables override them.
+const CONFIG = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "self-improve.json"), "utf8"));
+const MAX_REFLECTIONS_PER_DAY = num(process.env.PI_IMPROVE_MAX_REFLECTIONS_PER_DAY, CONFIG.maxReflectionsPerDay);
+const MAX_WORKERS_PER_REFLECTION = num(process.env.PI_IMPROVE_MAX_WORKERS, CONFIG.maxWorkersPerReflection);
+
+const WORKER_MODEL = process.env.PI_IMPROVE_WORKER_MODEL || CONFIG.workerModel;
+const WORKER_THINKING = process.env.PI_IMPROVE_WORKER_THINKING || CONFIG.workerThinking;
+const REFLECT_MODEL = process.env.PI_IMPROVE_REFLECT_MODEL || CONFIG.reflectModel; // empty = user's Pi default
+const REFLECT_THINKING = process.env.PI_IMPROVE_REFLECT_THINKING || CONFIG.reflectThinking;
+
+function die(msg, code = 1) {
+	process.stderr.write(`pi-improve: ${msg}\n`);
+	process.exit(code);
+}
+const out = (obj) => process.stdout.write(`${JSON.stringify(obj, null, 2)}\n`);
+const mkdirs = (...dirs) => dirs.forEach((d) => fs.mkdirSync(d, { recursive: true }));
+const shq = (s) => `'${String(s).replace(/'/g, `'\\''`)}'`;
+const sha = (s) => crypto.createHash("sha1").update(s).digest("hex").slice(0, 12);
+const stamp = () => new Date().toISOString().replace(/[:.]/g, "-");
+
+function run(cmd, args, opts = {}) {
+	const r = spawnSync(cmd, args, { encoding: "utf8", timeout: opts.timeout ?? 60_000, ...opts });
+	return { ok: r.status === 0, status: r.status, stdout: (r.stdout || "").trim(), stderr: (r.stderr || "").trim() };
+}
+
+// Pi parses slash-command arguments shell-style without backslash escapes, so
+// quote with whichever quote character the value does not contain.
+function piArg(v) {
+	if (!/[\s'"\\]/.test(v)) return v;
+	if (!v.includes("'") && !v.includes("\\")) return `'${v}'`;
+	if (!v.includes('"') && !v.includes("\\")) return `"${v}"`;
+	die(`cannot pass "${v}" as a Pi command argument (contains quotes and backslashes)`);
+}
+
+// Exclusive lock around check-then-reserve sections so concurrent invocations
+// cannot both pass a cap or dedupe check. mkdir is atomic; stale locks expire.
+function withLock(fn) {
+	mkdirs(STATE);
+	const lock = path.join(STATE, "lock");
+	const deadline = Date.now() + 15_000;
+	for (;;) {
+		try {
+			fs.mkdirSync(lock);
+			break;
+		} catch (e) {
+			if (e.code !== "EEXIST") throw e;
+			try {
+				if (Date.now() - fs.statSync(lock).mtimeMs > 30_000) fs.rmdirSync(lock);
+			} catch {}
+			if (Date.now() > deadline) die("could not acquire the self-improve lock", 5);
+			Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50);
+		}
+	}
+	// die() exits the process from inside fn, so release on exit as well.
+	const release = () => {
+		try {
+			fs.rmdirSync(lock);
+		} catch {}
+	};
+	process.once("exit", release);
+	try {
+		return fn();
+	} finally {
+		release();
+		process.removeListener("exit", release);
+	}
+}
+
+function disabled() {
+	return process.env.PI_SELF_IMPROVE === "0" || fs.existsSync(path.join(STATE, "disabled"));
+}
+
+// ---- repo discovery -------------------------------------------------------
+
+// The agentic-tools repo: $AGENTIC_TOOLS_REPO, else the path install.sh recorded
+// in $STATE/repo.
+function gitRoot(c) {
+	const top = run("git", ["-C", c, "rev-parse", "--path-format=absolute", "--git-common-dir"]);
+	if (!top.ok) return null;
+	// Main worktree = parent of the shared .git dir.
+	return path.basename(top.stdout) === ".git" ? path.dirname(top.stdout) : top.stdout;
+}
+
+function resolveRepo() {
+	// An explicit override is authoritative: never silently fall back to another repo.
+	if (process.env.AGENTIC_TOOLS_REPO) {
+		const root = gitRoot(process.env.AGENTIC_TOOLS_REPO);
+		if (!root) die(`AGENTIC_TOOLS_REPO=${process.env.AGENTIC_TOOLS_REPO} is not a git repository`, 2);
+		return root;
+	}
+	let recorded = "";
+	try {
+		recorded = fs.readFileSync(path.join(STATE, "repo"), "utf8").trim();
+	} catch {}
+	const root = recorded && gitRoot(recorded);
+	if (root && fs.existsSync(path.join(root, "install.sh")) && fs.existsSync(path.join(root, "harness"))) return root;
+	die("cannot locate the agentic-tools repo; set AGENTIC_TOOLS_REPO or run install.sh", 2);
+}
+
+function defaultBase(repo) {
+	const r = run("git", ["-C", repo, "symbolic-ref", "--short", "refs/remotes/origin/HEAD"]);
+	return r.ok ? r.stdout : "origin/main";
+}
+
+// ---- run records ----------------------------------------------------------
+
+function writeRun(rec) {
+	mkdirs(RUNS);
+	const dest = path.join(RUNS, `${rec.id}.json`);
+	const tmp = `${dest}.${process.pid}.tmp`; // not *.json, so readers skip it
+	fs.writeFileSync(tmp, `${JSON.stringify(rec, null, 2)}\n`);
+	fs.renameSync(tmp, dest);
+}
+function readRuns() {
+	let files = [];
+	try {
+		files = fs.readdirSync(RUNS).filter((f) => f.endsWith(".json"));
+	} catch {}
+	const runs = [];
+	for (const f of files) {
+		try {
+			runs.push(JSON.parse(fs.readFileSync(path.join(RUNS, f), "utf8")));
+		} catch {}
+	}
+	return runs.sort((a, b) => String(a.startedAt).localeCompare(String(b.startedAt)));
+}
+const alive = (pid) => {
+	if (!pid) return false;
+	try {
+		process.kill(pid, 0);
+		return true;
+	} catch {
+		return false;
+	}
+};
+
+// ---- args -----------------------------------------------------------------
+
+function parseArgs(argv) {
+	const flags = {};
+	const pos = [];
+	for (let i = 0; i < argv.length; i++) {
+		const a = argv[i];
+		if (a === "--") {
+			pos.push(...argv.slice(i + 1));
+			break;
+		}
+		if (a.startsWith("--")) {
+			const [k, v] = a.slice(2).split(/=(.*)/s, 2);
+			if (v !== undefined) flags[k] = v;
+			else if (["dry-run", "force", "json", "no-orca", "errors-only"].includes(k)) flags[k] = true;
+			else if (["max-chars", "from", "to", "model", "thinking"].includes(k)) {
+				if (argv[i + 1] === undefined || argv[i + 1].startsWith("--")) die(`--${k} needs a value`, 2);
+				flags[k] = argv[++i];
+			} else die(`unknown option --${k}`, 2);
+		} else pos.push(a);
+	}
+	if (process.env.PI_IMPROVE_DRY_RUN === "1") flags["dry-run"] = true;
+	return { flags, pos };
+}
+
+// ---- spawning -------------------------------------------------------------
+
+const PI_BIN = process.env.PI_BIN || "pi";
+
+// Detached background process whose output goes to a log file.
+function spawnDetached(script, log, cwd) {
+	mkdirs(path.dirname(log));
+	const fd = fs.openSync(log, "a");
+	const child = spawn("bash", [script], { cwd, detached: true, stdio: ["ignore", fd, fd], env: process.env });
+	child.unref();
+	return child.pid;
+}
+
+function writeLaunchScript(name, { cwd, env, argv }, dry = false) {
+	const file = path.join(LAUNCH, `${name}.sh`);
+	if (dry) return file;
+	mkdirs(LAUNCH);
+	const lines = ["#!/usr/bin/env bash", `cd ${shq(cwd)} || exit 1`];
+	for (const [k, v] of Object.entries(env)) lines.push(`export ${k}=${shq(v)}`);
+	if (process.env.PI_CODING_AGENT_DIR) lines.push(`export PI_CODING_AGENT_DIR=${shq(process.env.PI_CODING_AGENT_DIR)}`);
+	lines.push(`exec ${argv.map(shq).join(" ")}`);
+	fs.writeFileSync(file, `${lines.join("\n")}\n`, { mode: 0o700 });
+	return file;
+}
+
+function modelArgs(model, thinking) {
+	const a = [];
+	if (model) a.push("--model", model);
+	if (thinking) a.push("--thinking", thinking);
+	return a;
+}
+
+// Reviewer must be a different model family than the worker that wrote the change.
+const family = (model) => {
+	const m = String(model).toLowerCase();
+	if (!m.includes("/")) return null; // unqualified: provider unknown
+	// Match on the whole id so routed models (openrouter/anthropic/...) count too.
+	if (/anthropic|claude|opus|sonnet|haiku|fable/.test(m)) return "anthropic";
+	if (/openai|gpt|codex|\bo[134]\b/.test(m)) return "openai";
+	return null;
+};
+function reviewerModelFor(workerModel) {
+	const wf = family(workerModel);
+	if (!wf) die(`model "${workerModel}" must be a recognizable provider/model so its family can be checked`, 2);
+	const reviewer = process.env.PI_IMPROVE_REVIEWER_MODEL || CONFIG.reviewerModelByWorkerFamily[wf];
+	const rf = family(reviewer);
+	if (!rf) die(`reviewer model "${reviewer}" must be a recognizable anthropic/openai provider/model`, 2);
+	if (rf === wf) die(`reviewer ${reviewer} is the same model family as worker ${workerModel}; cross-family review is required`, 2);
+	return reviewer;
+}
+
+// Orca CLI resolution (see the orca-cli skill): bare `orca` is the GNOME screen
+// reader on Linux outside Orca-managed terminals, so never use it there.
+function orcaCmd() {
+	if (process.env.ORCA_CLI_COMMAND) return process.env.ORCA_CLI_COMMAND.trim().split(/\s+/);
+	if (process.env.ORCA_DEV_REPO_ROOT) return ["orca-dev"];
+	const managed = process.env.ORCA_CLI_BIN_DIR || process.env.ORCA_WORKTREE_ID;
+	if (process.platform === "linux" && !managed) return ["orca-ide"];
+	return ["orca"];
+}
+function orca(args, opts) {
+	const [bin, ...pre] = orcaCmd();
+	return run(bin, [...pre, ...args], opts);
+}
+function orcaReachable() {
+	if (process.env.PI_IMPROVE_NO_ORCA === "1") return false;
+	const r = orca(["status"], { timeout: 10_000 });
+	return r.ok && /runtimeReachable:\s*true/.test(r.stdout);
+}
+
+// ---- commands -------------------------------------------------------------
+
+function cmdRepo() {
+	process.stdout.write(`${resolveRepo()}\n`);
+}
+
+// reflect <report.json|session.jsonl>: start the detached /reflect session.
+function cmdReflect(argv) {
+	const { flags, pos } = parseArgs(argv);
+	const target = pos[0];
+	if (!target) die("usage: pi-improve reflect <report.json|session.jsonl> [--force] [--dry-run]");
+	if (disabled()) die("self-improvement is disabled (PI_SELF_IMPROVE=0 or $STATE/disabled)", 3);
+	if (process.env.PI_SELF_IMPROVE_CHILD) die("refusing to start a reflection from inside a self-improve session", 3);
+	const abs = path.resolve(target);
+	if (!fs.existsSync(abs)) die(`no such file: ${abs}`);
+
+	// Dedupe per source session: a report names its session; a bare log is its own source.
+	let source = abs;
+	if (abs.endsWith(".json")) {
+		try {
+			source = JSON.parse(fs.readFileSync(abs, "utf8")).sessionFile || abs;
+		} catch {}
+	}
+	const key = sha(source);
+	const id = `reflect-${stamp()}-${key.slice(0, 6)}`;
+
+	const repo = resolveRepo();
+	reviewerModelFor(WORKER_MODEL); // fail early on a bad worker/reviewer pair; `start` picks the reviewer itself
+	const log = path.join(LOGS, `${id}.log`);
+	const rec = { id, kind: "reflect", startedAt: new Date().toISOString(), sourceKey: key, source, input: abs, log, backend: "headless", cwd: repo };
+	const argv2 = [PI_BIN, "-p", "--approve", "--name", id, ...modelArgs(REFLECT_MODEL, REFLECT_THINKING), `/reflect ${piArg(abs)}`];
+
+	// Check and reserve under one lock: the record is written before any launch,
+	// so a concurrent call sees it and counts against the cap.
+	withLock(() => {
+		const runs = readRuns();
+		const dup = runs.find((r) => r.kind === "reflect" && r.sourceKey === key && r.state !== "failed");
+		if (dup && !flags.force) die(`already reflected on this session (${dup.id}); use --force to repeat`, 4);
+		const dayAgo = Date.now() - 24 * 3600 * 1000;
+		const recent = runs.filter((r) => r.kind === "reflect" && r.state !== "failed" && Date.parse(r.startedAt) > dayAgo).length;
+		if (recent >= MAX_REFLECTIONS_PER_DAY && !flags.force)
+			die(`reflection cap reached (${recent}/${MAX_REFLECTIONS_PER_DAY} in 24h); use --force to override`, 4);
+		if (!flags["dry-run"]) writeRun({ ...rec, state: "starting" });
+	});
+	const dry = !!flags["dry-run"];
+	try {
+		const script = writeLaunchScript(id, { cwd: repo, env: { PI_SELF_IMPROVE_CHILD: "reflect", PI_SELF_IMPROVE_RUN: id }, argv: argv2 }, dry);
+		if (dry) return out({ dryRun: true, ...rec, script, command: argv2 });
+		rec.pid = spawnDetached(script, log, repo);
+		writeRun({ ...rec, state: "started" });
+	} catch (e) {
+		writeRun({ ...rec, state: "failed", error: e.message });
+		die(`could not start the reflection: ${e.message}`);
+	}
+	out(rec);
+}
+
+// start <slug> [brief-file|-]: worktree + worker session for one improvement.
+function cmdStart(argv) {
+	const { flags, pos } = parseArgs(argv);
+	const dry = !!flags["dry-run"];
+	if (!pos[0]) die("usage: pi-improve start <slug> [brief-file|-] [--dry-run]   (brief from stdin by default)");
+	if (disabled()) die("self-improvement is disabled", 3);
+	if (process.env.PI_SELF_IMPROVE_CHILD === "worker") die("worker sessions must not start further work", 3);
+	const slug = pos[0].toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40).replace(/-+$/, "");
+	if (!slug) die("slug must contain letters or digits");
+	const parent = process.env.PI_SELF_IMPROVE_RUN || "manual";
+
+	let brief = "";
+	if (pos[1] && pos[1] !== "-") brief = fs.readFileSync(path.resolve(pos[1]), "utf8");
+	else if (!process.stdin.isTTY) brief = fs.readFileSync(0, "utf8");
+	if (!brief.trim()) die("brief is empty; describe problem, evidence, and desired change", 2);
+
+	const repo = resolveRepo();
+	const name = `self-improve-${slug}`;
+	const id = `worker-${stamp()}-${slug}`;
+	const workerModel = flags.model || WORKER_MODEL;
+	const thinking = flags.thinking || WORKER_THINKING;
+	const reviewer = reviewerModelFor(workerModel); // also enforces a cross-family pair
+	const base = defaultBase(repo);
+	const briefFile = path.join(BRIEFS, `${id}.md`);
+	const log = path.join(LOGS, `${id}.log`);
+	const env = { PI_SELF_IMPROVE_CHILD: "worker", PI_SELF_IMPROVE_RUN: id, PI_IMPROVE_REVIEWER_MODEL: reviewer };
+	const workerArgv = (headless) => [PI_BIN, ...(headless ? ["-p"] : []), "--approve", "--name", `improve:${slug}`, ...modelArgs(workerModel, thinking), `/improve ${piArg(briefFile)}`];
+	const rec = { id, kind: "worker", startedAt: new Date().toISOString(), parent, slug, log, brief: briefFile, model: workerModel };
+
+	if (dry) {
+		const worktree = path.join(STATE, "worktrees", name);
+		return out({ dryRun: true, ...rec, worktree, branch: name, base, reviewer, command: workerArgv(false) });
+	}
+
+	// Existing branches (local or remote) block a duplicate slug. Informational
+	// network checks run before the lock; the slug reservation below is the atomic part.
+	const existing = run("git", ["-C", repo, "branch", "-a", "--list", `*${name}`]).stdout;
+	const remote = run("git", ["-C", repo, "ls-remote", "--heads", "origin", `*${name}`], { timeout: 30_000 }).stdout;
+	if ((existing || remote) && !flags.force) die(`branch for "${name}" already exists; pick another slug`, 4);
+
+	// Check caps and reserve the slug before any side effect.
+	withLock(() => {
+		const runs = readRuns().filter((r) => r.kind === "worker");
+		const siblings = runs.filter((r) => r.parent === parent).length;
+		if (parent !== "manual" && siblings >= MAX_WORKERS_PER_REFLECTION && !flags.force)
+			die(`worker cap reached for ${parent} (${siblings}/${MAX_WORKERS_PER_REFLECTION}); merge ideas or use --force`, 4);
+		if (runs.some((r) => r.slug === slug && r.state !== "failed") && !flags.force) die(`a run for slug "${slug}" already exists; pick another slug`, 4);
+		writeRun({ ...rec, state: "starting" });
+	});
+	const fail = (state, msg) => {
+		writeRun({ ...rec, state, error: msg });
+		die(msg);
+	};
+
+	try {
+		// 1. Worktree.
+		mkdirs(BRIEFS, LOGS);
+		const useOrca = !flags["no-orca"] && orcaReachable();
+		let worktree;
+		let branch;
+		run("git", ["-C", repo, "fetch", "origin", base.replace(/^origin\//, "")], { timeout: 90_000 });
+		if (useOrca) {
+			const r = orca(["worktree", "create", "--repo", `path:${repo}`, "--name", name, "--base-branch", base, "--no-parent", "--setup", "skip", "--json"], { timeout: 120_000 });
+			if (r.ok) {
+				try {
+					const wt = JSON.parse(r.stdout).result.worktree;
+					worktree = wt.path;
+					branch = String(wt.branch).replace(/^refs\/heads\//, "");
+				} catch {}
+			}
+		}
+		if (!worktree) {
+			worktree = path.join(STATE, "worktrees", name);
+			mkdirs(path.dirname(worktree));
+			const r = run("git", ["-C", repo, "worktree", "add", "-b", name, worktree, base], { timeout: 120_000 });
+			if (!r.ok) fail("failed", `git worktree add failed: ${r.stderr}`);
+			branch = name;
+		}
+		rec.worktree = worktree;
+		rec.branch = branch;
+
+		// 2. Brief (kept outside the worktree so it is never committed).
+		fs.writeFileSync(
+			briefFile,
+			`${[
+				"<!-- generated by pi-improve start -->",
+				"## Run parameters",
+				`- worktree: ${worktree}`,
+				`- branch: ${branch}`,
+				`- base: ${base}`,
+				`- repo: ${repo} (main checkout; never edit it)`,
+				`- reviewer model (different family than the worker): ${reviewer}`,
+				`- run id: ${id} (parent: ${parent})`,
+				"",
+				"## Brief",
+				"",
+			].join("\n")}${brief.trim()}\n`,
+		);
+
+		// 3. Worker session: a visible interactive Orca terminal, else detached headless.
+		let backend = "headless";
+		if (useOrca) {
+			const script = writeLaunchScript(id, { cwd: worktree, env, argv: workerArgv(false) });
+			const title = `improve:${slug}`;
+			const r = orca(["terminal", "create", "--worktree", `path:${worktree}`, "--title", title, "--command", `bash ${shq(script)}`, "--json"], { timeout: 60_000 });
+			if (r.ok) backend = "orca";
+			else {
+				// The failure may have come after the terminal started. Only fall back to
+				// headless when Orca confirms no such terminal exists, to avoid two workers.
+				const l = orca(["terminal", "list", "--worktree", `path:${worktree}`, "--json"], { timeout: 30_000 });
+				if (!l.ok) fail("launch-unknown", `orca terminal create failed and the result could not be verified (${r.stderr.slice(0, 200)}); check Orca for an "${title}" terminal in ${worktree} before retrying`);
+				if (l.stdout.includes(title)) backend = "orca";
+				else rec.note = `orca terminal failed (${r.stderr.slice(0, 200)}); fell back to headless`;
+			}
+		}
+		if (backend === "headless") {
+			const script = writeLaunchScript(`${id}-headless`, { cwd: worktree, env, argv: workerArgv(true) });
+			rec.pid = spawnDetached(script, log, worktree);
+		}
+		rec.backend = backend;
+		writeRun({ ...rec, state: "started" });
+	} catch (e) {
+		fail("failed", e.message);
+	}
+	out(rec);
+}
+
+// status: list recent runs.
+function cmdStatus(argv) {
+	const { flags } = parseArgs(argv);
+	const runs = readRuns().slice(-20).map((r) => ({ ...r, running: alive(r.pid) }));
+	if (flags.json) return out(runs);
+	if (!runs.length) return console.log("no self-improve runs yet");
+	for (const r of runs) {
+		const extra = r.kind === "worker" ? `${r.branch} @ ${r.worktree}` : r.source;
+		console.log(`${r.startedAt}  ${r.kind.padEnd(7)} ${r.running ? "RUNNING" : "       "}  ${r.id}\n    ${extra}\n    log: ${r.log}`);
+	}
+}
+
+// ---- digest ---------------------------------------------------------------
+
+const clip = (s, n) => {
+	s = String(s ?? "").replace(/\s+/g, " ").trim();
+	return s.length > n ? `${s.slice(0, n)}…(+${s.length - n})` : s;
+};
+const textOf = (content) => (typeof content === "string" ? content : (content || []).map((b) => (b.type === "text" ? b.text : "")).join(" "));
+
+// Compact, line-per-event view of a session log so a reflector can find the
+// failures without paging through megabytes of JSONL.
+function cmdDigest(argv) {
+	const { flags, pos } = parseArgs(argv);
+	if (!pos[0]) die("usage: pi-improve digest <session.jsonl|report.json> [--max-chars N] [--errors-only] [--from N] [--to N]");
+	let file = path.resolve(pos[0]);
+	if (file.endsWith(".json")) {
+		const rep = JSON.parse(fs.readFileSync(file, "utf8"));
+		if (!rep.sessionFile) die("report has no sessionFile");
+		file = rep.sessionFile;
+	}
+	const max = num(flags["max-chars"], 300);
+	const from = num(flags.from, 0);
+	const to = num(flags.to, Infinity);
+	const lines = fs.readFileSync(file, "utf8").split("\n").filter(Boolean);
+	const emit = (i, tag, txt) => {
+		if (i < from || i > to) return;
+		console.log(`#${i} ${tag} ${txt}`);
+	};
+	let errors = 0;
+	const failStreak = new Map();
+	lines.forEach((l, i) => {
+		let e;
+		try {
+			e = JSON.parse(l);
+		} catch {
+			return;
+		}
+		if (e.type === "session") return emit(i, "SESSION", `cwd=${e.cwd} id=${e.id} ${e.timestamp}`);
+		if (e.type === "model_change") return emit(i, "MODEL", `${e.provider}/${e.modelId}`);
+		if (e.type === "compaction") return emit(i, "COMPACTION", clip(e.summary, max));
+		if (e.type === "custom" && /self-improve|harness-issue/.test(e.customType || "")) return emit(i, "REPORT", clip(JSON.stringify(e.data), max * 3));
+		if (e.type !== "message") return;
+		const m = e.message || {};
+		if (m.role === "user") return flags["errors-only"] ? undefined : emit(i, "USER", clip(textOf(m.content), max * 2));
+		if (m.role === "assistant") {
+			if (m.stopReason === "error" || m.errorMessage) {
+				errors++;
+				emit(i, "ASSISTANT-ERROR", clip(m.errorMessage || m.stopReason, max));
+			}
+			if (flags["errors-only"]) return;
+			const txt = clip(textOf(m.content), max);
+			if (txt) emit(i, "ASSISTANT", txt);
+			for (const b of m.content || []) if (b.type === "toolCall") emit(i, "CALL", `${b.name} ${clip(JSON.stringify(b.arguments), max)}`);
+			return;
+		}
+		if (m.role === "toolResult") {
+			const txt = clip(textOf(m.content), max);
+			if (m.isError) {
+				errors++;
+				const k = `${m.toolName}:${txt.slice(0, 80)}`;
+				const n = (failStreak.get(k) || 0) + 1;
+				failStreak.set(k, n);
+				emit(i, `ERROR${n > 1 ? `(x${n} repeat)` : ""}`, `${m.toolName}: ${txt}`);
+			} else if (!flags["errors-only"]) emit(i, "RESULT", `${m.toolName}: ${clip(txt, Math.floor(max / 2))}`);
+		}
+	});
+	console.log(`-- ${lines.length} entries, ${errors} errors in ${file}`);
+}
+
+function help() {
+	console.log(`pi-improve — Pi harness self-improvement plumbing
+
+  reflect <report.json|session.jsonl> [--force] [--dry-run]
+      Start a detached headless Pi session that runs /reflect on that input.
+  start <slug> [brief-file|-] [--model M] [--thinking L] [--dry-run]
+      Create a worktree of the agentic-tools repo and launch one /improve session
+      there (Orca terminal if Orca is reachable, else detached headless).
+      The brief comes from the file or stdin. Only allowed from a reflect session or a human.
+  digest <session.jsonl|report.json> [--max-chars N] [--errors-only] [--from N] [--to N]
+      Compact one-line-per-event view of a session log.
+  status [--json]   Recent runs.   repo   Print the resolved repo root.
+
+Environment: PI_SELF_IMPROVE=0 disables the loop (or touch ${path.join(STATE, "disabled")}),
+AGENTIC_TOOLS_REPO, PI_IMPROVE_{WORKER,REFLECT,REVIEWER}_MODEL, PI_IMPROVE_{WORKER,REFLECT}_THINKING,
+PI_IMPROVE_MAX_REFLECTIONS_PER_DAY, PI_IMPROVE_MAX_WORKERS per reflection (defaults: self-improve.json),
+PI_IMPROVE_NO_ORCA=1, PI_IMPROVE_DRY_RUN=1 (reflect/start only print what they would do), PI_BIN.
+State: ${STATE}`);
+}
+
+const [cmd, ...rest] = process.argv.slice(2);
+const commands = { reflect: cmdReflect, start: cmdStart, status: cmdStatus, digest: cmdDigest, repo: cmdRepo };
+if (!cmd || cmd === "help" || cmd === "--help" || cmd === "-h") help();
+else if (commands[cmd]) commands[cmd](rest);
+else die(`unknown command: ${cmd} (try: pi-improve help)`, 2);
