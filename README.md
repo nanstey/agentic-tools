@@ -48,7 +48,6 @@ rather than symlinked because Pi may rewrite them locally.
 | `harness/pi/extensions/pi-interactive-subagents/config.json` | `$PI_AGENT_DIR/extensions/pi-interactive-subagents/config.json` | Interactive-subagents config: mux settings plus `allowSubagentSpawning` and `subagentExtensions` (`pi-web-access`, `pi-fallback-models`), which package 3.10.1 ignores; children inherit installed extensions and agent profiles deny spawning via `deny-tools`. Kept for older package versions. |
 | `harness/pi/extensions/pi-extensions-i18n/config.json` | `$PI_AGENT_DIR/extensions/pi-extensions-i18n/config.json` | Locale for pi extension messages: `en-US`, because the library defaults to Chinese regardless of system locale. |
 | `harness/pi/extensions/pi-intercom/config.json` | `$PI_AGENT_DIR/intercom/config.json` | Shared pi-intercom config: enabled inbound replies, no send confirmation, and reply hints. |
-| `harness/pi/command-shortcuts.json` | `$PI_AGENT_DIR/command-shortcuts.json` | Command shortcut bindings. |
 | `harness/pi/keybindings.json` | `$PI_AGENT_DIR/keybindings.json` | Custom keybindings. |
 
 The main agent stays on the user's selected model unless a provider/failure fallback is
