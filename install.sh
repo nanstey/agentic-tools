@@ -299,53 +299,65 @@ omp_install_package() {
   return "$rc"
 }
 
-# Install each uncommented package specification in an OMP plugin manifest using
-# OMP's native installer. The manifest is repository metadata, not runtime config.
 # Pi installs a git source as a whole package and has no syntax for a
 # subdirectory, so a monorepo whose root carries no pi manifest (one extension
-# package per subdirectory) cannot be installed with `git:`. Each manifest in
-# harness/pi/vendor/*.txt names `<url> <commit>`; the repo is cloned at that
-# exact commit under $PI_AGENT_DIR/vendor/<host>/<path> and settings.json lists
-# the subdirectories as relative local packages (`./vendor/<host>/<path>/<dir>`),
-# which Pi resolves from the settings file. Idempotent: a clone already at the
-# pinned commit is left alone; any other state is fetched and reset to it.
+# package per subdirectory) cannot be installed with `git:`. Each line of a
+# harness/pi/vendor/*.txt manifest names `<url> <full-40-char-commit>`; the repo
+# is cloned at that exact commit under $PI_AGENT_DIR/vendor/<host>/<path> and
+# settings.json lists the subdirectories as relative local packages
+# (`./vendor/<host>/<path>/<dir>`), which Pi resolves from the settings file.
+# Idempotent: a clone already at the pinned commit is left alone; any other
+# state is fetched and reset to it. A path that exists but is not a git clone
+# is skipped, never deleted. Returns non-zero if any entry failed, because Pi
+# silently skips a local package path that does not exist.
 install_vendor_git() {
-  local vendor_dir="$1" manifest_dir="$2" manifest url commit dest rel head
+  local vendor_dir="$1" manifest_dir="$2" manifest url commit dest rel head tmp failed=0
   if [ ! -d "$manifest_dir" ]; then echo "  [vendor-git] no source $manifest_dir, skipping"; return; fi
   if ! command -v git >/dev/null 2>&1; then echo "  [vendor-git] git not on PATH, skipping"; return; fi
   for manifest in "$manifest_dir"/*.txt; do
     [ -f "$manifest" ] || continue
-    url=""; commit=""
     while read -r url commit _ || [ -n "$url" ]; do
-      case "$url" in ''|\#*) url=""; continue ;; esac
-      break
-    done <"$manifest"
-    if [ -z "$url" ] || [ -z "$commit" ]; then
-      echo "  [vendor-git] $manifest has no '<url> <commit>' line, skipping" >&2; continue
-    fi
-    rel="${url#*://}"; rel="${rel#git@}"; rel="${rel/://}"; rel="${rel%.git}"; rel="${rel%/}"
-    dest="$vendor_dir/$rel"
-    if [ -d "$dest/.git" ]; then
-      head="$(git -C "$dest" rev-parse HEAD 2>/dev/null || true)"
-      if [ "$head" = "$commit" ]; then echo "  [vendor-git] -> $dest (ok)"; continue; fi
-      if git -C "$dest" fetch -q origin "$commit" 2>/dev/null || git -C "$dest" fetch -q origin; then
-        git -C "$dest" -c advice.detachedHead=false checkout -q --force "$commit" \
-          && echo "  [vendor-git] -> $dest (updated to ${commit:0:12})" \
-          || echo "  [vendor-git] $dest: commit $commit not found" >&2
-      else
-        echo "  [vendor-git] $dest: fetch failed, keeping ${head:0:12}" >&2
+      case "$url" in ''|\#*) continue ;; esac
+      if [ -z "$commit" ] || ! [[ "$commit" =~ ^[0-9a-f]{40}$ ]]; then
+        echo "  [vendor-git] $manifest: '$url' needs a full 40-char commit SHA, skipping" >&2; failed=1; continue
       fi
-      continue
-    fi
-    mkdir -p "$(dirname "$dest")"
-    if git clone -q "$url" "$dest" && git -C "$dest" -c advice.detachedHead=false checkout -q "$commit"; then
-      echo "  [vendor-git] -> $dest (cloned at ${commit:0:12})"
-    else
-      echo "  [vendor-git] $dest: clone of $url at $commit failed" >&2; rm -rf "$dest"
-    fi
+      rel="${url#*://}"; rel="${rel#git@}"; rel="${rel/://}"; rel="${rel%.git}"; rel="${rel%/}"
+      if ! [[ "$rel" =~ ^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)+$ ]] || [[ "/$rel/" == *"/../"* ]]; then
+        echo "  [vendor-git] $manifest: cannot derive a safe path from '$url', skipping" >&2; failed=1; continue
+      fi
+      dest="$vendor_dir/$rel"
+      if [ -d "$dest/.git" ]; then
+        head="$(git -C "$dest" rev-parse HEAD 2>/dev/null || true)"
+        if [ "$head" = "$commit" ]; then echo "  [vendor-git] -> $dest (ok)"; continue; fi
+        if git -C "$dest" fetch -q origin "$commit" 2>/dev/null || git -C "$dest" fetch -q origin; then
+          if git -C "$dest" -c advice.detachedHead=false checkout -q --force "$commit"; then
+            echo "  [vendor-git] -> $dest (updated to ${commit:0:12})"
+          else
+            echo "  [vendor-git] $dest: commit $commit not found" >&2; failed=1
+          fi
+        else
+          echo "  [vendor-git] $dest: fetch failed, keeping ${head:0:12}" >&2; failed=1
+        fi
+        continue
+      fi
+      if [ -e "$dest" ]; then
+        echo "  [vendor-git] $dest exists but is not a git clone, skipping" >&2; failed=1; continue
+      fi
+      mkdir -p "$(dirname "$dest")"
+      tmp="$(mktemp -d "$vendor_dir/.clone.XXXXXX")"
+      if git clone -q -- "$url" "$tmp" && git -C "$tmp" -c advice.detachedHead=false checkout -q "$commit" \
+         && mv "$tmp" "$dest"; then
+        echo "  [vendor-git] -> $dest (cloned at ${commit:0:12})"
+      else
+        echo "  [vendor-git] $dest: clone of $url at $commit failed" >&2; rm -rf "$tmp"; failed=1
+      fi
+    done <"$manifest"
   done
+  return "$failed"
 }
 
+# Install each uncommented package specification in an OMP plugin manifest using
+# OMP's native installer. The manifest is repository metadata, not runtime config.
 # An npm:<name>@<version> spec already present at that exact version is skipped:
 # `omp install` shells out to bun even for a no-op reinstall, and bun need not be
 # on the machine once the plugin is in place. Git specs always reinstall.
@@ -429,7 +441,7 @@ for entry in "${HARNESSES[@]}"; do
     fi
     # vendor-git pairs encode VENDORDIR::MANIFESTDIR (pinned git clones).
     if [ "$type" = "vendor-git" ]; then
-      install_vendor_git "${pattern%%::*}" "${pattern##*::}"; continue
+      install_vendor_git "${pattern%%::*}" "${pattern##*::}" || PATCH_FAILED=1; continue
     fi
     # patch-* types carry the path of the installed package file to patch.
     if [ "$type" = "patch-subagent-widget" ]; then

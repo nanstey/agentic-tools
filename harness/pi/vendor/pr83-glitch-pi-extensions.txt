@@ -1,4 +1,4 @@
-# <git url> <commit>
+# <git url> <full 40-char commit SHA>, one repo per line.
 # Monorepo of Pi extensions (sleek-ui, edit-message, modgate), one package per
 # subdirectory and no manifest at the root. Pi's git: source cannot address a
 # subdirectory, so install.sh clones this at the pinned commit and
