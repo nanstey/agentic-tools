@@ -32,6 +32,10 @@ console.log("ok: pi-diff loads host SDK and registers write, edit, apply_patch")
 for (const name of ["PI_SUBAGENT_ID", "PI_SUBAGENT_ACTIVITY_FILE", "PI_SUBAGENT_SESSION"]) {
   delete process.env[name];
 }
+const widgetPath = path.join(packages, "@maplezzk/pi-interactive-subagents/pi-extension/subagents/subagent-done.ts");
+// Control: without denial, caller_ping must register, so the denial assertion below can fail.
+const control = await loadExtensions([widgetPath], process.cwd(), undefined, createExtensionRuntime());
+assert(control.extensions[0].tools.has("caller_ping"), "control: caller_ping registers when not denied");
 process.env.PI_DENY_TOOLS = "caller_ping,write";
 process.env.PI_SUBAGENT_NAME = "test-child";
 const runtime = createExtensionRuntime();
