@@ -10,3 +10,5 @@ harness/pi/observability/
 harness/pi/npm/node_modules/
 **/*.token
 **/*.secret
+__pycache__/
+*.pyc
