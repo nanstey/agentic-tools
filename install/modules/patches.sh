@@ -87,6 +87,13 @@ install_jev_prompt_guard_patch() {
   apply_package_patch "$1" patch-jev-prompt-guard "$REPO_ROOT/harness/pi/patches/pi-jev-prompt-guard.patch" src/jev.ts
 }
 
+# pi-jev@0.7.0 classifies injected skill and context text as though the user
+# wrote it. Route only user-owned text with conservative escalation and retain
+# the user-selected thinking baseline. Keep this separate from prompt-guard.
+install_jev_conservative_thinking_patch() {
+  apply_package_patch "$1" patch-jev-conservative-thinking "$REPO_ROOT/harness/pi/patches/pi-jev-conservative-thinking.patch" src/thinking.ts
+}
+
 # pi-jev@0.7.0 otherwise enables automatic thinking in self-improvement workers
 # and reflections. Disable only their router at construction so explicit or
 # inherited thinking remains unchanged. Keep this separate from pi-jev.patch.

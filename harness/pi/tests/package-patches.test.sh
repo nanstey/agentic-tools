@@ -73,17 +73,44 @@ else:
         json.dump(config, f)
 PY
 chmod +x "$SB/bin/pi" "$SB/bin/omp"
-patches=(pi-jev.patch pi-jev-prompt-guard.patch pi-jev-self-improve-thinking.patch)
-labels=(patch-jev-client patch-jev-prompt-guard patch-jev-self-improve-thinking)
-# All subsets include pristine, existing-only, prompt-guard-only, the usual
-# existing+prompt-guard state, and fully patched packages.
-for state in {0..7}; do
+patches=(pi-jev.patch pi-jev-prompt-guard.patch pi-jev-conservative-thinking.patch pi-jev-self-improve-thinking.patch)
+labels=(patch-jev-client patch-jev-prompt-guard patch-jev-conservative-thinking patch-jev-self-improve-thinking)
+# All 16 subsets exercise pristine, partial, and fully patched packages.
+# Verify both patch orders against fresh pristine fixtures, independent of the installer matrix.
+for first in prompt-guard conservative-thinking; do
+  pkg="$SB/order-$first"
+  mkdir -p "$pkg"
+  cp -R "$fixture/." "$pkg/"
+  patch -p1 -s -f -d "$pkg" < "$REPO/harness/pi/patches/pi-jev-$first.patch"
+  if [[ "$first" == prompt-guard ]]; then
+    second=conservative-thinking
+  else
+    second=prompt-guard
+  fi
+  patch -p1 -s -f -d "$pkg" < "$REPO/harness/pi/patches/pi-jev-$second.patch"
+  echo "ok: $first then $second patches apply to pristine pi-jev fixture"
+done
+changed_pkg="$SB/changed-conservative-thinking"
+cp -R "$fixture" "$changed_pkg"
+python3 - "$changed_pkg/src/thinking.ts" <<'PY'
+import sys
+path = sys.argv[1]
+source = open(path).read()
+old = "  private running = false;"
+assert old in source
+open(path, "w").write(source.replace(old, "  private running = true;"))
+PY
+if patch -p1 -s -f --dry-run -d "$changed_pkg" < "$REPO/harness/pi/patches/pi-jev-conservative-thinking.patch" >/dev/null 2>&1; then
+  echo 'FAIL: conservative thinking patch accepted changed upstream' >&2; exit 1
+fi
+echo 'ok: conservative thinking patch rejects changed upstream context'
+for state in {0..15}; do
   home="$SB/home-$state"
   pkg="$home/.pi/agent/npm/node_modules/pi-jev"
   mkdir -p "$(dirname "$pkg")" "$home/.omp/agent" "$home/.omp/profiles/work/agent"
   cp -R "$fixture" "$pkg"
   printf 'node-linker=hoisted\n' > "$home/.pi/agent/npm/.npmrc"
-  for i in 0 1 2; do
+  for i in 0 1 2 3; do
     if (( state & (1 << i) )); then
       patch -p1 -s -f -d "$pkg" < "$REPO/harness/pi/patches/${patches[$i]}"
     fi
@@ -99,7 +126,7 @@ for state in {0..7}; do
     ) > "$SB/install-$state-$run.log" 2>&1 || {
       tail -n 30 "$SB/install-$state-$run.log" >&2; exit 1
     }
-    for i in 0 1 2; do
+    for i in 0 1 2 3; do
       expected=ok
       if (( run == 1 && !(state & (1 << i)) )); then expected=patched; fi
       grep -qF "[${labels[$i]}] -> $pkg ($expected)" "$SB/install-$state-$run.log"
@@ -142,6 +169,7 @@ if (
 fi
 grep -qF "[patch-jev-client] -> $pkg (patched)" "$SB/install-failed-thinking.log"
 grep -qF "[patch-jev-prompt-guard] -> $pkg (patched)" "$SB/install-failed-thinking.log"
+grep -qF "[patch-jev-conservative-thinking] -> $pkg (patched)" "$SB/install-failed-thinking.log"
 grep -qF '[patch-jev-self-improve-thinking] upstream code changed' "$SB/install-failed-thinking.log"
 grep -qF '[patch-fallback] ' "$SB/install-failed-thinking.log"
 grep -qF 'install.sh: a required patch failed' "$SB/install-failed-thinking.log" || {
@@ -150,15 +178,15 @@ grep -qF 'install.sh: a required patch failed' "$SB/install-failed-thinking.log"
 }
 echo 'ok: failed self-improve thinking patch aggregates after unrelated patches run'
 
-pkg="$SB/home-7/.pi/agent/npm/node_modules/pi-jev"
-# Evaluate the installed fixture's real flag default, construction, and router.
+pkg="$SB/home-15/.pi/agent/npm/node_modules/pi-jev"
+# Evaluate the installed fixture's real flag default, construction, and conservative router.
 # Stub only model capability helpers; no Pi SDK or third-party modules are needed.
-node - "$pkg" <<'JS'
+node - "$pkg" "$REPO/harness/pi/tests/fixtures/pi-jev-skill-wrapped-prompt.txt" <<'JS'
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const vm = require("node:vm");
 const { stripTypeScriptTypes } = require("node:module");
-const pkg = process.argv[2];
+const [pkg, fixture] = process.argv.slice(2);
 const source = fs.readFileSync(`${pkg}/extensions/index.ts`, "utf8");
 const flagDefault = source.match(/pi\.registerFlag\("jev-thinking", \{[\s\S]*?default: (.+),/)[1];
 const construction = source.match(/const autoThinking = (new AutoThinkingRouter\([\s\S]*?\));/)[1];
@@ -170,6 +198,14 @@ const AutoThinkingRouter = vm.runInNewContext(`${routerSource}\nAutoThinkingRout
   clampThinkingLevel: (_model, level) => level,
   getSupportedThinkingLevels: () => ["off", "minimal", "low", "medium", "high", "xhigh"],
 });
+const model = { api: "anthropic-messages", compat: { forceAdaptiveThinking: true } };
+function routerAt(initial) {
+  let level = initial;
+  let router;
+  const pi = { setThinkingLevel: (next) => { router.observe(next, level); level = next; } };
+  router = new AutoThinkingRouter(pi, true);
+  return { router, context: () => ({ model, thinkingLevel: level }), level: () => level, setExternal: (next) => { const old = level; level = next; router.observe(next, old); } };
+}
 (async () => {
   for (const [name, markers, initial, enabled, override] of [
     ["main", {}, "medium", true],
@@ -179,24 +215,53 @@ const AutoThinkingRouter = vm.runInNewContext(`${routerSource}\nAutoThinkingRout
     ["worker with explicit Jev flag", { PI_SELF_IMPROVE_CHILD: "worker" }, "medium", false, true],
   ]) {
     let level = initial;
-    const context = {
-      process: { env: { PI_JEV_THINKING: "1", ...markers } },
-      envAutoEnabledFor: () => true,
-      Boolean,
-      AutoThinkingRouter,
-    };
-    context.pi = {
-      getFlag: () => override ?? vm.runInNewContext(flagDefault, context),
-      setThinkingLevel: (next) => { level = next; },
-    };
+    const context = { process: { env: { PI_JEV_THINKING: "1", ...markers } }, envAutoEnabledFor: () => true, Boolean, AutoThinkingRouter };
+    context.pi = { getFlag: () => override ?? vm.runInNewContext(flagDefault, context), setThinkingLevel: (next) => { level = next; } };
     const router = vm.runInNewContext(construction, context);
     assert.equal(router.enabled, enabled, name);
-    await router.route("security root cause", {
-      model: { api: "anthropic-messages", compat: { forceAdaptiveThinking: true } },
-      thinkingLevel: initial,
-    });
-    assert.equal(level, enabled ? "xhigh" : initial, name);
-    console.log(`ok: ${name} ${enabled ? "keeps automatic thinking" : "retains selected or inherited thinking"}`);
+    await router.route("security root cause", { model, thinkingLevel: initial });
+    assert.equal(level, enabled ? "high" : initial, name);
   }
+  let state = routerAt("medium");
+  await state.router.route(fs.readFileSync(fixture, "utf8"), state.context());
+  assert.equal(state.level(), "medium", "skill wrapper is ignored");
+  for (const prompt of ["debug why X fails", "security root cause", "diagnose this failure", "investigate this regression", "architecture review"]) {
+    state = routerAt("medium"); await state.router.route(prompt, state.context());
+    assert.equal(state.level(), "high", prompt);
+  }
+  for (const prompt of ["Please don't think harder", "don't ever think harder", "do not use xhigh", "never use ultrathink"]) {
+    state = routerAt("medium"); await state.router.route(prompt, state.context());
+    assert.equal(state.level(), "medium", `${prompt} is not an explicit request`);
+  }
+  for (const prompt of ["ultrathink this", "think hard about this", "use xhigh", "no problem, think hard about this", "Array<string>; ultrathink"]) {
+    state = routerAt("medium"); await state.router.route(prompt, state.context());
+    assert.equal(state.level(), "high", `${prompt} is capped by medium baseline`);
+    state = routerAt("high"); await state.router.route(prompt, state.context());
+    assert.equal(state.level(), "xhigh", `${prompt} reaches xhigh from high baseline`);
+  }
+  state = routerAt("low"); await state.router.route("debug why X fails", state.context());
+  assert.equal(state.level(), "medium", "low baseline caps debug");
+  for (const prompt of ["ok", "list files"]) {
+    state = routerAt("medium"); await state.router.route(prompt, state.context());
+    assert.equal(state.level(), "minimal", prompt);
+  }
+  for (const prompt of ["> ultrathink", "```\nsecurity root cause\n```", "<context>think hard</context>", "2026-10-20 ERROR security root cause", "# Handoff\nultrathink"]) {
+    state = routerAt("medium"); await state.router.route(prompt, state.context());
+    assert.equal(state.level(), "medium", `ignored content: ${prompt}`);
+  }
+  state = routerAt("medium");
+  await state.router.route("debug why X fails", state.context());
+  await state.router.route("ordinary request", state.context());
+  assert.equal(state.level(), "medium", "router changes do not ratchet the baseline");
+  state = routerAt("medium");
+  await state.router.route("debug why X fails", state.context());
+  assert.equal(state.level(), "high", "medium baseline routes debug to high");
+  state.setExternal("high");
+  await state.router.route("ultrathink this", state.context());
+  assert.equal(state.level(), "xhigh", "manual reselection of the applied level becomes the baseline");
+  state.setExternal("low");
+  await state.router.route("debug why X fails", state.context());
+  assert.equal(state.level(), "medium", "external baseline changes are honored");
+  console.log("ok: conservative user-owned thinking policy and baseline caps");
 })().catch((error) => { console.error(error); process.exitCode = 1; });
 JS
