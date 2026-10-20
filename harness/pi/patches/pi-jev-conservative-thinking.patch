@@ -1,0 +1,61 @@
+--- a/src/thinking.ts
++++ b/src/thinking.ts
+@@ -31,0 +32 @@
++  explicit?: boolean;
+@@ -63,0 +65,31 @@
++const NEGATED_XHIGH = /\b(?:don['’]?t|do not|never|no)\b(?:\s+\w+){0,3}\s+(?:use\s+)?(?:xhigh|x-high|think hard(?:er)?|ultrathink)\b/i;
++const EXPLICIT_XHIGH = /\b(?:xhigh|x-high|think hard(er)?|ultrathink)\b/i;
++const HIGH_INTENT = /\b(debug|diagnos|root cause|investigat|trade-?off|architect|security|audit|why\b[^.?!]{0,80}\b(fail|broke|error|crash|slow|wrong|not))\b/i;
++const THINKING_LEVELS: ThinkingLevel[] = ["off", "minimal", "low", "medium", "high", "xhigh", "max"];
++
++function userOwnedText(prompt: string): string {
++  let text = prompt;
++  text = text.replace(/<([A-Za-z][\w:-]*)(?:\s[^>]*)?>[\s\S]*?<\/\1\s*>/gi, "");
++  text = text.replace(/<[A-Za-z][\w:-]*(?:\s[^>]*)?>[\s\S]*$/gi, "");
++  text = text.replace(/```[\s\S]*?```/g, "").replace(/```[\s\S]*$/g, "");
++  text = text.replace(/^\s*#\s*(?:handoff|context|brief)\b[\s\S]*$/im, "");
++  text = text.split("\n").filter((line) => !(
++    /^\s*>/.test(line) || /^(?:\t| {4})/.test(line) ||
++    /^\s*(?:\d{4}-\d{2}-\d{2}[ T]|\[?\d{2}:\d{2}:\d{2}|ERROR\b|WARN\b|Traceback\b|at\s+.+\(.+?:\d+(?::\d+)?\)|\$\s)/i.test(line)
++  )).join("\n");
++  return text.replace(/"[^"\n]*"|“[^”\n]*”|`[^`\n]*`/g, "").trim();
++}
++
++export function classifyConservative(prompt: string | undefined): ThinkingNeed {
++  const text = userOwnedText(prompt ?? "");
++  if (!text) return { level: "medium", confidence: 0.5, reason: "no user-owned text" };
++  if (!NEGATED_XHIGH.test(text) && EXPLICIT_XHIGH.test(text)) return { level: "xhigh", confidence: 0.9, reason: "explicit xhigh request", explicit: true };
++  if (DEESCALATE.test(text) && text.length < SHORT_PROMPT_CHARS) {
++    return { level: "minimal", confidence: 0.75, reason: "short mechanical task" };
++  }
++  if (text.length <= 600 && HIGH_INTENT.test(text)) {
++    return { level: "high", confidence: 0.8, reason: "focused debugging, security, or investigation task" };
++  }
++  return { level: "medium", confidence: 0.55, reason: "general user task" };
++}
++
+@@ -112,0 +145,2 @@
++  private baseline?: ThinkingLevel;
++  private applied?: ThinkingLevel;
+@@ -123,3 +157,9 @@
+-  public async route(prompt: string, ctx: ExtensionContext): Promise<ThinkingRouteResult> {
+-    const need = classifyThinkingNeed(prompt);
+-    const base: ThinkingRouteResult = { changed: false, level: need.level, need, reason: need.reason };
++  public async route(prompt: string | undefined, ctx: ExtensionContext): Promise<ThinkingRouteResult> {
++    if (ctx.thinkingLevel !== this.applied) this.baseline = ctx.thinkingLevel;
++    const need = classifyConservative(prompt);
++    const baseline = this.baseline ?? "medium";
++    const requestedRank = THINKING_LEVELS.indexOf(need.level);
++    const ceilingRank = THINKING_LEVELS.indexOf(need.explicit ? "xhigh" : "high");
++    const baselineRank = THINKING_LEVELS.indexOf(baseline);
++    const desired = THINKING_LEVELS[Math.min(requestedRank, ceilingRank, baselineRank + 1)];
++    const base: ThinkingRouteResult = { changed: false, level: desired, need, reason: need.reason };
+@@ -137 +177 @@
+-      const level = effectiveLevel(model, need.level);
++      const level = effectiveLevel(model, desired);
+@@ -146,0 +187 @@
++        this.applied = level;
+@@ -149,0 +191 @@
++        this.applied = undefined;
+@@ -157,0 +200 @@
++    if (level !== this.applied) this.baseline = level;

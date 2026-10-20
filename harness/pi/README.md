@@ -14,10 +14,12 @@ rather than symlinked because Pi may rewrite them locally.
 | `harness/pi/patches/pi-jev.patch` | applied to `$PI_AGENT_DIR/npm/node_modules/pi-jev/` (`src/jev.ts`, `extensions/index.ts`) | Unified diff that `install.sh` applies to `pi-jev`: rebuilds its SDK client on credential changes, adds `PI_JEV_API_KEY`, and disables auto-thinking in subagents. Not copied. |
 | `harness/pi/patches/pi-fallback-reviewer-provider-lock.patch` | applied to `$PI_AGENT_DIR/npm/node_modules/pi-fallback-models/src/extension.ts` | Restricts reviewer fallback candidates to the baseline model's provider before model activation. Targets upstream 0.1.1. Not copied. |
 | `harness/pi/patches/pi-jev-prompt-guard.patch` | applied to `$PI_AGENT_DIR/npm/node_modules/pi-jev/` (`src/thinking.ts`, `extensions/index.ts`) | Unified diff that `install.sh` applies to `pi-jev`: tolerates a missing `event.prompt` (runs started by `sendCustomMessage`, such as subagent results) instead of throwing `Cannot read properties of undefined (reading 'trim')`. Not copied. |
+| `harness/pi/patches/pi-jev-conservative-thinking.patch` | applied to `$PI_AGENT_DIR/npm/node_modules/pi-jev/src/thinking.ts` | Routes only user-owned text, defaults to medium, and caps automatic thinking to one rank above the user-selected baseline. `xhigh` requires explicit user intent. Not copied. |
 | `harness/pi/patches/pi-jev-self-improve-thinking.patch` | applied to `$PI_AGENT_DIR/npm/node_modules/pi-jev/extensions/index.ts` | Disables auto-thinking for `PI_SELF_IMPROVE_CHILD` workers and reflections at router construction. The modular `patch-*` installer loop applies it with the other Jev patches. Not copied. |
 | `harness/pi/tests/package-patches.test.sh` | Not installed | Offline regression tests for patch idempotency, missing packages, upstream mismatch safety, and twice-run sandboxed installation from pristine and partial Jev patch states. Run with `bash`. |
 | `harness/pi/tests/fallback-provider-lock.test.mjs` | Not installed | Offline fallback tests for reviewer provider locks, exhaustion, settings scopes, switch-bus activation, and unchanged producer behavior. Run with `node`, passing the Pi SDK directory and a patched `pi-fallback-models` package directory. |
-| `harness/pi/tests/fixtures/pi-jev-0.7.0/` | Not installed | Pristine upstream Jev sources for sequential patch and thinking-policy regression tests. |
+| `harness/pi/tests/fixtures/pi-jev-0.7.0/` | Not installed | Pristine upstream Jev sources for all 16 Jev patch-order subsets and thinking-policy regression tests. |
+| `harness/pi/tests/fixtures/pi-jev-skill-wrapped-prompt.txt` | Not installed | Representative `before_agent_start` skill wrapper plus a plain user request for conservative thinking-policy regression tests. |
 | `harness/pi/tests/package-extensions.test.mjs` | Not installed | Offline smoke tests for pi-diff registration and child-widget rendering/tool denial. Run with `node`, passing the installed Pi SDK package directory and Pi agent directory. |
 | `harness/pi/README.md` | Not installed | This document. `install.sh` skips `README.md` when it copies config. |
 | `harness/pi/extensions/*.json` | `$PI_AGENT_DIR/extensions/` | Per-extension config. |
@@ -153,7 +155,11 @@ installs and then exits 1.
   the thinking router for self-improvement workers and reflections, preserving their
   selected or inherited level. Ordinary main sessions keep automatic thinking enabled.
   `pi-jev-prompt-guard.patch` tolerates missing prompts from custom-message runs.
-  Drop each patch once upstream provides its fix.
+  `pi-jev-conservative-thinking.patch` strips injected skills, tagged context, pasted
+  content, and handoffs before classification; ordinary or empty user text stays medium,
+  high is the automatic ceiling unless the user explicitly requests `xhigh`, `think hard`,
+  or `ultrathink`, and every automatic result remains within one rank above the selected
+  baseline. Drop each patch once upstream provides its fix.
 
 Secrets and machine-local state (`auth.json`, `auth-profiles/`, `web-search.json`,
 `trust.json`, sessions, run history) are git-ignored and never travel — re-auth

@@ -1,0 +1,10 @@
+<skill name="idea-to-pr" location="/home/noel/.pi/agent/skills/idea-to-pr/SKILL.md">
+# Idea To PR
+
+The coordinating session owns user communication, scope and approval decisions,
+plan-folder state, work assignment, handoffs, supervision, and reporting.
+
+Build validated pull requests through discovery, planning, implementation, and review.
+For security, architecture, design, and complex migration work, record evidence.
+</skill>
+Please update the installer comment.
