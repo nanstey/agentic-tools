@@ -1,6 +1,6 @@
 {
   "_comment": "Reserved skill/command names that a new skill must not collide with. Seeded from each tool's official docs; refresh with check-skill-name's update mode. 'names' values are bare names (no leading slash), lowercased.",
-  "updated": "2026-06-01",
+  "updated": "2026-10-19",
   "sources": [
     {
       "id": "claude",
@@ -17,33 +17,41 @@
   ],
   "names": {
     "claude": [
-      "agents", "android", "app", "background", "batch", "bg", "branch", "btw",
-      "bug", "checkpoint", "chrome", "claude-api", "clear", "code-review",
-      "compact", "config", "context", "continue", "cost", "debug",
-      "deep-research", "desktop", "diff", "doctor", "effort", "exit",
-      "extra-usage", "feedback", "fewer-permission-prompts", "focus", "fork",
-      "heapdump", "help", "hooks", "ide", "init", "insights",
-      "install-github-app", "install-slack-app", "ios", "keybindings", "login",
-      "logout", "loop", "mcp", "memory", "mobile", "model", "new", "passes",
-      "permissions", "plan", "plugin", "powerup", "privacy-settings",
-      "proactive", "quit", "radio", "rc", "recap", "release-notes",
-      "reload-plugins", "reload-skills", "remote-control", "remote-env",
-      "reset", "resume", "review", "rewind", "routines", "run",
-      "run-skill-generator", "sandbox", "schedule", "scroll-speed",
+      "add-dir", "advisor", "agents", "android", "app", "artifact-capabilities",
+      "artifact-diagramming", "artifacts", "auto-mode-setup", "autocompact",
+      "autofix-pr", "background", "batch", "bg", "branch", "btw", "bug", "cd",
+      "checkpoint", "chrome", "claude-api", "claude-in-chrome", "clear",
+      "code-review", "color", "compact", "config", "context", "continue", "copy",
+      "cost", "dataviz", "debug", "deep-research", "design", "design-login",
+      "design-sync", "desktop", "diff", "doctor", "effort", "exit", "export",
+      "extra-usage", "fast", "feedback", "fewer-permission-prompts", "focus",
+      "fork", "goal", "heapdump", "help", "hooks", "ide", "import", "init",
+      "insights", "install-github-app", "install-slack-app", "ios", "keybindings",
+      "list-agents", "login", "logout", "loop", "mcp", "memory", "mobile",
+      "model", "new", "output-style", "passes", "permissions", "plan", "plugin",
+      "plugin-authoring", "powerup", "pr-comments", "privacy-settings",
+      "proactive", "quit", "radio", "rate-limit-options", "rc", "recap",
+      "release-notes", "reload-plugins", "reload-skills", "remote-control",
+      "remote-env", "rename", "reset", "resume", "review", "rewind", "routines",
+      "run", "run-skill-generator", "sandbox", "schedule", "scroll-speed",
       "security-review", "settings", "setup-bedrock", "setup-vertex", "share",
-      "simplify", "skills", "stats", "status", "statusline", "stickers", "stop",
-      "tasks", "team-onboarding", "teleport", "terminal-setup", "theme", "tp",
-      "ultrareview", "undo", "upgrade", "usage", "usage-credits", "verify",
-      "vim", "web-setup", "workflows"
+      "simplify", "skill-doctor", "skills", "slides", "stats", "status",
+      "statusline", "stickers", "stop", "subtask", "tasks", "team-onboarding",
+      "teleport", "terminal-setup", "theme", "tp", "tui", "ultraplan",
+      "ultrareview", "undo", "update-config", "upgrade", "usage", "usage-credits",
+      "verify", "vim", "voice", "web-setup", "workflow-authoring", "workflows"
     ],
     "codex": [
-      "agent", "apps", "approvals", "approve", "btw", "clean", "clear",
-      "compact", "copy", "debug-config", "diff", "exit", "experimental", "fast",
-      "feedback", "fork", "goal", "hooks", "ide", "init", "keymap", "logout",
-      "mcp", "memories", "mention", "model", "new", "permissions", "personality",
-      "plan", "plugins", "ps", "quit", "raw", "resume", "review",
-      "sandbox-add-read-dir", "side", "skills", "status", "statusline", "stop",
-      "theme", "title", "vim"
+      "agent", "agents", "app", "approvals", "approve", "apps", "archive", "btw",
+      "cd", "clean", "clear", "cloud", "cloud-environment", "compact", "copy",
+      "cwd", "daemon", "debug-config", "delete", "diff", "exit", "experimental",
+      "export", "fast", "feedback", "fork", "goal", "hooks", "ide", "ide-context",
+      "import", "init", "keymap", "local", "logout", "mcp", "memories", "mention",
+      "model", "new", "permissions", "personality", "pet", "pets", "plan",
+      "plugins", "project", "ps", "pwd", "quit", "raw", "reasoning", "recap",
+      "rename", "resume", "review", "sandbox-add-read-dir",
+      "setup-default-sandbox", "side", "skills", "status", "statusline", "stop",
+      "subagents", "theme", "title", "tui", "usage", "vim", "warnings", "worktree"
     ]
   }
 }
