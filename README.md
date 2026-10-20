@@ -150,6 +150,7 @@ Focused planning skills below are optional and independently selectable; `propos
 
 | Skill | Description |
 | --- | --- |
+| [`bugs`](skills/code-quality/bugs/SKILL.md) | Hunts functional defects in code, a diff, or a repository by tracing real execution paths, challenging each suspect, and reporting only bugs with a concrete trigger, evidence, and suggested fix. Use when asked to find bugs, hunt defects, audit logic or runtime correctness, or check changed code for errors that tests may miss. |
 | [`risk-review`](skills/code-quality/risk-review/SKILL.md) | Produces an evidence-led, read-only change review with impact paths, required checks, and verified findings. Use when reviewing a change or supplying a shared quality or security review packet. |
 | [`verification`](skills/code-quality/verification/SKILL.md) | Verifies the basic claims of a changeset by seeking executed evidence that the change achieved its stated goal. Use when a change, branch, or diff claims an outcome and that claim needs proof before it is trusted. |
 | [`refactor`](skills/code-quality/refactor/SKILL.md) | Reviews and fixes code smells, duplication (DRY), responsibilities (SRP), design principles, structural maintainability, over-engineering, and technique selection. Use when exhaustive review, simplification, extraction, deep review, or refactor planning should lead to behavior-preserving fixes, or diagnosis only with --report. |
