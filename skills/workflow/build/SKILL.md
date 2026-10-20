@@ -26,26 +26,14 @@ Use the active environment's delegation mechanisms when a separate execution con
 
 ## Workflow
 
-1. Classify input, restate objective, and define behavioural success criteria up front.
+1. Restate the objective and behavioural success criteria. For underspecified requests, run [scrutiny](../../code-quality/scrutiny/SKILL.md) Mode A's pre-build contract first. Only user-confirmed items become obligations; retain assumptions and unresolved decisions as evidence.
 2. Assess branch fitness: if the current branch is unsuitable or the tree is dirty, run `/git branch` or `/git worktree` before editing.
 3. Confirm validation tooling is available and runnable; acquire or flag missing tooling before relying on it.
 4. Decompose into individually verifiable phases.
 5. For each phase: implement focused edits, have a distinct validator step execute checks/observe success criteria, and update speclist checkboxes only after validation. Run `/git commit` only when shipping was requested.
-6. When phases pass, perform the shared review handoff below. If shipping was requested, run `/pr` with its evidence/packet and inherited round state; otherwise stop with local results, no commit/push/PR. In a plan folder, record the actual slice `PR`/`Status` and top-level `Status`, distinguishing validated local work, draft publication, and review readiness.
+6. Build owns `limit: 3`, initial round `1` unless inherited, under [`gates.md`](../../dev/pr/references/gates.md). After phases pass, run [`/review-code fix`](../review-code/SKILL.md) on `base..HEAD` plus any uncommitted changes. For local-only builds, review base + working-tree content identity. Pass criteria, scrutiny evidence, validator evidence, prior packet, and `round_state`. Use `plan` only if the caller forbids edits. After a fix batch, call again with returned state for delta review or report pending delta review. If shipping was requested and no gate blocks, pass packet/state to `/pr`; otherwise stop locally without commit/push/PR. Prepublication packets are diagnostic; `/pr` reuses only exact base/head/policy/scope/coverage/evidence matches. Never reset budgets. Record slice/top-level status: local validation, draft publication, and readiness.
 7. If a design changes during implementation, update the affected `## Design` doc or spec and append a dated entry to the README `## Decision log`; keep the plan folder consistent with what shipped.
 8. Summarize changes, validation, assumptions, and risks.
-
-## Shared Review Handoff
-
-Load [`risk-review`](../../code-quality/risk-review/SKILL.md) for read-only source review and the PR caller contract in [`gates.md`](../../dev/pr/references/gates.md). Supply acceptance criteria, observed outcomes with source/command citations, validator results and limitations, exact source base/head/scope, trusted policy, known impact paths/containment, and any prior packet/findings. Keep category separate from severity; unresolved verified requests block regardless of fix size. Nits and baseline-proven unchanged existing issues are nonblocking; uncertain baseline is a coverage gap.
-
-Source reviewers read source without running tests or editing. Separate validators execute required checks; authorized implementers fix verified requests. Scale review depth through impact evidence, consequences, containment, uncertainty, and selected checks, never change size. Preserve separate contexts when available; model diversity is optional, unknown provenance never blocks, and main-model routing is unchanged. Disclose self-review/context limitations.
-
-The build/orchestration caller owns one three-round review/fix budget including initial round 1, retained IDs/root causes/resolutions, and evidence snapshots. Both clean quality/security visits can share round 1. Every changed fix head consumes the next round; reserve it before edits and never create an unreviewable fourth head. Revalidate outcomes/required CI and review fix delta/affected paths; security fixes repeat affected quality/security too. Do not reset the budget when publishing or entering `/pr`/monitor/comment fixes. No-progress/unfixable requests, reviewer/check failures, exhausted rounds, or material evidence gaps stop blocked with a narrow fix/split/revert or owner decision as next action. Optional nits require separate explicit selection/authorization and never drive rounds.
-
-Reuse packets only for exact matching authoritative PR base/head/policy/scope/check coverage and evidence snapshot. A prepublication/local-source packet is diagnostic until that correspondence is verified; changed heads require affected-path/check reassessment with applicable findings retained, and broad base/policy changes require full reassessment without a reset. Never request a duplicate full review of a matching packet.
-
-Pass current outcome/check evidence and packet to `/pr`: outcome → expected independent required CI → quality → security → automated-review-dependent required CI → human readiness. A source-only clean result is not overall readiness. Every PR needs security triage and relevant deeper checks; critical new risk escalates at once. Green CI/PR prose is not outcome evidence, and zero observed checks is not success: discover actual expected policy/jobs, use supported draft/manual triggers or explicitly authorized configuration changes for ready-only jobs, otherwise blocked. Publication/human approval stay with orchestration; readiness never grants approval/merge authority or bypasses later jobs/queue/release policy.
 
 ## Safety Rules
 

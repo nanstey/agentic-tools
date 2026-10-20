@@ -177,10 +177,9 @@ class SourceContractStaticTests(unittest.TestCase):
         self.assert_contains(
             review,
             "Default is report-only: no source edits, tests, commits, pushes, comments, thread changes, or approval.",
-            "Label delegated reviewer tasks `SOURCE REVIEW MODE`",
+            "Delegate one PR's code review to [`review-code`]",
             "`comment` authorizes source-verified same-head comments on another author's PR, never edits or approval.",
             "nits: they need separate explicit selection and authorization",
-            "security fixes repeat affected quality and security.",
             "Never nest/reset the loop or call `/pr review` recursively.",
         )
 

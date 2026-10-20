@@ -157,7 +157,7 @@ class RefactorSurfaceTests(unittest.TestCase):
         callers = (
             ROOT / "skills/code-quality/risk-review/SKILL.md",
             ROOT / "skills/code-quality/risk-review/references/checks.md",
-            ROOT / "skills/workflow/idea-to-pr/SKILL.md",
+            ROOT / "skills/workflow/review-code/SKILL.md",
         )
         for caller in callers:
             with self.subTest(caller=caller):

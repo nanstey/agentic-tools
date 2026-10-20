@@ -24,7 +24,7 @@ With no action, load [`references/lifecycle.md`](references/lifecycle.md) and ru
 | `/pr ci [target]` | [`ci.md`](references/ci.md) |
 | `/pr create [target]` | [`create.md`](references/create.md) |
 | `/pr comments [target]` | [`comments.md`](references/comments.md) |
-| `/pr review [target] [fix\|comment]` | [`review.md`](references/review.md) |
+| `/pr review [target] [fix\|comment]` | [`review.md`](references/review.md) → [`review-code`](../../workflow/review-code/SKILL.md) |
 | `/pr verification [target] [report\|fix\|comment]` | [`verification.md`](references/verification.md) |
 | `/pr ready [target]` | [`ready.md`](references/ready.md) |
 | `/pr description [target]` | [`description.md`](references/description.md) |
@@ -42,7 +42,9 @@ Load every referenced workflow before acting and preserve its stop gates, safety
 
 Never bypass a referenced workflow's verification, approval, or stop gate. Do not silently substitute a direct implementation for a dispatched workflow.
 
-Lifecycle, review, CI/comment fixes, monitor, ready, and merge share [`references/gates.md`](references/gates.md): authoritative outcome/check/review evidence, finding categories, and one caller-owned three-round review/fix budget including initial review. Carry that state across dispatches; never reset it or start nested review loops. `/pr verification` is a sibling of review and defaults to report-only (it never starts a review loop). `/pr review` defaults to report-only (no edits, tests, commits, pushes, comments, or approval); source-review cleanliness alone grants no readiness permission.
+Lifecycle, review, CI/comment fixes, monitor, ready, and merge share [`references/gates.md`](references/gates.md): authoritative outcome/check/review evidence, finding categories, and one caller-owned three-round review/fix budget including initial review. Carry that state across dispatches; never reset it or start nested review loops. `/pr review` delegates code review to `review-code` and retains PR actions and round-state ownership. It defaults to report-only (no edits, tests, commits, pushes, comments, or approval); source-review cleanliness alone grants no readiness permission.
+
+`/pr verification` is a sibling that defaults to report and audits the description/screenshots without starting review loops. Reuse a caller-supplied `review-code` verification result matching base/head/claim set/environment; otherwise run base verification. Never rerun covered claim checks.
 
 ## Non-Interactive Policy
 
