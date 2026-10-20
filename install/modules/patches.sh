@@ -87,6 +87,13 @@ install_jev_prompt_guard_patch() {
   apply_package_patch "$1" patch-jev-prompt-guard "$REPO_ROOT/harness/pi/patches/pi-jev-prompt-guard.patch" src/jev.ts
 }
 
+# pi-jev@0.7.0 otherwise enables automatic thinking in self-improvement workers
+# and reflections. Disable only their router at construction so explicit or
+# inherited thinking remains unchanged. Keep this separate from pi-jev.patch.
+install_jev_self_improve_thinking_patch() {
+  apply_package_patch "$1" patch-jev-self-improve-thinking "$REPO_ROOT/harness/pi/patches/pi-jev-self-improve-thinking.patch" extensions/index.ts
+}
+
 apply_package_patch() {
   local pkg="$1" label="$2" patch_file="$3" entry="$4"
   if [ ! -f "$pkg/$entry" ]; then

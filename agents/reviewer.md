@@ -1,7 +1,6 @@
 ---
 name: reviewer
 description: Versatile review specialist for code diffs, plans, proposed solutions, codebase health, and PR/issue validation
-model: anthropic/claude-opus-5-5
 tools: read, grep, find, ls, bash, edit, write, codemode
 system-prompt: append
 auto-exit: false

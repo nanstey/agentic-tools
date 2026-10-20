@@ -1,0 +1,14 @@
+--- a/extensions/index.ts
++++ b/extensions/index.ts
+@@ -73,7 +73,10 @@
+     Boolean(pi.getFlag("jev-auto"))
+   );
+   const autoModel = new AutoModelRouter(pi, Boolean(pi.getFlag("jev-auto-model")), jevClient);
+-  const autoThinking = new AutoThinkingRouter(pi, Boolean(pi.getFlag("jev-thinking")));
++  const autoThinking = new AutoThinkingRouter(
++    pi,
++    Boolean(pi.getFlag("jev-thinking")) && !process.env.PI_SELF_IMPROVE_CHILD
++  );
+   const compactor = new JevCompactor(jevClient, Boolean(pi.getFlag("jev-compact")));
+   const agents = new AgentOrchestrator(pi, jevClient, Boolean(pi.getFlag("jev-agents")));
+   agents.installCompletionNotice();

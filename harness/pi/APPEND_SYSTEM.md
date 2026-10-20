@@ -100,41 +100,66 @@ from Jev. Run one `codemode` call: `models.getAvailableOfType("classifier")`, th
 task text in `task`; in `context` put `role`, files touched, producer family, ambiguity,
 stakes, and blast radius. Ask two `choice` questions:
 
-- `tier`: `quick` (small, mechanical, low stakes), `standard` (a few files or steps, clear
-  requirements), `high` (many files, ambiguity, subtle reasoning, sizable blast radius),
-  `premium` (large, irreversible, or security-critical).
+- `tier`: `quick` (one bounded, mechanical task), `standard` (ordinary work),
+  `high` (demonstrated cross-boundary complexity or high blast radius),
+  `premium` (explicit user request, or an indivisible irreversible or security-critical task).
 - `thinking`: `minimal`, `low`, `medium`, `high`, `xhigh`.
 
-Use the returned `choice` for each. If its `confidence` is below 0.6, round up one step.
-Use the tier, not any model Jev names. If Jev is unavailable, judge both from files
-touched, steps, ambiguity, and blast radius, and round up when unsure.
+Use the tier, not any model Jev names. Use `quick` only for one bounded, mechanical
+task. Otherwise start at `standard`. Use `high` only for demonstrated cross-boundary
+complexity or high blast radius. Use `premium` only after an explicit user request,
+or for an indivisible irreversible or security-critical task. Record the reason.
 
-Pass the primary as `model` to `subagent`, with the thinking level as a suffix: `model: "openai-codex/gpt-5.6-terra:high"`. Agent profiles set no `thinking:`, so this suffix is the only source. The fallback is on the opposite provider, because
-quota is per provider: a same-provider sibling usually shares the exhausted quota.
+Use low thinking for quick tasks, medium for standard tasks, and high for high tasks.
+Apply these evidence bounds to every classifier result before dispatch. Cap the tier at
+high and thinking at high unless direct evidence meets the respective exception rule.
+Do not use `xhigh` unless the user explicitly requests it, or an indivisible irreversible
+or security-critical task requires it. Record the reason.
+
+If confidence is below 0.6, retain the returned tier and thinking after applying the
+evidence bounds. Increase one level only when direct task evidence shows high blast
+radius. Never increase above high solely because confidence is low or Jev is unavailable.
+If Jev fails, choose standard and medium unless direct task evidence meets the high rule.
+Use premium only when its exception rule applies.
+
+Start with the least costly valid selection. Retry once at a stronger selection only
+after a failed, incomplete, or demonstrably low-quality result. Apply the same evidence
+bounds to the retry.
+
+Role profiles contain no `model:` or `thinking:` default. Every parent dispatch chooses
+a task-selected model from this table and passes an explicit `model:thinking` value, for
+example `model: "openai-codex/gpt-5.6-terra:medium"`. Omitting it is a dispatch-policy
+failure. Pi then uses its configured default model and thinking, which is not a task
+selection. Producer fallbacks use the opposite provider because quota is per provider.
+Reviewer fallbacks stay in the independent family and differ from the primary.
+A provider-failure fallback need not be stronger than its primary.
 
 | Role | quick | standard | high | premium |
 | --- | --- | --- | --- | --- |
 | `scout` | haiku-5-5 → gpt-6-luna | sonnet-5-5 → gpt-5.6-terra | sonnet-5-5 → gpt-6.1-sol | sonnet-5-5 → gpt-6.1-sol |
 | `researcher` | haiku-5-5 → gpt-6-luna | sonnet-5-5 → gpt-5.6-terra | sonnet-5-5 → gpt-6.1-sol | opus-5-5 → gpt-6.1-sol |
-| `planner` | sonnet-5-5 → gpt-5.6-terra | sonnet-5-5 → gpt-5.6-terra | fable-5-1 → gpt-6.1-sol | fable-5-1 → gpt-6.1-sol |
-| `worker` | gpt-6-luna → haiku-5-5 | gpt-5.6-terra → sonnet-5-5 | gpt-6.1-sol → sonnet-5-5 | gpt-6.1-sol → opus-5-5 |
-| `reviewer` of OpenAI work | haiku-5-5 → sonnet-5-5 | sonnet-5-5 → opus-5-5 | opus-5-5 → sonnet-5-5 | opus-5-5 → fable-5-1 |
-| `reviewer` of Anthropic work | gpt-6-luna → gpt-5.6-terra | gpt-5.6-terra → gpt-6.1-sol | gpt-6.1-sol → gpt-5.6-terra | gpt-6.1-sol → gpt-6-astra |
+| `planner` | sonnet-5-5 → gpt-5.6-terra | sonnet-5-5 → gpt-5.6-terra | sonnet-5-5 → gpt-6.1-sol | fable-5-1 → gpt-6.1-sol |
+| `worker` | gpt-6-luna → haiku-5-5 | gpt-5.6-terra → sonnet-5-5 | gpt-5.6-terra → sonnet-5-5 | gpt-6.1-sol → opus-5-5 |
+| `reviewer` of OpenAI work | haiku-5-5 → sonnet-5-5 | sonnet-5-5 → opus-5-5 | sonnet-5-5 → fable-5-1 | opus-5-5 → fable-5-1 |
+| `reviewer` of Anthropic work | gpt-6-luna → gpt-5.6-terra | gpt-5.6-terra → gpt-6.1-sol | gpt-5.6-terra → gpt-6-luna | gpt-6.1-sol → gpt-6-astra |
 
 Names starting `haiku`, `sonnet`, `opus`, `fable` are `anthropic/claude-*`; names starting `gpt` are
 `openai-codex/*`. Each cell is `primary → fallback`.
 
 Fallback rules:
 
-- On a quota, rate-limit, or auth failure (read the `Session:` log for `stopReason`/`errorMessage`),
-  respawn once on the role's fallback. Producer retries must not use the exhausted provider in the same turn.
-- Producer roles (`scout`, `researcher`, `planner`, `worker`) may cross providers. Record the
-  family that actually produced the output; the verification rules below use it, not the
+- Read the `Session:` log for `stopReason`/`errorMessage` after a quota, rate-limit,
+  auth, or provider failure.
+- Producer exception: `scout`, `researcher`, `planner`, and `worker` may cross providers.
+  Respawn once on the fallback. Do not retry the exhausted provider in the same turn.
+  Record the output's actual producer family. Verification uses it, not the
   role's usual family.
-- `reviewer` never crosses families, because that breaks independence. The patched
-  `pi-fallback-models` restricts `PI_SUBAGENT_AGENT=reviewer` fallback candidates to the baseline
-  model's provider before switching. If no usable candidate remains, it leaves the error visible.
-  If that family is exhausted, wait or report to the user. Do not review on the producer's family.
+- Reviewer exception: `reviewer` never crosses families, including on a stronger retry.
+  Its fallback stays in the one independent family. Try that distinct fallback once only
+  if the failure is model-specific. The patched `pi-fallback-models` restricts
+  `PI_SUBAGENT_AGENT=reviewer` fallback candidates to the baseline model's provider before switching.
+  If no usable candidate remains, it leaves the error visible. If the family is exhausted,
+  wait or report to the user. Never review on the producer's family.
 - `pi-fallback-models` may still move producer roles across providers. After any run,
   confirm the models actually used with the `jq` check below before relying on it.
 - Main-thread model routing is disabled (`pi-jev` auto-model off). The model you pass runs unless provider/failure fallback intervenes.
@@ -152,14 +177,15 @@ the user the work is done.
 Only the parent arranges verification. A subagent never spawns a reviewer: it returns its
 result and the parent routes it.
 
-- `worker` (OpenAI) output -> `reviewer` (Anthropic) with its default model.
-- Anthropic-authored artifacts (`planner` or `researcher` output, or work
-  you wrote yourself while running on an Anthropic model) -> spawn `reviewer` with
-  `model: "openai-codex/gpt-6.1-sol"` so the check is not self-review.
-- If you yourself are running on an OpenAI model, work you wrote goes to the default (Anthropic) `reviewer`.
+- Select the reviewer row for the actual producer family at the same task tier.
+  Pass the reviewer's model with an explicit thinking suffix under the evidence bounds above.
+- OpenAI-authored work, including your own work on an OpenAI model, uses the
+  `reviewer` of OpenAI work row (Anthropic).
+- Anthropic-authored work, including `planner`, `researcher`, or your own work on an
+  Anthropic model, uses the `reviewer` of Anthropic work row (OpenAI).
 - Never have the producer review its own output, and never send the same family both
   halves of a produce/verify pair.
-- A model fallback can move a subagent off its profile's model, and it restores the
+- A model fallback can move a subagent off its dispatched model, and it restores the
   original model at shutdown, so neither the profile nor the last `model_change` entry
   shows who wrote the output. The reviewer provider lock should block cross-provider fallbacks.
   Keep this check as a backstop. Before accepting a review as independent, list the models

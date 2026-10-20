@@ -1,7 +1,6 @@
 ---
 name: scout
 description: Fast codebase recon that returns compressed context for handoff
-model: anthropic/claude-haiku-5-5
 tools: read, grep, find, ls, bash, write, codemode
 system-prompt: append
 auto-exit: false

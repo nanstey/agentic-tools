@@ -37,7 +37,11 @@ Diff is always `git diff <baseRefOid>..<headRefOid>` (see `info.md` "Authoritati
 
 ### 3. Spawn 3 reviewers in parallel
 
-Spawn all three in a single `subagent` batch, each `agent: "reviewer"` with its perspective in the task (no per-perspective profiles exist), and read-only tools (no edit/write, no `gh` mutations, no git state changes). Each receives the shared context and its template below. Wait for all three; a failed or empty reviewer is reported as a gap, not retried more than once.
+Before the batch, classify the reviewer task with one `codemode` call. Use `models.getAvailableOfType("classifier")`, then call `models.classify()` with the task, `role: reviewer`, touched files, producer family, ambiguity, stakes, and blast radius. Ask the required `tier` and `thinking` choice questions from `harness/pi/APPEND_SYSTEM.md`. Apply its evidence bounds, record the tier and reason, and use the same tier for all three perspectives.
+
+Find the PR producer family from its successful assistant-message session log when an agent produced the PR. Select the reviewer table row for that actual family. Each reviewer must use the other family and an explicit `model:thinking` value from that row. For example, standard OpenAI-produced work uses `anthropic/claude-sonnet-5-5:medium`. Standard Anthropic-produced work uses `openai-codex/gpt-5.6-terra:medium`. Never omit the model suffix or rely on Pi defaults. Confirm the models in successful-message logs after the batch. If the PR producer family is unknown or mixed, record a verification gap. Do not claim cross-family verification.
+
+Spawn all three in a single `subagent` batch, each `agent: "reviewer"` with its perspective in the task (no per-perspective profiles exist), the selected explicit `model:thinking`, and read-only tools (no edit/write, no `gh` mutations, no git state changes). Each receives the shared context and its template below. Wait for all three; a failed or empty reviewer is reported as a gap, not retried more than once.
 
 | Perspective | Focus |
 | --- | --- |
@@ -47,7 +51,7 @@ Spawn all three in a single `subagent` batch, each `agent: "reviewer"` with its 
 
 ### 4. Spawn the synthesizer
 
-After all three return, spawn one `subagent` (read-only) with the three raw finding sets and the synthesizer template. It returns the final report to the orchestrator. The orchestrator verifies a sample of `high`/`blocker` findings against the diff (file:line exists in `<baseRefOid>..<headRefOid>`, evidence matches) and drops or downgrades any it cannot confirm.
+After all three return, classify the synthesizer task under the same model-tier rules. Spawn one read-only `subagent` with the three raw finding sets, the synthesizer template, and an explicit `model:thinking` from the same reviewer-table row as the three reviewers. That row uses the family opposite the PR producer. It returns the final report to the orchestrator. Confirm its successful-message model family before treating it as independent. The orchestrator verifies a sample of `high`/`blocker` findings against the diff (file:line exists in `<baseRefOid>..<headRefOid>`, evidence matches) and drops or downgrades any it cannot confirm.
 
 ### 5. Present
 

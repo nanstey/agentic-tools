@@ -8,27 +8,29 @@ rather than symlinked because Pi may rewrite them locally.
 | --- | --- | --- |
 | `harness/pi/settings.json` | `$PI_AGENT_DIR/settings.json` | Pi defaults (including codemode) and extension package list, including `npm:pi-intercom@0.12.0`, `npm:pi-fallback-models@0.1.1`, `npm:pi-jev@0.7.0`, and `npm:@lazco/pi-rich-model-selector@0.7.0` (replaces `/models` with a picker that shows context size, price, thinking levels, and key state; star models with `Ctrl+R` inside the picker, rebind with `/models bind star <key>`); `-jev_find_tools` removes the redundant tool router. |
 | `harness/pi/pi-jev-auto.conf` | `~/.config/environment.d/91-pi-jev-auto.conf` | Enables Jev auto routing/skills, thinking, and tool guard; disables auto-model (`PI_JEV_AUTO_MODEL=0`), agent dispatch (`PI_JEV_AGENTS=0`), and compaction (`PI_JEV_COMPACT=0`, pi-jev 0.7.0 drops context) for Linux/systemd user sessions. `install.sh` copies this config when Pi is installed. The variables are user-wide, so OMP's pinned `pi-jev` also reads `PI_JEV_AUTO=1` and routes its prompts through Jev. |
-| `harness/pi/APPEND_SYSTEM.md` | `$PI_AGENT_DIR/APPEND_SYSTEM.md` | Appends instructions to Pi's system prompt. |
+| `harness/pi/APPEND_SYSTEM.md` | `$PI_AGENT_DIR/APPEND_SYSTEM.md` | Appends conservative subagent tier/thinking bounds, cross-family verification, and main-agent model preservation rules to Pi's system prompt. |
 | `harness/pi/patches/pi-diff-sdk-imports.patch` | applied to `$PI_AGENT_DIR/npm/node_modules/@heyhuynhgiabuu/pi-diff/dist/index.js` | Uses static SDK/TUI imports so Pi's extension loader supplies the host modules. Hoisting alone cannot resolve native dynamic imports of uninstalled host peers. Not copied. |
 | `harness/pi/patches/pi-subagent-widget-3.16.patch` | applied to `$PI_AGENT_DIR/npm/node_modules/@maplezzk/pi-interactive-subagents/pi-extension/subagents/subagent-done.ts` | Hides the denied-tools list in both child-widget views while preserving the separate tool-denial Set. Targets upstream 3.16.4. Not copied. |
 | `harness/pi/patches/pi-jev.patch` | applied to `$PI_AGENT_DIR/npm/node_modules/pi-jev/` (`src/jev.ts`, `extensions/index.ts`) | Unified diff that `install.sh` applies to `pi-jev`: rebuilds its SDK client on credential changes, adds `PI_JEV_API_KEY`, and disables auto-thinking in subagents. Not copied. |
 | `harness/pi/patches/pi-fallback-reviewer-provider-lock.patch` | applied to `$PI_AGENT_DIR/npm/node_modules/pi-fallback-models/src/extension.ts` | Restricts reviewer fallback candidates to the baseline model's provider before model activation. Targets upstream 0.1.1. Not copied. |
 | `harness/pi/patches/pi-jev-prompt-guard.patch` | applied to `$PI_AGENT_DIR/npm/node_modules/pi-jev/` (`src/thinking.ts`, `extensions/index.ts`) | Unified diff that `install.sh` applies to `pi-jev`: tolerates a missing `event.prompt` (runs started by `sendCustomMessage`, such as subagent results) instead of throwing `Cannot read properties of undefined (reading 'trim')`. Not copied. |
-| `harness/pi/tests/package-patches.test.sh` | Not installed | Offline regression tests for patch idempotency, missing packages, and safe failure on upstream changes. Run with `bash`. |
+| `harness/pi/patches/pi-jev-self-improve-thinking.patch` | applied to `$PI_AGENT_DIR/npm/node_modules/pi-jev/extensions/index.ts` | Disables auto-thinking for `PI_SELF_IMPROVE_CHILD` workers and reflections at router construction. The modular `patch-*` installer loop applies it with the other Jev patches. Not copied. |
+| `harness/pi/tests/package-patches.test.sh` | Not installed | Offline regression tests for patch idempotency, missing packages, upstream mismatch safety, and twice-run sandboxed installation from pristine and partial Jev patch states. Run with `bash`. |
 | `harness/pi/tests/fallback-provider-lock.test.mjs` | Not installed | Offline fallback tests for reviewer provider locks, exhaustion, settings scopes, switch-bus activation, and unchanged producer behavior. Run with `node`, passing the Pi SDK directory and a patched `pi-fallback-models` package directory. |
+| `harness/pi/tests/fixtures/pi-jev-0.7.0/` | Not installed | Pristine upstream Jev sources for sequential patch and thinking-policy regression tests. |
 | `harness/pi/tests/package-extensions.test.mjs` | Not installed | Offline smoke tests for pi-diff registration and child-widget rendering/tool denial. Run with `node`, passing the installed Pi SDK package directory and Pi agent directory. |
 | `harness/pi/README.md` | Not installed | This document. `install.sh` skips `README.md` when it copies config. |
 | `harness/pi/extensions/*.json` | `$PI_AGENT_DIR/extensions/` | Per-extension config. |
 | `harness/pi/extensions/profile-secrets.ts` | `$PI_AGENT_DIR/extensions/profile-secrets.ts` | Exports the `NAME=value` secrets in `secrets/<profile>.env` into the environment while that `@nanstey/pi-auth-profiles` profile is active; unset names revert to the inherited value. |
 | `harness/pi/bin/pi-secret` | `$PI_AGENT_DIR/bin/pi-secret` | CLI to set, unset, and list per-profile secrets (`pi-secret -p work set TYPESAFE_API_KEY`). Prompts without echo; files are mode 600. `install.sh` also symlinks it to `~/.local/bin/pi-secret` so ordinary shells find it. Run `set` from a normal terminal, not inside Pi. |
-| `harness/pi/self-improve.json` | `$PI_AGENT_DIR/self-improve.json` | Policy defaults for the [self-improvement loop](#self-improvement-loop): reflection and worker caps, worker and reflect models, and the default reviewer model for each worker family. Environment variables override it. |
+| `harness/pi/self-improve.json` | `$PI_AGENT_DIR/self-improve.json` | Policy defaults for the [self-improvement loop](#self-improvement-loop): reflection and worker caps, Terra/medium workers, and Sonnet/medium or Terra/medium independent reviewers. Reflection model and thinking inherit Pi defaults. Environment variables override it. |
 | `harness/pi/extensions/self-improve.ts` | `$PI_AGENT_DIR/extensions/self-improve.ts` | Starts the [self-improvement loop](#self-improvement-loop): registers the `report_harness_issue` tool (agents call it on harness-caused procedural problems) and the `/self-improve` command (`status`, `now [note]`, `on`, `off`). Queued reports spawn a background reflection when the run settles. Not loaded in loop-started sessions (`PI_SELF_IMPROVE_CHILD`). |
 | `harness/pi/bin/pi-improve` | `$PI_AGENT_DIR/bin/pi-improve` | Loop plumbing: `reflect` (detached headless `/reflect` session), `start` (worktree plus one `/improve` session, in an Orca terminal when Orca is reachable), `digest` (compact session-log view), `status`, `repo`. Also symlinked to `~/.local/bin/pi-improve`. Caps and the kill switch live here. |
 | `harness/pi/prompts/reflect.md` | `$PI_AGENT_DIR/prompts/reflect.md` | `/reflect [report.json \| session.jsonl]`: runs the [`reflect`](../../skills/agent/reflect/SKILL.md) skill unattended on a session log, limited to harness-caused problems. Dedupes against open PRs and branches, then starts one `pi-improve start` run per real improvement (max 3) in place of the skill's approval step. Never edits files itself. |
 | `harness/pi/prompts/improve.md` | `$PI_AGENT_DIR/prompts/improve.md` | `/improve <brief.md>`: end-to-end worker for one improvement in its own worktree: scope, implement, test, cross-family review, verify, and open the PR for human review. |
 | `harness/pi/extensions/jev-router-openrouter-fallback.ts` | `$PI_AGENT_DIR/extensions/jev-router-openrouter-fallback.ts` | When no `TYPESAFE_API_KEY` is set but the active profile has OpenRouter auth, sets `PI_JEV_API_KEY` and `PI_JEV_BASE_URL` so pi-jev's tools bill to OpenRouter's System One endpoint. Pi's native classifier never sees the OpenRouter key. A real TypeSafe key or an external `PI_JEV_*` value always wins. |
 | `harness/pi/extensions/collapse-tools.ts` | `$PI_AGENT_DIR/extensions/collapse-tools.ts` | Collapses tool output after all `session_start` handlers run, overriding `pi-diff`'s default of expanding it. |
-| `harness/pi/extensions/pi-fallback.json` | `$PI_AGENT_DIR/extensions/pi-fallback.json` | Global model fallback chain for `pi-fallback-models`: `openai-codex/gpt-6.1-sol`, then `anthropic/claude-sonnet-5-5`, tried when the current model hits a quota, rate-limit, or provider error. |
+| `harness/pi/extensions/pi-fallback.json` | `$PI_AGENT_DIR/extensions/pi-fallback.json` | Global model fallback chain for `pi-fallback-models`: `openai-codex/gpt-5.6-terra`, then `anthropic/claude-sonnet-5-5`, tried when the current model hits a quota, rate-limit, or provider error. |
 | `harness/pi/extensions/pi-interactive-subagents/config.json` | `$PI_AGENT_DIR/extensions/pi-interactive-subagents/config.json` | Interactive-subagents config: mux settings plus `allowSubagentSpawning` and `subagentExtensions`. Package 3.16.4 starts each child with `--no-extensions` plus only the listed paths, so the list must include the Anthropic auth extensions (`pi-anthropic-auth`, `pi-auth-profiles`). Without them Anthropic subagents fail with `400 You're out of extra usage`, which looks like a quota error. The list also loads `pi-web-access` and `pi-fallback-models`. Agent profiles deny spawning via `deny-tools`. |
 | `harness/pi/extensions/pi-extensions-i18n/config.json` | `$PI_AGENT_DIR/extensions/pi-extensions-i18n/config.json` | Locale for pi extension messages: `en-US`, because the library defaults to Chinese regardless of system locale. |
 | `harness/pi/extensions/pi-intercom/config.json` | `$PI_AGENT_DIR/intercom/config.json` | Shared pi-intercom config: enabled inbound replies, no send confirmation, and reply hints. |
@@ -39,8 +41,16 @@ rather than symlinked because Pi may rewrite them locally.
 
 The main agent stays on the user's selected model unless a provider/failure fallback is
 needed. Context- and scale-based model selection applies only to subagent tasks.
-Subagent tier and thinking come from a `codemode` `models.classify()` call (see `APPEND_SYSTEM.md`). After installation, start Pi from a
-new login session so `environment.d` applies, or export `PI_JEV_AUTO_MODEL=0` in the
+Subagent tier and thinking come from a `codemode` `models.classify()` recommendation,
+then the parent applies evidence bounds (see `APPEND_SYSTEM.md`). Ordinary work starts
+at standard/medium. Low confidence does not cause escalation. High requires demonstrated
+cross-boundary complexity or high blast radius. Premium and `xhigh` require an explicit
+request or an indivisible irreversible or security-critical task, plus a recorded reason.
+Reviewers use the opposite producer family at the same tier with an explicit thinking suffix.
+Provider fallback can change the actual family, so successful-message log checks remain required.
+
+After installation, start Pi from a new login session so `environment.d` applies,
+or export `PI_JEV_AUTO_MODEL=0` in the
 launching shell before restarting Pi. Remove any shell startup override that sets
 `PI_JEV_AUTO_MODEL=1`; do not enable `--jev-auto-model` or `/jev auto-model on`.
 
@@ -84,8 +94,12 @@ session, 5 per 24 hours (`PI_IMPROVE_MAX_REFLECTIONS_PER_DAY`), 3 workers per re
 (`PI_IMPROVE_MAX_WORKERS`). Kill switch: `/self-improve off`, `PI_SELF_IMPROVE=0`, or the file
 `$PI_AGENT_DIR/self-improve/disabled`. `pi-improve status` lists runs;
 `PI_IMPROVE_DRY_RUN=1` prints what `reflect`/`start` would do. Defaults come from `self-improve.json`: workers run
-`openai-codex/gpt-6.1-sol` at high thinking and the reviewer is the opposite family
-(`PI_IMPROVE_WORKER_MODEL`, `PI_IMPROVE_REVIEWER_MODEL`, `PI_IMPROVE_REFLECT_MODEL`).
+`openai-codex/gpt-5.6-terra` at medium thinking. OpenAI workers use a
+`anthropic/claude-sonnet-5-5:medium` reviewer. Anthropic workers use
+`openai-codex/gpt-5.6-terra:medium`. Reflection model and thinking defaults stay empty,
+so they inherit Pi's Sonnet/medium defaults. Jev auto-thinking does not override workers
+or reflections marked with `PI_SELF_IMPROVE_CHILD`. Explicit environment and CLI overrides
+remain available (`PI_IMPROVE_WORKER_MODEL`, `PI_IMPROVE_REVIEWER_MODEL`, `PI_IMPROVE_REFLECT_MODEL`).
 `install.sh` records the main checkout in `$PI_AGENT_DIR/self-improve/repo`;
 `AGENTIC_TOOLS_REPO` overrides it. Run `/reflect` by hand on any session log or report.
 The repo is public, so briefs and PRs must stay redacted; the prompts require it.
@@ -134,8 +148,12 @@ installs and then exits 1.
 - **`pi-jev`:** 0.7.0 builds its SDK client once, so a profile switch keeps the first profile's
   key and endpoint. `harness/pi/patches/pi-jev.patch` (a unified diff applied with `patch`)
   rebuilds the client when the resolved key or base URL changes, reads `PI_JEV_API_KEY` ahead of
-  `TYPESAFE_API_KEY`, and skips auto-thinking in subagents so the model suffix stays in force.
-  Drop it once upstream does.
+  `TYPESAFE_API_KEY`, and skips auto-thinking in named subagents so the parent-selected
+  model suffix stays in force. The separate `pi-jev-self-improve-thinking.patch` disables
+  the thinking router for self-improvement workers and reflections, preserving their
+  selected or inherited level. Ordinary main sessions keep automatic thinking enabled.
+  `pi-jev-prompt-guard.patch` tolerates missing prompts from custom-message runs.
+  Drop each patch once upstream provides its fix.
 
 Secrets and machine-local state (`auth.json`, `auth-profiles/`, `web-search.json`,
 `trust.json`, sessions, run history) are git-ignored and never travel — re-auth
@@ -147,10 +165,11 @@ skill (allowlist-based; it never reads or copies secrets).
 ## Pi agent profiles
 
 The profiles under [`agents/`](../../agents/) are written for `@maplezzk/pi-interactive-subagents`
-(frontmatter `system-prompt`, `interactive`, `deny-tools`). Every profile ends by calling
-`subagent_done`: spawning tools are denied, and blockers go to the parent through
-`caller_ping`. Profiles do not auto-create handoff files; the delegating agent names
-output paths in the task.
+(frontmatter `system-prompt`, `interactive`, `deny-tools`). They omit `model` and `thinking`.
+The dispatcher selects both for each task under the routing policy and passes an explicit
+`model:thinking` suffix. Every profile ends by calling `subagent_done`: spawning tools are
+denied, and blockers go to the parent through `caller_ping`. Profiles do not auto-create
+handoff files; the delegating agent names output paths in the task.
 
 ## New machine bootstrap
 ```sh
