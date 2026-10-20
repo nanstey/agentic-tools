@@ -26,20 +26,6 @@ External-tool installation requires an explicit action:
 bash install.sh --help
 ```
 
-Use one action at a time. Help does not install or check anything.
-Invalid arguments and unknown tool names fail before bootstrap or `.env` execution.
-Explicit tool failures return nonzero after the status report.
-The installer forwards `TOOLS_SKIP` and `TOOLS_INTERACTIVE` to the tools CLI.
-Missing tools add one root installation suggestion without changing default success.
-See [Tool Installation](install/TOOL_INSTALLATION.md#root-installer-integration) for the full contract.
-
-`install.sh` calls [`install/main.sh`](install/main.sh), the only runtime file directly under `install/`.
-The [installation guide](install/TOOL_INSTALLATION.md) is the documentation exception.
-Definition modules live in [`install/modules/`](install/modules/).
-External CLI installers and their usage live in [`install/tools/`](install/tools/README.md).
-Run `bash install/tests/install.test.sh` for offline installer regression tests.
-GitHub Actions ([`ci.yml`](.github/workflows/ci.yml)) runs the offline test scripts on every pull request and on pushes to `main`.
-
 ## Harnesses
 
 `harness/` stores portable, non-secret configuration for supported agent
