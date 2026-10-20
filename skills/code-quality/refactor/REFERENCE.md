@@ -2,12 +2,13 @@
 
 ## Purpose
 
-`refactor` orchestrates the refactor-planning flow and validates reference
-smell IDs from local datasets. It complements `fresh-air`:
+`refactor plan` uses the [preserved planning method](references/plan.md) and validates
+reference smell IDs from local datasets. Other routes are defined in [SKILL.md](SKILL.md).
+The planning route complements `fresh-air`:
 
 - `fresh-air`: choose *which* technique to apply for one smell finding.
-- `refactor`: aggregate recommendations and author the final implementation
-  plan directly.
+- `refactor plan`: aggregate recommendations and author the final implementation
+  plan directly, without source edits or follow-on execution.
 
 ## Dataset Layout
 
@@ -55,5 +56,5 @@ Fast-path entries supplied to `refactor` should include:
 
 - `refactor` uses lightweight technique metadata and mapping edges; it does not
   require technique markdown files.
-- It uses `fresh-air` outputs or validated direct user context, then writes the
-  final implementation plan itself.
+- The planning route uses `fresh-air` outputs or validated direct user context,
+  then writes the final implementation plan itself and stops for user review.

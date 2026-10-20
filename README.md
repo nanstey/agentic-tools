@@ -158,7 +158,7 @@ Focused planning skills below are optional and independently selectable; `propos
 | [`principles`](skills/code-quality/principles/SKILL.md) | Apply core design principles through a concise implementation/review checklist. |
 | [`sniff`](skills/code-quality/sniff/SKILL.md) | Run smell analysis and map findings to standard smells and refactor options. |
 | [`fresh-air`](skills/code-quality/fresh-air/SKILL.md) | Recommend best-fit refactoring techniques for smell findings with confidence. |
-| [`refactor`](skills/code-quality/refactor/SKILL.md) | Orchestrate smell validation, technique selection, and final implementation planning. |
+| [`refactor`](skills/code-quality/refactor/SKILL.md) | Routes scoped refactor work to inspection, extraction planning, simplification, or an implementation plan. Use when choosing or coordinating a refactor method without implicit source edits. |
 | [`scrutiny`](skills/code-quality/scrutiny/SKILL.md) | Silently interrogates a build/design across the relevant engineering domains, self-answering what the codebase and defaults allow and escalating only authority decisions, then builds and verifies. Vendored and adapted from [m4vic/socratic](https://github.com/m4vic/socratic) (MIT). |
 | [`ponytail`](skills/code-quality/ponytail/SKILL.md) | Tightens the current branch's changes to the fewest lines that still work, climbing the YAGNI/reuse/stdlib/native ladder on every changed hunk, plus a repo-wide audit mode. Vendored and adapted from [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) (MIT). |
 
