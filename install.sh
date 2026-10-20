@@ -75,7 +75,7 @@ install_config() {
       copy)   copied=$((copied+1)) ;;
       update) updated=$((updated+1)) ;;
     esac
-  done < <(find "$src_dir" -maxdepth 1 -type f -not -name '.*')
+  done < <(find "$src_dir" -maxdepth 1 -type f -not -name '.*' -not -name README.md)
   local summary="$ok ok"
   [ "$copied" -gt 0 ] && summary="$summary, $copied copied"
   [ "$updated" -gt 0 ] && summary="$summary, $updated updated"
