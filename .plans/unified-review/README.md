@@ -1,6 +1,6 @@
 # Unified review
 
-- Status: implemented and locally validated. One draft PR awaits publication.
+- Status: draft PR [#114](https://github.com/nanstey/agentic-tools/pull/114) published. Independent source review and readiness remain incomplete.
 - Summary: Keep `/deep-review` and `/extract`. Use evidence-led change impact analysis, advisory Jev judgments, and bounded PR loops with `request`/`nit`/`existing` findings.
 - Boundary: implement and publish one PR on the existing branch. Do not merge. Keep Jev advisory and main-model routing unchanged.
 
@@ -24,7 +24,7 @@
 | Specs and implementation | Shared contract, routes, workflows, fixtures, and source-review mode implemented |
 | Build validation | Ten static tests and five live synthetic Jev cases. See build verification |
 | Independent source review | Unavailable because Anthropic quota prevents execution. No independence claimed |
-| Publication | One draft PR pending. Readiness remains incomplete |
+| Publication | [Draft PR #114](https://github.com/nanstey/agentic-tools/pull/114) published. Readiness remains incomplete |
 
 Proposed PR order: outcome evidence → current-SHA required CI independent of review → quality → security → automated-review-dependent required CI → human readiness.
 
@@ -41,10 +41,10 @@ All slices share [one build checklist](./specs/01-unified-review.md), one branch
 
 | # | Slice | Status | PR |
 | --- | --- | --- | --- |
-| 1 | Shared impact/review packet, advisory Jev questions, finding categories, check selection, and preserved manual lenses | Implemented. Static checks pass | Pending |
-| 2 | Refactor inspect/extract/simplify/plan routes and shared extract alias | Implemented. Static checks pass | Pending |
-| 3 | PR mode safeguards, shared quality/security budget, CI/monitor/readiness, and workflow reuse | Implemented. Static checks pass | Pending |
-| 4 | Regression fixtures and advisory pilot protocol for defects, noise, rounds, and human effort | Implemented. Operational measurements remain future work | Pending |
+| 1 | Shared impact/review packet, advisory Jev questions, finding categories, check selection, and preserved manual lenses | Implemented. Static checks pass | [#114](https://github.com/nanstey/agentic-tools/pull/114) (draft) |
+| 2 | Refactor inspect/extract/simplify/plan routes and shared extract alias | Implemented. Static checks pass | [#114](https://github.com/nanstey/agentic-tools/pull/114) (draft) |
+| 3 | PR mode safeguards, shared quality/security budget, CI/monitor/readiness, and workflow reuse | Implemented. Static checks pass | [#114](https://github.com/nanstey/agentic-tools/pull/114) (draft) |
+| 4 | Regression fixtures and advisory pilot protocol for defects, noise, rounds, and human effort | Implemented. Operational measurements remain future work | [#114](https://github.com/nanstey/agentic-tools/pull/114) (draft) |
 
 ## Evidence
 - [Repository audit](./evidence/skill-audit.md) and [inventory](./evidence/skill-inventory.json).
@@ -85,3 +85,5 @@ Evidence records earlier observations and recommendations, not current approval.
 - 2026-10-20 — User changed the workflow default to one PR across all slices in one repository. Multiple PRs require an explicit user request or changes across repositories. Align idea-to-pr and build, retain per-slice validation, and stack only user-requested dependent PRs. Add a regression assertion. Ten static tests now pass.
 
 - 2026-10-20 — Commit the shared review skill, refactor router, and coupled PR/workflow contract separately. Merge current main without rewriting history. All ten static tests, offline installer/patch checks, catalog checks, and PR scope/credential scans pass afterward. The user-requested one-PR default includes cross-repository exceptions. Independent source review remains unavailable.
+
+- 2026-10-20 — Published all slices in draft PR #114 and verified its structured body, main base, authoritative head, and draft state. A snapshot-only monitor check found no threads or observed jobs. Policy discovery found no expected Actions/branch-rule checks, not an inferred empty-check pass. Quality/security source coverage remains incomplete because independent review is unavailable. Keep the PR draft, with no merge or readiness claim.

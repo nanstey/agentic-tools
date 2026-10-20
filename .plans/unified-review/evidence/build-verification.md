@@ -42,3 +42,9 @@ The live cases test typed judgments on synthetic supplied facts. They do not cal
 Prompt/static checks do not prove tool restrictions, full agent execution, or complete GitHub lifecycle behavior.
 The [pilot protocol](../pilot.md) defines later labeled replay and measurements for defects, clean changes, noise, rounds, and human effort.
 No operational or longitudinal measurements are claimed.
+
+## Publication result
+
+[Draft PR #114](https://github.com/nanstey/agentic-tools/pull/114) contains all slices on the existing branch. Its structured body states the validation limits.
+A snapshot-only monitor observation finds no reviews, threads, comments, or observed jobs. The PR is not review-ready.
+No source review/fix loop completed, and no independent quality/security packet establishes readiness. Keep the PR draft until the missing review evidence exists.
