@@ -150,6 +150,7 @@ Focused planning skills below are optional and independently selectable; `propos
 
 | Skill | Description |
 | --- | --- |
+| [`risk-review`](skills/code-quality/risk-review/SKILL.md) | Produces an evidence-led, read-only change review with impact paths, required checks, and verified findings. Use when reviewing a change or supplying a shared quality or security review packet. |
 | [`deep-review`](skills/code-quality/deep-review/SKILL.md) | Strict maintainability review focused on abstractions, oversized files, and condition sprawl. |
 | [`dry`](skills/code-quality/dry/SKILL.md) | Read-only DRY review that ranks duplication and proposes concrete consolidations. |
 | [`srp`](skills/code-quality/srp/SKILL.md) | Evaluate Single Responsibility Principle violations and recommend cohesive boundaries. |
