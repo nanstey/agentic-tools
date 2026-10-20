@@ -36,6 +36,7 @@ agents/[<group>/]<agent-name>.md          # agent profiles
 skills/<category>/<skill-name>/SKILL.md   # global skill
 harness/pi/settings.json                   # portable pi configuration
 harness/omp/APPEND_SYSTEM.md               # portable omp system-prompt addition
+harness/<harness>/README.md                # managed-file table and behavior (not installed)
 AGENTS.md                                 # this file
 install.sh                                # installer
 README.md                                 # catalog
@@ -81,7 +82,7 @@ row `description` consistent with the tool's frontmatter. A change to a skill or
 agent is not complete until the catalog reflects it.
 
 Any addition, removal, or rename of a managed artifact under `harness/` must
-update the corresponding portable harness config table in `README.md`, including
+update the corresponding portable harness config table in `harness/<harness>/README.md`, including
 its repository path, install destination, and purpose.
 
 ## Commit granularity policy
@@ -105,7 +106,7 @@ machines. Commit every Pi change here and let `install.sh` apply it:
   `install_jev_prompt_guard_patch`). Use a new patch file rather than editing one
   machines may already have applied.
 - Verify by restoring the pristine package files, running `install.sh` twice
-  (`patched`, then `ok`), and update the `README.md` harness table.
+  (`patched`, then `ok`), and update the `harness/pi/README.md` table.
 
 ## Things to avoid
 

@@ -20,7 +20,7 @@ PI_AGENT_DIR="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}"
 # every existing match, so a single pair can fan out to many destinations.
 HARNESSES=(
   "claude|$HOME/.claude|claude|skills:$HOME/.claude/skills;agents:$HOME/.claude/agents"
-  "pi|$PI_AGENT_DIR|pi|skills:$PI_AGENT_DIR/skills;agents:$PI_AGENT_DIR/agents;config:$PI_AGENT_DIR::$REPO_ROOT/harness/pi;config:$PI_AGENT_DIR/extensions::$REPO_ROOT/harness/pi/extensions;config:$PI_AGENT_DIR/bin::$REPO_ROOT/harness/pi/bin;config:$PI_AGENT_DIR/prompts::$REPO_ROOT/harness/pi/prompts;config:$PI_AGENT_DIR/extensions/pi-interactive-subagents::$REPO_ROOT/harness/pi/extensions/pi-interactive-subagents;config:$PI_AGENT_DIR/extensions/pi-extensions-i18n::$REPO_ROOT/harness/pi/extensions/pi-extensions-i18n;config:$PI_AGENT_DIR/intercom::$REPO_ROOT/harness/pi/extensions/pi-intercom;hoist:$PI_AGENT_DIR/npm::$REPO_ROOT/harness/pi/settings.json;vendor-git:$PI_AGENT_DIR/vendor::$REPO_ROOT/harness/pi/vendor;patch-fallback:$PI_AGENT_DIR/npm/node_modules/pi-fallback-models/src/extension.ts;patch-subagent-widget:$PI_AGENT_DIR/npm/node_modules/@maplezzk/pi-interactive-subagents/pi-extension/subagents/subagent-done.ts;patch-jev-client:$PI_AGENT_DIR/npm/node_modules/pi-jev;patch-jev-prompt-guard:$PI_AGENT_DIR/npm/node_modules/pi-jev"
+  "pi|$PI_AGENT_DIR|pi|skills:$PI_AGENT_DIR/skills;agents:$PI_AGENT_DIR/agents;config:$PI_AGENT_DIR::$REPO_ROOT/harness/pi;config:$PI_AGENT_DIR/extensions::$REPO_ROOT/harness/pi/extensions;config:$PI_AGENT_DIR/bin::$REPO_ROOT/harness/pi/bin;config:$PI_AGENT_DIR/prompts::$REPO_ROOT/harness/pi/prompts;config:$PI_AGENT_DIR/extensions/pi-interactive-subagents::$REPO_ROOT/harness/pi/extensions/pi-interactive-subagents;config:$PI_AGENT_DIR/extensions/pi-extensions-i18n::$REPO_ROOT/harness/pi/extensions/pi-extensions-i18n;config:$PI_AGENT_DIR/intercom::$REPO_ROOT/harness/pi/extensions/pi-intercom;hoist:$PI_AGENT_DIR/npm::$REPO_ROOT/harness/pi/settings.json;vendor-git:$PI_AGENT_DIR/vendor::$REPO_ROOT/harness/pi/vendor;patch-diff-sdk:$PI_AGENT_DIR/npm/node_modules/@heyhuynhgiabuu/pi-diff;patch-fallback:$PI_AGENT_DIR/npm/node_modules/pi-fallback-models/src/extension.ts;patch-subagent-widget:$PI_AGENT_DIR/npm/node_modules/@maplezzk/pi-interactive-subagents;patch-jev-client:$PI_AGENT_DIR/npm/node_modules/pi-jev;patch-jev-prompt-guard:$PI_AGENT_DIR/npm/node_modules/pi-jev"
   "omp|$HOME/.omp/agent|omp|skills:$HOME/.omp/agent/skills;skills:$HOME/.omp/profiles/*/agent/skills;agents:$HOME/.omp/agent/agents;agents:$HOME/.omp/profiles/*/agent/agents;config:$HOME/.omp/agent::$REPO_ROOT/harness/omp;config:$PI_AGENT_DIR/intercom::$REPO_ROOT/harness/pi/extensions/pi-intercom;omp-plugin-manifest:$REPO_ROOT/harness/omp/plugins/pi-intercom.txt;omp-plugin-manifest:$REPO_ROOT/harness/omp/plugins/pi-jev.txt;omp-status-line:$REPO_ROOT/harness/omp/status-line/apply.sh"
   "codex|$HOME/.codex|codex|skills:$HOME/.codex/skills"
 )
@@ -75,7 +75,7 @@ install_config() {
       copy)   copied=$((copied+1)) ;;
       update) updated=$((updated+1)) ;;
     esac
-  done < <(find "$src_dir" -maxdepth 1 -type f -not -name '.*')
+  done < <(find "$src_dir" -maxdepth 1 -type f -not -name '.*' -not -name README.md)
   local summary="$ok ok"
   [ "$copied" -gt 0 ] && summary="$summary, $copied copied"
   [ "$updated" -gt 0 ] && summary="$summary, $updated updated"
@@ -135,6 +135,14 @@ install_pnpm_hoist() {
   echo "  [hoist] -> $rc (set, store reset for flat reinstall)"
 }
 
+# pi-diff@0.9.3 catches native dynamic-import failures inside its factory, so
+# jiti never retries those imports with Pi's host SDK aliases. Static imports
+# let jiti supply the host modules without installing a duplicate SDK. Hoisting
+# alone cannot fix this: Pi deliberately suppresses host peer installation.
+install_diff_sdk_patch() {
+  apply_package_patch "$1" patch-diff-sdk "$REPO_ROOT/harness/pi/patches/pi-diff-sdk-imports.patch" dist/index.js
+}
+
 # Idempotent literal patch of an installed third-party package file.
 # Usage: patch_installed_file LABEL TARGET MARKER OLD NEW
 # Skips (0) when TARGET is not installed yet, reports ok (0) when MARKER is
@@ -178,14 +186,12 @@ install_fallback_quota_patch() {
 '|plan limit|no more (?:fast )?requests|billing|out of extra usage/i;'
 }
 
-# @maplezzk/pi-interactive-subagents' child widget lists denied tools, but denied
-# tools are never registered, so the list is noise next to the available tools.
-# Keep `denied` empty so the widget shows only what the child can use. Remove
-# once upstream makes it optional.
+# @maplezzk/pi-interactive-subagents@3.16.4 derives the widget's denied list
+# from a Set now, so the former literal patch no longer matches. Hide only the
+# display list; keep deniedTools intact for tool-registration enforcement.
+# Remove once upstream makes the list optional.
 install_subagent_widget_patch() {
-  patch_installed_file patch-subagent-widget "$1" 'denied = []; // widget shows available tools only' \
-'    denied = parseDeniedTools(deniedToolsValue);' \
-'    denied = []; // widget shows available tools only'
+  apply_package_patch "$1" patch-subagent-widget "$REPO_ROOT/harness/pi/patches/pi-subagent-widget-3.16.patch" pi-extension/subagents/subagent-done.ts
 }
 
 # pi-jev@0.7.0 builds its SDK client once and keeps a stale base URL, so a
@@ -195,7 +201,7 @@ install_subagent_widget_patch() {
 # diff) to rebuild the client when the key or base URL changes, prefer
 # PI_JEV_API_KEY, and skip auto-thinking in subagents. Remove once upstream does.
 install_jev_client_patch() {
-  apply_jev_patch "$1" patch-jev-client "$REPO_ROOT/harness/pi/patches/pi-jev.patch"
+  apply_package_patch "$1" patch-jev-client "$REPO_ROOT/harness/pi/patches/pi-jev.patch" src/jev.ts
 }
 
 # pi-jev@0.7.0 assumes before_agent_start's event.prompt is a string, but runs
@@ -205,12 +211,12 @@ install_jev_client_patch() {
 # pi-jev.patch so machines that already applied that one still get this fix.
 # Remove once upstream guards it.
 install_jev_prompt_guard_patch() {
-  apply_jev_patch "$1" patch-jev-prompt-guard "$REPO_ROOT/harness/pi/patches/pi-jev-prompt-guard.patch"
+  apply_package_patch "$1" patch-jev-prompt-guard "$REPO_ROOT/harness/pi/patches/pi-jev-prompt-guard.patch" src/jev.ts
 }
 
-apply_jev_patch() {
-  local pkg="$1" label="$2" patch_file="$3"
-  if [ ! -f "$pkg/src/jev.ts" ]; then
+apply_package_patch() {
+  local pkg="$1" label="$2" patch_file="$3" entry="$4"
+  if [ ! -f "$pkg/$entry" ]; then
     echo "  [$label] $pkg not installed yet, skipping (re-run install.sh after pi installs packages)"; return 0
   fi
   if ! command -v patch >/dev/null 2>&1; then
@@ -465,7 +471,11 @@ for entry in "${HARNESSES[@]}"; do
     if [ "$type" = "vendor-git" ]; then
       install_vendor_git "${pattern%%::*}" "${pattern##*::}" || PATCH_FAILED=1; continue
     fi
-    # patch-* types carry the path of the installed package file to patch.
+    # patch-* types carry the path of the installed package or file to patch.
+    if [ "$type" = "patch-diff-sdk" ]; then
+      install_diff_sdk_patch "$pattern" || PATCH_FAILED=1
+      continue
+    fi
     if [ "$type" = "patch-subagent-widget" ]; then
       install_subagent_widget_patch "$pattern" || PATCH_FAILED=1
       continue

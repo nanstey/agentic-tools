@@ -1,0 +1,34 @@
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -23,6 +23,8 @@
+ import { constants, existsSync, readFileSync } from "node:fs";
+ import { access as accessFile, readFile, writeFile } from "node:fs/promises";
+ import { extname, relative } from "node:path";
++import { createWriteTool, createEditTool, getMarkdownTheme } from "@earendil-works/pi-coding-agent";
++import { Text as TextComponent, Markdown as MarkdownComponent } from "@earendil-works/pi-tui";
+ import { codeToANSI } from "@shikijs/cli";
+ import * as Diff from "diff";
+ import { executeApplyPatch, formatApplyPatchResult, parseApplyPatchInput, } from "./core/apply-patch.js";
+@@ -1180,22 +1182,6 @@
+     applySharedDiffPalette();
+     // Resolve hunk separator style from env var
+     resolveSepStyle();
+-    let createWriteTool, createEditTool, getMarkdownTheme, TextComponent, MarkdownComponent;
+-    try {
+-        const sdk = await import("@earendil-works/pi-coding-agent");
+-        const tui = await import("@earendil-works/pi-tui");
+-        createWriteTool = sdk.createWriteTool;
+-        createEditTool = sdk.createEditTool;
+-        getMarkdownTheme = sdk.getMarkdownTheme;
+-        TextComponent = tui.Text;
+-        MarkdownComponent = tui.Markdown;
+-    }
+-    catch (error) {
+-        console.error(`[pi-diff] failed to load Pi SDK dependencies: ${error instanceof Error ? error.message : String(error)}`);
+-        return;
+-    }
+-    if (!createWriteTool || !createEditTool || !TextComponent)
+-        return;
+     const editHeaderStatsByCallId = new Map();
+     function stashEditHeaderStats(toolCallId, edits, diffLines, added, removed) {
+         if (!toolCallId)
