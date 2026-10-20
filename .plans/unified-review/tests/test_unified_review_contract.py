@@ -203,21 +203,19 @@ class SourceContractStaticTests(unittest.TestCase):
     def test_one_pr_is_the_default_across_slices_in_one_repository(self) -> None:
         idea = ROOT / "skills/workflow/idea-to-pr/SKILL.md"
         build = ROOT / "skills/workflow/build/SKILL.md"
-        idea_text = self.assert_contains(
-            idea,
-            "Default to one PR across all slices in one repository.",
-            "Split into multiple PRs only when the user requests it or the change spans multiple repositories.",
-            "For cross-repository work, create one PR per repository and record dependencies.",
-            "Never infer multiple PRs from slice count, change size, or dependency order.",
+        contract = ROOT / "skills/workflow/review-code/references/caller-contract.md"
+        self.assert_contains(
+            contract,
+            "Default: one PR across all slices in one repository.",
+            "Split only when the user requests multiple PRs or the change spans multiple repositories.",
+            "Cross-repository work uses one PR per repository, with dependencies recorded.",
+            "Never infer a split from slice count, size, or dependency order.",
             "only for user-requested dependent PRs in one repository",
         )
-        build_text = self.assert_contains(
-            build,
-            "Default to one PR across all slices in one repository.",
-            "Split only when the user requests multiple PRs or the change spans multiple repositories.",
-        )
-        self.assertNotIn("Default to one slice per PR", idea_text)
-        self.assertNotIn("Build one slice per PR", build_text)
+        for caller in (idea, build):
+            self.assert_contains(caller, "PR split rule", "caller-contract.md")
+        self.assertNotIn("Default to one slice per PR", self.read(idea))
+        self.assertNotIn("Build one slice per PR", self.read(build))
 
     def test_monitor_inherits_review_state_without_recursion_or_reset(self) -> None:
         monitor = self.pr / "references/monitor.md"
@@ -239,7 +237,7 @@ class ReviewerProfileTests(unittest.TestCase):
         text = self.profile.read_text()
         frontmatter, body = text.split("---", 2)[1:]
         self.assertIn("name: reviewer", frontmatter)
-        self.assertIn("model: anthropic/claude-opus-5-5", frontmatter)
+        self.assertNotIn("model:", frontmatter)
         self.assertIn("tools: read, grep, find, ls, bash, edit, write, codemode", frontmatter)
         self.assertIn("## Source Review Mode", body)
         for required in (
