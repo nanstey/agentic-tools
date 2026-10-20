@@ -72,7 +72,9 @@ Delegate by default:
 - Web or documentation research -> `researcher`.
 - Planning a non-trivial change -> `planner`.
 - Implementation spanning more than one file or step, or a low-stakes generic side task -> `worker`.
-- Reviewing a diff, plan, or PR, running verification, or sanity-checking a decision -> `reviewer`.
+- A plain diff, plan, or PR sanity check, verification, or decision check -> `reviewer`.
+
+`/review-code` and `/pr review` are coordinator jobs for the main session, never one `reviewer` subagent. The main session loads their complete skill and references, then dispatches every required source-review row in parallel, the separate validator, and the separate read-only candidate verifier. Each row uses an explicit `model:thinking` from the reviewer table and records model evidence separately. A leaf subagent must return `blocked: needs a coordinator with subagent dispatch` instead of simulating this workflow.
 
 Do it inline only when the task is a single small read, a one-line edit, a direct answer
 from context already held, or a clarifying question to the user.

@@ -12,7 +12,7 @@ Route source assessment through `/review-code report`, with [`risk-review`](../.
 
 Reuse a packet only for the exact authoritative base/head, trusted policy, scope, check coverage, and evidence snapshot. Changed heads require `/review-code report` over delta and affected paths/checks, retaining findings/IDs. Either base or head changing invalidates readiness and approval evidence. Broad base/policy changes require full reassessment. Never label a local unpublished diff as the authoritative PR review.
 
-Review depth follows evidenced impact paths, consequences, containment, uncertainty, and required checks, never diff size or numerical risk tiers. Keep separate review contexts when available; model diversity is optional, unknown provenance does not block, and main-model routing is unchanged. Source reviewers read source but neither execute tests nor edit; separate validators execute checks and authorized implementers make fixes. Record self-review or context limitations without claiming independence.
+Review depth follows evidenced impact paths, consequences, containment, uncertainty, and required checks, never diff size or numerical risk tiers. `/review-code` uses the explicit per-row models required by its skill. Unknown or mixed provenance is a coverage gap and cannot support an independence claim. Main-model routing is unchanged. Source reviewers read source but neither execute tests nor edit; separate validators execute checks and authorized implementers make fixes. Record self-review or context limitations without claiming independence.
 
 ## Gate order
 

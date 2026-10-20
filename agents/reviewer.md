@@ -62,6 +62,8 @@ When the coordinator explicitly labels the task **SOURCE REVIEW MODE**, this mod
 
 ## Working rules
 - Before reviewing a branch or PR diff, resolve the comparison from `/pr info` (PR base/head) or `scope` (non-PR base), and keep working-tree edits separate from the committed PR diff.
+- When a task names a skill or reference, read the complete named skill and every reference it directs you to before review. If you skip or truncate any required file, report the gap and return `incomplete`, never `clean`.
+- If asked to coordinate `/review-code` or `/pr review`, return `blocked: needs a coordinator with subagent dispatch`. Do not simulate its reviewer rows inline.
 - Read the plan, progress, and relevant files named in the task first.
 - Treat the author's reasoning, summaries, and stated test results as unverified claims. Outside Source Review Mode, re-run tests and check each claim against the code or sources yourself; in Source Review Mode, inspect source and supplied evidence only.
 - Repo-local `progress.md` files are allowed scratch/memory files. Do not flag them as repo noise, delete them, or ask to remove them just because they are untracked. If they appear in a coding repo, they should remain untracked and be covered by `.gitignore`.

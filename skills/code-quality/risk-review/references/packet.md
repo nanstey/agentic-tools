@@ -14,6 +14,7 @@ Return a structured object or a report with these named fields. Use empty lists 
 | `evidence` | Stable evidence IDs, exact base/head snippets, snapshot identity, source path/range or immutable artifact identity, producer, and observed facts. Redact secrets without concealing material gaps. |
 | `impact` | Named propagation paths/edges with evidence IDs, consumers, shared resources/state, execution authority, contracts and deployment/trust/data boundaries. Separate `reach`, `consequences`, `containment_recovery`, and `uncertainty`. |
 | `checks` | Stable `check_id`, `domain`, selection reason/effect/policy, required expertise, coverage status, evidence IDs, and unresolved work. |
+| `coverage` | Required only for `/review-code` packets. Include one row each for `risk-review`, `refactor`, `security`, `bugs`, `context-engineering`, `validator`, and `candidate-verifier`. Include subagent name/session, profile, explicit `model:thinking`, and status: `done`, `failed`, or `skipped-inapplicable` with reason. Only context-engineering may be skipped-inapplicable. The `security` row records triage and any required deep review separately. Standalone `risk-review` packets record only their own coverage in `checks`. |
 | `validation` | Separately supplied test/outcome/CI evidence: producer, command/check, environment, snapshot, result, limits, and whether required by caller. State `not_run_by_reviewer`. |
 | `gaps` | Missing/contradictory facts, affected claim/check, materiality, source coverage versus readiness-only prerequisite, and next inspection/owner evidence. |
 | `jev` | Availability, exact state and question version, model/adapter, raw outputs/distributions, confidence where applicable, errors, policy/evidence versions, advisory handling. See [operation](jev.md). |
@@ -51,8 +52,8 @@ Escalate critical existing issues separately. Only explicit applicable independe
 ## Verdicts and caller boundaries
 
 - `changes_required`: At least one unresolved verified request. Also disclose incomplete coverage. Missing checks cannot hide a known request.
-- `incomplete`: No unresolved verified requests established, but material gaps or failed/unavailable review work prevent complete requested coverage.
-- `clean`: Complete requested source-review coverage and no unresolved verified requests. Nits and unchanged existing findings may remain.
+- `incomplete`: No unresolved verified requests established, but material gaps or failed/unavailable review work prevent complete requested coverage. For `/review-code`, a missing coverage row, or a required row, validator, or candidate-verifier without `done` status, always makes the verdict incomplete.
+- `clean`: Complete requested source-review coverage and no unresolved verified requests. A `/review-code` packet also requires a complete coverage table with every required row done. `context-engineering` may be `skipped-inapplicable` only with its recorded reason. Nits and unchanged existing findings may remain.
 
 `clean` does not certify test execution, CI, readiness, human approval, or merge permission. It never grants gate or mutation permission.
 Readiness-only prerequisites can be missing during a standalone source review. Disclose them under validation/gaps without claiming that coverage.
