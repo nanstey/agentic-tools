@@ -1,0 +1,1341 @@
+{
+  "canonical": {
+    "branch": {
+      "definition": {
+        "current": false,
+        "frontmatter": "branch",
+        "path": "skills/dev/branch/SKILL.md"
+      },
+      "direct_only_call_lower_bound": 27,
+      "evidence_turn_occasions": 27,
+      "load_request_call_lower_bound": 27,
+      "observed_lineages": 26,
+      "sources": {
+        "pi-main": {
+          "evidence_turn_occasions": 27,
+          "successful_skill_read": 27
+        }
+      },
+      "status": "EVIDENCED"
+    },
+    "build": {
+      "definition": {
+        "current": true,
+        "frontmatter": "build",
+        "path": "skills/workflow/build/SKILL.md"
+      },
+      "direct_only_call_lower_bound": 41,
+      "evidence_turn_occasions": 43,
+      "load_request_call_lower_bound": 43,
+      "observed_lineages": 37,
+      "sources": {
+        "pi-main": {
+          "evidence_turn_occasions": 33,
+          "failed_skill_read": 1,
+          "successful_skill_read": 33,
+          "unconfirmed_skill_read": 1,
+          "user_command": 11
+        },
+        "pi-subagents": {
+          "evidence_turn_occasions": 10,
+          "nested_skill_read_success": 2,
+          "successful_skill_read": 8
+        }
+      },
+      "status": "EVIDENCED"
+    },
+    "changes": {
+      "definition": {
+        "current": false,
+        "frontmatter": "changes",
+        "path": "skills/dev/changes/SKILL.md"
+      },
+      "direct_only_call_lower_bound": 27,
+      "evidence_turn_occasions": 27,
+      "load_request_call_lower_bound": 27,
+      "observed_lineages": 24,
+      "sources": {
+        "pi-main": {
+          "evidence_turn_occasions": 27,
+          "successful_skill_read": 27,
+          "user_command": 2
+        }
+      },
+      "status": "EVIDENCED"
+    },
+    "commit": {
+      "definition": {
+        "current": false,
+        "frontmatter": "commit",
+        "path": "skills/dev/commit/SKILL.md"
+      },
+      "direct_only_call_lower_bound": 60,
+      "evidence_turn_occasions": 60,
+      "load_request_call_lower_bound": 60,
+      "observed_lineages": 54,
+      "sources": {
+        "pi-main": {
+          "evidence_turn_occasions": 60,
+          "successful_skill_read": 60,
+          "user_command": 1
+        }
+      },
+      "status": "EVIDENCED"
+    },
+    "conflicts": {
+      "definition": {
+        "current": false,
+        "frontmatter": "conflicts",
+        "path": "skills/dev/conflicts/SKILL.md"
+      },
+      "direct_only_call_lower_bound": 10,
+      "evidence_turn_occasions": 10,
+      "load_request_call_lower_bound": 10,
+      "observed_lineages": 10,
+      "sources": {
+        "pi-main": {
+          "evidence_turn_occasions": 10,
+          "successful_skill_read": 10
+        }
+      },
+      "status": "EVIDENCED"
+    },
+    "context-engineering": {
+      "definition": {
+        "current": true,
+        "frontmatter": "context-engineering",
+        "path": "skills/agent/context-engineering/SKILL.md"
+      },
+      "direct_only_call_lower_bound": 1,
+      "evidence_turn_occasions": 1,
+      "load_request_call_lower_bound": 1,
+      "observed_lineages": 1,
+      "sources": {
+        "pi-main": {
+          "evidence_turn_occasions": 1,
+          "successful_skill_read": 1
+        }
+      },
+      "status": "EVIDENCED"
+    },
+    "deep-review": {
+      "definition": {
+        "current": true,
+        "frontmatter": "deep-review",
+        "path": "skills/code-quality/deep-review/SKILL.md"
+      },
+      "direct_only_call_lower_bound": 7,
+      "evidence_turn_occasions": 6,
+      "load_request_call_lower_bound": 7,
+      "observed_lineages": 6,
+      "sources": {
+        "pi-main": {
+          "evidence_turn_occasions": 6,
+          "successful_skill_read": 7
+        }
+      },
+      "status": "EVIDENCED"
+    },
+    "dry": {
+      "definition": {
+        "current": true,
+        "frontmatter": "dry",
+        "path": "skills/code-quality/dry/SKILL.md"
+      },
+      "direct_only_call_lower_bound": 1,
+      "evidence_turn_occasions": 2,
+      "load_request_call_lower_bound": 1,
+      "observed_lineages": 2,
+      "sources": {
+        "pi-main": {
+          "evidence_turn_occasions": 1,
+          "user_command": 1
+        },
+        "pi-subagents": {
+          "evidence_turn_occasions": 1,
+          "successful_skill_read": 1
+        }
+      },
+      "status": "EVIDENCED"
+    },
+    "extract": {
+      "definition": {
+        "current": true,
+        "frontmatter": "extract",
+        "path": "skills/code-quality/extract/SKILL.md"
+      },
+      "direct_only_call_lower_bound": 1,
+      "evidence_turn_occasions": 2,
+      "load_request_call_lower_bound": 2,
+      "observed_lineages": 2,
+      "sources": {
+        "pi-main": {
+          "evidence_turn_occasions": 1,
+          "nested_skill_read_success": 1
+        },
+        "pi-subagents": {
+          "evidence_turn_occasions": 1,
+          "successful_skill_read": 1
+        }
+      },
+      "status": "EVIDENCED"
+    },
+    "flow-design": {
+      "definition": {
+        "current": true,
+        "frontmatter": "flow-design",
+        "path": "skills/workflow/flow-design/SKILL.md"
+      },
+      "direct_only_call_lower_bound": 8,
+      "evidence_turn_occasions": 8,
+      "load_request_call_lower_bound": 8,
+      "observed_lineages": 8,
+      "sources": {
+        "pi-main": {
+          "evidence_turn_occasions": 8,
+          "failed_skill_read": 1,
+          "successful_skill_read": 8
+        }
+      },
+      "status": "EVIDENCED"
+    },
+    "fresh-air": {
+      "definition": {
+        "current": true,
+        "frontmatter": "fresh-air",
+        "path": "skills/code-quality/fresh-air/SKILL.md"
+      },
+      "direct_only_call_lower_bound": 1,
+      "evidence_turn_occasions": 1,
+      "load_request_call_lower_bound": 1,
+      "observed_lineages": 1,
+      "sources": {
+        "pi-subagents": {
+          "evidence_turn_occasions": 1,
+          "successful_skill_read": 1
+        }
+      },
+      "status": "EVIDENCED"
+    },
+    "gh-stack": {
+      "definition": {
+        "current": false,
+        "frontmatter": "gh-stack",
+        "name_evidence": "successful SKILL.md load frontmatter",
+        "path": "historical-installed-skill:gh-stack"
+      },
+      "direct_only_call_lower_bound": 22,
+      "evidence_turn_occasions": 22,
+      "load_request_call_lower_bound": 22,
+      "observed_lineages": 21,
+      "sources": {
+        "pi-main": {
+          "evidence_turn_occasions": 20,
+          "successful_skill_read": 20,
+          "user_command": 4
+        },
+        "pi-subagents": {
+          "evidence_turn_occasions": 2,
+          "successful_skill_read": 2
+        }
+      },
+      "status": "EVIDENCED"
+    },
+    "git": {
+      "definition": {
+        "current": true,
+        "frontmatter": "git",
+        "path": "skills/dev/git/SKILL.md"
+      },
+      "direct_only_call_lower_bound": 7,
+      "evidence_turn_occasions": 12,
+      "load_request_call_lower_bound": 11,
+      "observed_lineages": 12,
+      "sources": {
+        "pi-main": {
+          "evidence_turn_occasions": 3,
+          "nested_skill_read_success": 1,
+          "successful_skill_read": 1,
+          "user_command": 1
+        },
+        "pi-subagents": {
+          "evidence_turn_occasions": 9,
+          "failed_skill_read": 3,
+          "nested_skill_read_success": 3,
+          "successful_skill_read": 6
+        }
+      },
+      "status": "EVIDENCED"
+    },
+    "handoff": {
+      "definition": {
+        "current": true,
+        "frontmatter": "handoff",
+        "path": "skills/env/handoff/SKILL.md"
+      },
+      "direct_only_call_lower_bound": 3,
+      "evidence_turn_occasions": 3,
+      "load_request_call_lower_bound": 3,
+      "observed_lineages": 3,
+      "sources": {
+        "pi-main": {
+          "evidence_turn_occasions": 3,
+          "successful_skill_read": 3,
+          "user_command": 2
+        }
+      },
+      "status": "EVIDENCED"
+    },
+    "idea-to-pr": {
+      "definition": {
+        "current": true,
+        "frontmatter": "idea-to-pr",
+        "path": "skills/workflow/idea-to-pr/SKILL.md"
+      },
+      "direct_only_call_lower_bound": 9,
+      "evidence_turn_occasions": 11,
+      "load_request_call_lower_bound": 10,
+      "observed_lineages": 10,
+      "sources": {
+        "pi-main": {
+          "evidence_turn_occasions": 11,
+          "nested_skill_read_success": 1,
+          "successful_skill_read": 9,
+          "user_command": 3
+        }
+      },
+      "status": "EVIDENCED"
+    },
+    "new-app": {
+      "definition": {
+        "current": true,
+        "frontmatter": "new-app",
+        "path": "skills/env/new-app/SKILL.md"
+      },
+      "direct_only_call_lower_bound": 0,
+      "evidence_turn_occasions": 0,
+      "load_request_call_lower_bound": 0,
+      "observed_lineages": 0,
+      "sources": {},
+      "status": "UNKNOWN"
+    },
+    "plan-init": {
+      "definition": {
+        "current": true,
+        "frontmatter": "plan-init",
+        "path": "skills/planning/plan-init/SKILL.md"
+      },
+      "direct_only_call_lower_bound": 15,
+      "evidence_turn_occasions": 16,
+      "load_request_call_lower_bound": 16,
+      "observed_lineages": 16,
+      "sources": {
+        "pi-main": {
+          "evidence_turn_occasions": 16,
+          "nested_skill_read_success": 1,
+          "successful_skill_read": 15
+        }
+      },
+      "status": "EVIDENCED"
+    },
+    "ponytail": {
+      "definition": {
+        "current": true,
+        "frontmatter": "ponytail",
+        "path": "skills/code-quality/ponytail/SKILL.md"
+      },
+      "direct_only_call_lower_bound": 2,
+      "evidence_turn_occasions": 3,
+      "load_request_call_lower_bound": 2,
+      "observed_lineages": 3,
+      "sources": {
+        "pi-main": {
+          "evidence_turn_occasions": 3,
+          "failed_skill_read": 1,
+          "successful_skill_read": 2,
+          "user_command": 1
+        }
+      },
+      "status": "EVIDENCED"
+    },
+    "pr": {
+      "definition": {
+        "current": true,
+        "frontmatter": "pr",
+        "path": "skills/dev/pr/SKILL.md"
+      },
+      "direct_only_call_lower_bound": 47,
+      "evidence_turn_occasions": 67,
+      "load_request_call_lower_bound": 56,
+      "observed_lineages": 63,
+      "sources": {
+        "pi-main": {
+          "evidence_turn_occasions": 55,
+          "failed_skill_read": 1,
+          "nested_skill_read_success": 1,
+          "successful_skill_read": 43,
+          "user_command": 23
+        },
+        "pi-subagents": {
+          "evidence_turn_occasions": 12,
+          "failed_skill_read": 6,
+          "nested_skill_read_success": 8,
+          "successful_skill_read": 4
+        }
+      },
+      "status": "EVIDENCED"
+    },
+    "pr-ci": {
+      "definition": {
+        "current": false,
+        "frontmatter": "pr-ci",
+        "name_evidence": "successful SKILL.md load frontmatter",
+        "path": "historical-installed-skill:pr-ci"
+      },
+      "direct_only_call_lower_bound": 24,
+      "evidence_turn_occasions": 27,
+      "load_request_call_lower_bound": 24,
+      "observed_lineages": 24,
+      "sources": {
+        "claude-projects": {
+          "evidence_turn_occasions": 1,
+          "provider_skill_success": 1
+        },
+        "pi-main": {
+          "evidence_turn_occasions": 25,
+          "successful_skill_read": 23,
+          "user_command": 2
+        },
+        "pi-subagents": {
+          "evidence_turn_occasions": 1,
+          "successful_skill_read": 1
+        }
+      },
+      "status": "EVIDENCED"
+    },
+    "pr-comments": {
+      "definition": {
+        "current": false,
+        "frontmatter": "pr-comments",
+        "name_evidence": "successful SKILL.md load frontmatter",
+        "path": "historical-installed-skill:pr-comments"
+      },
+      "direct_only_call_lower_bound": 28,
+      "evidence_turn_occasions": 27,
+      "load_request_call_lower_bound": 28,
+      "observed_lineages": 25,
+      "sources": {
+        "pi-main": {
+          "evidence_turn_occasions": 27,
+          "successful_skill_read": 28
+        }
+      },
+      "status": "EVIDENCED"
+    },
+    "pr-create": {
+      "definition": {
+        "current": false,
+        "frontmatter": "pr-create",
+        "name_evidence": "successful SKILL.md load frontmatter",
+        "path": "historical-installed-skill:pr-create"
+      },
+      "direct_only_call_lower_bound": 73,
+      "evidence_turn_occasions": 73,
+      "load_request_call_lower_bound": 73,
+      "observed_lineages": 69,
+      "sources": {
+        "claude-projects": {
+          "evidence_turn_occasions": 1,
+          "provider_skill_success": 1
+        },
+        "pi-main": {
+          "evidence_turn_occasions": 72,
+          "successful_skill_read": 73
+        }
+      },
+      "status": "EVIDENCED"
+    },
+    "pr-description": {
+      "definition": {
+        "current": false,
+        "frontmatter": "pr-description",
+        "name_evidence": "successful SKILL.md load frontmatter",
+        "path": "historical-installed-skill:pr-description"
+      },
+      "direct_only_call_lower_bound": 99,
+      "evidence_turn_occasions": 97,
+      "load_request_call_lower_bound": 99,
+      "observed_lineages": 83,
+      "sources": {
+        "pi-main": {
+          "evidence_turn_occasions": 97,
+          "successful_skill_read": 99,
+          "user_command": 2
+        }
+      },
+      "status": "EVIDENCED"
+    },
+    "pr-info": {
+      "definition": {
+        "current": false,
+        "frontmatter": "pr-info",
+        "name_evidence": "successful SKILL.md load frontmatter",
+        "path": "historical-installed-skill:pr-info"
+      },
+      "direct_only_call_lower_bound": 75,
+      "evidence_turn_occasions": 74,
+      "load_request_call_lower_bound": 75,
+      "observed_lineages": 71,
+      "sources": {
+        "pi-main": {
+          "evidence_turn_occasions": 74,
+          "successful_skill_read": 75
+        }
+      },
+      "status": "EVIDENCED"
+    },
+    "pr-merge": {
+      "definition": {
+        "current": false,
+        "frontmatter": "pr-merge",
+        "name_evidence": "successful SKILL.md load frontmatter",
+        "path": "historical-installed-skill:pr-merge"
+      },
+      "direct_only_call_lower_bound": 1,
+      "evidence_turn_occasions": 1,
+      "load_request_call_lower_bound": 1,
+      "observed_lineages": 1,
+      "sources": {
+        "pi-main": {
+          "evidence_turn_occasions": 1,
+          "successful_skill_read": 1
+        }
+      },
+      "status": "EVIDENCED"
+    },
+    "pr-monitor": {
+      "definition": {
+        "current": false,
+        "frontmatter": "pr-monitor",
+        "name_evidence": "successful SKILL.md load frontmatter",
+        "path": "historical-installed-skill:pr-monitor"
+      },
+      "direct_only_call_lower_bound": 2,
+      "evidence_turn_occasions": 4,
+      "load_request_call_lower_bound": 2,
+      "observed_lineages": 4,
+      "sources": {
+        "claude-projects": {
+          "evidence_turn_occasions": 1,
+          "provider_skill_success": 1
+        },
+        "pi-main": {
+          "evidence_turn_occasions": 3,
+          "successful_skill_read": 2,
+          "user_command": 1
+        }
+      },
+      "status": "EVIDENCED"
+    },
+    "pr-rebase": {
+      "definition": {
+        "current": false,
+        "frontmatter": "pr-rebase",
+        "name_evidence": "successful SKILL.md load frontmatter",
+        "path": "historical-installed-skill:pr-rebase"
+      },
+      "direct_only_call_lower_bound": 21,
+      "evidence_turn_occasions": 21,
+      "load_request_call_lower_bound": 21,
+      "observed_lineages": 19,
+      "sources": {
+        "pi-main": {
+          "evidence_turn_occasions": 21,
+          "successful_skill_read": 21
+        }
+      },
+      "status": "EVIDENCED"
+    },
+    "pr-restack": {
+      "definition": {
+        "current": false,
+        "frontmatter": "pr-restack",
+        "name_evidence": "successful SKILL.md load frontmatter",
+        "path": "historical-installed-skill:pr-restack"
+      },
+      "direct_only_call_lower_bound": 15,
+      "evidence_turn_occasions": 15,
+      "load_request_call_lower_bound": 15,
+      "observed_lineages": 15,
+      "sources": {
+        "pi-main": {
+          "evidence_turn_occasions": 15,
+          "successful_skill_read": 15
+        }
+      },
+      "status": "EVIDENCED"
+    },
+    "pr-screenshots": {
+      "definition": {
+        "current": false,
+        "frontmatter": "pr-screenshots",
+        "name_evidence": "successful SKILL.md load frontmatter",
+        "path": "historical-installed-skill:pr-screenshots"
+      },
+      "direct_only_call_lower_bound": 29,
+      "evidence_turn_occasions": 27,
+      "load_request_call_lower_bound": 29,
+      "observed_lineages": 24,
+      "sources": {
+        "pi-main": {
+          "evidence_turn_occasions": 27,
+          "successful_skill_read": 29
+        }
+      },
+      "status": "EVIDENCED"
+    },
+    "pr-split": {
+      "definition": {
+        "current": false,
+        "frontmatter": "pr-split",
+        "name_evidence": "successful SKILL.md load frontmatter",
+        "path": "historical-installed-skill:pr-split"
+      },
+      "direct_only_call_lower_bound": 1,
+      "evidence_turn_occasions": 1,
+      "load_request_call_lower_bound": 1,
+      "observed_lineages": 1,
+      "sources": {
+        "pi-main": {
+          "evidence_turn_occasions": 1,
+          "successful_skill_read": 1
+        }
+      },
+      "status": "EVIDENCED"
+    },
+    "principles": {
+      "definition": {
+        "current": true,
+        "frontmatter": "principles",
+        "path": "skills/code-quality/principles/SKILL.md"
+      },
+      "direct_only_call_lower_bound": 1,
+      "evidence_turn_occasions": 1,
+      "load_request_call_lower_bound": 1,
+      "observed_lineages": 1,
+      "sources": {
+        "pi-main": {
+          "evidence_turn_occasions": 1,
+          "successful_skill_read": 1
+        }
+      },
+      "status": "EVIDENCED"
+    },
+    "product-review": {
+      "definition": {
+        "current": true,
+        "frontmatter": "product-review",
+        "path": "skills/planning/product-review/SKILL.md"
+      },
+      "direct_only_call_lower_bound": 7,
+      "evidence_turn_occasions": 6,
+      "load_request_call_lower_bound": 7,
+      "observed_lineages": 6,
+      "sources": {
+        "pi-main": {
+          "evidence_turn_occasions": 6,
+          "successful_skill_read": 7
+        }
+      },
+      "status": "EVIDENCED"
+    },
+    "program-design": {
+      "definition": {
+        "current": true,
+        "frontmatter": "program-design",
+        "path": "skills/planning/program-design/SKILL.md"
+      },
+      "direct_only_call_lower_bound": 6,
+      "evidence_turn_occasions": 5,
+      "load_request_call_lower_bound": 6,
+      "observed_lineages": 5,
+      "sources": {
+        "pi-main": {
+          "evidence_turn_occasions": 5,
+          "successful_skill_read": 6
+        }
+      },
+      "status": "EVIDENCED"
+    },
+    "proposal": {
+      "definition": {
+        "current": true,
+        "frontmatter": "proposal",
+        "path": "skills/planning/proposal/SKILL.md"
+      },
+      "direct_only_call_lower_bound": 18,
+      "evidence_turn_occasions": 18,
+      "load_request_call_lower_bound": 19,
+      "observed_lineages": 17,
+      "sources": {
+        "pi-main": {
+          "evidence_turn_occasions": 17,
+          "nested_skill_read_success": 1,
+          "successful_skill_read": 17,
+          "user_command": 2
+        },
+        "pi-subagents": {
+          "evidence_turn_occasions": 1,
+          "successful_skill_read": 1
+        }
+      },
+      "status": "EVIDENCED"
+    },
+    "prototype": {
+      "definition": {
+        "current": true,
+        "frontmatter": "prototype",
+        "path": "skills/visual/prototype/SKILL.md"
+      },
+      "direct_only_call_lower_bound": 1,
+      "evidence_turn_occasions": 1,
+      "load_request_call_lower_bound": 1,
+      "observed_lineages": 1,
+      "sources": {
+        "pi-main": {
+          "evidence_turn_occasions": 1,
+          "successful_skill_read": 1
+        }
+      },
+      "status": "EVIDENCED"
+    },
+    "rebase": {
+      "definition": {
+        "current": false,
+        "frontmatter": "rebase",
+        "path": "skills/dev/rebase/SKILL.md"
+      },
+      "direct_only_call_lower_bound": 54,
+      "evidence_turn_occasions": 54,
+      "load_request_call_lower_bound": 54,
+      "observed_lineages": 49,
+      "sources": {
+        "pi-main": {
+          "evidence_turn_occasions": 54,
+          "successful_skill_read": 54
+        }
+      },
+      "status": "EVIDENCED"
+    },
+    "refactor": {
+      "definition": {
+        "current": true,
+        "frontmatter": "refactor",
+        "path": "skills/code-quality/refactor/SKILL.md"
+      },
+      "direct_only_call_lower_bound": 1,
+      "evidence_turn_occasions": 2,
+      "load_request_call_lower_bound": 2,
+      "observed_lineages": 2,
+      "sources": {
+        "pi-main": {
+          "evidence_turn_occasions": 1,
+          "nested_skill_read_success": 1
+        },
+        "pi-subagents": {
+          "evidence_turn_occasions": 1,
+          "successful_skill_read": 1
+        }
+      },
+      "status": "EVIDENCED"
+    },
+    "reflect": {
+      "definition": {
+        "current": true,
+        "frontmatter": "reflect",
+        "path": "skills/agent/reflect/SKILL.md"
+      },
+      "direct_only_call_lower_bound": 4,
+      "evidence_turn_occasions": 4,
+      "load_request_call_lower_bound": 4,
+      "observed_lineages": 4,
+      "sources": {
+        "pi-main": {
+          "evidence_turn_occasions": 1,
+          "successful_skill_read": 1
+        },
+        "pi-subagents": {
+          "evidence_turn_occasions": 3,
+          "successful_skill_read": 3
+        }
+      },
+      "status": "EVIDENCED"
+    },
+    "reviewer agent": {
+      "definition": {
+        "current": true,
+        "frontmatter": "reviewer",
+        "path": "agents/reviewer.md"
+      },
+      "direct_only_call_lower_bound": 110,
+      "evidence_turn_occasions": 97,
+      "load_request_call_lower_bound": 134,
+      "observed_lineages": 67,
+      "sources": {
+        "claude-projects": {
+          "evidence_turn_occasions": 2,
+          "reviewer_dispatch_success": 6
+        },
+        "pi-main": {
+          "evidence_turn_occasions": 95,
+          "nested_reviewer_dispatch_success": 24,
+          "reviewer_dispatch_success": 104,
+          "reviewer_dispatch_unconfirmed": 6
+        }
+      },
+      "status": "EVIDENCED"
+    },
+    "scope": {
+      "definition": {
+        "current": true,
+        "frontmatter": "scope",
+        "path": "skills/agent/scope/SKILL.md"
+      },
+      "direct_only_call_lower_bound": 6,
+      "evidence_turn_occasions": 10,
+      "load_request_call_lower_bound": 10,
+      "observed_lineages": 9,
+      "sources": {
+        "pi-main": {
+          "evidence_turn_occasions": 5,
+          "successful_skill_read": 5
+        },
+        "pi-subagents": {
+          "evidence_turn_occasions": 5,
+          "nested_skill_read_success": 4,
+          "successful_skill_read": 1
+        }
+      },
+      "status": "EVIDENCED"
+    },
+    "scrutiny": {
+      "definition": {
+        "current": true,
+        "frontmatter": "scrutiny",
+        "path": "skills/code-quality/scrutiny/SKILL.md"
+      },
+      "direct_only_call_lower_bound": 9,
+      "evidence_turn_occasions": 9,
+      "load_request_call_lower_bound": 9,
+      "observed_lineages": 9,
+      "sources": {
+        "pi-main": {
+          "evidence_turn_occasions": 8,
+          "successful_skill_read": 8,
+          "unconfirmed_skill_read": 1
+        },
+        "pi-subagents": {
+          "evidence_turn_occasions": 1,
+          "successful_skill_read": 1
+        }
+      },
+      "status": "EVIDENCED"
+    },
+    "smell": {
+      "definition": {
+        "current": false,
+        "frontmatter": "smell",
+        "path": "skills/code-quality/smell/SKILL.md"
+      },
+      "direct_only_call_lower_bound": 0,
+      "evidence_turn_occasions": 0,
+      "load_request_call_lower_bound": 0,
+      "observed_lineages": 0,
+      "sources": {},
+      "status": "UNKNOWN"
+    },
+    "sniff": {
+      "definition": {
+        "current": true,
+        "frontmatter": "sniff",
+        "path": "skills/code-quality/sniff/SKILL.md"
+      },
+      "direct_only_call_lower_bound": 0,
+      "evidence_turn_occasions": 0,
+      "load_request_call_lower_bound": 0,
+      "observed_lineages": 0,
+      "sources": {},
+      "status": "UNKNOWN"
+    },
+    "speclist": {
+      "definition": {
+        "current": true,
+        "frontmatter": "speclist",
+        "path": "skills/planning/speclist/SKILL.md"
+      },
+      "direct_only_call_lower_bound": 16,
+      "evidence_turn_occasions": 17,
+      "load_request_call_lower_bound": 17,
+      "observed_lineages": 16,
+      "sources": {
+        "pi-main": {
+          "evidence_turn_occasions": 16,
+          "nested_skill_read_success": 1,
+          "successful_skill_read": 15
+        },
+        "pi-subagents": {
+          "evidence_turn_occasions": 1,
+          "successful_skill_read": 1
+        }
+      },
+      "status": "EVIDENCED"
+    },
+    "srp": {
+      "definition": {
+        "current": true,
+        "frontmatter": "srp",
+        "path": "skills/code-quality/srp/SKILL.md"
+      },
+      "direct_only_call_lower_bound": 1,
+      "evidence_turn_occasions": 1,
+      "load_request_call_lower_bound": 1,
+      "observed_lineages": 1,
+      "sources": {
+        "pi-subagents": {
+          "evidence_turn_occasions": 1,
+          "successful_skill_read": 1
+        }
+      },
+      "status": "EVIDENCED"
+    },
+    "system-architecture": {
+      "definition": {
+        "current": true,
+        "frontmatter": "system-architecture",
+        "path": "skills/planning/system-architecture/SKILL.md"
+      },
+      "direct_only_call_lower_bound": 6,
+      "evidence_turn_occasions": 6,
+      "load_request_call_lower_bound": 6,
+      "observed_lineages": 6,
+      "sources": {
+        "pi-main": {
+          "evidence_turn_occasions": 6,
+          "successful_skill_read": 6
+        }
+      },
+      "status": "EVIDENCED"
+    },
+    "vertical-slices": {
+      "definition": {
+        "current": true,
+        "frontmatter": "vertical-slices",
+        "path": "skills/planning/vertical-slices/SKILL.md"
+      },
+      "direct_only_call_lower_bound": 6,
+      "evidence_turn_occasions": 6,
+      "load_request_call_lower_bound": 6,
+      "observed_lineages": 6,
+      "sources": {
+        "pi-main": {
+          "evidence_turn_occasions": 6,
+          "successful_skill_read": 6
+        }
+      },
+      "status": "EVIDENCED"
+    },
+    "worktree": {
+      "definition": {
+        "current": false,
+        "frontmatter": "worktree",
+        "path": "skills/dev/worktree/SKILL.md"
+      },
+      "direct_only_call_lower_bound": 4,
+      "evidence_turn_occasions": 4,
+      "load_request_call_lower_bound": 4,
+      "observed_lineages": 4,
+      "sources": {
+        "pi-main": {
+          "evidence_turn_occasions": 4,
+          "successful_skill_read": 4
+        }
+      },
+      "status": "EVIDENCED"
+    }
+  },
+  "coverage": {
+    "claude-projects": {
+      "bytes": 26186845,
+      "date_max": "2026-10-17T00:10:27.458000+00:00",
+      "date_min": "2026-09-17T23:12:16.622000+00:00",
+      "eligible_records": 3957,
+      "files": 32,
+      "missing_or_invalid_timestamp": 1612,
+      "provider_skill_calls_all_names": 6,
+      "records": 5569
+    },
+    "pi-main": {
+      "at_or_after_cutoff": 67,
+      "bytes": 436803693,
+      "date_max": "2026-10-20T00:38:17.859000+00:00",
+      "date_min": "2026-06-09T02:54:54.929000+00:00",
+      "eligible_records": 103280,
+      "excluded_task_files": 1,
+      "files": 697,
+      "jev_find_skill_results": 3,
+      "records": 103458
+    },
+    "pi-subagents": {
+      "at_or_after_cutoff": 471,
+      "bytes": 34661731,
+      "date_max": "2026-10-20T00:37:50.355000+00:00",
+      "date_min": "2026-08-28T00:45:04.423000+00:00",
+      "eligible_records": 6744,
+      "files": 99,
+      "records": 7215
+    }
+  },
+  "cutoff_exclusive": "2026-10-20T00:38:18.590Z",
+  "duplicate_evidence_records_removed": 80,
+  "git_change_commits_not_invocations": {
+    "branch": 3,
+    "build": 5,
+    "changes": 7,
+    "commit": 5,
+    "conflicts": 7,
+    "context-engineering": 4,
+    "deep-review": 5,
+    "dry": 6,
+    "extract": 2,
+    "flow-design": 10,
+    "fresh-air": 9,
+    "gh-stack": 0,
+    "git": 3,
+    "handoff": 3,
+    "idea-to-pr": 12,
+    "new-app": 3,
+    "plan-init": 9,
+    "ponytail": 3,
+    "pr": 4,
+    "pr-ci": 0,
+    "pr-comments": 0,
+    "pr-create": 0,
+    "pr-description": 0,
+    "pr-info": 0,
+    "pr-merge": 0,
+    "pr-monitor": 0,
+    "pr-rebase": 0,
+    "pr-restack": 0,
+    "pr-screenshots": 0,
+    "pr-split": 0,
+    "principles": 10,
+    "product-review": 10,
+    "program-design": 9,
+    "proposal": 12,
+    "prototype": 1,
+    "rebase": 5,
+    "refactor": 5,
+    "reflect": 7,
+    "reviewer agent": 16,
+    "scope": 9,
+    "scrutiny": 2,
+    "smell": 2,
+    "sniff": 9,
+    "speclist": 9,
+    "srp": 3,
+    "system-architecture": 8,
+    "vertical-slices": 9,
+    "worktree": 4
+  },
+  "nested_tool_metadata_audit": {
+    "coverage": {
+      "pi-main": {
+        "bash": {
+          "call_records_before_deduplication": 18042,
+          "calls_without_eligible_result": 17,
+          "non_error_results": 16621,
+          "result_records_before_deduplication": 18024,
+          "results_without_reconstructible_nested_trace_schema": 17383,
+          "unique_call_records": 17400,
+          "unique_calls_without_structured_trace_schema": 17400,
+          "unique_result_records": 17383
+        },
+        "codemode": {
+          "call_records_before_deduplication": 75,
+          "non_error_results": 73,
+          "result_records_before_deduplication": 75,
+          "results_with_structured_nested_arguments_and_ids": 62,
+          "results_without_reconstructible_nested_trace_schema": 13,
+          "unique_call_records": 75,
+          "unique_calls_with_structured_trace_schema": 62,
+          "unique_calls_without_structured_trace_schema": 13,
+          "unique_result_records": 75
+        }
+      },
+      "pi-subagents": {
+        "bash": {
+          "call_records_before_deduplication": 951,
+          "non_error_results": 861,
+          "result_records_before_deduplication": 951,
+          "results_without_reconstructible_nested_trace_schema": 951,
+          "unique_call_records": 951,
+          "unique_calls_without_structured_trace_schema": 951,
+          "unique_result_records": 951
+        },
+        "codemode": {
+          "call_records_before_deduplication": 170,
+          "non_error_results": 157,
+          "result_records_before_deduplication": 170,
+          "results_with_structured_nested_arguments_and_ids": 170,
+          "unique_call_records": 170,
+          "unique_calls_with_structured_trace_schema": 170,
+          "unique_result_records": 170
+        }
+      }
+    },
+    "finding": "Counted complete nestedCalls.calls traces with status ok, scoped IDs and exact structured arguments. Error, unfinished, incomplete and opaque records remain separate. details.calls is never invocation evidence. Nested results are not persisted, so core status confirms success.",
+    "nested_success_evidence_added": 49,
+    "nested_trace_diagnostics": {
+      "pi-main": {
+        "complete_traces": 61,
+        "incomplete_traces": 1,
+        "nested_record_status_error": 36,
+        "nested_record_status_ok": 170,
+        "non_target_structured_calls": 156,
+        "opaque_or_omitted_arguments": 18
+      },
+      "pi-subagents": {
+        "complete_traces": 170,
+        "nested_record_status_error": 34,
+        "nested_record_status_ok": 734,
+        "non_target_structured_calls": 751
+      }
+    },
+    "sample_limit_per_tool": 40,
+    "sampled_results_per_tool": {
+      "bash": 40,
+      "codemode": 40
+    },
+    "sampled_schemas": [
+      {
+        "keys_or_type": "text,type",
+        "location": "content_item_keys",
+        "sample_count": 40,
+        "tool": "bash"
+      },
+      {
+        "keys_or_type": "",
+        "location": "details_keys_or_type",
+        "sample_count": 2,
+        "tool": "bash"
+      },
+      {
+        "keys_or_type": "NoneType",
+        "location": "details_keys_or_type",
+        "sample_count": 36,
+        "tool": "bash"
+      },
+      {
+        "keys_or_type": "fullOutputPath,truncation",
+        "location": "details_keys_or_type",
+        "sample_count": 2,
+        "tool": "bash"
+      },
+      {
+        "keys_or_type": "content,details,isError,role,timestamp,toolCallId,toolName",
+        "location": "message_keys",
+        "sample_count": 4,
+        "tool": "bash"
+      },
+      {
+        "keys_or_type": "content,isError,role,timestamp,toolCallId,toolName",
+        "location": "message_keys",
+        "sample_count": 36,
+        "tool": "bash"
+      },
+      {
+        "keys_or_type": "NoneType",
+        "location": "nestedCalls_keys_or_type",
+        "sample_count": 40,
+        "tool": "bash"
+      },
+      {
+        "keys_or_type": "text,type",
+        "location": "content_item_keys",
+        "sample_count": 80,
+        "tool": "codemode"
+      },
+      {
+        "keys_or_type": "str",
+        "location": "details.calls.args_keys_or_type",
+        "sample_count": 55,
+        "tool": "codemode"
+      },
+      {
+        "keys_or_type": "args,cost,durationMs,id,name,status",
+        "location": "details.calls_item_keys",
+        "sample_count": 4,
+        "tool": "codemode"
+      },
+      {
+        "keys_or_type": "args,durationMs,error,id,name,status",
+        "location": "details.calls_item_keys",
+        "sample_count": 10,
+        "tool": "codemode"
+      },
+      {
+        "keys_or_type": "args,durationMs,id,name,status",
+        "location": "details.calls_item_keys",
+        "sample_count": 41,
+        "tool": "codemode"
+      },
+      {
+        "keys_or_type": "calls",
+        "location": "details_keys_or_type",
+        "sample_count": 40,
+        "tool": "codemode"
+      },
+      {
+        "keys_or_type": "content,details,durationMs,isError,nestedCalls,role,timestamp,toolCallId,toolName",
+        "location": "message_keys",
+        "sample_count": 34,
+        "tool": "codemode"
+      },
+      {
+        "keys_or_type": "content,details,durationMs,isError,role,timestamp,toolCallId,toolName",
+        "location": "message_keys",
+        "sample_count": 2,
+        "tool": "codemode"
+      },
+      {
+        "keys_or_type": "content,details,durationMs,isError,role,timestamp,toolCallId,toolName,usage",
+        "location": "message_keys",
+        "sample_count": 4,
+        "tool": "codemode"
+      },
+      {
+        "keys_or_type": "agent,model,name,task",
+        "location": "nestedCalls.calls.arguments_keys_or_type",
+        "sample_count": 6,
+        "tool": "codemode"
+      },
+      {
+        "keys_or_type": "command,timeout",
+        "location": "nestedCalls.calls.arguments_keys_or_type",
+        "sample_count": 33,
+        "tool": "codemode"
+      },
+      {
+        "keys_or_type": "request",
+        "location": "nestedCalls.calls.arguments_keys_or_type",
+        "sample_count": 9,
+        "tool": "codemode"
+      },
+      {
+        "keys_or_type": "url",
+        "location": "nestedCalls.calls.arguments_keys_or_type",
+        "sample_count": 3,
+        "tool": "codemode"
+      },
+      {
+        "keys_or_type": "arguments,durationMs,error,id,name,status",
+        "location": "nestedCalls.calls_item_keys",
+        "sample_count": 10,
+        "tool": "codemode"
+      },
+      {
+        "keys_or_type": "arguments,durationMs,id,name,status",
+        "location": "nestedCalls.calls_item_keys",
+        "sample_count": 41,
+        "tool": "codemode"
+      },
+      {
+        "keys_or_type": "NoneType",
+        "location": "nestedCalls_keys_or_type",
+        "sample_count": 6,
+        "tool": "codemode"
+      },
+      {
+        "keys_or_type": "calls,complete",
+        "location": "nestedCalls_keys_or_type",
+        "sample_count": 34,
+        "tool": "codemode"
+      }
+    ]
+  },
+  "supplementary": {
+    "bash-history": {
+      "coverage": {
+        "bytes": 37649,
+        "date_max": null,
+        "date_min": null,
+        "files": 1,
+        "records": 2000,
+        "undated_records_not_counted": 2000
+      },
+      "not_added_to_transcript_totals": {}
+    },
+    "claude-history": {
+      "coverage": {
+        "bytes": 83008,
+        "date_max": "2026-10-17T00:09:42.173000+00:00",
+        "date_min": "2026-04-16T18:58:17.710000+00:00",
+        "eligible_records": 368,
+        "files": 1,
+        "records": 368
+      },
+      "not_added_to_transcript_totals": {
+        "changes": 3,
+        "commit": 2,
+        "ponytail": 1,
+        "pr": 4,
+        "pr-comments": 1,
+        "pr-description": 2,
+        "prototype": 1
+      }
+    },
+    "pi-observability": {
+      "coverage": {
+        "bytes": 2162,
+        "date_max": "2026-10-20T00:21:46.363000+00:00",
+        "date_min": "2026-10-19T20:38:14.633000+00:00",
+        "eligible_records": 10,
+        "files": 1,
+        "records": 10
+      },
+      "not_added_to_transcript_totals": {}
+    },
+    "pi-run-history": {
+      "coverage": {
+        "bytes": 23526,
+        "date_max": "2026-08-28T00:01:59+00:00",
+        "date_min": "2026-06-09T03:05:15+00:00",
+        "eligible_records": 139,
+        "files": 1,
+        "records": 139
+      },
+      "not_added_to_transcript_totals": {
+        "reviewer agent": 89
+      }
+    },
+    "zsh-history": {
+      "coverage": {
+        "bytes": 6734,
+        "date_max": "2026-06-25T19:10:16+00:00",
+        "date_min": "2025-10-09T18:15:48+00:00",
+        "eligible_records": 46,
+        "files": 1,
+        "records": 56,
+        "undated_records_not_counted": 10
+      },
+      "not_added_to_transcript_totals": {}
+    }
+  },
+  "totals": {
+    "evidence_turn_occasions": 929,
+    "evidenced_names": 45,
+    "load_request_call_lower_bound": 956,
+    "unique_classified_evidence_records": 1036,
+    "unknown_names": 3
+  }
+}

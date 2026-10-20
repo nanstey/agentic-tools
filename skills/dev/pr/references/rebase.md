@@ -12,7 +12,7 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 3. If no PR exists, use an explicit base from the invocation, else generic `/git rebase` base detection.
 4. Delegate to `/git rebase` with base pinned to PR base.
 5. Let `/git conflicts` handle pauses.
-6. Do not re-implement fetch/rebase/push logic here.
+6. Do not re-implement fetch/rebase/push logic here. After a successful push, run the `/pr push` post-push steps (head re-resolve, evidence invalidation, `/pr description`) for the new head.
 
 ## Guards
 

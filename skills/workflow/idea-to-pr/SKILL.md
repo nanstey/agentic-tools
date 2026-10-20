@@ -30,7 +30,7 @@ If the idea is vague, derive acceptance criteria from the best reading and recor
 
 Give delegated work a clear purpose, relevant context, and expected result. Run independent work concurrently only when the environment can keep writers isolated. Let the environment choose its native agents, tools, and coordination pattern.
 
-Track timing, cost, or resource usage when the environment reports it. Do not require budgets or resource controls unless the user requests them or the environment requires them.
+Track timing, cost, or resource usage when the environment reports it. Do not require resource budgets or controls unless the user requests them or the environment requires them. The shared review/fix limit in [`gates.md`](../../dev/pr/references/gates.md) is a workflow safety constraint, not a resource-budget requirement.
 
 ### State and handoffs
 
@@ -44,7 +44,9 @@ Scope / non-goals / constraints
 Verified evidence: file:line, commands, and current behaviour
 Decisions already made and decisions still open
 Affected boundaries and likely files
-Validation and runtime-verification commands
+Validation/runtime commands, observed acceptance outcomes, executed results and gaps
+Review packet: base/head/trusted policy/scope/check coverage/evidence snapshot
+Retained finding IDs/root causes/categories/resolutions and inherited round state
 Risks, dependencies, and assumptions
 Required artifact and return contract
 ```
@@ -58,7 +60,7 @@ Required artifact and return contract
 
 Record each assignment and expected artifact in the README. Verify returned evidence, artifacts, and validation results before advancing.
 
-Treat a partial, blocked, cancelled, artifact-less, or gate-failed task as a blocked stage. Diagnose the failure, then retry with a narrower scope, different approach, or alternative tool as needed; escalate only after distinct approaches fail and no workaround exists. Keep reconnaissance focused on relevant paths, targeted reads, and package metadata. Do not scan lockfiles or dependency directories as source evidence.
+Treat a partial, blocked, cancelled, artifact-less, or gate-failed task as a blocked stage. Diagnose the failure, then retry with a narrower scope, different approach, or alternative tool as needed; escalate only after distinct approaches fail and no workaround exists. Review/fix recovery remains within the inherited three-round limit and stops for unfixable/no-progress work or missing material evidence; generic retries never reset it. Keep reconnaissance focused on relevant paths, targeted reads, and package metadata. Do not scan lockfiles or dependency directories as source evidence.
 
 ## Workflow
 
@@ -66,7 +68,7 @@ Resume at the first incomplete stage in the README rather than restarting.
 
 ### 1. Triage
 
-Classify the request as **small** (one clear, low-risk component) or **large** (cross-boundary, risky, or product-ambiguous), extract acceptance criteria, and identify unresolved material questions. Delegate this only when a separate context would improve discovery.
+Classify planning workload as **small** (one clear component) or **large** (cross-boundary or product-ambiguous), extract acceptance criteria, and identify unresolved material questions. Separately trace impact evidence, consequences, containment, and uncertainty to select required checks/review depth: small changes can have broad risk and large changes can be contained. Delegate this only when a separate context would improve discovery.
 
 ### 2. Plan folder
 
@@ -79,6 +81,7 @@ Run `plan-init` to create the plan folder/README. For a resumed run, verify the 
 - **Small idea:** use one focused reconnaissance task for the affected behaviour, files, tests, validation commands, and risks.
 - **Large idea:** split distinct read-only scopes across product/request evidence, code patterns and boundaries, and validation/runtime risks when parallel execution is available. Follow with one synthesis step that emits a single evidence packet.
 - Give every scope concrete paths and an evidence-bearing return contract. Do not fan out overlapping questions.
+- For underspecified ideas, run [scrutiny](../../code-quality/scrutiny/SKILL.md) Mode A's pre-build contract before fixing criteria. Only user-confirmed items become obligations; retain assumptions and unresolved decisions as evidence.
 
 #### 3b. Planning
 
@@ -93,25 +96,24 @@ In `gated` mode, stop for explicit approval after the completed plan. In autopil
 
 ### 4. Specification
 
-Run `speclist` to write one spec per slice under `<plan-folder>/specs/`. One slice equals one PR. Require each spec to contain:
+Run `speclist` to write one spec per slice under `<plan-folder>/specs/`. Apply the PR split rule in the [caller contract](../review-code/references/caller-contract.md). Validate each slice. Require each spec to contain:
 
 - `## Implementation` — checked only after implementation validation passes.
 - `## Test Scenarios` — Given/When/Then scenarios checked only after a separate QA/review step observes them pass.
 
 ### 5. Per-slice pipeline
 
-For each slice, use the spec plus current decision packet. Dependent slices remain sequential. Concurrent writers require isolated workspaces; otherwise serialize them.
+For each slice, use the spec plus current decision packet. Dependent slices remain sequential. Concurrent writers require isolated workspaces; otherwise serialize them. Run steps 1–5 for every slice in the repository's default single PR. Then review and publish the combined scope through steps 6–7 once. If the user requests a split, review and publish each requested PR separately. Preserve dependent-slice approvals in gated mode.
 
-1. Run `/git branch` or `/git worktree` when the current checkout is unsuitable. Never run concurrent writers in one checkout.
-2. Run a focused environment preflight: detect the package manager/lockfile, run the prospective deterministic gate, and, only for a dependency-shaped failure, make one immutable-install repair (for pnpm, `pnpm install --frozen-lockfile`) and retry the identical gate. Record both attempts and classify persistent failure as baseline code, lockfile/install, access/service, or unknown.
-3. Run `flow-design` when delegation would improve the slice. It returns an appropriate execution plan, role boundaries, validation gates, and return contracts. For simple or non-delegated slices, record the equivalent plan inline.
-4. Execute the plan. Separate implementation from acceptance review when an independent context is available; otherwise perform a distinct self-review pass and record that limitation. Only the implementation step checks completed `## Implementation` items.
-5. For runnable behaviour, use a separate QA step to boot the app and observe every Given/When/Then scenario end-to-end. Use `playwright-cli` for browser-facing behaviour or equivalent CLI/API verification otherwise. QA returns per-scenario evidence and checks only `## Test Scenarios`; unit tests alone do not prove runtime behaviour.
-6. For user-facing UI, run `visual-capture` only after QA passes. Store evidence outside git and hand its paths to the PR step.
-7. For large changes or on request, run an independent quality review using `principles` and/or `deep-review`; route accepted fixes through a new implementation step.
-8. Run `/git commit`, then `/pr`. Use `/pr stack` or `/pr restack` for dependent PRs. Update the README with the PR URL, status, evidence paths, and decision deviations.
+1. Run a focused environment preflight: detect the package manager/lockfile, run the prospective deterministic gate, and, only for a dependency-shaped failure, make one immutable-install repair (for pnpm, `pnpm install --frozen-lockfile`) and retry the identical gate. Record both attempts and classify persistent failure as baseline code, lockfile/install, access/service, or unknown.
+2. Run `flow-design` when delegation would improve the slice. For simple or non-delegated slices, record the equivalent plan inline.
+3. Run [`build`](../build/SKILL.md) steps 1–5 on the slice spec, with the caller-owned QA, review, and shipping stated. Build covers branch/worktree fitness, tooling checks, phased implementation, and separate validation. Only implementation checks `## Implementation` items. Separate implementation from acceptance review when an independent context is available; otherwise record the limitation.
+4. For runnable behaviour, use a separate QA step to boot the app and observe every Given/When/Then scenario end-to-end. Use `playwright-cli` for browser-facing behaviour or equivalent CLI/API verification otherwise. QA returns per-scenario evidence and checks only `## Test Scenarios`; unit tests alone do not prove runtime behaviour.
+5. For user-facing UI, run `visual-capture` only after QA passes. Store evidence outside git and hand its paths to the PR step.
+6. The coordinator is the review caller and owns the round budget. Start each PR's review with one [`/review-code fix`](../review-code/SKILL.md) call on combined scope per the [caller contract](../review-code/references/caller-contract.md). Include step 4 QA evidence.
+7. After successful validation, run `/git commit`, then `/pr` with the resulting packet/evidence and caller-owned round state (see the caller contract; do not reset the budget on publication). Update README with actual PR/draft/readiness status, evidence/packet paths, round state, and deviations; a published draft is not yet review-ready.
 
-**GATE (gated mode):** require user approval before the next dependent slice. Autopilot proceeds after successful ordinary transitions and stops only for an unresolved product decision, a destructive or hard-to-reverse action not already authorized, or access that cannot be obtained or worked around. Fix blocked validation/runtime gates rather than stopping.
+**GATE (gated mode):** require user approval before the next dependent slice. Autopilot proceeds after successful ordinary transitions; it stops for an unresolved product decision, a destructive or hard-to-reverse action not already authorized, unavailable access, or an unfixable/exhausted/no-progress review or validation gate. Fix ordinary validation/runtime failures within the inherited budget; never bypass a gate, erase a gap, or restart the budget to continue.
 
 ### 6. Close-out
 
@@ -132,4 +134,4 @@ Perform a final read-only audit that every slice is review-ready or merged, spec
 
 ## Output Style
 
-Report a compact stage checklist (`done` / `skipped` / `blocked`), plan-folder path, current handoff packet location, execution assignments and artifact paths, optional resource usage when available, slice status with PR URLs, and unresolved blockers or gates. Keep detailed task output in linked artifacts.
+Report a compact stage checklist (`done` / `skipped` / `blocked`), plan-folder and handoff/review packet paths, acceptance/validator evidence, snapshot/round state, assignments and limitations, optional resource usage, slice/PR draft-readiness status and URLs, and exact blockers/gates. Keep details in linked artifacts; distinguish source clean, publication, readiness, and human approval.

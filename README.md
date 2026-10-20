@@ -99,6 +99,7 @@ Focused planning skills below are optional and independently selectable; `propos
 | [`idea-to-pr`](skills/workflow/idea-to-pr/SKILL.md) | Takes an idea from evidence-backed discovery through built, tested, and validated pull requests. Use when a feature idea or change request should be driven end-to-end to review-ready PRs. |
 | [`flow-design`](skills/workflow/flow-design/SKILL.md) | Designs a platform-neutral delegation plan with roles, gates, and return contracts. Use when a task needs coordinated execution designed before work begins. |
 | [`build`](skills/workflow/build/SKILL.md) | Implements scoped changes from context, plans, or speclists through verifiable phases with up-front success criteria and per-phase validation. Use when execution should start from existing requirements. |
+| [`review-code`](skills/workflow/review-code/SKILL.md) | Produces one source-verified review packet with optional fix planning or working-tree remediation. Use when a changeset needs coordinated quality, refactor, and security review. |
 
 ### Agent
 
@@ -150,16 +151,16 @@ Focused planning skills below are optional and independently selectable; `propos
 
 | Skill | Description |
 | --- | --- |
-| [`deep-review`](skills/code-quality/deep-review/SKILL.md) | Strict maintainability review focused on abstractions, oversized files, and condition sprawl. |
-| [`dry`](skills/code-quality/dry/SKILL.md) | Read-only DRY review that ranks duplication and proposes concrete consolidations. |
-| [`srp`](skills/code-quality/srp/SKILL.md) | Evaluate Single Responsibility Principle violations and recommend cohesive boundaries. |
-| [`extract`](skills/code-quality/extract/SKILL.md) | Identify extraction opportunities from DRY/SRP findings and propose reusable boundaries. |
-| [`principles`](skills/code-quality/principles/SKILL.md) | Apply core design principles through a concise implementation/review checklist. |
-| [`sniff`](skills/code-quality/sniff/SKILL.md) | Run smell analysis and map findings to standard smells and refactor options. |
-| [`fresh-air`](skills/code-quality/fresh-air/SKILL.md) | Recommend best-fit refactoring techniques for smell findings with confidence. |
-| [`refactor`](skills/code-quality/refactor/SKILL.md) | Orchestrate smell validation, technique selection, and final implementation planning. |
+| [`bugs`](skills/code-quality/bugs/SKILL.md) | Hunts functional defects in code, a diff, or a repository by tracing real execution paths, challenging each suspect, and reporting only bugs with a concrete trigger, evidence, and suggested fix. Use when asked to find bugs, hunt defects, audit logic or runtime correctness, or check changed code for errors that tests may miss. |
+| [`risk-review`](skills/code-quality/risk-review/SKILL.md) | Produces an evidence-led, read-only change review with impact paths, required checks, and verified findings. Use when reviewing a change or supplying a shared quality or security review packet. |
+| [`verification`](skills/code-quality/verification/SKILL.md) | Verifies the basic claims of a changeset by seeking executed evidence that the change achieved its stated goal. Use when a change, branch, or diff claims an outcome and that claim needs proof before it is trusted. |
+| [`refactor`](skills/code-quality/refactor/SKILL.md) | Reviews and fixes code smells, duplication (DRY), responsibilities (SRP), design principles, structural maintainability, over-engineering, and technique selection. Use when exhaustive review, simplification, extraction, deep review, or refactor planning should lead to behavior-preserving fixes, or diagnosis only with --report. |
+| [`security`](skills/code-quality/security/SKILL.md) | Reviews code, a diff, or a repository for exploitable security flaws by tracing attacker-controlled input to dangerous sinks, then reports verified findings with severity, confidence, and suggested fixes. Use when asked to security-review, audit, or check code for vulnerabilities, secrets, unsafe dependencies, or weak auth, or after changes to auth, input handling, secrets, or trust boundaries. |
 | [`scrutiny`](skills/code-quality/scrutiny/SKILL.md) | Silently interrogates a build/design across the relevant engineering domains, self-answering what the codebase and defaults allow and escalating only authority decisions, then builds and verifies. Vendored and adapted from [m4vic/socratic](https://github.com/m4vic/socratic) (MIT). |
-| [`ponytail`](skills/code-quality/ponytail/SKILL.md) | Tightens the current branch's changes to the fewest lines that still work, climbing the YAGNI/reuse/stdlib/native ladder on every changed hunk, plus a repo-wide audit mode. Vendored and adapted from [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) (MIT). |
+
+Refactor's internal simplification method is vendored and adapted from
+[DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail)
+([MIT license](skills/code-quality/refactor/references/simplify.LICENSE)).
 
 ### Authoring (project skills)
 

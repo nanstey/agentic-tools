@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<meta name="description" content="Offline proposal for evidence-led change impact analysis, advisory Jev judgments, and bounded PR loops. Planning only.">
+<meta name="source-sha256" content="05971789abef1df6b9876b7aad945e2c405bea03d7a399987e3e7b9925c27759">
+<title>Unified review proposal</title>
+<style>
+:root{--paper:#f7f5ef;--surface:#fffefa;--ink:#202f31;--muted:#526369;--line:#ccd6ce;--teal:#1e5954;--rust:#81412e}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:17px/1.6 system-ui,sans-serif}main,nav,footer{max-width:1080px;margin:auto;padding:24px 32px}main{padding-top:0}nav,footer{font-size:14px}nav{display:flex;flex-wrap:wrap;gap:10px 24px}a{color:var(--teal);text-underline-offset:3px}a:focus-visible{outline:3px solid var(--rust);outline-offset:4px}.skip{position:absolute;top:-100px;background:var(--surface);padding:12px}.skip:focus{top:8px}h1,h2{font-family:Georgia,'Times New Roman',serif;font-weight:400;line-height:1.15}h1{font-size:clamp(32px,5vw,52px);margin:22px 0}h2{font-size:29px;margin:0 0 18px}p{margin:16px 0}header>p:first-of-type{font-size:21px}header{padding-bottom:8px}section{border-top:1px solid var(--line);padding-top:24px;margin-top:24px}code{font:.88em ui-monospace,monospace;background:#e8eee7;padding:2px 4px;overflow-wrap:anywhere}.status{color:var(--teal)}table{width:100%;border-collapse:collapse;background:var(--surface);font-size:15px}th,td{text-align:left;vertical-align:top;padding:12px;border-bottom:1px solid var(--line);overflow-wrap:anywhere}th{background:#e8eee7}td:first-child{width:24%}figure{margin:20px 0;border-left:3px solid var(--teal);padding:14px;background:var(--surface)}pre{margin:0;font:14px/1.6 ui-monospace,monospace;white-space:pre-wrap;overflow-wrap:anywhere}footer{border-top:1px solid var(--line);color:var(--muted);padding-bottom:28px}
+@media(max-width:760px){main,nav,footer{padding-left:20px;padding-right:20px}th,td{padding:8px}table{font-size:13px}header>p:first-of-type{font-size:19px}pre{font-size:12px}}
+@page{size:A4;margin:16mm}
+@media print{body{background:white;font-size:10pt;line-height:1.45}main,footer{max-width:none;padding:0}nav,.skip{display:none}h1{font-size:28pt}h2{font-size:19pt}header>p:first-of-type{font-size:12pt}section{padding-top:14px;margin-top:18px}p{margin:10px 0}table{font-size:9pt}th,td{padding:8px}figure,tr{break-inside:avoid}pre{font-size:8pt}h2{break-after:avoid}p{orphans:3;widows:3}footer{margin-top:20px;font-size:8pt}}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to proposal</a>
+<nav aria-label="Plan navigation"><a href="README.md">Plan index</a><a href="proposal.md">Markdown</a><a href="#commands">Commands</a><a href="#impact">Impact assessment</a><a href="#jev">Jev judgments</a><a href="#findings">Finding categories</a><a href="#gates">PR gates and loops</a><a href="#workflows">Workflow changes</a><a href="#rollout">Rollout</a><a href="#sources">Sources</a></nav>
+<main id="main">
+<header>
+<h1>Unified review proposal</h1>
+<p>Keep <code>/deep-review</code> and <code>/extract</code>. Share evidence-led impact analysis and advisory Jev judgments through read-only <code>risk-review</code>, with bounded PR quality/security loops.</p>
+<p class="status"><strong>Status: approved for implementation in one PR.</strong> See the build checklist for progress.</p>
+</header>
+<section id="commands" aria-labelledby="commands-title">
+<h2 id="commands-title">Commands and boundaries</h2>
+<table aria-label="Commands and boundaries">
+<thead>
+<tr>
+<th scope="col">Route</th>
+<th scope="col">Preserved method</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/refactor inspect</code></td>
+<td><code>sniff</code> diagnosis</td>
+</tr>
+<tr>
+<td><code>/refactor extract</code></td>
+<td><code>/extract</code> alias: DRY/SRP placement planning</td>
+</tr>
+<tr>
+<td><code>/refactor simplify</code></td>
+<td><code>ponytail lite</code>: report before authorized edits</td>
+</tr>
+<tr>
+<td><code>/refactor plan</code></td>
+<td><code>fresh-air</code> and refactor planning</td>
+</tr>
+</tbody>
+</table>
+<p>Keep <code>/refactor</code> thin. Preserve manual DRY/SRP/principles lenses, specialist prompts, reports, and datasets. <code>/extract</code> retains same-file/existing-file/new-file destinations, concrete paths, and rationale. <code>/deep-review</code> retains layer placement, type/boundary contracts, branching, indirection, decomposition, and maintainability checks.</p>
+<p>Separate review context and optional model diversity remain. Unknown model provenance never blocks. Main-model routing stays unchanged. Select specialist work explicitly, without automatic fanout or editing.</p>
+</section>
+<section id="impact" aria-labelledby="impact-title">
+<h2 id="impact-title">Evidence-led impact assessment</h2>
+<p>ISTQB describes change impact analysis. This workflow is our proposed adaptation, without numerical risk tiers. Sizes measure workload only, never safety or reach.</p>
+<ol>
+<li>Record scope, base/head, trusted policy identity, acceptance criteria, and observed outcome. Review policy changes under trusted prior policy.</li>
+<li>Read changed behavior, symbols, defaults, contracts, schemas, and permissions on both revisions. Trace callers/entrypoints, API/event/external consumers, shared state/dependencies/resources, execution/tool authority, and deployment/trust/data boundaries. Record cited paths and containment stopping points: <code>changed default → shared client → services A/B → all tenants</code>. Mark assumptions and unknown edges. Existing searches, repository docs, and tests suffice.</li>
+<li>Separate reach, safety/security/data/compatibility/operational consequences, containment/recovery, and uncertainty. Tests support specific claims, never invented coverage. Flags cannot undo writes or external effects. Static references miss runtime configuration, dynamic dispatch, plugins, and external consumers. Absence of search hits never proves complete transitive coverage.</li>
+</ol>
+<p>Inventory binaries, submodules, generated files, renames, and dependencies. Prove source correspondence and effects before narrowing a huge generated diff. Recover missing/truncated content or record a coverage gap. Material gaps require inspection or owner evidence, never assumed safety.</p>
+<table aria-label="Evidence-led impact assessment">
+<thead>
+<tr>
+<th scope="col">Effect/boundary</th>
+<th scope="col">Required checks/expertise</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Every change</td>
+<td>Source scope, behavior correctness, tests, security triage</td>
+</tr>
+<tr>
+<td>Fully traced local effects</td>
+<td>Narrower context only with containment evidence</td>
+</tr>
+<tr>
+<td>Public/consumer contracts</td>
+<td>Compatibility/integration checks</td>
+</tr>
+<tr>
+<td>Auth/session/crypto/secrets, trust, safeguards, execution/tool permissions</td>
+<td>Deeper security review</td>
+</tr>
+<tr>
+<td>Persisted data/irreversible effects</td>
+<td>Migration, restore/recovery checks</td>
+</tr>
+<tr>
+<td>Deployment/infrastructure/dependencies/build/release/CI policy</td>
+<td>Rollout, coupling, operational checks</td>
+</tr>
+<tr>
+<td>Structural changes</td>
+<td><code>/deep-review</code></td>
+</tr>
+</tbody>
+</table>
+<p>Deleted/weakened safeguards require test-adequacy work. Required coverage follows effects, consequences, and uncertainty, not paths alone. Reviewer counts/concurrency follow workload and cannot reduce coverage.</p>
+</section>
+<section id="jev" aria-labelledby="jev-title">
+<h2 id="jev-title">Jev judgments and deterministic handling</h2>
+<p>The coordinator/reader builds structured state: base/head/policy, acceptance/outcome, changed behavior, exact base/head snippets, candidate impact paths with evidence IDs, named consumers/state/boundaries, test/containment/recovery evidence, and explicit gaps. It checks locations and snapshot identities. Jev evaluates supplied state only. It neither discovers dependencies nor generates graphs, narratives, or source references. Untrusted PR content cannot redefine questions or gates.</p>
+<table aria-label="Jev judgments and deterministic handling">
+<thead>
+<tr>
+<th scope="col">Stage/input</th>
+<th scope="col">Complete judgment and handling</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Impact packet</td>
+<td>Choice per propagation/containment claim: “Does the supplied evidence support this claim?” <code>supported</code>: evidence establishes it. <code>contradicted</code>: evidence conflicts. <code>insufficient</code>: neither conclusion follows. A supported relation never guarantees coverage.</td>
+</tr>
+<tr>
+<td>Same packet</td>
+<td>Noul per relevant domain: “Do the supplied changes require deeper {domain} review?” Instantiate security (trust/secrets/authority), data (persistence/recovery), contract (consumer compatibility), deployment (rollout/resources/CI), and structure (placement/boundaries). Yes: changed effects or material uncertainty require scrutiny. No: evidence establishes nonapplicability. Multiple domains can apply.</td>
+</tr>
+<tr>
+<td>Later source-backed candidate findings</td>
+<td>Separate adequacy Noul: “Does supplied source/baseline/obligation evidence permit classification?” Yes requires source facts and category-relevant provenance, materiality, and obligations. Missing necessary baseline or other material evidence means no. Independently ask Choice: “Which defined category fits this candidate finding?” Use the definitions below. Ignore category until adequacy passes. The coordinator checks adequacy during the pilot. Source verification and deterministic safety rules precede final category/gate.</td>
+</tr>
+</tbody>
+</table>
+<p>Batch independent questions over the same state. They cannot see each other's outputs. Instructions contain complete meaning because IDs are invisible. A later request requires new evidence/findings, never dependencies on same-batch answers.</p>
+<p>Code unions mandatory domains from policy/known sensitive effects with Jev suggestions. Jev can add scrutiny, never cancel obligations. Low Choice confidence, ambiguous Noul probability, disagreement, or incomplete source routes to inspection/owner review. Noul returns yes probability, no separate confidence. Near 0.5 means uncertainty, not moderate impact. Choice returns selection, probabilities, and confidence. Confidence describes distribution concentration, never truth or permission.</p>
+<p>Retain raw answers/distributions, confidence where applicable, model/question/policy versions, and evidence snapshot for replay. Pilot judgments stay advisory: no reduced coverage, dismissed/materially downgraded requests, clean/ready declarations, or edit/commit authorization. A later explicit policy could automate low-stakes routing only after labeled fixtures justify decision thresholds. No weighted risk score or copied sample cutoffs.</p>
+<p>Unavailable/malformed/errors use conservative source assessment or explicit incomplete, never clean or deadlock solely on Jev. No blind retries or same-head recategorization for preferred answers. No new runner, SDK, service, or graph platform.</p>
+</section>
+<section id="findings" aria-labelledby="findings-title">
+<h2 id="findings-title">Finding categories</h2>
+<p>Categories differ from severity/impact and evidence confidence.</p>
+<table aria-label="Finding categories">
+<thead>
+<tr>
+<th scope="col">Category</th>
+<th scope="col">Complete definition</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>request</code></td>
+<td>Source-verified defect introduced/materially worsened by PR, or material unmet acceptance/safety/contract obligation applicable to the change. Finding-based blocker regardless of remediation size.</td>
+</tr>
+<tr>
+<td><code>nit</code></td>
+<td>Optional/preference/minor improvement. Nonblocking, no compulsory fixes or rounds.</td>
+</tr>
+<tr>
+<td><code>existing</code></td>
+<td>Baseline proves predating PR without material worsening. Nonblocking, separate followup.</td>
+</tr>
+</tbody>
+</table>
+<p>New exposure/aggravation remains <code>request</code>. Uncertain baseline is a coverage gap, never <code>existing</code>.</p>
+<p>Expensive requests need narrower fix, split, or revert options. Product/risky scope decisions stop blocked. Broad unrelated redesign/cleanup goes to followup. Escalate critical existing issues separately. Only explicit applicable policy can independently gate them. Report requests first, nits/existing separately.</p>
+</section>
+<section id="gates" aria-labelledby="gates-title">
+<h2 id="gates-title">PR gates and bounded loops</h2>
+<figure aria-label="PR gate order"><pre><code class="language-text">Outcome → Required CI independent of review → Quality → Security
+→ Automated-review-dependent required CI → Human readiness
+Later: Human approval → Merge queue → Release flag/rollback policy
+</code></pre></figure>
+<p>Require observed acceptance outcomes, not green CI alone. Failed prerequisites stop downstream gates. Quality checks behavior/tests/contracts/structure. Every PR receives security triage and relevant deeper security review before readiness. Escalate critical new risks immediately.</p>
+<p>Share <strong>three review/fix rounds including initial review</strong> across quality/security. Both clean visits fit round 1. Each changed head consumes the next round. Never author an unreviewable fix head. No budget reset, nested loop, or recursive <code>/pr review</code>.</p>
+<p>Quality fixes require outcome/CI revalidation and review of delta/affected paths. Security fixes also repeat affected quality/security. Changed heads require reassessing changed impact and affected prior paths/checks, retaining applicable findings and IDs/root causes. Reuse matching evidence only. Base/policy changes invalidate freshness and require full reassessment when broad. Either base/head changing invalidates readiness/approval.</p>
+<p>Unfixable/no-progress requests, exhausted budget, failed reviewers/checks, or material evidence gaps stop blocked with next action. Plain/comment modes report unresolved requests as <code>changes_required</code>. Convergence requires no unresolved verified requests and complete current evidence. Do not repeat resolved/dismissed findings without new evidence.</p>
+</section>
+<section id="workflows" aria-labelledby="workflows-title">
+<h2 id="workflows-title">Workflow changes</h2>
+<p>Paths below are relative to <code>skills/</code>. This plan names intended locations only.</p>
+<table aria-label="Workflow changes">
+<thead>
+<tr>
+<th scope="col">Location</th>
+<th scope="col">Shared responsibility</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>code-quality/risk-review/SKILL.md</code></td>
+<td>Impact packet, Jev rubrics, source verification/deduplication, findings/checks/verdict</td>
+</tr>
+<tr>
+<td><code>dev/pr/{SKILL.md,references/review.md}</code></td>
+<td><code>/pr review [target] [fix|comment]</code> → <code>risk-review</code>, authoritative base/head, ownership, and permissions</td>
+</tr>
+<tr>
+<td><code>dev/pr/references/lifecycle.md</code></td>
+<td>Replace once-per-head/no-fix-rereview exception with shared loop</td>
+</tr>
+<tr>
+<td><code>dev/pr/references/{ci,monitor,ready}.md</code></td>
+<td>Expected checks, prerequisites, freshness/readiness</td>
+</tr>
+<tr>
+<td><code>workflow/{build,idea-to-pr}/SKILL.md</code></td>
+<td>Supply outcome evidence, reuse matching packet, avoid duplicate full reviews. Runtime validators remain separate.</td>
+</tr>
+</tbody>
+</table>
+<p>Default <code>/pr review</code> reports only, without edits. Own-PR <code>fix</code> addresses verified requests only under existing authorization/clean-branch checks, with validation, safe commits/pushes, and re-review. Nits require separate explicit selection/authorization, never drive rounds. Other-PR <code>comment</code> posts verified same-head findings with disclosures, never edits or approves. Standalone review cannot certify readiness without prerequisites.</p>
+<p>Source reviewers neither test nor edit. Check candidates against source, with a separate verifier when needed. Deduplicate mechanisms. Authorized implementers fix. Separate validators test. Monitor owns health/CI/threads without duplicate review or recursion. Remote/comment fixes repeat affected gates under inherited budget.</p>
+<p>Never infer CI pass from no checks. Review-dependent jobs follow prerequisites. Ready-only checks need supported draft/manual triggers or configuration changes, otherwise blocked. <code>/pr ready</code> needs current outcome/CI/quality/security evidence and resolved automated-review-dependent jobs. Readiness grants no merge authority.</p>
+</section>
+<section id="rollout" aria-labelledby="rollout-title">
+<h2 id="rollout-title">Rollout and planned proof</h2>
+<p>Sequence: shared impact/Jev contract → refactor routes → PR gates/loop fixtures → advisory pilot measuring defects, noise, rounds, and human effort.</p>
+<p>Planned fixtures pair small-but-broad permission/shared-default changes with large-proven-isolated changes. Include missed external consumers, contradictory containment, dynamic unknowns, multiple domains, and uncertain baseline. Also include adversarial instructions, unavailable/malformed Jev, false-high-confidence, and stale heads. Assert Jev cannot cancel mandatory checks, downgrade requests, or authorize fixes.</p>
+<p>Retain category/expensive-request/nit-round tests, shared cap, fix re-review, security return to quality, and nonediting modes. Keep CI order/ready-only triggers, failed outcomes despite green CI, unknown provenance, manual lenses, and <code>/extract</code>/<code>deep-review</code> access. Runtime Jev calibration is not done or claimed.</p>
+</section>
+<section id="sources" aria-labelledby="sources-title">
+<h2 id="sources-title">Sources</h2>
+<p><a href="evidence/skill-audit.md">Audits</a> · <a href="evidence/usage-audit.md">Usage/limits</a> · <a href="evidence/anthropic-review.md">Anthropic distinctions</a> · <a href="evidence/verification.md">Earlier checks</a> · <a href="https://istqb.org/?sdm_process_download=1&amp;download_id=3345">ISTQB impact analysis, §2.2.3</a> · TypeSafe: <a href="https://docs.typesafe.ai/concepts/state">state</a>, <a href="https://docs.typesafe.ai/primitives/choice">Choice</a>, <a href="https://docs.typesafe.ai/primitives/noul">Noul</a>, <a href="https://docs.typesafe.ai/confidence">confidence</a></p>
+</section>
+</main>
+<footer>Offline reading edition. <a href="proposal.md">Markdown source</a>.</footer>
+</body>
+</html>

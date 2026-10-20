@@ -2,21 +2,22 @@
 
 ## Core Contract
 
-Merge one verified open PR by squash, using the PR title followed by ` (#<pr-number>)` as the commit subject and an empty commit body. Convert a draft PR to ready-for-review first, then gate on required CI and unresolved review threads: any failing or non-terminal required check, or any unresolved thread, stops the skill. This skill never remediates; `/pr ci` and `/pr comments` own that work and are not invoked here.
+Merge one verified open PR by squash, using the PR title followed by ` (#<pr-number>)` as the commit subject and an empty commit body. Load [`gates.md`](gates.md); require current outcome/expected-CI/quality/security evidence with no unresolved verified requests, then use `/pr ready` for any draft conversion. Human approvals/jobs, merge queues, and release flag/rollback policy remain later gates; never bypass or self-grant them. Any missing material evidence, failing/nonterminal required check, or unresolved thread stops the skill. This skill never remediates; `/pr ci` and `/pr comments` own that work and are not invoked here.
 
 Default tool is `gh`. After a confirmed merge, a linked Orca-managed worktree is removed; the primary checkout is instead synced to the default branch and its terminal starts a new agent session. Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 ## Required Inputs
 
 1. PR URL or number when supplied; otherwise the current branch.
+2. Current outcome/check/review evidence, trusted policy, retained findings, and inherited round state; no reset or new review loop is authorized here.
 
 ## Workflow
 
-1. Invoke `/pr info` to resolve and verify one open PR and record its `number`, `title`, `isDraft`, and `headRefOid`. Stop on its no-PR, multiple-PR, branch-mismatch, closed, merged, or other stop gate. Stop as blocked if `/pr info` flags the PR as a layer of a GitHub native stack.
-2. If `isDraft` is true, mark the PR ready for review.
-3. Snapshot required CI for the current head. Stop if any required check is failing, cancelled, timed out, action-required, queued, pending, or in progress. If no checks are reported, apply the no-CI rule below instead of treating it as a pass or a failure.
-4. Snapshot unresolved review threads. Stop if any thread is unresolved.
-5. Re-run `/pr info` and stop if `headRefOid` changed since step 1; the snapshots no longer describe the head being merged.
+1. Invoke `/pr info` to resolve one open PR and record number/title/draft state and authoritative base/head. Stop on its no-PR, multiple-PR, branch-mismatch, closed/merged, or other gate, including GitHub native-stack membership.
+2. Require current matching outcome/quality/security/check evidence under `gates.md`. If draft, invoke `/pr ready` with that evidence and preserve its stop gates; do not call raw `gh pr ready` or convert merely to start jobs.
+3. Discover expected required checks/dependencies via `ci.md` and match current-head results. Stop on failing, cancelled, timed-out, action-required, queued, pending, in-progress, or missing expected checks. For zero observed jobs use the verified-policy rule below.
+4. Snapshot unresolved review threads and unresolved verified requests; either blocks. Verify actual required human approval/review jobs and merge-queue/release prerequisites from trusted policy and GitHub state, with evidence valid for the current base/head/policy, not a stale or self-authored approval. Do not use bypass/admin flags; if a required queue only schedules the merge, report pending rather than confirmed merged.
+5. Re-run `/pr info` and require unchanged base/head and trusted policy; either revision changing invalidates snapshots and prior readiness/approval evidence.
 6. Squash-merge with the PR title followed by ` (#<pr-number>)` as the commit subject and an empty body, following the subject rules below.
 7. Confirm the PR is merged and report the merge result. A successful command that only queues or schedules a merge is not confirmation.
 8. As the final step, classify the current checkout and run exactly one post-merge path. Never run either path after a failed, dry-run, or skipped merge, including a PR that was already merged when this workflow started.
@@ -27,13 +28,9 @@ Stop as blocked when a gate blocks, GitHub rejects the merge, or the PR head mov
 
 ## GitHub Implementation Notes
 
-- Mark ready: `gh pr ready <number>`.
-- Required checks: `gh pr checks <number> --required`. Only terminal, non-failing states pass the gate.
-- No-CI rule: `gh pr checks` exits non-zero with "no checks reported" when a repo has no CI. Treat the gate as vacuously passed only when all three hold; otherwise stop as blocked, because missing data alone never passes the gate.
-  1. The base repo defines no workflows: `gh api repos/<owner>/<repo>/contents/.github/workflows?ref=<baseRefName>` returns 404 or an empty list.
-  2. `gh pr view <number> --json statusCheckRollup` returns an empty `statusCheckRollup`.
-  3. `gh run list --commit <headRefOid> --json databaseId` returns an empty list.
-  Report "no CI configured" in the snapshot. A workflow-directory error other than 404 (auth, rate limit, API failure) is a blocker, not a pass.
+- Mark ready only through [`ready.md`](ready.md), after its outcome/CI/quality/security gates; no missing-job exception.
+- Required checks: compare `gh pr checks <number> --required` with policy-expected jobs/dependencies under `ci.md`. Terminal skipped/neutral jobs require trusted-policy applicability evidence; terminal alone is insufficient.
+- Zero observed jobs: use explicit `not applicable` only when actual trusted policy, applicable branch rules/rulesets, workflows, and external-check obligations verify no checks expected. Empty status rollups/run lists or a missing workflow directory alone do not prove that. Missing permissions, unknown expectations, pagination, API/auth/rate-limit errors, or missing required evidence stop blocked, never auto-pass.
 - Unresolved threads: `gh api graphql -f query='query($owner:String!,$repo:String!,$number:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$number){reviewThreads(first:100){nodes{isResolved}}}}}' -F owner=<owner> -F repo=<repo> -F number=<number>` and count nodes where `isResolved` is false. Stop as blocked if the result is paginated beyond 100 threads or the query fails.
 - Merge: `gh pr merge <number> --squash --subject "<title> (#<number>)" --body ""`. Use the verified PR number from `/pr info` or `gh pr view <number> --json number`. Preserve the title text and append ` (#<number>)`; if the title already ends with that exact suffix, keep it only once. Whenever overriding the merge commit subject, require this suffix at the end of the subject line. This rule affects only the subject; keep the commit body empty.
 - Example subject: `fix(pr-merge): clean up Orca worktree after confirmed merge (#66)`.
@@ -70,8 +67,9 @@ Only enter this step after this workflow's merge succeeded and was confirmed abo
 - Never explicitly delete the head branch, force-push, or change local git state except through the final post-merge path above.
 - Never remove a worktree unless this workflow successfully merged the verified PR, confirmed its merged state, and detected the current cwd as a linked Orca-managed worktree. Never remove the primary checkout.
 - When the confirmed-merge and Orca-current-worktree conditions pass, run the required removal without asking, offering, refusing, or deferring it because it is irreversible or session-ending.
-- Never treat pending, queued, in-progress, or stale-head CI as passing.
+- Never treat pending, queued, in-progress, missing expected, or stale-base/head CI as passing, or a clean source packet as overall readiness.
+- Never waive unresolved verified requests by severity/cost, reset the shared budget, grant human approval, or bypass merge-queue/release policy.
 
 ## Output Style
 
-Report the verified PR, whether it was converted from draft, the required-CI and unresolved-thread snapshot, the head OID merged, the merge commit subject, the post-merge path taken (worktree removed, primary checkout synced and new session sent, or skipped with reason), and any blocker.
+Report the verified PR, draft conversion, authoritative base/head/policy and outcome/review/expected-CI evidence, request/thread and human/queue gate snapshot, inherited round state, head merged and commit subject, post-merge path (worktree removed, primary synced/new session sent, or skipped), and any blocker.

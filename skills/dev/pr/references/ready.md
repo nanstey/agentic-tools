@@ -2,32 +2,31 @@
 
 ## Core Contract
 
-Convert one verified open draft PR to ready-for-review once its current head is clean. Read-only apart from that conversion; never remediates (`/pr ci` and `/pr comments` own that).
-Some repos run the full CI suite only on ready PRs, so a clean draft is not a finished PR: after conversion the caller must re-observe the head (`/pr monitor`).
-Default tool is `gh`. Follow `CLAUDE.md` / `AGENTS.md` on conflict.
+Convert one verified open draft PR to ready-for-review only after current outcome, expected required CI, quality, and security evidence passes [`gates.md`](gates.md). Read-only apart from conversion; never remediate, run tests/reviews, self-grant approval, or merge. A clean source packet or green observed jobs alone is insufficient. Follow `CLAUDE.md` / `AGENTS.md` on conflict. Default tool is `gh`.
 
 ## Required Inputs
 
-1. PR URL or number when supplied; otherwise the current branch.
+1. PR URL/number; otherwise current branch.
+2. Current acceptance/outcome evidence, trusted policy and expected-check inventory, quality/security packet, retained findings, and caller-owned round state. Missing material evidence is blocked, not permission to launch another review loop.
 
 ## Workflow
 
-1. Invoke `/pr info` to resolve and verify one open PR; record `number`, `isDraft`, `headRefOid`. Stop on its stop gates.
-2. If `isDraft` is false, report `already ready` and stop successfully without changes.
-3. Snapshot required CI for `headRefOid` (`gh pr checks <number> --required`). Stop as blocked on any failing, cancelled, timed-out, action-required, queued, pending, or in-progress check. Reported "no checks" passes this gate: CI may be gated on ready; record "CI not yet run on draft".
-4. Snapshot unresolved review threads (see `merge.md` implementation notes). Stop as blocked if any remain.
-5. Re-run `/pr info`; stop if `headRefOid` changed since step 1.
-6. Run `gh pr ready <number>`, then re-read the PR and require `isDraft` false.
-7. Report that the full CI suite may now be running and that `/pr monitor` must observe the ready head next.
+1. Invoke `/pr info`; verify one open PR and record number, draft state, authoritative base/head. Stop on its gates.
+2. Verify current policy and evidence identities. Reuse the packet only for exact matching base/head/policy/scope/check coverage/evidence snapshot; stale or incomplete coverage is blocked with the required reassessment. Either base or head changing invalidates prior readiness/approval evidence.
+3. Require observed acceptance outcomes, then policy-expected independent required CI, complete quality review, security triage and any required deeper security work, then automated-review-dependent required CI. Discover expectations/dependencies under `ci.md`; never infer pass from no observed checks. Explicit `not applicable` needs trusted-policy proof that no checks are expected. Missing readiness-required jobs/policy, failing/nonterminal jobs due at readiness, unresolved verified requests, failed reviewers, or material gaps block conversion. Later human/queue/release jobs remain due at their own gates, not falsely passed or demanded before their prerequisites. Nits and baseline-proven unchanged existing issues do not block absent explicit applicable policy.
+4. Ready-only required jobs need a supported draft/manual trigger or explicitly authorized configuration change; otherwise stop blocked with the needed action. Never mark ready merely to start checks or treat unrun checks as passed. Human approval/jobs, merge queues, and release flag/rollback policy remain later gates; they are not waived by readiness.
+5. Snapshot unresolved review threads (see `merge.md` implementation notes); stop blocked if any remain. Re-run `/pr info` and require unchanged base/head/policy and current evidence.
+6. If already ready, report that state without mutation, but claim gate success only if the preceding evidence is complete. Otherwise run `gh pr ready <number>`, re-read, and require `isDraft` false and unchanged base/head.
+7. Return current evidence/state to the caller. A follow-up `/pr monitor` must re-observe the ready snapshot and any new jobs; conversion is neither human approval nor merge authorization.
 
 ## Safety Rules
 
 - Never convert an unverified, ambiguous, closed, merged, or branch-mismatched PR.
-- Never convert with failing or non-terminal required CI, or unresolved review threads.
-- Never remediate, retry CI, reply to threads, edit title/description, push, or change local git state.
-- Never convert back to draft.
-- Treat authentication, rate-limit, API, or incomplete-data failures as blockers.
+- Never convert with unresolved verified requests/threads, stale/missing material evidence, failing/nonterminal required CI, or an exhausted budget that leaves required review incomplete.
+- Never remediate, retry CI, execute tests/source review, reply to threads, edit title/description, push, change local git state, or reset the shared budget here.
+- Never convert back to draft or bypass human/queue/release gates.
+- Authentication, pagination, rate-limit, API, and incomplete-data failures are blockers.
 
 ## Output Style
 
-Report the verified PR, whether it was converted or already ready, the CI and thread snapshot, the head OID, and any blocker. State that a follow-up `/pr monitor` is required.
+Report PR, converted/already-ready/blocked, authoritative base/head/policy, observed outcome and expected-CI evidence, quality/security packet and round state, thread/request/gap snapshot, and exact blocker/next action. State that follow-up monitor observation is required; never claim approval or merge permission.
