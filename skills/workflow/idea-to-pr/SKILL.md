@@ -96,23 +96,22 @@ In `gated` mode, stop for explicit approval after the completed plan. In autopil
 
 ### 4. Specification
 
-Run `speclist` to write one spec per slice under `<plan-folder>/specs/`. Default to one PR across all slices in one repository. Split into multiple PRs only when the user requests it or the change spans multiple repositories. For cross-repository work, create one PR per repository and record dependencies. Validate each slice. Require each spec to contain:
+Run `speclist` to write one spec per slice under `<plan-folder>/specs/`. Apply the PR split rule in the [caller contract](../review-code/references/caller-contract.md). Validate each slice. Require each spec to contain:
 
 - `## Implementation` — checked only after implementation validation passes.
 - `## Test Scenarios` — Given/When/Then scenarios checked only after a separate QA/review step observes them pass.
 
 ### 5. Per-slice pipeline
 
-For each slice, use the spec plus current decision packet. Dependent slices remain sequential. Concurrent writers require isolated workspaces; otherwise serialize them. Run steps 1–6 for every slice in the repository's default single PR. Then review and publish the combined scope through steps 7–8 once. If the user requests a split, review and publish each requested PR separately. Preserve dependent-slice approvals in gated mode.
+For each slice, use the spec plus current decision packet. Dependent slices remain sequential. Concurrent writers require isolated workspaces; otherwise serialize them. Run steps 1–5 for every slice in the repository's default single PR. Then review and publish the combined scope through steps 6–7 once. If the user requests a split, review and publish each requested PR separately. Preserve dependent-slice approvals in gated mode.
 
-1. Run `/git branch` or `/git worktree` when the current checkout is unsuitable. Never run concurrent writers in one checkout.
-2. Run a focused environment preflight: detect the package manager/lockfile, run the prospective deterministic gate, and, only for a dependency-shaped failure, make one immutable-install repair (for pnpm, `pnpm install --frozen-lockfile`) and retry the identical gate. Record both attempts and classify persistent failure as baseline code, lockfile/install, access/service, or unknown.
-3. Run `flow-design` when delegation would improve the slice. It returns an appropriate execution plan, role boundaries, validation gates, and return contracts. For simple or non-delegated slices, record the equivalent plan inline.
-4. Execute the plan. Separate implementation from acceptance review when an independent context is available; otherwise perform a distinct self-review pass and record that limitation. Only the implementation step checks completed `## Implementation` items.
-5. For runnable behaviour, use a separate QA step to boot the app and observe every Given/When/Then scenario end-to-end. Use `playwright-cli` for browser-facing behaviour or equivalent CLI/API verification otherwise. QA returns per-scenario evidence and checks only `## Test Scenarios`; unit tests alone do not prove runtime behaviour.
-6. For user-facing UI, run `visual-capture` only after QA passes. Store evidence outside git and hand its paths to the PR step.
-7. The coordinator owns `limit: 3`, initial round `1` unless inherited, under [`gates.md`](../../dev/pr/references/gates.md). Start each PR's review with one [`/review-code fix`](../review-code/SKILL.md) call on combined scope. Pass criteria, scrutiny evidence, step 5 QA/validator evidence, base/head/policy/scope, prior packet/findings, and `round_state`. Reuse matching QA evidence without rerunning it. After fixes, call again with returned state for delta review or report pending delta review.
-8. After successful validation, run `/git commit`, then `/pr` with the resulting packet/evidence and caller-owned round state. A prepublication packet is diagnostic until `/pr` verifies exact authoritative snapshot correspondence. Do not reset the budget on publication or launch nested review loops. Use `/pr stack` or `/pr restack` only for user-requested dependent PRs in one repository. Cross-repository dependencies use separate PRs, not a native stack. Update README with actual PR/draft/readiness status, evidence/packet paths, round state, and deviations; a published draft is not yet review-ready.
+1. Run a focused environment preflight: detect the package manager/lockfile, run the prospective deterministic gate, and, only for a dependency-shaped failure, make one immutable-install repair (for pnpm, `pnpm install --frozen-lockfile`) and retry the identical gate. Record both attempts and classify persistent failure as baseline code, lockfile/install, access/service, or unknown.
+2. Run `flow-design` when delegation would improve the slice. For simple or non-delegated slices, record the equivalent plan inline.
+3. Run [`build`](../build/SKILL.md) steps 1–5 on the slice spec, with the caller-owned QA, review, and shipping stated. Build covers branch/worktree fitness, tooling checks, phased implementation, and separate validation. Only implementation checks `## Implementation` items. Separate implementation from acceptance review when an independent context is available; otherwise record the limitation.
+4. For runnable behaviour, use a separate QA step to boot the app and observe every Given/When/Then scenario end-to-end. Use `playwright-cli` for browser-facing behaviour or equivalent CLI/API verification otherwise. QA returns per-scenario evidence and checks only `## Test Scenarios`; unit tests alone do not prove runtime behaviour.
+5. For user-facing UI, run `visual-capture` only after QA passes. Store evidence outside git and hand its paths to the PR step.
+6. The coordinator is the review caller and owns the round budget. Start each PR's review with one [`/review-code fix`](../review-code/SKILL.md) call on combined scope per the [caller contract](../review-code/references/caller-contract.md). Include step 4 QA evidence.
+7. After successful validation, run `/git commit`, then `/pr` with the resulting packet/evidence and caller-owned round state (see the caller contract; do not reset the budget on publication). Update README with actual PR/draft/readiness status, evidence/packet paths, round state, and deviations; a published draft is not yet review-ready.
 
 **GATE (gated mode):** require user approval before the next dependent slice. Autopilot proceeds after successful ordinary transitions; it stops for an unresolved product decision, a destructive or hard-to-reverse action not already authorized, unavailable access, or an unfixable/exhausted/no-progress review or validation gate. Fix ordinary validation/runtime failures within the inherited budget; never bypass a gate, erase a gap, or restart the budget to continue.
 
@@ -131,7 +130,6 @@ Perform a final read-only audit that every slice is review-ready or merged, spec
 - Never advance a slice without deterministic validation and, where behaviour runs, observed runtime verification.
 - Never let implementation check test scenarios or QA check implementation items; never tick an item without its required evidence.
 - Never capture UI evidence before verified runtime behaviour, open a PR with unticked spec items, or run parallel writers in one checkout.
-- Never infer multiple PRs from slice count, change size, or dependency order. Split only for an explicit user request or multiple repositories.
 - Never let the README state or compact handoff packet drift from completed work artifacts.
 
 ## Output Style

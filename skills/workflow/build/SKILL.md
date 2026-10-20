@@ -18,7 +18,7 @@ Use the active environment's delegation mechanisms when a separate execution con
 ## Required Inputs
 
 1. Source: a plan folder `README.md`, `context`, `plan`, or `speclist` (inline or filepath). If absent, derive a minimal plan from intent.
-   - Given a plan-folder README: read it for the big picture, follow its `## Design` docs for context, and use each approved slice's `specs/NN-*.md` as its phase checklist. Default to one PR across all slices in one repository. Split only when the user requests multiple PRs or the change spans multiple repositories. Cross-repository work needs one PR per repository. Use `/pr stack` or `/pr restack` only for user-requested dependent PRs in one repository.
+   - Given a plan-folder README: read it for the big picture, follow its `## Design` docs for context, and use each approved slice's `specs/NN-*.md` as its phase checklist. Follow the PR split rule in the [caller contract](../review-code/references/caller-contract.md).
 2. Outcome and boundaries.
 3. Success criteria stated as observable behaviour (BDD/TDD), not implementation details.
 4. Required validation and the tooling/methods it depends on.
@@ -31,7 +31,7 @@ Use the active environment's delegation mechanisms when a separate execution con
 3. Confirm validation tooling is available and runnable; acquire or flag missing tooling before relying on it.
 4. Decompose into individually verifiable phases.
 5. For each phase: implement focused edits, have a distinct validator step execute checks/observe success criteria, and update speclist checkboxes only after validation. Run `/git commit` only when shipping was requested.
-6. Build owns `limit: 3`, initial round `1` unless inherited, under [`gates.md`](../../dev/pr/references/gates.md). After phases pass, run [`/review-code fix`](../review-code/SKILL.md) on `base..HEAD` plus any uncommitted changes. For local-only builds, review base + working-tree content identity. Pass criteria, scrutiny evidence, validator evidence, prior packet, and `round_state`. Use `plan` only if the caller forbids edits. After a fix batch, call again with returned state for delta review or report pending delta review. If shipping was requested and no gate blocks, pass packet/state to `/pr`; otherwise stop locally without commit/push/PR. Prepublication packets are diagnostic; `/pr` reuses only exact base/head/policy/scope/coverage/evidence matches. Never reset budgets. Record slice/top-level status: local validation, draft publication, and readiness.
+6. When a caller such as `idea-to-pr` states that it owns runtime QA, review, and shipping, stop after step 5 and return phase evidence. Otherwise, after phases pass, run [`/review-code fix`](../review-code/SKILL.md) per the [caller contract](../review-code/references/caller-contract.md). Build is the caller: it owns the round budget. Record slice/top-level status: local validation, draft publication, and readiness.
 7. If a design changes during implementation, update the affected `## Design` doc or spec and append a dated entry to the README `## Decision log`; keep the plan folder consistent with what shipped.
 8. Summarize changes, validation, assumptions, and risks.
 
