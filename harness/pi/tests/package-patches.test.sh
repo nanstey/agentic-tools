@@ -90,6 +90,20 @@ for first in prompt-guard conservative-thinking; do
   patch -p1 -s -f -d "$pkg" < "$REPO/harness/pi/patches/pi-jev-$second.patch"
   echo "ok: $first then $second patches apply to pristine pi-jev fixture"
 done
+changed_pkg="$SB/changed-conservative-thinking"
+cp -R "$fixture" "$changed_pkg"
+python3 - "$changed_pkg/src/thinking.ts" <<'PY'
+import sys
+path = sys.argv[1]
+source = open(path).read()
+old = "  private running = false;"
+assert old in source
+open(path, "w").write(source.replace(old, "  private running = true;"))
+PY
+if patch -p1 -s -f --dry-run -d "$changed_pkg" < "$REPO/harness/pi/patches/pi-jev-conservative-thinking.patch" >/dev/null 2>&1; then
+  echo 'FAIL: conservative thinking patch accepted changed upstream' >&2; exit 1
+fi
+echo 'ok: conservative thinking patch rejects changed upstream context'
 for state in {0..15}; do
   home="$SB/home-$state"
   pkg="$home/.pi/agent/npm/node_modules/pi-jev"
@@ -211,7 +225,7 @@ function routerAt(initial) {
   let state = routerAt("medium");
   await state.router.route(fs.readFileSync(fixture, "utf8"), state.context());
   assert.equal(state.level(), "medium", "skill wrapper is ignored");
-  for (const prompt of ["debug why X fails", "security root cause"]) {
+  for (const prompt of ["debug why X fails", "security root cause", "diagnose this failure", "investigate this regression", "architecture review"]) {
     state = routerAt("medium"); await state.router.route(prompt, state.context());
     assert.equal(state.level(), "high", prompt);
   }
@@ -219,7 +233,7 @@ function routerAt(initial) {
     state = routerAt("medium"); await state.router.route(prompt, state.context());
     assert.equal(state.level(), "medium", `${prompt} is not an explicit request`);
   }
-  for (const prompt of ["ultrathink this", "think hard about this", "use xhigh"]) {
+  for (const prompt of ["ultrathink this", "think hard about this", "use xhigh", "no problem, think hard about this", "Array<string>; ultrathink"]) {
     state = routerAt("medium"); await state.router.route(prompt, state.context());
     assert.equal(state.level(), "high", `${prompt} is capped by medium baseline`);
     state = routerAt("high"); await state.router.route(prompt, state.context());
@@ -239,6 +253,12 @@ function routerAt(initial) {
   await state.router.route("debug why X fails", state.context());
   await state.router.route("ordinary request", state.context());
   assert.equal(state.level(), "medium", "router changes do not ratchet the baseline");
+  state = routerAt("medium");
+  await state.router.route("debug why X fails", state.context());
+  assert.equal(state.level(), "high", "medium baseline routes debug to high");
+  state.setExternal("high");
+  await state.router.route("ultrathink this", state.context());
+  assert.equal(state.level(), "xhigh", "manual reselection of the applied level becomes the baseline");
   state.setExternal("low");
   await state.router.route("debug why X fails", state.context());
   assert.equal(state.level(), "medium", "external baseline changes are honored");

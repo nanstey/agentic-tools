@@ -1,17 +1,23 @@
 --- a/src/thinking.ts
 +++ b/src/thinking.ts
-@@ -31,0 +32 @@
+@@ -29,4 +29,5 @@
+   level: ThinkingLevel;
+   confidence: number;
+   reason: string;
 +  explicit?: boolean;
-@@ -63,0 +65,31 @@
-+const NEGATED_XHIGH = /\b(?:don['’]?t|do not|never|no)\b(?:\s+\w+){0,3}\s+(?:use\s+)?(?:xhigh|x-high|think hard(?:er)?|ultrathink)\b/i;
+ }
+@@ -38,2 +39,33 @@
+ const ESCALATE = /\b(plan|planning|architect|architecture|debug|diagnos|compare|trade-?off|design|review|security|why|analy[sz]|complex|refactor|migrat|root cause|investigat|prove|reason|optimi[sz]|benchmark|audit)\b/i;
+ const DEESCALATE = /^(hi|hello|hey|thanks|thank you|ok|okay|yes|no|y|n|list|rename|format|show|print|cat|ls|pwd|git status|status|what is|who is|define)\b/i;
++const NEGATED_XHIGH = /\b(?:don['’]?t|do not|never)\b(?:\s+\w+){0,3}\s+(?:use\s+)?(?:xhigh|x-high|think hard(?:er)?|ultrathink)\b/i;
 +const EXPLICIT_XHIGH = /\b(?:xhigh|x-high|think hard(er)?|ultrathink)\b/i;
-+const HIGH_INTENT = /\b(debug|diagnos|root cause|investigat|trade-?off|architect|security|audit|why\b[^.?!]{0,80}\b(fail|broke|error|crash|slow|wrong|not))\b/i;
++const HIGH_INTENT = /\b(?:debug|diagnos(?:e|is|tic)?|root cause|investigat(?:e|ion)?|trade-?off|architect(?:ure)?|security|audit|why\b[^.?!]{0,80}\b(?:fail|broke|error|crash|slow|wrong|not))\b/i;
 +const THINKING_LEVELS: ThinkingLevel[] = ["off", "minimal", "low", "medium", "high", "xhigh", "max"];
 +
 +function userOwnedText(prompt: string): string {
 +  let text = prompt;
 +  text = text.replace(/<([A-Za-z][\w:-]*)(?:\s[^>]*)?>[\s\S]*?<\/\1\s*>/gi, "");
-+  text = text.replace(/<[A-Za-z][\w:-]*(?:\s[^>]*)?>[\s\S]*$/gi, "");
++  text = text.replace(/<(?:skill|context|handoff)\b(?:\s[^>]*)?>[\s\S]*$/gi, "");
 +  text = text.replace(/```[\s\S]*?```/g, "").replace(/```[\s\S]*$/g, "");
 +  text = text.replace(/^\s*#\s*(?:handoff|context|brief)\b[\s\S]*$/im, "");
 +  text = text.split("\n").filter((line) => !(
@@ -34,10 +40,16 @@
 +  return { level: "medium", confidence: 0.55, reason: "general user task" };
 +}
 +
-@@ -112,0 +145,2 @@
+@@ -111,3 +143,6 @@
+   public enabled: boolean;
+-  private running = false;
++  private running = false;
+-  public last?: ThinkingRouteResult;
++  public last?: ThinkingRouteResult;
 +  private baseline?: ThinkingLevel;
 +  private applied?: ThinkingLevel;
-@@ -123,3 +157,9 @@
++  private applying = false;
+@@ -123,4 +158,10 @@
 -  public async route(prompt: string, ctx: ExtensionContext): Promise<ThinkingRouteResult> {
 -    const need = classifyThinkingNeed(prompt);
 -    const base: ThinkingRouteResult = { changed: false, level: need.level, need, reason: need.reason };
@@ -50,12 +62,31 @@
 +    const baselineRank = THINKING_LEVELS.indexOf(baseline);
 +    const desired = THINKING_LEVELS[Math.min(requestedRank, ceilingRank, baselineRank + 1)];
 +    const base: ThinkingRouteResult = { changed: false, level: desired, need, reason: need.reason };
-@@ -137 +177 @@
+     if (!this.enabled) return { ...base, skipped: "disabled" };
+@@ -134,5 +175,5 @@
+       // Ask for what the model can actually do. `setThinkingLevel` clamps too,
+       // but clamping here keeps the reported level and the cache-hostility check
+       // honest about what will really be applied.
 -      const level = effectiveLevel(model, need.level);
 +      const level = effectiveLevel(model, desired);
-@@ -146,0 +187 @@
+       if (!isLevelSupported(model, level)) {
+@@ -146,2 +187,4 @@
+       try {
 +        this.applied = level;
-@@ -149,0 +191 @@
++        this.applying = true;
+         this.pi.setThinkingLevel(level);
+@@ -149,2 +192,3 @@
+       } catch (error) {
 +        this.applied = undefined;
-@@ -157,0 +200 @@
-+    if (level !== this.applied) this.baseline = level;
+         return { ...base, previous, level, skipped: "error", reason: `thinking level change failed: ${(error as any)?.message ?? error}` };
+@@ -150,3 +194,5 @@
+         return { ...base, previous, level, skipped: "error", reason: `thinking level change failed: ${(error as any)?.message ?? error}` };
+-      }
++      } finally {
++        this.applying = false;
++      }
+     } finally {
+@@ -157,2 +203,3 @@
+   public observe(level: ThinkingLevel, previousLevel: ThinkingLevel): void {
++    if (!this.applying) this.baseline = level;
+     this.last = {
