@@ -351,10 +351,10 @@ If global `playwright-cli` command is not available, try a local version via `np
 npx --no-install playwright --version
 ```
 
-When local version is available, use `npx playwright cli` in all commands. Otherwise, install `playwright-cli` as a global command:
+When a local version is available, use `npx playwright cli` in all commands. Otherwise, run this from the tools repository root:
 
 ```bash
-npm install -g @playwright/cli@latest
+./install.sh --tool playwright-cli
 ```
 
 ## Example: Form submission

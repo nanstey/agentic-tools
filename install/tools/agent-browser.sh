@@ -2,13 +2,17 @@
 # Tool: agent-browser
 # Description: Native browser automation CLI with a persistent daemon driving Chrome over CDP
 # Upstream: https://github.com/vercel-labs/agent-browser
-# Installation: npm install -g agent-browser@latest && agent-browser install
+# Installation from repository root: ./install.sh --tool agent-browser
 # Verification: agent-browser --version
 
 set -euo pipefail
 
 show_usage() {
   cat <<EOF
+Install from the repository root:
+  ./install.sh --tool agent-browser
+
+Internal adapter interface:
 Usage: $0 [check|install|uninstall]
 
 Tool: agent-browser
@@ -21,7 +25,7 @@ Commands:
 
 Prerequisites:
   - Node.js 20 or newer (npm)
-  - Chrome/Chromium, or allow agent-browser install to download Chrome for Testing
+  - Chrome/Chromium, or a browser provisioned by the root installer
 
 EOF
 }
@@ -60,7 +64,7 @@ install_tool() {
   fi
   
   agent-browser install || {
-    echo "✗ Failed to provision Chrome for agent-browser. For Linux system dependencies, run: agent-browser install --with-deps"
+    echo "✗ Failed to provision Chrome for agent-browser. Check the Linux browser system dependencies."
     return 1
   }
   

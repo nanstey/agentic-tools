@@ -2,13 +2,17 @@
 # Tool: chrome-devtools-cli
 # Description: Automate browser tasks and use Chrome DevTools from the CLI
 # Upstream: https://github.com/ChromeDevTools/chrome-devtools-mcp
-# Installation: npm install -g chrome-devtools-mcp@latest
+# Installation from repository root: ./install.sh --tool chrome-devtools-cli
 # Verification: chrome-devtools status
 
 set -euo pipefail
 
 show_usage() {
   cat <<EOF
+Install from the repository root:
+  ./install.sh --tool chrome-devtools-cli
+
+Internal adapter interface:
 Usage: $0 [check|install|uninstall]
 
 Tool: chrome-devtools-cli

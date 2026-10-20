@@ -38,7 +38,12 @@ harness/pi/settings.json                   # portable pi configuration
 harness/omp/APPEND_SYSTEM.md               # portable omp system-prompt addition
 harness/<harness>/README.md                # managed-file table and behavior (not installed)
 AGENTS.md                                 # this file
-install.sh                                # installer
+install.sh                                # installer entrypoint
+install/main.sh                           # orchestration (only runtime file at install root)
+install/TOOL_INSTALLATION.md               # installation guide (documentation exception)
+install/modules/*.sh                      # installer responsibility modules
+install/tests/install.test.sh             # offline installer regression tests
+install/tools/                            # external CLI installers and docs
 README.md                                 # catalog
 ```
 

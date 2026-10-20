@@ -2,13 +2,17 @@
 # Tool: playwright-cli
 # Description: Browser automation from the CLI — navigate, interact, screenshot, record video, mock network
 # Upstream: https://github.com/microsoft/playwright
-# Installation: npm install -g @playwright/cli@latest
+# Installation from repository root: ./install.sh --tool playwright-cli
 # Verification: playwright-cli --version
 
 set -euo pipefail
 
 show_usage() {
   cat <<EOF
+Install from the repository root:
+  ./install.sh --tool playwright-cli
+
+Internal adapter interface:
 Usage: $0 [check|install|uninstall]
 
 Tool: playwright-cli

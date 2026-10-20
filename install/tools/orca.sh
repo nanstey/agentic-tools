@@ -2,13 +2,17 @@
 # Tool: orca
 # Description: Orca IDE CLI — orchestration layer for coding agents
 # Upstream: https://github.com/orca-cli/orca
-# Installation: Varies by OS (brew, from source)
+# Installation from repository root: ./install.sh --tool orca
 # Verification: orca --version
 
 set -euo pipefail
 
 show_usage() {
   cat <<EOF
+Install from the repository root:
+  ./install.sh --tool orca
+
+Internal adapter interface:
 Usage: $0 [check|install]
 
 Tool: orca
@@ -23,13 +27,8 @@ Supported OS:
   - Linux: Install from source (requires Go)
   - macOS: Install via Homebrew
 
-macOS Installation:
-  brew install orca-cli/tap/orca
-
-Linux Installation (from source):
-  Requires Go 1.18+ installed
-  git clone https://github.com/orca-cli/orca
-  cd orca && go install ./cmd/orca
+The root installer selects Homebrew or a source build.
+Linux source builds require Go 1.18+.
 
 Full docs: https://github.com/orca-cli/orca
 
@@ -100,7 +99,7 @@ install_tool() {
       ;;
     *)
       echo "✗ Unsupported OS: $os"
-      echo "  Please install Orca CLI manually from: https://github.com/orca-cli/orca"
+      echo "  No automatic Orca CLI installation is available for this OS."
       return 1
       ;;
   esac

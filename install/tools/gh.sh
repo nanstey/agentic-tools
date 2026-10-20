@@ -2,13 +2,17 @@
 # Tool: gh
 # Description: GitHub CLI — GitHub management from the command line
 # Upstream: https://github.com/cli/cli
-# Installation: Varies by OS (brew, apt, pacman, etc.)
+# Installation from repository root: ./install.sh --tool gh
 # Verification: gh --version
 
 set -euo pipefail
 
 show_usage() {
   cat <<EOF
+Install from the repository root:
+  ./install.sh --tool gh
+
+Internal adapter interface:
 Usage: $0 [check|install]
 
 Tool: gh
@@ -22,15 +26,8 @@ Supported OS:
   - Linux (Fedora, Ubuntu/Debian, Arch, etc.) — see detect_distro
   - macOS (via Homebrew)
 
-macOS Installation:
-  brew install gh
+The root installer selects the platform package manager.
 
-Linux Installation (auto-detected):
-  - Fedora/RHEL: dnf install gh
-  - Ubuntu/Debian: apt install gh
-  - Arch: pacman -S github-cli
-  - Alpine: apk add github-cli
-  
 Full docs: https://cli.github.com/manual/installation
 
 EOF
@@ -119,14 +116,14 @@ install_tool() {
           ;;
         *)
           echo "✗ Unknown Linux distribution: $distro"
-          echo "  Please install GitHub CLI manually from: https://cli.github.com/manual/installation"
+          echo "  No automatic GitHub CLI installation is available for this distribution."
           return 1
           ;;
       esac
       ;;
     *)
       echo "✗ Unsupported OS: $os"
-      echo "  Please install GitHub CLI manually from: https://cli.github.com"
+      echo "  No automatic GitHub CLI installation is available for this OS."
       return 1
       ;;
   esac
