@@ -11,6 +11,7 @@ rather than symlinked because Pi may rewrite them locally.
 | `harness/pi/APPEND_SYSTEM.md` | `$PI_AGENT_DIR/APPEND_SYSTEM.md` | Appends conservative subagent tier/thinking bounds, cross-family verification, and main-agent model preservation rules to Pi's system prompt. |
 | `harness/pi/patches/pi-diff-sdk-imports.patch` | applied to `$PI_AGENT_DIR/npm/node_modules/@heyhuynhgiabuu/pi-diff/dist/index.js` | Uses static SDK/TUI imports so Pi's extension loader supplies the host modules. Hoisting alone cannot resolve native dynamic imports of uninstalled host peers. Not copied. |
 | `harness/pi/patches/pi-subagent-widget-3.16.patch` | applied to `$PI_AGENT_DIR/npm/node_modules/@maplezzk/pi-interactive-subagents/pi-extension/subagents/subagent-done.ts` | Hides the denied-tools list in both child-widget views while preserving the separate tool-denial Set. Targets upstream 3.16.4. Not copied. |
+| `harness/pi/patches/pi-subagent-done-requires-summary.patch` | applied to `$PI_AGENT_DIR/npm/node_modules/@maplezzk/pi-interactive-subagents/pi-extension/subagents/subagent-done.ts` | Refuses an empty `subagent_done` until this turn has a non-empty assistant summary. Structured-result calls stay unchanged. Targets upstream 3.16.4. Not copied. |
 | `harness/pi/patches/pi-jev.patch` | applied to `$PI_AGENT_DIR/npm/node_modules/pi-jev/` (`src/jev.ts`, `extensions/index.ts`) | Unified diff that `install.sh` applies to `pi-jev`: rebuilds its SDK client on credential changes, adds `PI_JEV_API_KEY`, and disables auto-thinking in subagents. Not copied. |
 | `harness/pi/patches/pi-fallback-reviewer-provider-lock.patch` | applied to `$PI_AGENT_DIR/npm/node_modules/pi-fallback-models/src/extension.ts` | Restricts reviewer fallback candidates to the baseline model's provider before model activation. Targets upstream 0.1.1. Not copied. |
 | `harness/pi/patches/pi-jev-prompt-guard.patch` | applied to `$PI_AGENT_DIR/npm/node_modules/pi-jev/` (`src/thinking.ts`, `extensions/index.ts`) | Unified diff that `install.sh` applies to `pi-jev`: tolerates a missing `event.prompt` (runs started by `sendCustomMessage`, such as subagent results) instead of throwing `Cannot read properties of undefined (reading 'trim')`. Not copied. |
@@ -20,7 +21,9 @@ rather than symlinked because Pi may rewrite them locally.
 | `harness/pi/tests/fallback-provider-lock.test.mjs` | Not installed | Offline fallback tests for reviewer provider locks, exhaustion, settings scopes, switch-bus activation, and unchanged producer behavior. Run with `node`, passing the Pi SDK directory and a patched `pi-fallback-models` package directory. |
 | `harness/pi/tests/fixtures/pi-jev-0.7.0/` | Not installed | Pristine upstream Jev sources for all 16 Jev patch-order subsets and thinking-policy regression tests. |
 | `harness/pi/tests/fixtures/pi-jev-skill-wrapped-prompt.txt` | Not installed | Representative `before_agent_start` skill wrapper plus a plain user request for conservative thinking-policy regression tests. |
+| `harness/pi/tests/fixtures/pi-interactive-subagents-3.16.4/` | Not installed | Pristine upstream `subagent-done.ts` and MIT license for sequential subagent patch tests. |
 | `harness/pi/tests/package-extensions.test.mjs` | Not installed | Offline smoke tests for pi-diff registration and child-widget rendering/tool denial. Run with `node`, passing the installed Pi SDK package directory and Pi agent directory. |
+| `harness/pi/tests/subagent-done-summary.test.mjs` | Not installed | Tests the patched empty-summary guard against a patched `subagent-done.ts`. `package-patches.test.sh` runs it in its installer sandbox. |
 | `harness/pi/README.md` | Not installed | This document. `install.sh` skips `README.md` when it copies config. |
 | `harness/pi/extensions/*.json` | `$PI_AGENT_DIR/extensions/` | Per-extension config. |
 | `harness/pi/extensions/profile-secrets.ts` | `$PI_AGENT_DIR/extensions/profile-secrets.ts` | Exports the `NAME=value` secrets in `secrets/<profile>.env` into the environment while that `@nanstey/pi-auth-profiles` profile is active; unset names revert to the inherited value. |
@@ -135,9 +138,10 @@ installs and then exits 1.
   loader can supply its SDK aliases. The patch uses static imports of the host SDK and TUI;
   it does not install a separate SDK. Drop it once upstream uses host-compatible imports.
 - **`@maplezzk/pi-interactive-subagents`:** the child widget prints a "N denied" count for
-  tools that are never registered. The patch keeps the display list empty so both widget
-  views show only available tools, without changing tool-denial enforcement. Upstream 3.16.4
-  still displays denied tools. Drop it once upstream makes the list optional.
+  tools that are never registered. The widget patch keeps the display list empty so both views
+  show only available tools, without changing tool-denial enforcement. The separate summary patch
+  refuses a result-less `subagent_done` when no assistant text follows the latest user message.
+  Result and structured-output calls stay unchanged. Drop each patch once upstream provides its fix.
 - **`pi-fallback-models`:** 0.1.1 classifies Anthropic's "You're out of extra usage" 400 as
   ignorable, so no fallback happens on that quota error. The quota patch adds that phrase.
   A separate provider-lock patch restricts `PI_SUBAGENT_AGENT=reviewer` candidates to the

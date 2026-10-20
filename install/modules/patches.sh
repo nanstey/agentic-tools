@@ -67,6 +67,14 @@ install_subagent_widget_patch() {
   apply_package_patch "$1" patch-subagent-widget "$REPO_ROOT/harness/pi/patches/pi-subagent-widget-3.16.patch" pi-extension/subagents/subagent-done.ts
 }
 
+# @maplezzk/pi-interactive-subagents@3.16.4 accepts a text-less
+# subagent_done call and exits before the agent sends a summary. Require either
+# a prior assistant summary or a result. Keep this separate from the widget
+# patch so installations that already have it receive this fix too.
+install_subagent_done_summary_patch() {
+  apply_package_patch "$1" patch-subagent-done-summary "$REPO_ROOT/harness/pi/patches/pi-subagent-done-requires-summary.patch" pi-extension/subagents/subagent-done.ts
+}
+
 # pi-jev@0.7.0 builds its SDK client once and keeps a stale base URL, so a
 # profile switch keeps billing the first profile's key and endpoint. It also reads
 # only TYPESAFE_API_KEY (shared with Pi's native classifier) and auto-adjusts
