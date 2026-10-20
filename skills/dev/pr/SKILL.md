@@ -41,6 +41,8 @@ Load every referenced workflow before acting and preserve its stop gates, safety
 
 Never bypass a referenced workflow's verification, approval, or stop gate. Do not silently substitute a direct implementation for a dispatched workflow.
 
+Lifecycle, review, CI/comment fixes, monitor, ready, and merge share [`references/gates.md`](references/gates.md): authoritative outcome/check/review evidence, finding categories, and one caller-owned three-round review/fix budget including initial review. Carry that state across dispatches; never reset it or start nested review loops. `/pr review` defaults to report-only (no edits, tests, commits, pushes, comments, or approval); source-review cleanliness alone grants no readiness permission.
+
 ## Non-Interactive Policy
 
 Never ask the user a question, request clarification, or wait for approval. Every decision resolves in this order:
