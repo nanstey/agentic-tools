@@ -23,11 +23,12 @@ Follow repo naming rules from `CLAUDE.md` / `AGENTS.md`.
 
 1. Normalize candidate names (lowercase, strip `/`, basename only).
 2. Load reserved names from `known-names.json` and in-repo names from frontmatter.
-3. Classify each candidate:
-   - `CONFLICT`: exact reserved/repo match.
-   - `RISKY`: near-match or alias collision.
-   - `CLEAR`: no collision.
-4. For non-clear results, propose 3-5 safe alternatives.
+3. Classify each candidate against every reserved and in-repo name (skills and agents). Take the first rule that matches:
+   - `CONFLICT`: exact match.
+   - `RISKY`: near-match. Two names are near when, after removing `-`, they are equal, differ by a trailing `s`/`es`, or differ by one edit (insert, delete, substitute, or adjacent swap) and both have 4+ characters. Also `RISKY`: a known alias of a reserved name.
+   - `CLEAR`: no rule matches.
+   Name the matched existing name and rule in the report.
+4. For non-clear results, propose 3-5 alternatives. Check each alternative with step 3; list only `CLEAR` ones.
 5. Report verdict plus list `updated` date.
 
 ### Update mode
@@ -47,5 +48,5 @@ Follow repo naming rules from `CLAUDE.md` / `AGENTS.md`.
 
 ## Output Style
 
-For `check`: normalized name, verdict (`CLEAR`/`CONFLICT`/`RISKY`), owning sources, safe alternatives when needed, and `updated` date.
+For `check`: normalized name, verdict (`CLEAR`/`CONFLICT`/`RISKY`), matched name and rule, owning sources, safe alternatives when needed, and `updated` date.
 For `update`: per-source add/remove/unchanged counts, new `updated` date, and any failed refreshes.
