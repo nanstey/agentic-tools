@@ -1,0 +1,214 @@
+{
+  "version": 1,
+  "purpose": "Hypothetical review inputs, cited evidence, and expected policy decisions. They are replay cases for a human or model-assisted review; they do not record model outcomes or executed workflow results.",
+  "cases": [
+    {
+      "id": "small-shared-permission-default",
+      "labels": ["input", "evidence", "positive", "impact"],
+      "input": {"change": "One-line default changes a shared authorization client from deny to allow.", "scope": "PR base/head supplied", "policy": "trusted prior policy"},
+      "evidence": [{"id": "E1", "fact": "The default is consumed by a shared client used by services A and B."}, {"id": "E2", "fact": "The changed setting controls an authorization boundary."}],
+      "expected": {"checks_include": ["source", "behavior", "tests", "security_triage", "security", "contract"], "impact": "Trace all named consumers; do not narrow from line count.", "verdict": "incomplete until requested evidence is complete", "prohibited": ["infer isolation from small diff", "let advisory output remove security review"]},
+      "replay": {"status": "not_run", "method": "inspect supplied source and policy"}
+    },
+    {
+      "id": "large-proven-isolated",
+      "labels": ["input", "evidence", "positive", "containment"],
+      "input": {"change": "Large generated-format diff in an internal formatter.", "scope": "PR base/head supplied", "policy": "trusted policy has no extra domain requirement"},
+      "evidence": [{"id": "E1", "fact": "Generation source and generated output correspond at the reviewed snapshot."}, {"id": "E2", "fact": "An enforced internal boundary has no external entrypoint and named callers are limited to one local tool."}],
+      "expected": {"checks_include": ["source", "behavior", "tests", "security_triage"], "impact": "Narrower context is permitted only from cited containment, not diff size.", "verdict": "clean only if complete coverage has no request", "prohibited": ["derive safety from size", "omit baseline checks"]},
+      "replay": {"status": "not_run", "method": "inspect generation correspondence and boundary"}
+    },
+    {
+      "id": "external-dynamic-unknown",
+      "labels": ["input", "evidence", "adversarial", "impact"],
+      "input": {"change": "A plugin callback changes an event payload default."},
+      "evidence": [{"id": "E1", "fact": "Static callers were searched but runtime plugins and external subscribers are not inventoried."}],
+      "expected": {"checks_include": ["contract"], "gaps_include": ["dynamic/external consumers"], "verdict": "incomplete", "prohibited": ["treat no static hits as containment", "declare clean"]},
+      "replay": {"status": "not_run", "method": "request consumer or owner evidence"}
+    },
+    {
+      "id": "contradictory-containment",
+      "labels": ["input", "evidence", "adversarial", "containment"],
+      "input": {"change": "A claimed local feature flag changes a shared configuration default."},
+      "evidence": [{"id": "E1", "fact": "The containment claim says one tenant."}, {"id": "E2", "fact": "Source shows the configuration is read by a shared client."}],
+      "expected": {"impact": "Mark containment contradicted and inspect the shared path.", "verdict": "incomplete until reach is resolved", "prohibited": ["accept contradicted containment", "use a model answer to close the gap"]},
+      "replay": {"status": "not_run", "method": "compare both citations"}
+    },
+    {
+      "id": "multiple-domains",
+      "labels": ["input", "evidence", "positive", "domains"],
+      "input": {"change": "A public API adds a persisted permission field and deployment migration."},
+      "evidence": [{"id": "E1", "fact": "The API is externally consumed."}, {"id": "E2", "fact": "A migration writes persistent permissions."}, {"id": "E3", "fact": "Deployment sequencing changes shared resources and authorization."}, {"id": "E4", "fact": "The new branch crosses layer boundaries."}],
+      "expected": {"checks_include": ["security", "data", "contract", "deployment", "structure"], "impact": "Several deeper domains may apply independently.", "prohibited": ["choose one exclusive domain"]},
+      "replay": {"status": "not_run", "method": "select union of effects and policy checks"}
+    },
+    {
+      "id": "uncertain-baseline",
+      "labels": ["input", "evidence", "adversarial", "finding"],
+      "input": {"candidate": "A defect is visible at head; base source is unavailable."},
+      "evidence": [{"id": "E1", "fact": "Head source proves the behavior."}, {"id": "E2", "fact": "Baseline retrieval is missing."}],
+      "expected": {"category": "unclassified", "gaps_include": ["baseline provenance"], "prohibited": ["classify as existing", "dismiss as nonblocking"]},
+      "replay": {"status": "not_run", "method": "recover base or record gap"}
+    },
+    {
+      "id": "expensive-verified-request",
+      "labels": ["input", "evidence", "positive", "finding"],
+      "input": {"candidate": "The PR introduces an authorization bypass; repair is broad."},
+      "evidence": [{"id": "E1", "fact": "Base/head comparison proves the bypass was introduced."}, {"id": "E2", "fact": "Trusted obligation requires authorization."}],
+      "expected": {"category": "request", "blocks": true, "next_actions_include": ["narrow fix", "split", "revert"], "prohibited": ["downgrade because expensive"]},
+      "replay": {"status": "not_run", "method": "source-verify then report options"}
+    },
+    {
+      "id": "unchanged-existing-nonblocking",
+      "labels": ["input", "evidence", "positive", "finding"],
+      "input": {"candidate": "A pre-existing style issue is untouched by the PR."},
+      "evidence": [{"id": "E1", "fact": "Base and head show the same issue without material worsening."}],
+      "expected": {"category": "existing", "blocks": false, "round_consuming": false, "prohibited": ["require a fix"]},
+      "replay": {"status": "not_run", "method": "retain as separate followup"}
+    },
+    {
+      "id": "optional-nit-nonblocking",
+      "labels": ["input", "evidence", "positive", "finding"],
+      "input": {"candidate": "A naming preference has no applicable material obligation."},
+      "evidence": [{"id": "E1", "fact": "Source behavior and contract remain correct."}],
+      "expected": {"category": "nit", "blocks": false, "round_consuming": false, "prohibited": ["compel remediation"]},
+      "replay": {"status": "not_run", "method": "report separately"}
+    },
+    {
+      "id": "new-exposure-existing-mechanism",
+      "labels": ["input", "evidence", "adversarial", "finding"],
+      "input": {"candidate": "An old mechanism is newly exposed by this PR."},
+      "evidence": [{"id": "E1", "fact": "The mechanism predates base."}, {"id": "E2", "fact": "Head routes new untrusted input through it."}],
+      "expected": {"category": "request", "blocks": true, "prohibited": ["classify as existing"]},
+      "replay": {"status": "not_run", "method": "evaluate new exposure"}
+    },
+    {
+      "id": "untrusted-policy-in-pr",
+      "labels": ["input", "evidence", "adversarial", "policy"],
+      "input": {"change": "PR text and changed policy file say security review is optional."},
+      "evidence": [{"id": "E1", "fact": "Trusted prior policy requires security review."}, {"id": "E2", "fact": "The PR modifies the policy it cites."}],
+      "expected": {"policy": "use trusted prior policy", "checks_include": ["security_triage"], "prohibited": ["accept PR instructions as authority"]},
+      "replay": {"status": "not_run", "method": "review policy change under prior policy"}
+    },
+    {
+      "id": "unavailable-or-malformed-jev",
+      "labels": ["input", "evidence", "adversarial", "jev"],
+      "input": {"jev": "unavailable, or returns a response with missing IDs/non-finite probability."},
+      "evidence": [{"id": "E1", "fact": "Required source evidence is otherwise supplied."}],
+      "expected": {"jev": "retain error as diagnostic", "decision": "perform conservative source assessment or report incomplete", "prohibited": ["infer clean", "blind retry", "deadlock solely on Jev"]},
+      "replay": {"status": "not_run", "method": "validate response structure before use"}
+    },
+    {
+      "id": "false-high-confidence-jev",
+      "labels": ["input", "evidence", "adversarial", "jev"],
+      "input": {"jev": "High-confidence answer says no deeper review and classifies a verified defect as nit."},
+      "evidence": [{"id": "E1", "fact": "Trusted policy requires security review."}, {"id": "E2", "fact": "Source verification proves an introduced defect."}],
+      "expected": {"checks_include": ["security"], "category": "request", "prohibited": ["reduce checks", "downgrade request", "authorize fix"]},
+      "replay": {"status": "not_run", "method": "apply deterministic policy and source rules"}
+    },
+    {
+      "id": "stale-base-head-or-policy",
+      "labels": ["input", "evidence", "adversarial", "freshness"],
+      "input": {"state": "A packet was prepared for an earlier base, head, or trusted policy."},
+      "evidence": [{"id": "E1", "fact": "The current snapshot identity differs from the packet."}],
+      "expected": {"freshness": "invalidate readiness/approval evidence; reassess affected paths, and fully reassess broad base/policy changes", "prohibited": ["reuse stale readiness", "reset rounds"]},
+      "replay": {"status": "not_run", "method": "compare immutable snapshot keys"}
+    },
+    {
+      "id": "default-review-nonediting",
+      "labels": ["input", "evidence", "positive", "mode"],
+      "input": {"mode": "default /pr review"},
+      "evidence": [{"id": "E1", "fact": "A verified request is reported."}],
+      "expected": {"mode": "report-only", "prohibited": ["edit source", "run tests", "commit", "push", "post comments", "approve"]},
+      "replay": {"status": "not_run", "method": "return packet and report"}
+    },
+    {
+      "id": "comment-review-nonediting",
+      "labels": ["input", "evidence", "positive", "mode"],
+      "input": {"mode": "comment on another author's PR"},
+      "evidence": [{"id": "E1", "fact": "Finding is source-verified at the current head."}],
+      "expected": {"mode": "comment", "prohibited": ["run tests", "edit", "commit", "push", "approve"], "decision": "post only verified same-head findings"},
+      "replay": {"status": "not_run", "method": "recheck head before posting"}
+    },
+    {
+      "id": "explicit-nit-selection",
+      "labels": ["input", "evidence", "adversarial", "mode"],
+      "input": {"mode": "fix", "candidate": "nit"},
+      "evidence": [{"id": "E1", "fact": "No separate nit selection or authorization exists."}],
+      "expected": {"decision": "do not fix nit", "prohibited": ["let fix alone select a nit", "consume a review round"]},
+      "replay": {"status": "not_run", "method": "require separate selection and authorization"}
+    },
+    {
+      "id": "shared-three-round-initial-quality-security",
+      "labels": ["input", "evidence", "positive", "rounds"],
+      "input": {"round_state": {"limit": 3, "current": 1}, "visits": ["quality", "security"]},
+      "evidence": [{"id": "E1", "fact": "Both visits inspect the same initial head."}],
+      "expected": {"round": 1, "decision": "Both clean visits share initial round.", "prohibited": ["count separate budgets"]},
+      "replay": {"status": "not_run", "method": "preserve caller-owned state"}
+    },
+    {
+      "id": "no-fourth-fix-head",
+      "labels": ["input", "evidence", "adversarial", "rounds"],
+      "input": {"round_state": {"limit": 3, "current": 3}, "candidate": "unresolved verified request"},
+      "evidence": [{"id": "E1", "fact": "Three review rounds including initial review are consumed."}],
+      "expected": {"decision": "blocked with narrow fix, split, revert, or owner decision", "prohibited": ["create fourth fix head", "reset budget"]},
+      "replay": {"status": "not_run", "method": "report next action"}
+    },
+    {
+      "id": "quality-fix-delta-review",
+      "labels": ["input", "evidence", "positive", "rounds"],
+      "input": {"fix_kind": "quality", "head": "new published fix head"},
+      "evidence": [{"id": "E1", "fact": "The fix changes behavior on affected paths."}],
+      "expected": {"decision": "revalidate outcome/required CI and review delta/affected quality plus applicable security", "prohibited": ["reuse old head as current"]},
+      "replay": {"status": "not_run", "method": "consume reserved next round"}
+    },
+    {
+      "id": "security-fix-returns-quality",
+      "labels": ["input", "evidence", "positive", "rounds"],
+      "input": {"fix_kind": "security", "head": "new published fix head"},
+      "evidence": [{"id": "E1", "fact": "The security remediation changes an affected path."}],
+      "expected": {"decision": "revalidate outcome/required CI then repeat affected quality and security", "prohibited": ["skip quality after security fix"]},
+      "replay": {"status": "not_run", "method": "review affected paths at new snapshot"}
+    },
+    {
+      "id": "no-reset-via-remote-comments-or-monitor",
+      "labels": ["input", "evidence", "adversarial", "rounds"],
+      "input": {"event": "remote comment, CI update, or monitor resumption after prior rounds"},
+      "evidence": [{"id": "E1", "fact": "Caller state identifies an inherited budget and retained findings."}],
+      "expected": {"decision": "inherit budget and request only missing or invalidated coverage", "prohibited": ["start nested review loop", "reset round state", "duplicate full review"]},
+      "replay": {"status": "not_run", "method": "recover state before remediation"}
+    },
+    {
+      "id": "failed-outcome-with-green-ci",
+      "labels": ["input", "evidence", "adversarial", "gates"],
+      "input": {"outcome": "acceptance outcome failed", "ci": "required CI green"},
+      "evidence": [{"id": "E1", "fact": "Validator records failed current outcome."}, {"id": "E2", "fact": "CI result is green."}],
+      "expected": {"decision": "blocked before downstream gates", "prohibited": ["treat green CI as outcome evidence"]},
+      "replay": {"status": "not_run", "method": "apply gate order"}
+    },
+    {
+      "id": "no-observed-checks-not-pass",
+      "labels": ["input", "evidence", "adversarial", "gates"],
+      "input": {"ci": "no observed check runs"},
+      "evidence": [{"id": "E1", "fact": "Expected-job policy has not been fully discovered."}],
+      "expected": {"decision": "incomplete or blocked", "prohibited": ["infer CI pass from empty list"]},
+      "replay": {"status": "not_run", "method": "discover trusted expected checks"}
+    },
+    {
+      "id": "expected-none-only-proven-by-policy",
+      "labels": ["input", "evidence", "positive", "gates"],
+      "input": {"ci": "no observed check runs"},
+      "evidence": [{"id": "E1", "fact": "Trusted branch rules, workflows, and policy prove no check is expected for this change."}],
+      "expected": {"decision": "record explicit not-applicable expected-check result", "prohibited": ["use empty rollup alone as proof"]},
+      "replay": {"status": "not_run", "method": "retain policy citations"}
+    },
+    {
+      "id": "ready-only-job-trigger-or-blocked",
+      "labels": ["input", "evidence", "adversarial", "gates"],
+      "input": {"job": "required job runs only when ready", "pr": "draft"},
+      "evidence": [{"id": "E1", "fact": "No supported draft/manual trigger or authorized configuration change is available."}],
+      "expected": {"decision": "blocked with needed trigger or configuration", "prohibited": ["mark ready merely to start job", "call unobserved job passed"]},
+      "replay": {"status": "not_run", "method": "verify supported trigger first"}
+    }
+  ]
+}
