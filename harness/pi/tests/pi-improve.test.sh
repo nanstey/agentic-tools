@@ -79,6 +79,8 @@ check "--force repeats a reflection" "$P" reflect "$SB/d.json" --force
 
 # sandboxed install is idempotent
 SBH=$(mktemp -d)
+# The installer targets Pi only when its agent dir exists or `pi` is on PATH.
+mkdir -p "$SBH/.pi/agent"
 first=$(HOME=$SBH PI_CODING_AGENT_DIR=$SBH/.pi/agent bash "$REPO/install.sh" 2>&1)
 second=$(HOME=$SBH PI_CODING_AGENT_DIR=$SBH/.pi/agent bash "$REPO/install.sh" 2>&1)
 for f in self-improve.json extensions/self-improve.ts bin/pi-improve prompts/reflect.md prompts/improve.md self-improve/repo; do
