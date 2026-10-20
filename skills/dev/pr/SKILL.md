@@ -1,7 +1,7 @@
 ---
 name: pr
 description: Runs PR creation, maintenance, and stacked-PR workflows from one command. Use when a branch or pull request needs creation, reconciliation, remediation, publication, merge, or stack management.
-argument-hint: "[info|monitor|merge|ci|create|comments|review|ready|description|screenshots|rebase|restack|split|stack|auto-merge] [PR-URL-or-number] [fix|comment]"
+argument-hint: "[info|monitor|merge|ci|create|comments|review|verification|ready|description|screenshots|rebase|restack|split|stack|auto-merge] [PR-URL-or-number] [fix|comment]"
 user-invocable: true
 disable-model-invocation: false
 ---
@@ -25,6 +25,7 @@ With no action, load [`references/lifecycle.md`](references/lifecycle.md) and ru
 | `/pr create [target]` | [`create.md`](references/create.md) |
 | `/pr comments [target]` | [`comments.md`](references/comments.md) |
 | `/pr review [target] [fix\|comment]` | [`review.md`](references/review.md) |
+| `/pr verification [target] [report\|fix\|comment]` | [`verification.md`](references/verification.md) |
 | `/pr ready [target]` | [`ready.md`](references/ready.md) |
 | `/pr description [target]` | [`description.md`](references/description.md) |
 | `/pr screenshots [target]` | [`screenshots.md`](references/screenshots.md) |
@@ -41,7 +42,7 @@ Load every referenced workflow before acting and preserve its stop gates, safety
 
 Never bypass a referenced workflow's verification, approval, or stop gate. Do not silently substitute a direct implementation for a dispatched workflow.
 
-Lifecycle, review, CI/comment fixes, monitor, ready, and merge share [`references/gates.md`](references/gates.md): authoritative outcome/check/review evidence, finding categories, and one caller-owned three-round review/fix budget including initial review. Carry that state across dispatches; never reset it or start nested review loops. `/pr review` defaults to report-only (no edits, tests, commits, pushes, comments, or approval); source-review cleanliness alone grants no readiness permission.
+Lifecycle, review, CI/comment fixes, monitor, ready, and merge share [`references/gates.md`](references/gates.md): authoritative outcome/check/review evidence, finding categories, and one caller-owned three-round review/fix budget including initial review. Carry that state across dispatches; never reset it or start nested review loops. `/pr verification` is a sibling of review and defaults to report-only (it never starts a review loop). `/pr review` defaults to report-only (no edits, tests, commits, pushes, comments, or approval); source-review cleanliness alone grants no readiness permission.
 
 ## Non-Interactive Policy
 
