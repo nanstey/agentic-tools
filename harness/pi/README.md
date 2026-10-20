@@ -28,7 +28,7 @@ rather than symlinked because Pi may rewrite them locally.
 | `harness/pi/prompts/improve.md` | `$PI_AGENT_DIR/prompts/improve.md` | `/improve <brief.md>`: end-to-end worker for one improvement in its own worktree: scope, implement, test, cross-family review, verify, and open the PR for human review. |
 | `harness/pi/extensions/jev-router-openrouter-fallback.ts` | `$PI_AGENT_DIR/extensions/jev-router-openrouter-fallback.ts` | When no `TYPESAFE_API_KEY` is set but the active profile has OpenRouter auth, sets `PI_JEV_API_KEY` and `PI_JEV_BASE_URL` so pi-jev's tools bill to OpenRouter's System One endpoint. Pi's native classifier never sees the OpenRouter key. A real TypeSafe key or an external `PI_JEV_*` value always wins. |
 | `harness/pi/extensions/collapse-tools.ts` | `$PI_AGENT_DIR/extensions/collapse-tools.ts` | Collapses tool output after all `session_start` handlers run, overriding `pi-diff`'s default of expanding it. |
-| `harness/pi/extensions/pi-fallback.json` | `$PI_AGENT_DIR/extensions/pi-fallback.json` | Global model fallback chain for `pi-fallback-models`: `openai-codex/gpt-6.1-sol`, then `anthropic/claude-sonnet-5-5`, tried when the current model hits a quota, rate-limit, or provider error. Reviewer processes only try candidates from their baseline model's provider. |
+| `harness/pi/extensions/pi-fallback.json` | `$PI_AGENT_DIR/extensions/pi-fallback.json` | Global model fallback chain for `pi-fallback-models`: `openai-codex/gpt-6.1-sol`, then `anthropic/claude-sonnet-5-5`, tried when the current model hits a quota, rate-limit, or provider error. |
 | `harness/pi/extensions/pi-interactive-subagents/config.json` | `$PI_AGENT_DIR/extensions/pi-interactive-subagents/config.json` | Interactive-subagents config: mux settings plus `allowSubagentSpawning` and `subagentExtensions`. Package 3.16.4 starts each child with `--no-extensions` plus only the listed paths, so the list must include the Anthropic auth extensions (`pi-anthropic-auth`, `pi-auth-profiles`). Without them Anthropic subagents fail with `400 You're out of extra usage`, which looks like a quota error. The list also loads `pi-web-access` and `pi-fallback-models`. Agent profiles deny spawning via `deny-tools`. |
 | `harness/pi/extensions/pi-extensions-i18n/config.json` | `$PI_AGENT_DIR/extensions/pi-extensions-i18n/config.json` | Locale for pi extension messages: `en-US`, because the library defaults to Chinese regardless of system locale. |
 | `harness/pi/extensions/pi-intercom/config.json` | `$PI_AGENT_DIR/intercom/config.json` | Shared pi-intercom config: enabled inbound replies, no send confirmation, and reply hints. |
@@ -128,7 +128,8 @@ installs and then exits 1.
   baseline model's provider before either activation path runs. If no usable candidate remains,
   the extension reports exhausted fallbacks without switching or retrying on another provider.
   A missing baseline also blocks reviewer fallbacks. Other roles and the main agent keep
-  cross-provider fallbacks. The lock covers session, directory, and global chains.
+  cross-provider fallbacks. The lock covers session, directory, and global chains. It compares
+  providers, not families, so a routed provider such as OpenRouter is not covered.
   Drop each patch once upstream provides the corresponding behavior.
 - **`pi-jev`:** 0.7.0 builds its SDK client once, so a profile switch keeps the first profile's
   key and endpoint. `harness/pi/patches/pi-jev.patch` (a unified diff applied with `patch`)
