@@ -119,8 +119,3 @@ Include existing findings about comments that compensate for unclear code and al
 Mention supported local improvements such as naming, extraction, dead-code removal, or tests without creating compulsory cleanup.
 Reference existing finding IDs rather than repeating findings or remedies. State gaps when the completed review lacks evidence.
 Include one short unranked summary in the existing report's Scope section. Do not add a ranked status or another report section.
-
-### References
-
-- Robert C. Martin, *Clean Code*: https://www.oreilly.com/library/view/clean-code/9780136083238/
-- "Principle of Software Development Principles" (Bartosz Krajka, 2017)

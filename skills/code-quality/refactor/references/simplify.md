@@ -6,8 +6,6 @@ Remove needless code and complexity without changing behavior. Favor deletion an
 
 Use the caller's [execution context](../REFERENCE.md#execution-context), which controls mode, authority, scope/exclusions, source identity, coverage, reuse, and validation. The default target is maintained source/tests/config, not the current branch diff: preserve behavior while removing needless code, complexity, and indirection. Follow `CLAUDE.md` / `AGENTS.md`.
 
-The method is adapted from [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) and retains its [MIT license](simplify.LICENSE).
-
 ## Workflow
 
 Use the [repository audit](#repository-audit) for full maintained-code scope; use diff mechanics only for explicit branch/diff scope.

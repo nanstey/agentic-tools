@@ -14,7 +14,7 @@ References mirror the goals. Each goal has one method file. Dataset directories 
 
 | Goal | Method file | Datasets |
 | --- | --- | --- |
-| `simplify` | `references/simplify.md` (ladder, cut format, audit, structural review, `LICENSE`) | none |
+| `simplify` | `references/simplify.md` (ladder, cut format, audit, structural review) | none |
 | `extract` | `references/extract.md` (extraction placement, DRY and SRP procedures) | none |
 | `principles` | `references/principles.md` (ranked review, quality summary) | `references/principles/` |
 | `smells` | `references/smells.md` (diagnosis, technique selection, planning) | `references/smells/`, `references/techniques/`, `references/technique-map/` |
@@ -138,13 +138,3 @@ The JSON `generated_from` and `generator` fields retain historical provenance,
 including former specialist paths and an unavailable generator. They are inert
 metadata, not runnable commands. There is no supported copy-from-`_knowledge`
 refresh or `update-map.py` generator here; maintain the versioned data directly.
-
-## Sources and license
-
-- https://refactoring.guru/refactoring/smells
-- Individual smell pages, for example https://refactoring.guru/smells/long-method
-- Technique URLs and source pages recorded in the technique index and graph.
-- https://medium.com/@bartoszkrajka/principle-of-software-development-principles-f0143d6f405
-- Principle baseline definitions and sources recorded in the principles index.
-- Simplification method adapted from [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail),
-  copyright (c) 2026 DietrichGebert, under the full [MIT license](references/simplify.LICENSE).
