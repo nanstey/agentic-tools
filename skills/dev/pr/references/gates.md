@@ -45,4 +45,6 @@ The caller carries `limit: 3`, `initial round: 1`, current round, snapshot, reta
 - CI, comment, remote, rebase, or synchronization changes invalidate affected evidence and inherit the same budget. Reassess affected impact paths/checks and retained findings; broad base/policy changes need full reassessment, not a reset.
 - Monitor consumes current review state and requests only missing/invalidated coverage; it does not run duplicate full reviews or call a recursive `/pr` lifecycle.
 
+Rounds run back-to-back by default: the caller starts the next round itself and never waits for user confirmation, ending only at convergence or a stop condition.
+
 At round 3, unresolved requests remain blockers: report a narrow fix/split/revert or owner decision as the next action without producing another fix head. Failed reviewers/checks, missing material evidence, unfixable requests, and no progress also stop safely rather than spin.
