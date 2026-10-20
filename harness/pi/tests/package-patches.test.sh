@@ -6,7 +6,7 @@ cd "$REPO"
 SB="$(mktemp -d)"
 trap 'rm -rf "$SB"' EXIT
 # Load definitions only, without running the installer or reading local secrets.
-source <(awk '/^apply_package_patch\(\)/ { copying=1 } copying { print } copying && /^}/ { exit }' install.sh)
+source "$REPO/install/modules/patches.sh"
 pkg="$SB/package"
 mkdir -p "$pkg/src"
 printf 'first\nsecond\n' > "$pkg/src/test.ts"

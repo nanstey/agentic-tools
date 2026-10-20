@@ -1,6 +1,6 @@
 # gh-stack CLI reference (condensed)
 
-Install: `gh extension install github/gh-stack` (requires `gh` v2.0+).
+Install from the tools repository root: `./install.sh --tool gh-stack` (requires `gh` v2.0+).
 Sources: https://github.github.com/gh-stack/reference/cli/ and the official agent skill (github/gh-stack `skills/gh-stack/SKILL.md`).
 
 ## Agent-safety preflight

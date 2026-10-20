@@ -40,8 +40,10 @@ flags from memory — this CLI moves fast.
 
 ## Install
 
+From the tools repository root:
+
 ```bash
-bash tools/agent-browser.sh install
+./install.sh --tool agent-browser
 ```
 
 Needs Node 20+. Installs the npm package (prebuilt native binary, no Rust toolchain) and

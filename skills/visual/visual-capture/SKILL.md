@@ -37,7 +37,7 @@ PW="$(bash scripts/resolve-tool.sh)" || { echo "playwright-cli not found"; exit 
 command -v ffmpeg >/dev/null || { echo "ffmpeg not found (needed for PR-embeddable mp4)"; exit 1; }
 ```
 
-- `resolve-tool.sh` prints the command → use it as `$PW` for every playwright-cli call. Non-zero exit (neither binary nor npx package) → install a project-local `@playwright/cli` dev dependency (or use `npx`), avoiding global installs and manifest churn where `npx` works; record what was installed.
+- `resolve-tool.sh` prints the command → use it as `$PW` for every playwright-cli call. On non-zero exit, run `./install.sh --tool playwright-cli` from the tools repository root, then repeat Preflight.
 - `ffmpeg` missing → continue with a `.webm`-only capture (it is only needed for the `.webm`→`.mp4` transcode) and note the omission.
 
 ## Bundled scripts

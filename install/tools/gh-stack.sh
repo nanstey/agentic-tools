@@ -2,13 +2,17 @@
 # Tool: gh-stack
 # Description: GitHub CLI extension for stacked PRs
 # Upstream: https://github.com/github/gh-stack
-# Installation: gh extension install github/gh-stack
+# Installation from repository root: ./install.sh --tool gh-stack
 # Verification: gh stack --version
 
 set -euo pipefail
 
 show_usage() {
   cat <<EOF
+Install from the repository root:
+  ./install.sh --tool gh-stack
+
+Internal adapter interface:
 Usage: $0 [check|install|upgrade|uninstall]
 
 Tool: gh-stack
@@ -31,7 +35,7 @@ EOF
 check_gh() {
   if ! command -v gh >/dev/null 2>&1; then
     echo "✗ Error: GitHub CLI (gh) is not installed"
-    echo "  Install it from: https://cli.github.com"
+    echo "  Missing prerequisite: GitHub CLI (gh)."
     return 1
   fi
   return 0
@@ -90,7 +94,7 @@ upgrade_tool() {
   fi
   
   if ! gh extension list 2>/dev/null | grep -q "github/gh-stack"; then
-    echo "✗ gh-stack is not installed. Use 'install' command first."
+    echo "✗ gh-stack is not installed. From the repository root, run: ./install.sh --tool gh-stack"
     return 1
   fi
   

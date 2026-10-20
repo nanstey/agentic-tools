@@ -19,14 +19,17 @@ show_usage() {
   cat <<EOF
 Usage: $0 [options]
 
-Master tool installer for agentic-tools dependencies.
+Internal tool CLI for agentic-tools dependencies.
+Install tools from the repository root with ./install.sh --tools or ./install.sh --tool TOOL.
 
-Options:
+Internal options:
   --help              Show this help message
-  --check             Check which tools are installed (dry run)
-  --install-all       Install all recommended tools
-  --install TOOL      Install a specific tool (gh, gh-stack, playwright-cli, chrome-devtools-cli, agent-browser, orca)
+  --check             Report installed tools (missing tools do not fail)
+  --check-status      Internal report: return 1 for non-skipped missing tools
+  --install-all       Internal action used by root --tools
+  --install TOOL      Internal action used by root --tool TOOL
   --tool-help TOOL    Show help for a specific tool installer
+  --validate TOOL     Validate a tool name without running its installer
 
 Environment:
   TOOLS_SKIP          Comma-separated tools to skip (e.g., TOOLS_SKIP=orca,gh-stack)
@@ -36,15 +39,15 @@ Examples:
   # Check all tools
   $0 --check
 
-  # Install all tools
-  $0 --install-all
+  # Install tools from the repository root
+  ./install.sh --tools
 
   # Skip orca CLI when installing all
-  TOOLS_SKIP=orca $0 --install-all
+  TOOLS_SKIP=orca ./install.sh --tools
 
-  # Install specific tool
-  $0 --install gh
-  $0 --install playwright-cli
+  # Install specific tools from the repository root
+  ./install.sh --tool gh
+  ./install.sh --tool playwright-cli
 
   # See help for a tool
   $0 --tool-help orca
@@ -108,6 +111,7 @@ check_all() {
   
   local total=${#TOOLS[@]}
   echo "Summary: $ok/$total tools installed"
+  if [ "${1:-}" = strict ] && [ "$missing" -gt 0 ]; then return 1; fi
   return 0
 }
 
@@ -152,32 +156,31 @@ install_all() {
   return 0
 }
 
+# Validate names literally after the existing underscore normalization.
+validate_tool_name() {
+  local tool registered; tool="$(normalize_tool_name "$1")"
+  for registered in "${TOOLS[@]}"; do
+    [ "$tool" = "$registered" ] && return 0
+  done
+  echo "✗ Unknown tool: $tool"
+  echo "Available tools: $(IFS=, ; echo "${TOOLS[*]}")"
+  return 1
+}
+
 # Install a specific tool
 install_specific() {
+  validate_tool_name "$1" || return 1
   local tool; tool="$(normalize_tool_name "$1")"
-  
-  # Validate tool name
-  if ! printf '%s\n' "${TOOLS[@]}" | grep -qx "$tool"; then
-    echo "✗ Unknown tool: $tool"
-    echo "Available tools: $(IFS=, ; echo "${TOOLS[*]}")"
-    return 1
-  fi
-  
+
   echo "Installing $tool..."
   run_tool_installer "$tool" install
 }
 
 # Show help for a specific tool
 tool_help() {
+  validate_tool_name "$1" || return 1
   local tool; tool="$(normalize_tool_name "$1")"
-  
-  # Validate tool name
-  if ! printf '%s\n' "${TOOLS[@]}" | grep -qx "$tool"; then
-    echo "✗ Unknown tool: $tool"
-    echo "Available tools: $(IFS=, ; echo "${TOOLS[*]}")"
-    return 1
-  fi
-  
+
   run_tool_installer "$tool" --help || run_tool_installer "$tool"
 }
 
@@ -194,8 +197,19 @@ case "${1:-}" in
   --check)
     check_all
     ;;
+  --check-status)
+    check_all strict
+    ;;
   --install-all)
     install_all
+    ;;
+  --validate)
+    if [ $# -ne 2 ] || [ -z "$2" ]; then
+      echo "Error: --validate requires exactly one nonempty tool name"
+      echo "Available tools: $(IFS=, ; echo "${TOOLS[*]}")"
+      exit 1
+    fi
+    validate_tool_name "$2"
     ;;
   --install)
     if [ $# -lt 2 ]; then
