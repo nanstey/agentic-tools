@@ -3,6 +3,8 @@
   "herdrMode": "split",
   "allowSubagentSpawning": false,
   "subagentExtensions": [
+    "npm/node_modules/@gotgenes/pi-anthropic-auth/src/index.ts",
+    "npm/node_modules/@nanstey/pi-auth-profiles/extensions/auth-profiles.ts",
     "npm/node_modules/pi-web-access/index.ts",
     "npm/node_modules/pi-fallback-models/src/extension.ts"
   ],
