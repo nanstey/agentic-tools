@@ -68,7 +68,7 @@ Resume at the first incomplete stage in the README rather than restarting.
 
 ### 1. Triage
 
-Classify planning workload as **small** (one clear component) or **large** (cross-boundary or product-ambiguous), extract acceptance criteria, and identify unresolved material questions. Separately trace impact evidence, consequences, containment, and uncertainty to select required checks/review depth: small changes can have broad risk and large changes can be contained. Delegate this only when a separate context would improve discovery.
+Extract acceptance criteria and identify unresolved material questions. Trace impact evidence, consequences, containment, and uncertainty to select required checks/review depth: narrow changes can have broad risk and broad changes can be contained. `planning` sizes the planning workload itself. Delegate this only when a separate context would improve discovery.
 
 ### 2. Plan folder
 
@@ -78,25 +78,20 @@ Run `plan-init` to create the plan folder/README. For a resumed run, verify the 
 
 #### 3a. Discovery
 
-- **Small idea:** use one focused reconnaissance task for the affected behaviour, files, tests, validation commands, and risks.
-- **Large idea:** split distinct read-only scopes across product/request evidence, code patterns and boundaries, and validation/runtime risks when parallel execution is available. Follow with one synthesis step that emits a single evidence packet.
+- **Narrow idea (one clear component):** use one focused reconnaissance task for the affected behaviour, files, tests, validation commands, and risks.
+- **Broad idea (cross-boundary or product-ambiguous):** split distinct read-only scopes across product/request evidence, code patterns and boundaries, and validation/runtime risks when parallel execution is available. Follow with one synthesis step that emits a single evidence packet.
 - Give every scope concrete paths and an evidence-bearing return contract. Do not fan out overlapping questions.
 - For underspecified ideas, run [scrutiny](../../code-quality/scrutiny/SKILL.md) Mode A's pre-build contract before fixing criteria. Only user-confirmed items become obligations; retain assumptions and unresolved decisions as evidence.
 
 #### 3b. Planning
 
-Use the evidence packet rather than full raw findings:
+Run [`planning`](../planning/SKILL.md) with the evidence packet rather than full raw findings, and the plan folder from step 2. `planning` selects and runs the stages, writes their artifacts to the plan folder, and keeps the README `## Design` and `## Slices` tables current. Retain its artifact paths plus decision packet.
 
-- **Small:** run `proposal` and retain its artifact path plus decision packet.
-- **Large:** run `product-review` → `system-architecture` → `program-design` → `vertical-slices` in order. Each stage receives the preceding compact artifact packet and writes its artifact to the plan folder.
-
-Every planning handoff in autopilot includes: **“This is an `idea-to-pr` autopilot run. The user has authorized ordinary planning transitions. Write the assigned artifact, report material risks, and return control without requesting plan approval.”**
-
-In `gated` mode, stop for explicit approval after the completed plan. In autopilot, proceed; resolve design questions from evidence and ask only for unresolved product decisions.
+In autopilot, state in the handoff: **“This is an `idea-to-pr` autopilot run. The user has authorized ordinary planning transitions.”** `planning` then returns the plan to the coordinator, which proceeds; resolve design questions from evidence and ask only for unresolved product decisions. In `gated` mode, omit that statement so `planning` stops for explicit approval.
 
 ### 4. Specification
 
-Run `speclist` to write one spec per slice under `<plan-folder>/specs/`. Apply the PR split rule in the [caller contract](../review-code/references/caller-contract.md). Validate each slice. Require each spec to contain:
+`planning` runs `speclist` to write one spec per slice under `<plan-folder>/specs/`; tell it to require the sections below. Apply the PR split rule in the [caller contract](../review-code/references/caller-contract.md). Validate each slice. Require each spec to contain:
 
 - `## Implementation` — checked only after implementation validation passes.
 - `## Test Scenarios` — Given/When/Then scenarios checked only after a separate QA/review step observes them pass.
