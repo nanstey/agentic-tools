@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The current Pi policy can turn uncertain work into expensive work. It raises Jev results on low confidence, permits unrestricted `xhigh`, and uses premium profile and self-improvement defaults.
+The current Pi policy can turn uncertain work into expensive work. It raises Jev results on low confidence, permits unrestricted `xhigh`, and uses fixed profile models and premium self-improvement defaults.
 
 The target policy starts ordinary work at a standard tier and medium thinking. It uses stronger models or `xhigh` only after explicit evidence. It preserves the main-agent model policy, provider fallback, and cross-family verification.
 
@@ -42,7 +42,7 @@ The launch records explain the observed expensive levels:
 - Ten launches omitted a model and therefore used a profile or harness default.
 - Anthropic errors preceded successful Sol requests in six observed sessions.
 
-The sample does not measure tokens, task quality, or all headless self-improvement runs. It does prove that explicit dispatch, default profiles, and provider fallback all produce top-tier model use.
+The sample does not measure tokens, task quality, or all headless self-improvement runs. It does prove that explicit dispatch, fixed profile models, and provider fallback all produce top-tier model use.
 
 ### Root causes
 
@@ -50,14 +50,14 @@ The sample does not measure tokens, task quality, or all headless self-improveme
 | --- | --- | --- |
 | Low-confidence upward rule | `harness/pi/APPEND_SYSTEM.md:97-110` raises either Jev choice when confidence is below 0.6 and also says to round up when unsure. | Ambiguity increases tier and thinking without task evidence. |
 | Unbounded thinking output | The same section accepts `xhigh` directly. | A classifier can choose `xhigh` for ordinary wording. |
-| High defaults when the parent omits a model | `agents/planner.md:4`, `agents/worker.md:4`, and `agents/reviewer.md:4` select Fable, Sol, and Opus. | Omitted selections start at expensive models. |
-| Verification bypasses normal selection | `harness/pi/APPEND_SYSTEM.md:154-158` pins Sol for Anthropic output and does not select a thinking suffix. | Review can ignore task scale and profile-default rules. |
+| Fixed profile models when the parent omits a model | Role profiles set a model in frontmatter. | Omitted selections inherit a role-specific model instead of the task selection. |
+| Verification bypasses normal selection | `harness/pi/APPEND_SYSTEM.md:154-158` pins Sol for Anthropic output and does not select a thinking suffix. | Review can ignore task scale and the dispatch-suffix rule. |
 | Global fallback starts at Sol | `harness/pi/extensions/pi-fallback.json:1-7` lists Sol before Sonnet. | A provider error can move a child to Sol. |
 | Self-improvement policy starts high | `harness/pi/self-improve.json:4-10` sets Sol/high and cross-family Sol/high or Opus/high reviewers. | Unattended maintenance starts at expensive settings. |
 | Automatic Jev thinking applies outside named subagents | `harness/pi/pi-jev-auto.conf:4` enables it. The installed patch only excludes `PI_SUBAGENT_NAME`. `pi-improve` sets `PI_SELF_IMPROVE_CHILD`. | Reflection and self-improvement sessions can override their intended thinking. |
 | OMP delegates every multi-step task | `harness/omp/APPEND_SYSTEM.md:16-20` says every multi-step task should delegate. | It creates extra contexts even when one bounded session is enough. |
 
-The installed Pi code confirms that an explicit `model:thinking` suffix overrides the profile model. Profile `thinking:` would add a second suffix. The plan does not add profile thinking frontmatter.
+The installed Pi code confirms that a profile without `model` uses Pi's configured model and thinking defaults. Every dispatch must instead pass an explicit `model:thinking` suffix. The plan adds no profile `thinking:` frontmatter.
 
 ## User story and scenarios
 
@@ -65,7 +65,7 @@ As a harness user, I want ordinary delegated work to use economical models and b
 
 1. **Ordinary work**
    - Given a clear bounded task, when Jev reports low confidence, then the parent applies the evidence bounds and keeps the standard model and medium thinking.
-   - Given no explicit model, when a planner, worker, or reviewer starts, then its profile has a standard-tier default.
+   - Given a role dispatch, when the parent selects a task tier, then it passes the selected `model:thinking` suffix from the routing table.
 2. **Exceptional work**
    - Given an irreversible or security-critical task, or an explicit user request, when the parent documents the reason, then it can select premium or `xhigh`.
    - Given a weak or failed result, when the parent has evidence, then it can retry once at a stronger level. It does not escalate only because the first classifier result was uncertain.
@@ -112,17 +112,19 @@ Keep existing quick and standard primary models. Replace the complete high revie
 
 Replace the verification model pin with a rule that selects the appropriate reviewer row at the same tier and passes `model:thinking`. Replace the generic retry text with a producer exception and a reviewer exception. A reviewer never changes to the producer family.
 
-### 2. Lower profile defaults without adding profile thinking
+### 2. Remove role-profile model and thinking defaults
 
 Edit the profile frontmatter only:
 
-| File | Current | Proposed |
-| --- | --- | --- |
-| `agents/planner.md` | `anthropic/claude-fable-5-1` | `anthropic/claude-sonnet-5-5` |
-| `agents/worker.md` | `openai-codex/gpt-6.1-sol` | `openai-codex/gpt-5.6-terra` |
-| `agents/reviewer.md` | `anthropic/claude-opus-5-5` | `anthropic/claude-sonnet-5-5` |
+| File | Change |
+| --- | --- |
+| `agents/scout.md` | Remove `model`. |
+| `agents/researcher.md` | Remove `model`. |
+| `agents/planner.md` | Remove `model`. |
+| `agents/worker.md` | Remove `model`. |
+| `agents/reviewer.md` | Remove `model`. |
 
-Keep the scout and researcher defaults. Do not add `thinking:` frontmatter. The interactive-subagent launcher can append profile thinking after a parent model suffix.
+Do not add `thinking:` frontmatter. Role profiles define role and tool permissions, not model or thinking. The parent selects a task tier from the routing table and passes an explicit `model:thinking` suffix. Omission is a dispatch-policy failure that uses Pi's configured defaults, not a task selection.
 
 ### 3. Lower automatic fallback and self-improvement defaults
 
@@ -174,7 +176,7 @@ Correct the unconditional depth-cap claim. State that the configured `task.maxRe
 
 ### 6. Documentation and tests
 
-Update the three model values in the Agents table and routing prose in `README.md`.
+Replace all per-agent model values in the Agents table with a dynamic-selection label and update the routing prose in `README.md`.
 
 Update `harness/pi/README.md` for the changed fallback order, self-improvement defaults, conservative routing, and the new Jev patch table row. Update the patch description to state that named subagents and self-improvement sessions keep their intended thinking.
 
@@ -187,7 +189,7 @@ Extend the offline patch regression test for sequential application of the exist
 | Change | Expected effect | Risk and control |
 | --- | --- | --- |
 | Bound tier and thinking escalation | Low confidence no longer causes automatic premium or `xhigh`. | A difficult task can start too cheaply. Escalate once after recorded weak-result evidence. |
-| Lower high table rows and profile defaults | Omitted and high-tier dispatches use Sonnet or Terra before Fable, Sol, or Opus. | Some broad reviews or implementations may need stronger reasoning. Keep premium as an explicit exception. |
+| Lower high table rows and remove profile defaults | High-tier dispatches use Sonnet or Terra before Fable, Sol, or Opus. Every role dispatch selects its model and thinking from the table. | Some broad reviews or implementations may need stronger reasoning. Keep premium as an explicit exception. |
 | Route verification through the table | Removes the Sol verification bypass and preserves family independence. | Parent must classify review scope. The final actual-model check remains mandatory. |
 | Lower global fallback | Provider failures use Terra rather than Sol. | Main-session provider fallback also becomes less capable. This occurs only on provider failure and may be manually retried at a stronger level. |
 | Lower self-improvement defaults | Unattended maintenance starts at Terra/Sonnet medium. | A maintenance change may need a stronger worker. The independent review gate and explicit CLI/environment overrides remain available. |
@@ -196,7 +198,7 @@ Extend the offline patch regression test for sequential application of the exist
 
 ## Architecture
 
-The parent remains the sole model selector. It classifies each delegated assignment, applies a policy bound, then passes an explicit `model:thinking` value. Agent profiles supply only a lower fallback when a caller omits the selection.
+The parent remains the sole model selector. It classifies each delegated assignment, applies a policy bound, then passes an explicit `model:thinking` value. All role profiles omit model and thinking. A missing suffix is a dispatch-policy failure and uses Pi's configured defaults, not a task selection.
 
 Provider fallback remains separate from task routing. It can still alter the actual model, so the existing successful-assistant-message family check remains the enforcement point for independent review.
 
@@ -207,7 +209,7 @@ The new Pi patch narrows automatic reasoning changes only for child processes th
 | Area | Files |
 | --- | --- |
 | Pi routing policy | `harness/pi/APPEND_SYSTEM.md`, `harness/pi/extensions/pi-fallback.json` |
-| Agent default profiles | `agents/planner.md`, `agents/worker.md`, `agents/reviewer.md` |
+| Agent role profiles | `agents/scout.md`, `agents/researcher.md`, `agents/planner.md`, `agents/worker.md`, `agents/reviewer.md` |
 | Self-improvement defaults | `harness/pi/self-improve.json` |
 | Jev installation patch | new `harness/pi/patches/pi-jev-self-improve-thinking.patch`, `install.sh`, `harness/pi/tests/package-patches.test.sh` |
 | Pi documentation | `README.md`, `harness/pi/README.md` |
@@ -231,12 +233,13 @@ No changes are proposed for `harness/pi/settings.json`, `harness/pi/pi-jev-auto.
    - OpenAI and Anthropic producer reviews use different families;
    - complete high reviewer cells have distinct, same-family fallbacks;
    - a reviewer never uses the producer family after a retry.
-8. Check the installed Jev fixture:
+8. Confirm every role profile under `agents/` omits `model:` and `thinking:`. Confirm each policy dispatch passes an explicit `model:thinking` suffix from the routing table.
+9. Check the installed Jev fixture:
    - ordinary main session still has automatic thinking enabled;
    - named subagents retain the parent suffix;
    - `PI_SELF_IMPROVE_CHILD=worker` and `=reflect` retain selected or inherited thinking.
-9. Check that installation preserves OMP profile-local `modelRoles` unchanged.
-10. Re-run the redacted `jq` session aggregation. Confirm its command remains safe and its schema assumptions still hold.
+10. Check that installation preserves OMP profile-local `modelRoles` unchanged.
+11. Re-run the redacted `jq` session aggregation. Confirm its command remains safe and its schema assumptions still hold.
 
 ## Implementation phases
 

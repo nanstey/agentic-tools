@@ -1,7 +1,6 @@
 ---
 name: planner
 description: Creates implementation plans from context and requirements
-model: anthropic/claude-sonnet-5-5
 tools: read, grep, find, ls, write
 system-prompt: append
 auto-exit: false

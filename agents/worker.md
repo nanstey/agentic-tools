@@ -1,7 +1,6 @@
 ---
 name: worker
 description: Implementation agent for normal tasks and approved plans
-model: openai-codex/gpt-5.6-terra
 tools: read, grep, find, ls, bash, edit, write, codemode
 system-prompt: append
 auto-exit: false

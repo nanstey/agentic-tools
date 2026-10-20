@@ -126,11 +126,13 @@ Start with the least costly valid selection. Retry once at a stronger selection 
 after a failed, incomplete, or demonstrably low-quality result. Apply the same evidence
 bounds to the retry.
 
-Pass the primary as `model` to `subagent`, with an explicit thinking suffix:
-`model: "openai-codex/gpt-5.6-terra:medium"`. Agent profiles set no `thinking:`, so this
-suffix is the only source. Producer fallbacks use the opposite provider because quota
-is per provider. Reviewer fallbacks stay in the independent family and differ from the
-primary. A provider-failure fallback need not be stronger than its primary.
+Role profiles contain no `model:` or `thinking:` default. Every parent dispatch chooses
+a task-selected model from this table and passes an explicit `model:thinking` value, for
+example `model: "openai-codex/gpt-5.6-terra:medium"`. Omitting it is a dispatch-policy
+failure. Pi then uses its configured default model and thinking, which is not a task
+selection. Producer fallbacks use the opposite provider because quota is per provider.
+Reviewer fallbacks stay in the independent family and differ from the primary.
+A provider-failure fallback need not be stronger than its primary.
 
 | Role | quick | standard | high | premium |
 | --- | --- | --- | --- | --- |
@@ -183,7 +185,7 @@ result and the parent routes it.
   Anthropic model, uses the `reviewer` of Anthropic work row (OpenAI).
 - Never have the producer review its own output, and never send the same family both
   halves of a produce/verify pair.
-- A model fallback can move a subagent off its profile's model, and it restores the
+- A model fallback can move a subagent off its dispatched model, and it restores the
   original model at shutdown, so neither the profile nor the last `model_change` entry
   shows who wrote the output. The reviewer provider lock should block cross-provider fallbacks.
   Keep this check as a backstop. Before accepting a review as independent, list the models

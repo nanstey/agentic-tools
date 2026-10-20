@@ -29,13 +29,13 @@ Required frontmatter:
 name: agent-name
 description: Third-person summary ending with "Delegate when ..."
 tools: Read, Grep, Glob, Bash
-model: inherit
 ```
 
 - `name`: required; lowercase-hyphenated; repo-unique; should match filename.
 - `description`: required; third person; ends with `Delegate when ...`.
 - `tools`: optional; keep least-privilege; omit to inherit all.
-- `model`: optional; `inherit | sonnet | haiku | opus`.
+- `model`: omit it for ordinary role profiles. Set it only when a fixed model is an explicit, justified requirement (`inherit | sonnet | haiku | opus`).
+  Ordinary profiles receive model and thinking from their dispatcher.
 
 Body contract:
 

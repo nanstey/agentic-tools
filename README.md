@@ -175,18 +175,20 @@ Subagent profiles for focused delegated work. Every profile is a leaf agent that
 never spawns further agents. Pi-specific runtime details are under
 [Pi agent profiles](#pi-agent-profiles) in the Pi harness section.
 
-| Agent | Model | Description |
+| Agent | Model and thinking | Description |
 | --- | --- | --- |
-| [`worker`](agents/worker.md) | `openai-codex/gpt-5.6-terra` | Implementation agent for normal tasks and approved plans. Single writer thread; escalates unapproved decisions via `caller_ping`. |
-| [`scout`](agents/scout.md) | `anthropic/claude-haiku-5-5` | Fast codebase recon that returns compressed context for handoff. Writes `context.md`. |
-| [`researcher`](agents/researcher.md) | `anthropic/claude-sonnet-5-5` | Autonomous web researcher — searches, evaluates, and synthesizes a focused research brief into `research.md`. |
-| [`planner`](agents/planner.md) | `anthropic/claude-sonnet-5-5` | Creates concrete implementation plans from context and requirements. Read-only; writes `plan.md`. |
-| [`reviewer`](agents/reviewer.md) | `anthropic/claude-sonnet-5-5` | Versatile review specialist for code diffs, plans, proposed solutions, codebase health, and PR/issue validation. |
+| [`worker`](agents/worker.md) | Task-selected `model:thinking` | Implementation agent for normal tasks and approved plans. Single writer thread; escalates unapproved decisions via `caller_ping`. |
+| [`scout`](agents/scout.md) | Task-selected `model:thinking` | Fast codebase recon that returns compressed context for handoff. Writes `context.md`. |
+| [`researcher`](agents/researcher.md) | Task-selected `model:thinking` | Autonomous web researcher — searches, evaluates, and synthesizes a focused research brief into `research.md`. |
+| [`planner`](agents/planner.md) | Task-selected `model:thinking` | Creates concrete implementation plans from context and requirements. Read-only; writes `plan.md`. |
+| [`reviewer`](agents/reviewer.md) | Task-selected `model:thinking` | Versatile review specialist for code diffs, plans, proposed solutions, codebase health, and PR/issue validation. |
 
 Model routing: Anthropic handles reading, research, planning, and review. OpenAI handles
-implementation and independent judgment. Ordinary subagent work starts at standard tier
-and medium thinking. Premium and `xhigh` require direct exception evidence and a recorded
-reason. Low classifier confidence does not cause escalation. The parent selects a reviewer
-from the other model family at the same tier and passes an explicit `model:thinking` suffix.
-See [`harness/pi/APPEND_SYSTEM.md`](harness/pi/APPEND_SYSTEM.md) for routing and fallback rules.
-The main agent stays on the user's selected model unless provider/failure fallback is needed.
+implementation and independent judgment. The dispatcher selects the model and thinking for
+each task under the routing policy and passes an explicit `model:thinking` suffix. Profiles
+contain no model or thinking default. Ordinary subagent work starts at standard tier and
+medium thinking. Premium and `xhigh` require direct exception evidence and a recorded reason.
+Low classifier confidence does not cause escalation. The parent selects a reviewer from the
+other model family at the same tier. See [`harness/pi/APPEND_SYSTEM.md`](harness/pi/APPEND_SYSTEM.md)
+for routing and fallback rules. The main agent stays on the user's selected model unless
+provider/failure fallback is needed.

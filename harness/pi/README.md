@@ -165,10 +165,11 @@ skill (allowlist-based; it never reads or copies secrets).
 ## Pi agent profiles
 
 The profiles under [`agents/`](../../agents/) are written for `@maplezzk/pi-interactive-subagents`
-(frontmatter `system-prompt`, `interactive`, `deny-tools`). Every profile ends by calling
-`subagent_done`: spawning tools are denied, and blockers go to the parent through
-`caller_ping`. Profiles do not auto-create handoff files; the delegating agent names
-output paths in the task.
+(frontmatter `system-prompt`, `interactive`, `deny-tools`). They omit `model` and `thinking`.
+The dispatcher selects both for each task under the routing policy and passes an explicit
+`model:thinking` suffix. Every profile ends by calling `subagent_done`: spawning tools are
+denied, and blockers go to the parent through `caller_ping`. Profiles do not auto-create
+handoff files; the delegating agent names output paths in the task.
 
 ## New machine bootstrap
 ```sh
