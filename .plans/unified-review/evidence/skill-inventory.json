@@ -1,0 +1,38 @@
+{
+  "scope": "Current repository definitions only. No invocation-history analysis or unused inference.",
+  "skills": [
+    {"name":"deep-review","path":"skills/code-quality/deep-review/SKILL.md","recommendation":"merge into ponytail report-only structural lens"},
+    {"name":"dry","path":"skills/code-quality/dry/SKILL.md","recommendation":"keep"},
+    {"name":"extract","path":"skills/code-quality/extract/SKILL.md","recommendation":"merge into refactor planning with placement contract retained"},
+    {"name":"fresh-air","path":"skills/code-quality/fresh-air/SKILL.md","recommendation":"keep technique-selection boundary"},
+    {"name":"ponytail","path":"skills/code-quality/ponytail/SKILL.md","recommendation":"keep with explicit mutation modes"},
+    {"name":"principles","path":"skills/code-quality/principles/SKILL.md","recommendation":"keep exhaustive opt-in lens"},
+    {"name":"refactor","path":"skills/code-quality/refactor/SKILL.md","recommendation":"keep as consolidated refactor planning owner"},
+    {"name":"scrutiny","path":"skills/code-quality/scrutiny/SKILL.md","recommendation":"keep with explicit planning versus build boundary"},
+    {"name":"sniff","path":"skills/code-quality/sniff/SKILL.md","recommendation":"keep"},
+    {"name":"srp","path":"skills/code-quality/srp/SKILL.md","recommendation":"keep"},
+    {"name":"git","path":"skills/dev/git/SKILL.md","recommendation":"keep"},
+    {"name":"pr","path":"skills/dev/pr/SKILL.md","recommendation":"keep with portable review dispatch"},
+    {"name":"build","path":"skills/workflow/build/SKILL.md","recommendation":"keep"},
+    {"name":"flow-design","path":"skills/workflow/flow-design/SKILL.md","recommendation":"keep"},
+    {"name":"idea-to-pr","path":"skills/workflow/idea-to-pr/SKILL.md","recommendation":"keep"},
+    {"name":"plan-init","path":"skills/planning/plan-init/SKILL.md","recommendation":"keep"},
+    {"name":"product-review","path":"skills/planning/product-review/SKILL.md","recommendation":"keep"},
+    {"name":"program-design","path":"skills/planning/program-design/SKILL.md","recommendation":"keep"},
+    {"name":"proposal","path":"skills/planning/proposal/SKILL.md","recommendation":"keep"},
+    {"name":"speclist","path":"skills/planning/speclist/SKILL.md","recommendation":"keep"},
+    {"name":"system-architecture","path":"skills/planning/system-architecture/SKILL.md","recommendation":"keep"},
+    {"name":"vertical-slices","path":"skills/planning/vertical-slices/SKILL.md","recommendation":"keep"},
+    {"name":"scope","path":"skills/agent/scope/SKILL.md","recommendation":"keep"},
+    {"name":"reflect","path":"skills/agent/reflect/SKILL.md","recommendation":"keep"},
+    {"name":"context-engineering","path":"skills/agent/context-engineering/SKILL.md","recommendation":"keep"},
+    {"name":"handoff","path":"skills/env/handoff/SKILL.md","recommendation":"keep as explicit Pi/Orca adapter"}
+  ],
+  "agent_profiles": ["reviewer","scout","researcher","planner","worker"],
+  "phantom_or_ambiguous_names": [
+    {"name":"code-reviewer","evidence":"AGENTS.md:62","status":"Missing agent example, not a skill"},
+    {"name":"pr-monitor","evidence":"skills/dev/pr/references/monitor.md:5","status":"Legacy internal label, current command is /pr monitor"},
+    {"name":"review","status":"PR action, not a standalone skill"},
+    {"name":"plan-review","status":"No standalone skill in current tree; plan review belongs to reviewer and principles"}
+  ]
+}
