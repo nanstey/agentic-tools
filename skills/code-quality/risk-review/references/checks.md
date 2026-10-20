@@ -11,12 +11,15 @@ Sizes describe workload only. Reviewer count/concurrency follows workload and av
 | Persisted data, schemas, writes, irreversible/external effects | `data`: migration compatibility, ordering, concurrent versions, integrity, retention, backup/restore, recovery and irreversible effects. Rollback code or flags may not undo data or external actions. |
 | Public APIs/events/defaults, named downstream or external consumers | `contract`: compatibility, integration, versioning, errors, defaults, consumer assumptions and migration obligations. Read producer and consumer paths. Missing external consumer evidence remains a gap. |
 | Deployment/infrastructure/resources/dependencies/build/release/CI policy | `deployment`: rollout/rollback, version skew, shared-resource coupling, availability, operational signals, failure recovery, build/supply-chain effects and expected check triggers. |
-| Layer placement, branching, type/boundary contracts, indirection, decomposition | `structure`: use the preserved [deep-review method](../../deep-review/SKILL.md). Check abstraction placement, casts/optionality, unnecessary wrappers, maintainability and simpler orchestration. Convert findings through the shared category rules, not its strict tone alone. |
+| Layer placement, branching, type/boundary contracts, indirection, decomposition | `structure`: use the preserved [deep-review method](../../refactor/references/simplify.md#structural-review). Check abstraction placement, casts/optionality, unnecessary wrappers, maintainability and simpler orchestration. Convert findings through the shared category rules, not its strict tone alone. |
 
 Several domains can apply to one change. A tiny shared-default or permission edit can require broader review than a large proven-isolated change.
 Deleted/weakened safeguards require test-adequacy work and relevant deeper security review.
 Policy and known sensitive effects require checks even if Jev suggests no deeper review.
-Manual [DRY](../../dry/SKILL.md), [SRP](../../srp/SKILL.md), and [principles](../../principles/SKILL.md) lenses remain available when selected.
+Internal [DRY](../../refactor/references/extract.md#dry-procedure), [SRP](../../refactor/references/extract.md#srp-procedure), and [principles](../../refactor/references/principles.md) methods remain available for applicable checks.
+Pass `mode: report`, resolved scope/exclusions, source identity, required coverage/depth, existing findings, and SOURCE REVIEW MODE constraints to every shared method. Risk-review forbids target edits, tests/builds, and follow-on implementation; refactor's direct-invocation fix default grants this caller no new permission. Do not invoke bare `/refactor` as a substitute for selected checks.
+Apply refactor's [shared finding reuse rule](../../refactor/REFERENCE.md#finding-reuse) when these lenses or extraction share findings.
+Reuse matching evidence and retain stable finding IDs across methods and the review packet. Count each underlying issue once.
 A smell or stylistic preference alone does not establish a blocking defect.
 
 ## Evidence and completeness
