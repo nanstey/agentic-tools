@@ -18,7 +18,9 @@ No main-model routing, installed package, service, SDK, or runtime runner change
   The initial check covers 24 Markdown files and 134 local/anchor links.
   The unchanged root README anchor `#pi-agent-profiles` is already broken at the baseline and remains outside this change.
 - All eight preserved specialist directories match the task baseline: deep-review, extract, sniff, dry, srp, principles, fresh-air, and ponytail.
-- `bash -n install.sh` and `bash harness/pi/tests/package-patches.test.sh` pass before base synchronization.
+- After merging current `main`, `bash -n install.sh`, `bash harness/pi/tests/package-patches.test.sh`, and `bash install/tests/install.test.sh` pass.
+  The installer suite uses offline stubs and temporary directories. No global installation ran.
+- Post-synchronization checks pass at `0f931e2`, including all ten static tests, catalog consistency, exact PR scope, and credential/machine-path scans.
 - `git diff --check` passes.
 - Deslop checks pass for new review/refactor/gate prose. Two plan-document candidates use `harness` as the technical platform noun and remain intentional.
 

@@ -66,7 +66,7 @@ Do not infer runtime enforcement or calibrated model accuracy from those checks.
 
 ### 4. Publish one PR
 
-- [ ] Review and validate each commit scope. Explain lock-step skill coupling if bundled.
+- [x] Review and validate each commit scope. Explain lock-step skill coupling if bundled.
 - [ ] Push the existing branch and create or update exactly one draft PR.
 - [ ] Verify the structured PR body, head, base, draft state, and available checks.
 - [ ] Do not merge or mark ready without the required current evidence and authorization.

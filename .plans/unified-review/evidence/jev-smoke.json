@@ -11,7 +11,8 @@
     "Five synthetic cases, not a calibrated evaluation or runtime gate implementation.",
     "No numerical probability cutoff was applied.",
     "Forced category for inadequate evidence must be ignored by the coordinator.",
-    "This is not an independent source review, harness enforcement test, or end-to-end GitHub lifecycle test."
+    "This is not an independent source review, harness enforcement test, or end-to-end GitHub lifecycle test.",
+    "The service returns the jev-latest alias without a concrete deployment revision. Exact trained-model replay cannot be guaranteed."
   ],
   "cases": [
     {
