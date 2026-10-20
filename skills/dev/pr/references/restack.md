@@ -20,7 +20,8 @@ This is the manual path: when the repo has GitHub native Stacked PRs enabled (PR
    - refresh lockfile when package manifests/lockfile changed,
    - run typecheck before push,
    - verify branch shape (`range-diff`, branch log) against plan,
-   - force-push with strict lease only.
+   - force-push with strict lease only,
+   - then run the `/pr push` post-push steps for each updated PR head.
 10. Update PR base when branch targeting changed.
 11. Report one-line result per branch plus backups and follow-ups.
 

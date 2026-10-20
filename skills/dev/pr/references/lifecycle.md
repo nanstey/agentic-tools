@@ -41,7 +41,7 @@ Stop as blocked when setup fails, a setup delegate reaches its stop gate, or the
 - Never post review comments or approve from the lifecycle; automatic remediation is `fix` mode on your own PR only under ownership/branch/clean-tree/current-head authorization checks.
 - Never pause between review/fix rounds to ask whether to continue; continuing within the budget is the default.
 - Never reset the shared review budget, omit fix-head review, or treat a skipped review, an unapplied request, or missing outcome/check evidence as a readiness pass.
-- After every push to the PR, check whether the description still matches the head (changes, testing, notes). When it does not, update it through `/pr description` before reporting.
+- Publish every change to the PR branch through `/pr push`, which runs the description check for the new head.
 - Never create a PR with raw `gh pr create` or reuse a commit message as the body; always go through `/pr create` and its `/pr description` step.
 - Never perform PR health or update work directly; invoke `/pr monitor`.
 - Never merge without `auto-merge`, and never merge directly; invoke `/pr merge` only after a `clean` `/pr monitor` result.
