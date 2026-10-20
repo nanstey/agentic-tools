@@ -38,6 +38,7 @@ The [installation guide](install/TOOL_INSTALLATION.md) is the documentation exce
 Definition modules live in [`install/modules/`](install/modules/).
 External CLI installers and their usage live in [`install/tools/`](install/tools/README.md).
 Run `bash install/tests/install.test.sh` for offline installer regression tests.
+GitHub Actions ([`ci.yml`](.github/workflows/ci.yml)) runs the offline test scripts on every pull request and on pushes to `main`.
 
 ## Harnesses
 
