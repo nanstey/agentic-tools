@@ -115,6 +115,42 @@ for state in {0..7}; do
   echo "ok: Jev patch state $state installs missing patches, then all report ok; policies copied; OMP modelRoles preserved"
 done
 
+# A failed patch remains an installer failure, but the modular loop still runs
+# the unrelated Jev patches before install_main reports PATCH_FAILED.
+home="$SB/home-failed-thinking"
+pkg="$home/.pi/agent/npm/node_modules/pi-jev"
+mkdir -p "$(dirname "$pkg")" "$home/.omp/agent" "$home/.omp/profiles/work/agent"
+cp -R "$fixture" "$pkg"
+printf 'node-linker=hoisted\n' > "$home/.pi/agent/npm/.npmrc"
+for config in "$home/.omp/agent/config.yml" "$home/.omp/profiles/work/agent/config.yml"; do
+  printf '%s\n' '{"modelRoles":{"default":"local-standard","slow":"local-premium"},"composer":{"shape":"compact"}}' > "$config"
+done
+python3 - "$pkg/extensions/index.ts" <<'PY'
+import sys
+path = sys.argv[1]
+source = open(path).read()
+old = 'const autoThinking = new AutoThinkingRouter(pi, Boolean(pi.getFlag("jev-thinking")));'
+assert old in source
+open(path, "w").write(source.replace(old, 'const autoThinking = upstreamRouter(pi);'))
+PY
+if (
+  cd "$sandbox_repo"
+  HOME="$home" PI_CODING_AGENT_DIR="$home/.pi/agent" PATH="$SB/bin:/usr/bin:/bin" \
+    TYPESAFE_API_KEY= PI_IMPROVE_NO_ORCA=1 bash install.sh
+) > "$SB/install-failed-thinking.log" 2>&1; then
+  echo 'FAIL: failed self-improve thinking patch accepted' >&2; exit 1
+fi
+grep -qF "[patch-jev-client] -> $pkg (patched)" "$SB/install-failed-thinking.log"
+grep -qF "[patch-jev-prompt-guard] -> $pkg (patched)" "$SB/install-failed-thinking.log"
+grep -qF '[patch-jev-self-improve-thinking] upstream code changed' "$SB/install-failed-thinking.log"
+grep -qF '[patch-fallback] ' "$SB/install-failed-thinking.log"
+grep -qF 'install.sh: a required patch failed' "$SB/install-failed-thinking.log" || {
+  cat "$SB/install-failed-thinking.log" >&2
+  exit 1
+}
+echo 'ok: failed self-improve thinking patch aggregates after unrelated patches run'
+
+pkg="$SB/home-7/.pi/agent/npm/node_modules/pi-jev"
 # Evaluate the installed fixture's real flag default, construction, and router.
 # Stub only model capability helpers; no Pi SDK or third-party modules are needed.
 node - "$pkg" <<'JS'
