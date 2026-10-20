@@ -14,9 +14,9 @@ Single publication path for changes to an existing PR branch: commit validated c
 ## Workflow
 
 1. Invoke `/pr info`; verify one open PR. Record authoritative `baseRefOid` and `headRefOid`.
-2. Dirty tree, no delegate push: require validation passed, and that only the returned batch dirties the tree. Require `author.login` = viewer, current branch = `headRefName`, `HEAD` = `headRefOid`, unchanged base/head, and a pushable non-fork source branch. Otherwise stop `blocked` with the exact checkout/sync/access action. Never switch branches or overwrite work.
-3. Commit the logical group (no empty commits, no unrelated changes), referencing finding IDs. Push with a plain `git push`. Use `--force-with-lease` only for a rewrite the invoking action named; never plain `--force`, and never force-push `main`/`develop`.
-4. When the caller defers publication, return the staged batch and pending state without committing or claiming convergence.
+2. When the caller defers publication, return the staged batch and pending state. Do not commit or push, and do not claim convergence. Stop here.
+3. Dirty tree, no delegate push: require validation passed, and that only the returned batch dirties the tree. Require `author.login` = viewer, current branch = `headRefName`, `HEAD` = `headRefOid`, unchanged base/head, and a pushable non-fork source branch. Otherwise stop `blocked` with the exact checkout/sync/access action. Never switch branches or overwrite work.
+4. Commit the logical group (no empty commits, no unrelated changes), referencing finding IDs. Push with a plain `git push`. Use `--force-with-lease` only for a rewrite the invoking action named; never plain `--force`, and never force-push `main`/`develop`.
 5. Re-resolve the authoritative base/head with `/pr info`. A changed head consumes the reserved round and invalidates head-bound outcome, CI, quality/security, readiness, and approval evidence. Return that state to the caller. Never reset the budget.
 6. Run `/pr description` once for the new head. Description-once-per-head: skip a head already described, and do not run it for a head that did not change. `/pr description` owns screenshots and its stop gates.
 7. Return the new head, round state, invalidated evidence, and description result.
