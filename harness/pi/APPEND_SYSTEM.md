@@ -90,7 +90,8 @@ question; answer it by resuming that session with `subagent_resume`.
 
 A subagent that "exited without output" has failed, not finished. Before retrying, read the
 last entries of its `Session:` log for `stopReason`/`errorMessage`. On a quota, auth, or
-rate-limit error, retry on a different model family instead of the same profile.
+rate-limit error, retry producer roles on a different model family instead of the same profile.
+Keep reviewer retries in their original family.
 
 # Subagent model by task scale
 
@@ -127,14 +128,16 @@ Names starting `haiku`, `sonnet`, `opus`, `fable` are `anthropic/claude-*`; name
 Fallback rules:
 
 - On a quota, rate-limit, or auth failure (read the `Session:` log for `stopReason`/`errorMessage`),
-  respawn once on the fallback. Do not retry the exhausted provider in the same turn.
+  respawn once on the role's fallback. Producer retries must not use the exhausted provider in the same turn.
 - Producer roles (`scout`, `researcher`, `planner`, `worker`) may cross providers. Record the
   family that actually produced the output; the verification rules below use it, not the
   role's usual family.
-- `reviewer` never crosses families, because that breaks independence. Its fallback stays in the
-  one allowed family. If that family is exhausted too, wait or report to the user; do not
-  review on the producer's family.
-- `pi-fallback-models` can also move a child to another model by itself. After any run,
+- `reviewer` never crosses families, because that breaks independence. The patched
+  `pi-fallback-models` restricts `PI_SUBAGENT_AGENT=reviewer` fallback candidates to the baseline
+  model's provider before switching. If no usable candidate remains, it leaves the error visible.
+  A parent-spawned reviewer fallback must also stay in that family. If that family is exhausted,
+  wait or report to the user. Do not review on the producer's family.
+- `pi-fallback-models` may still move producer roles across providers. After any run,
   confirm the models actually used with the `jq` check below before relying on it.
 - Main-thread model routing is disabled (`pi-jev` auto-model off). The model you pass runs unless provider/failure fallback intervenes.
 
@@ -160,8 +163,10 @@ result and the parent routes it.
   halves of a produce/verify pair.
 - A model fallback can move a subagent off its profile's model, and it restores the
   original model at shutdown, so neither the profile nor the last `model_change` entry
-  shows who wrote the output. Before accepting a review as independent, list the
-  models that produced each side's successful assistant messages in its `Session:` log:
+  shows who wrote the output. The reviewer provider lock blocks cross-provider fallbacks.
+  Keep this provenance check as a backstop for missing patches or other model changes.
+  Before accepting a review as independent, list the models that produced each side's
+  successful assistant messages in its `Session:` log:
   `jq -r 'select(.type=="message" and .message.role=="assistant" and (.message.stopReason|IN("error","aborted")|not)) | "\(.message.provider)/\(.message.model)"' <log> | sort | uniq -c`.
   - Producer used one family, reviewer used the same family or mixed: rerun the review
     with an explicit `model` from the other family.

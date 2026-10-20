@@ -12,8 +12,10 @@ rather than symlinked because Pi may rewrite them locally.
 | `harness/pi/patches/pi-diff-sdk-imports.patch` | applied to `$PI_AGENT_DIR/npm/node_modules/@heyhuynhgiabuu/pi-diff/dist/index.js` | Uses static SDK/TUI imports so Pi's extension loader supplies the host modules. Hoisting alone cannot resolve native dynamic imports of uninstalled host peers. Not copied. |
 | `harness/pi/patches/pi-subagent-widget-3.16.patch` | applied to `$PI_AGENT_DIR/npm/node_modules/@maplezzk/pi-interactive-subagents/pi-extension/subagents/subagent-done.ts` | Hides the denied-tools list in both child-widget views while preserving the separate tool-denial Set. Targets upstream 3.16.4. Not copied. |
 | `harness/pi/patches/pi-jev.patch` | applied to `$PI_AGENT_DIR/npm/node_modules/pi-jev/` (`src/jev.ts`, `extensions/index.ts`) | Unified diff that `install.sh` applies to `pi-jev`: rebuilds its SDK client on credential changes, adds `PI_JEV_API_KEY`, and disables auto-thinking in subagents. Not copied. |
+| `harness/pi/patches/pi-fallback-reviewer-provider-lock.patch` | applied to `$PI_AGENT_DIR/npm/node_modules/pi-fallback-models/src/extension.ts` | Restricts reviewer fallback candidates to the baseline model's provider before model activation. Targets upstream 0.1.1. Not copied. |
 | `harness/pi/patches/pi-jev-prompt-guard.patch` | applied to `$PI_AGENT_DIR/npm/node_modules/pi-jev/` (`src/thinking.ts`, `extensions/index.ts`) | Unified diff that `install.sh` applies to `pi-jev`: tolerates a missing `event.prompt` (runs started by `sendCustomMessage`, such as subagent results) instead of throwing `Cannot read properties of undefined (reading 'trim')`. Not copied. |
 | `harness/pi/tests/package-patches.test.sh` | Not installed | Offline regression tests for patch idempotency, missing packages, and safe failure on upstream changes. Run with `bash`. |
+| `harness/pi/tests/fallback-provider-lock.test.mjs` | Not installed | Offline fallback tests for reviewer provider locks, exhaustion, settings scopes, switch-bus activation, and unchanged producer behavior. Run with `node`, passing the Pi SDK directory and a patched `pi-fallback-models` package directory. |
 | `harness/pi/tests/package-extensions.test.mjs` | Not installed | Offline smoke tests for pi-diff registration and child-widget rendering/tool denial. Run with `node`, passing the installed Pi SDK package directory and Pi agent directory. |
 | `harness/pi/README.md` | Not installed | This document. `install.sh` skips `README.md` when it copies config. |
 | `harness/pi/extensions/*.json` | `$PI_AGENT_DIR/extensions/` | Per-extension config. |
@@ -26,7 +28,7 @@ rather than symlinked because Pi may rewrite them locally.
 | `harness/pi/prompts/improve.md` | `$PI_AGENT_DIR/prompts/improve.md` | `/improve <brief.md>`: end-to-end worker for one improvement in its own worktree: scope, implement, test, cross-family review, verify, and open the PR for human review. |
 | `harness/pi/extensions/jev-router-openrouter-fallback.ts` | `$PI_AGENT_DIR/extensions/jev-router-openrouter-fallback.ts` | When no `TYPESAFE_API_KEY` is set but the active profile has OpenRouter auth, sets `PI_JEV_API_KEY` and `PI_JEV_BASE_URL` so pi-jev's tools bill to OpenRouter's System One endpoint. Pi's native classifier never sees the OpenRouter key. A real TypeSafe key or an external `PI_JEV_*` value always wins. |
 | `harness/pi/extensions/collapse-tools.ts` | `$PI_AGENT_DIR/extensions/collapse-tools.ts` | Collapses tool output after all `session_start` handlers run, overriding `pi-diff`'s default of expanding it. |
-| `harness/pi/extensions/pi-fallback.json` | `$PI_AGENT_DIR/extensions/pi-fallback.json` | Global model fallback chain for `pi-fallback-models`: `openai-codex/gpt-6.1-sol`, then `anthropic/claude-sonnet-5-5`, tried when the current model hits a quota, rate-limit, or provider error. |
+| `harness/pi/extensions/pi-fallback.json` | `$PI_AGENT_DIR/extensions/pi-fallback.json` | Global model fallback chain for `pi-fallback-models`: `openai-codex/gpt-6.1-sol`, then `anthropic/claude-sonnet-5-5`, tried when the current model hits a quota, rate-limit, or provider error. Reviewer processes only try candidates from their baseline model's provider. |
 | `harness/pi/extensions/pi-interactive-subagents/config.json` | `$PI_AGENT_DIR/extensions/pi-interactive-subagents/config.json` | Interactive-subagents config: mux settings plus `allowSubagentSpawning` and `subagentExtensions` (`pi-web-access`, `pi-fallback-models`), which package 3.10.1 ignores; children inherit installed extensions and agent profiles deny spawning via `deny-tools`. Kept for older package versions. |
 | `harness/pi/extensions/pi-extensions-i18n/config.json` | `$PI_AGENT_DIR/extensions/pi-extensions-i18n/config.json` | Locale for pi extension messages: `en-US`, because the library defaults to Chinese regardless of system locale. |
 | `harness/pi/extensions/pi-intercom/config.json` | `$PI_AGENT_DIR/intercom/config.json` | Shared pi-intercom config: enabled inbound replies, no send confirmation, and reply hints. |
@@ -108,8 +110,8 @@ The profile is `-p PROFILE`, else the project's `authProfile`, else the global
 `defaultProfile`, else `default`. Run `set` from a normal terminal, not inside Pi,
 so the value stays out of the session transcript.
 
-`install.sh` patches four installed third-party packages. Re-run it after Pi installs or updates
-packages, because updates overwrite the patches. Each patch is idempotent. If upstream code
+`install.sh` patches the following installed third-party packages. Re-run it after Pi installs or
+updates packages, because updates overwrite the patches. Each patch is idempotent. If upstream code
 changed, it reports an error and leaves the file untouched, and `install.sh` finishes the other
 installs and then exits 1.
 
@@ -121,8 +123,13 @@ installs and then exits 1.
   views show only available tools, without changing tool-denial enforcement. Upstream 3.16.4
   still displays denied tools. Drop it once upstream makes the list optional.
 - **`pi-fallback-models`:** 0.1.1 classifies Anthropic's "You're out of extra usage" 400 as
-  ignorable, so no fallback happens on that quota error. The patch adds that phrase to its
-  quota patterns. Drop it once upstream recognizes it.
+  ignorable, so no fallback happens on that quota error. The quota patch adds that phrase.
+  A separate provider-lock patch restricts `PI_SUBAGENT_AGENT=reviewer` candidates to the
+  baseline model's provider before either activation path runs. If no usable candidate remains,
+  the extension reports exhausted fallbacks without switching or retrying on another provider.
+  A missing baseline also blocks reviewer fallbacks. Other roles and the main agent keep
+  cross-provider fallbacks. The lock covers session, directory, and global chains.
+  Drop each patch once upstream provides the corresponding behavior.
 - **`pi-jev`:** 0.7.0 builds its SDK client once, so a profile switch keeps the first profile's
   key and endpoint. `harness/pi/patches/pi-jev.patch` (a unified diff applied with `patch`)
   rebuilds the client when the resolved key or base URL changes, reads `PI_JEV_API_KEY` ahead of

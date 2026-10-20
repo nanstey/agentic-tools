@@ -52,6 +52,13 @@ install_fallback_quota_patch() {
 '|plan limit|no more (?:fast )?requests|billing|out of extra usage/i;'
 }
 
+# pi-fallback-models@0.1.1 can switch reviewers to the producer's provider.
+# Restrict fallback candidates before either the switch bus or setModel runs.
+# Keep this separate from the quota patch for installations that already have it.
+install_fallback_reviewer_lock_patch() {
+  apply_package_patch "$1" patch-fallback-reviewer-lock "$REPO_ROOT/harness/pi/patches/pi-fallback-reviewer-provider-lock.patch" src/extension.ts
+}
+
 # @maplezzk/pi-interactive-subagents@3.16.4 derives the widget's denied list
 # from a Set now, so the former literal patch no longer matches. Hide only the
 # display list; keep deniedTools intact for tool-registration enforcement.
