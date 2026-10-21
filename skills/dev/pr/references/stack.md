@@ -59,6 +59,7 @@ A custom SSH remote host alias (e.g. `github.com-work`) breaks `gh stack`/`gh` r
    - **Dissolve (T1/T2)**: run only when the invocation names dissolving, then `gh stack unstack [<n>] [--local]` or `POST .../stacks/{n}/unstack`. Report PRs left stacked (merged/merging/queued cannot be removed).
    - **Any (T3)**: report why native stacks are unavailable; hand the task to `/pr restack` (stack) or `/git rebase` (single branch).
 3. For mid-stack fixes and review feedback, follow the recipes in `references/workflows.md`: commit on the layer that owns the change, `gh stack rebase --upstack` (or full `rebase`), then `gh stack push` — never patch a lower-layer concern into a higher branch. After each stack push, run the `/pr push` post-push steps for every updated PR head.
+   Before any step that rewrites or pushes an existing PR head (Sync, `gh stack rebase`, mid-stack fixes, Restructure, `gh stack push`), apply the draft-before-changes rule in [`gates.md`](gates.md) to every affected open non-draft PR, and stop blocked on any PR that fails a guard.
 4. After mutating operations, verify with an inspect call and report per-branch/PR outcomes.
 
 Stop as blocked when: local and remote stack compositions diverge; a branch belongs to multiple stacks (exit 6); the stack is locked (exit 8); a rebase is already in progress (exit 7); the working tree is dirty before rebase/restructure; or a fully merged stack would silently spawn a new one on submit.
