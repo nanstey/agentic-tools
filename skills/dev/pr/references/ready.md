@@ -24,7 +24,7 @@ Convert one verified open draft PR to ready-for-review only after current outcom
 - Never convert an unverified, ambiguous, closed, merged, or branch-mismatched PR.
 - Never convert with unresolved verified requests/threads, stale/missing material evidence, failing/nonterminal required CI, or an exhausted budget that leaves required review incomplete.
 - Never remediate, retry CI, execute tests/source review, reply to threads, edit title/description, push, change local git state, or reset the shared budget here.
-- Never convert back to draft or bypass human/queue/release gates.
+- Never convert to draft here (the draft-before-changes rule in `gates.md` owns that) or bypass human/queue/release gates.
 - Authentication, pagination, rate-limit, API, and incomplete-data failures are blockers.
 
 ## Output Style

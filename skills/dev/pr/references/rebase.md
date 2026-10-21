@@ -10,7 +10,7 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 1. Resolve PR with `/pr info` and capture `baseRefName`, title, body, and `stack`.
 2. If `stack` is non-null, the PR is a layer of a GitHub native stack: stop and use `/pr stack` (`gh stack rebase`/`sync`) instead — rebasing one layer in isolation desyncs the layers above.
 3. If no PR exists, use an explicit base from the invocation, else generic `/git rebase` base detection.
-4. Delegate to `/git rebase` with base pinned to PR base.
+4. If the PR is open, not draft, and the rebase will change its head, apply the draft-before-changes rule in [`gates.md`](gates.md). Then delegate to `/git rebase` with base pinned to PR base.
 5. Let `/git conflicts` handle pauses.
 6. Do not re-implement fetch/rebase/push logic here. After a successful push, run the `/pr push` post-push steps (head re-resolve, evidence invalidation, `/pr description`) for the new head.
 

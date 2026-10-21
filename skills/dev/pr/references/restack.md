@@ -13,6 +13,7 @@ This is the manual path: when the repo has GitHub native Stacked PRs enabled (PR
 6. Build a per-branch plan: current base, new base, commits kept/dropped, risks, lease SHA.
 7. Record the plan in the output; invoking `/pr restack` authorizes executing it. Stop as blocked instead if the plan has a risk flagged below.
 8. Create backup refs for every branch before rewriting.
+   Before rewriting, convert each open non-draft PR in the stack to draft per the draft-before-changes rule in [`gates.md`](gates.md).
 9. Execute bottom-up restack:
    - checkout/reset branch to `origin/<branch>`,
    - delegate rebase mechanics to `/git rebase` (transplant mode when needed, `push=false`),

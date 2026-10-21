@@ -25,6 +25,10 @@ Review depth follows evidenced impact paths, consequences, containment, uncertai
 
 Reviewers may run concurrently within a round; judge gate passes in order. Never report security passed while quality has unresolved requests. Failed prerequisites/quality requests stop downstream lifecycle/fix/readiness gates. Standalone findings remain diagnostic, not readiness. Human approval, required human-review jobs, merge queues, release flags, and rollback policy remain later gates; readiness never grants approval or merge authority. Classify check dependencies to avoid cycles. Ready-only required jobs need a supported draft/manual trigger or explicitly authorized configuration change; otherwise report `blocked`. Never mark ready merely to start checks, skip them, or infer success from zero observed checks.
 
+## Draft before changes
+
+Before the first edit, rebase, or push that changes an open non-draft PR, convert it to draft to signal incoming changes to other reviewers. Do this only on your own PR, after the ownership/branch/`HEAD`/clean-tree guards pass and the next round is reserved, and before any mutation. Run `gh pr ready <number> --undo`, re-read with `/pr info`, and require `isDraft` true and unchanged base/head. Record `drafted_for_changes` in the round state. Skip it when the PR is already draft or no change will be made (report-only, snapshot-only, or investigation-only runs). A failed conversion stops `blocked` before any edit. A draft conversion invalidates readiness and approval evidence. Restore ready state only through `/pr ready` after all gates pass on the final head, never by raw `gh pr ready`.
+
 ## Findings and convergence
 
 - `request`: source-verified introduced/materially worsened defect or material unmet acceptance/safety/contract obligation applicable to the change. Every unresolved verified request blocks, regardless of severity or fix size.
