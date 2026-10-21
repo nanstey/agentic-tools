@@ -40,7 +40,7 @@ A custom SSH remote host alias (e.g. `github.com-work`) breaks `gh stack`/`gh` r
 ## Workflow
 
 1. Probe tiers; report the active tier and evidence. At T1, run the prompt-avoidance preflight once: `git config rerere.enabled true`; on multi-remote repos also `git config remote.pushDefault origin` (see `references/cli.md`).
-2. Map the requested operation to the tier:
+2. Before any operation that rewrites or pushes an existing PR head (Sync, `gh stack rebase`, mid-stack fixes, Restructure, `gh stack push`), apply the draft-before-changes rule in [`gates.md`](gates.md) to every affected open non-draft PR, and stop blocked on any PR that fails a guard. Then map the requested operation to the tier:
    - **Create (T1)**: `gh stack init [--base <trunk>] <branches...>` — always pass explicit branch names; adopts existing branches, creates missing ones.
    - **Add layer (T1)**: from the top branch, `gh stack add <name>` (optionally `-Am "<msg>"` / `-um "<msg>"` to commit first).
    - **Publish (T1)**: `gh stack submit --auto` (drafts) or `--auto --open` (ready). Never open the interactive submit editor.
