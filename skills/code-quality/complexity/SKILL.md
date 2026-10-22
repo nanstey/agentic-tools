@@ -17,7 +17,7 @@ Invoke directly with `/complexity`. Other skills also call it: [`build`](../../w
 1. **Run the script.** From this skill's directory:
    `scripts/complexity.sh` with no argument analyzes the files changed on this branch: commits since the merge-base with the default branch, plus staged, unstaged, and untracked files. The base is `origin/HEAD`, then `origin/main`, `main`, `master`, else `HEAD` (uncommitted only). A branch that has fallen behind `main` is not affected.
    - `scripts/complexity.sh PATH...` narrows the changed set to those files or folders.
-   - `--base REF` compares against another ref. An unknown ref exits 2.
+   - `--base REF` compares against another ref. An unknown ref exits 2, even with `--full`.
    - `--full [PATH...]` ignores git state and analyzes the paths completely (whole repo if none). Use it for an audit.
    - `--all` lists every function, not only violations.
    It analyzes whole files, so a changed file can list functions you did not touch. Check each against your diff.

@@ -17,10 +17,10 @@ set -uo pipefail
 ccn=10 nloc=60 args=5 all=0 full=0 base="" paths=()
 while [ $# -gt 0 ]; do
   case "$1" in
-    --ccn)  ccn="${2:?}"; shift 2 ;;
-    --nloc) nloc="${2:?}"; shift 2 ;;
-    --args) args="${2:?}"; shift 2 ;;
-    --base) base="${2:?}"; shift 2 ;;
+    --ccn)  [ $# -ge 2 ] || { echo "missing value for --ccn" >&2; exit 2; }; ccn="$2"; shift 2 ;;
+    --nloc) [ $# -ge 2 ] || { echo "missing value for --nloc" >&2; exit 2; }; nloc="$2"; shift 2 ;;
+    --args) [ $# -ge 2 ] || { echo "missing value for --args" >&2; exit 2; }; args="$2"; shift 2 ;;
+    --base) [ $# -ge 2 ] || { echo "missing value for --base" >&2; exit 2; }; base="$2"; shift 2 ;;
     --all)  all=1; shift ;;
     --full) full=1; shift ;;
     -h|--help) sed -n 2,15p "$0"; exit 0 ;;
@@ -61,14 +61,18 @@ if [ "$full" = 0 ] && [ "$in_git" = 1 ]; then
   prefix="$(git rev-parse --show-prefix)"
   selected=()
   # while-read, not mapfile: stock macOS Bash is 3.2.
-  while IFS= read -r f; do
+  while IFS= read -r -d '' f; do
     [ -f "$root/$f" ] || continue
     if [ ${#paths[@]} -gt 0 ]; then
       keep=0
       for p in "${paths[@]}"; do
         rp="${p#./}"; [ "$rp" = . ] && rp=""
         case "$p" in
-          /*) ap="$(realpath -m "$p" 2>/dev/null || echo "$p")"; rel="${ap#"$root"}"; rel="${rel#/}" ;;
+          /*)
+            ap="$(python3 -I -c 'import os,sys;print(os.path.realpath(sys.argv[1]))' "$p")"
+            if [ "$ap" = "$root" ]; then rel=""
+            elif [[ "$ap" == "$root"/* ]]; then rel="${ap#"$root"/}"
+            else continue; fi ;;
           *) rel="$prefix$rp" ;;
         esac
         rel="${rel%/}"
@@ -77,7 +81,7 @@ if [ "$full" = 0 ] && [ "$in_git" = 1 ]; then
       [ $keep = 1 ] || continue
     fi
     selected+=("$root/$f")
-  done < <({ git diff --name-only --diff-filter=ACMR "$mb" -- ; git ls-files --others --exclude-standard; } 2>/dev/null | sort -u)
+  done < <({ git diff -z --name-only --diff-filter=ACMR "$mb" -- ; git ls-files -z --others --exclude-standard; } 2>/dev/null | sort -zu)
   [ ${#selected[@]} -gt 0 ] || { echo "no changed files since ${mb:0:10} (base: $base)" >&2; echo -e "CCN\tNLOC\tPARAMS\tFUNCTION\tLOCATION\tFLAGS"; exit 0; }
   paths=("${selected[@]}")
 elif [ ${#paths[@]} -eq 0 ]; then
@@ -90,7 +94,7 @@ fi
 $cmd --csv \
   -x '*/node_modules/*' -x '*/vendor/*' -x '*/dist/*' -x '*/build/*' -x '*/.git/*' -x '*/target/*' \
   -x '*/__pycache__/*' -x '*.min.js' -x '*/.venv/*' "${paths[@]}" 2>/dev/null |
-python3 -c '
+python3 -I -c '
 import csv, sys, os
 ccn_l, nloc_l, args_l, show_all = map(int, sys.argv[1:5])
 rows = []
