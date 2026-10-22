@@ -10,9 +10,9 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 Command and API details load on demand:
 
-- `references/cli.md` — `gh stack` commands, flags, exit codes.
-- `references/rest-api.md` — Stacks REST endpoints and the PR `stack` object.
-- `references/workflows.md` — merge semantics, day-to-day recipes (mid-stack changes, review feedback, adopting branches), stack structuring guidance.
+- [`stack-cli.md`](stack-cli.md) — `gh stack` commands, flags, exit codes.
+- [`stack-rest-api.md`](stack-rest-api.md) — Stacks REST endpoints and the PR `stack` object.
+- [`stack-workflows.md`](stack-workflows.md) — merge semantics, day-to-day recipes (mid-stack changes, review feedback, adopting branches), stack structuring guidance.
 
 ## Required Inputs
 
@@ -39,7 +39,7 @@ A custom SSH remote host alias (e.g. `github.com-work`) breaks `gh stack`/`gh` r
 
 ## Workflow
 
-1. Probe tiers; report the active tier and evidence. At T1, run the prompt-avoidance preflight once: `git config rerere.enabled true`; on multi-remote repos also `git config remote.pushDefault origin` (see `references/cli.md`).
+1. Probe tiers; report the active tier and evidence. At T1, run the prompt-avoidance preflight once: `git config rerere.enabled true`; on multi-remote repos also `git config remote.pushDefault origin` (see [`stack-cli.md`](stack-cli.md)).
 2. Before any operation that rewrites or pushes an existing PR head (Sync, `gh stack rebase`, mid-stack fixes, Restructure, `gh stack push`), apply the draft-before-changes rule in [`gates.md`](gates.md) to every affected open non-draft PR, and stop blocked on any PR that fails a guard. Then map the requested operation to the tier:
    - **Create (T1)**: `gh stack init [--base <trunk>] <branches...>` — always pass explicit branch names; adopts existing branches, creates missing ones.
    - **Add layer (T1)**: from the top branch, `gh stack add <name>` (optionally `-Am "<msg>"` / `-um "<msg>"` to commit first).
@@ -49,7 +49,7 @@ A custom SSH remote host alias (e.g. `github.com-work`) breaks `gh stack`/`gh` r
    - **Link (T1/T2)**: T1 `gh stack link [--base <trunk>] <branches-or-prs...>`; T2 requires properly chained PRs first (each PR's base = previous PR's head) — if not already chained, update bases via `gh api .../pulls/{n} -X PATCH -f base=<parent-branch>` bottom-up, then `POST /repos/{o}/{r}/stacks` with ordered PR numbers bottom→top (min 2). Extend with `POST .../stacks/{n}/add`.
    - **Inspect (T1/T2)**: T1 `gh stack view --json` — never bare or `--short` (both are TUIs); T2 `GET .../stacks` or per-PR `gh api .../pulls/{n} --jq '.stack'`.
    - **Checkout (T1)**: `gh stack checkout <number|url|branch>` with an explicit argument; if local and remote stack compositions differ this prompts unbypassably — `gh stack unstack` first. Navigation via `gh stack up|down|top|bottom|trunk`.
-   - **Collapse (T1/T2)**: fold the whole stack into a single PR. Run only when the invocation names collapsing, using the defaults in the 5-step recipe below (survivor = top PR, leave lower branches intact, preserve commits) unless the invocation overrides them. **T1**: prefer `gh stack unstack <n>` to dissolve, then re-point the survivor base and close lower PRs via CLI/API. **T2 / host-alias fallback**: `POST /repos/{o}/{r}/stacks/{n}/unstack`, `PATCH /repos/{o}/{r}/pulls/{survivor}` with `base=<trunk>`, then per lower PR `PATCH /repos/{o}/{r}/pulls/{lower}` with `state=closed` plus a fold-in comment referencing the survivor. See `references/workflows.md` for the exact sequences.
+   - **Collapse (T1/T2)**: fold the whole stack into a single PR. Run only when the invocation names collapsing, using the defaults in the 5-step recipe below (survivor = top PR, leave lower branches intact, preserve commits) unless the invocation overrides them. **T1**: prefer `gh stack unstack <n>` to dissolve, then re-point the survivor base and close lower PRs via CLI/API. **T2 / host-alias fallback**: `POST /repos/{o}/{r}/stacks/{n}/unstack`, `PATCH /repos/{o}/{r}/pulls/{survivor}` with `base=<trunk>`, then per lower PR `PATCH /repos/{o}/{r}/pulls/{lower}` with `state=closed` plus a fold-in comment referencing the survivor. See [`stack-workflows.md`](stack-workflows.md) for the exact sequences.
      Default collapse policy:
      1. **Survivor = top PR** — it already contains every commit in the stack, so re-pointing it to trunk is lossless. Verify with `git merge-base --is-ancestor <lower-head> <survivor-head>` for each lower head before acting; stop as blocked if any lower branch is not an ancestor (diverged/non-linear stack).
      2. **Preserve commits** — do not squash by default (keeps authored history); offer squash only on explicit request.
@@ -58,7 +58,7 @@ A custom SSH remote host alias (e.g. `github.com-work`) breaks `gh stack`/`gh` r
      5. **Refresh** the survivor's title/body to describe the full changeset, since the top PR's title usually covers only its own layer.
    - **Dissolve (T1/T2)**: run only when the invocation names dissolving, then `gh stack unstack [<n>] [--local]` or `POST .../stacks/{n}/unstack`. Report PRs left stacked (merged/merging/queued cannot be removed).
    - **Any (T3)**: report why native stacks are unavailable; hand the task to `/pr restack` (stack) or `/git rebase` (single branch).
-3. For mid-stack fixes and review feedback, follow the recipes in `references/workflows.md`: commit on the layer that owns the change, `gh stack rebase --upstack` (or full `rebase`), then `gh stack push` — never patch a lower-layer concern into a higher branch. After each stack push, run the `/pr push` post-push steps for every updated PR head.
+3. For mid-stack fixes and review feedback, follow the recipes in [`stack-workflows.md`](stack-workflows.md): commit on the layer that owns the change, `gh stack rebase --upstack` (or full `rebase`), then `gh stack push` — never patch a lower-layer concern into a higher branch. After each stack push, run the `/pr push` post-push steps for every updated PR head.
 4. After mutating operations, verify with an inspect call and report per-branch/PR outcomes.
 
 Stop as blocked when: local and remote stack compositions diverge; a branch belongs to multiple stacks (exit 6); the stack is locked (exit 8); a rebase is already in progress (exit 7); the working tree is dirty before rebase/restructure; or a fully merged stack would silently spawn a new one on submit.
