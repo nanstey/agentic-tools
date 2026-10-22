@@ -61,4 +61,4 @@ Invoking an action authorizes the mutations that action declares. Destructive ex
 
 ## Output Behavior
 
-Report the selected action, resolved target, workflow outcome, and any inherited blocker. Bare `/pr` and `auto-merge` report the packet verdict/head and monitor result, or the blocked form. Each detailed reference defines additional required output.
+Report the selected action, resolved target, workflow outcome, and any inherited blocker. Bare `/pr` and `auto-merge` report the packet or docs-only evidence verdict/head and monitor result, or the blocked form. Each detailed reference defines additional required output.
