@@ -178,7 +178,7 @@ function parseArgs(argv) {
 			const [k, v] = a.slice(2).split(/=(.*)/s, 2);
 			if (v !== undefined) flags[k] = v;
 			else if (["dry-run", "force", "json", "no-orca", "errors-only"].includes(k)) flags[k] = true;
-			else if (["max-chars", "from", "to", "model", "thinking"].includes(k)) {
+			else if (["max-chars", "from", "to", "model", "thinking", "user-requested"].includes(k)) {
 				if (argv[i + 1] === undefined || argv[i + 1].startsWith("--")) die(`--${k} needs a value`, 2);
 				flags[k] = argv[++i];
 			} else die(`unknown option --${k}`, 2);
@@ -319,12 +319,22 @@ function cmdReflect(argv) {
 function cmdStart(argv) {
 	const { flags, pos } = parseArgs(argv);
 	const dry = !!flags["dry-run"];
-	if (!pos[0]) die("usage: pi-improve start <slug> [brief-file|-] [--dry-run]   (brief from stdin by default)");
+	const userRequested = flags["user-requested"];
+	if (!pos[0]) die("usage: pi-improve start <slug> [brief-file|-] [--user-requested \"user instruction\"] [--dry-run]   (brief from stdin by default)");
+	if (userRequested !== undefined && (!userRequested.trim() || userRequested.length > 280 || /[\r\n]/.test(userRequested)))
+		die("--user-requested needs a one-line, non-empty user instruction of at most 280 characters", 2);
 	if (disabled()) die("self-improvement is disabled", 3);
-	if (process.env.PI_SELF_IMPROVE_CHILD === "worker") die("worker sessions must not start further work", 3);
+	const isWorker = process.env.PI_SELF_IMPROVE_CHILD === "worker";
+	if (isWorker && userRequested === undefined)
+		die("worker sessions must not start further work without --user-requested \"user instruction\"", 3);
+	if (isWorker && process.env.PI_SELF_IMPROVE_HEADLESS === "1")
+		die("headless worker sessions must not start further work", 3);
+	if (isWorker && flags.force) die("worker sessions cannot use --force", 3);
 	const slug = pos[0].toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40).replace(/-+$/, "");
 	if (!slug) die("slug must contain letters or digits");
 	const parent = process.env.PI_SELF_IMPROVE_RUN || "manual";
+	let root = process.env.PI_SELF_IMPROVE_ROOT || parent;
+	if (isWorker && root === "manual") root = parent;
 
 	let brief = "";
 	if (pos[1] && pos[1] !== "-") brief = fs.readFileSync(path.resolve(pos[1]), "utf8");
@@ -340,9 +350,20 @@ function cmdStart(argv) {
 	const base = defaultBase(repo);
 	const briefFile = path.join(BRIEFS, `${id}.md`);
 	const log = path.join(LOGS, `${id}.log`);
-	const env = { PI_SELF_IMPROVE_CHILD: "worker", PI_SELF_IMPROVE_RUN: id, PI_IMPROVE_REVIEWER_MODEL: reviewer };
+	const env = { PI_SELF_IMPROVE_CHILD: "worker", PI_SELF_IMPROVE_RUN: id, PI_SELF_IMPROVE_ROOT: root, PI_IMPROVE_REVIEWER_MODEL: reviewer };
 	const workerArgv = (headless) => [PI_BIN, ...(headless ? ["-p"] : []), "--approve", "--name", `improve:${slug}`, ...modelArgs(workerModel, thinking), `/improve ${piArg(briefFile)}`];
-	const rec = { id, kind: "worker", startedAt: new Date().toISOString(), parent, slug, log, brief: briefFile, model: workerModel };
+	const rec = {
+		id,
+		kind: "worker",
+		startedAt: new Date().toISOString(),
+		parent,
+		root,
+		slug,
+		log,
+		brief: briefFile,
+		model: workerModel,
+		...(userRequested === undefined ? {} : { userRequested }),
+	};
 
 	if (dry) {
 		const worktree = path.join(STATE, "worktrees", name);
@@ -358,9 +379,13 @@ function cmdStart(argv) {
 	// Check caps and reserve the slug before any side effect.
 	withLock(() => {
 		const runs = readRuns().filter((r) => r.kind === "worker");
-		const siblings = runs.filter((r) => r.parent === parent).length;
-		if (parent !== "manual" && siblings >= MAX_WORKERS_PER_REFLECTION && !flags.force)
-			die(`worker cap reached for ${parent} (${siblings}/${MAX_WORKERS_PER_REFLECTION}); merge ideas or use --force`, 4);
+		if (isWorker && runs.some((r) => r.id === parent && r.userRequested !== undefined))
+			die("a user-requested follow-up cannot start another follow-up", 3);
+		const directFollowups = runs.filter((r) => r.parent === parent).length;
+		if (isWorker && directFollowups >= 1) die("a worker can start only one direct user-requested follow-up", 3);
+		const lineage = runs.filter((r) => (r.root || r.parent) === root).length;
+		if (root !== "manual" && lineage >= MAX_WORKERS_PER_REFLECTION)
+			die(`worker cap reached for ${root} (${lineage}/${MAX_WORKERS_PER_REFLECTION}); merge ideas or split the request`, 4);
 		if (runs.some((r) => r.slug === slug && r.state !== "failed") && !flags.force) die(`a run for slug "${slug}" already exists; pick another slug`, 4);
 		writeRun({ ...rec, state: "starting" });
 	});
@@ -408,6 +433,7 @@ function cmdStart(argv) {
 				`- repo: ${repo} (main checkout; never edit it)`,
 				`- reviewer model (different family than the worker): ${reviewer}`,
 				`- run id: ${id} (parent: ${parent})`,
+				...(userRequested === undefined ? [] : [`- user-requested instruction: ${JSON.stringify(userRequested)}`]),
 				"",
 				"## Brief",
 				"",
@@ -431,7 +457,11 @@ function cmdStart(argv) {
 			}
 		}
 		if (backend === "headless") {
-			const script = writeLaunchScript(`${id}-headless`, { cwd: worktree, env, argv: workerArgv(true) });
+			const script = writeLaunchScript(`${id}-headless`, {
+				cwd: worktree,
+				env: { ...env, PI_SELF_IMPROVE_HEADLESS: "1" },
+				argv: workerArgv(true),
+			});
 			rec.pid = spawnDetached(script, log, worktree);
 		}
 		rec.backend = backend;
@@ -527,10 +557,11 @@ function help() {
 
   reflect <report.json|session.jsonl> [--force] [--dry-run]
       Start a detached headless Pi session that runs /reflect on that input.
-  start <slug> [brief-file|-] [--model M] [--thinking L] [--dry-run]
+  start <slug> [brief-file|-] [--model M] [--thinking L] [--user-requested "instruction"] [--dry-run]
       Create a worktree of the agentic-tools repo and launch one /improve session
       there (Orca terminal if Orca is reachable, else detached headless).
-      The brief comes from the file or stdin. Only allowed from a reflect session or a human.
+      The brief comes from the file or stdin. A worker needs --user-requested with
+      the human's one-line instruction after final output. Workers cannot use --force.
   digest <session.jsonl|report.json> [--max-chars N] [--errors-only] [--from N] [--to N]
       Compact one-line-per-event view of a session log.
   status [--json]   Recent runs.   repo   Print the resolved repo root.
