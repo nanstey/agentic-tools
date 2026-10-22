@@ -60,7 +60,7 @@ if [ "$full" = 0 ] && [ "$in_git" = 1 ]; then
   root="$(cd "$(git rev-parse --show-toplevel)" && pwd -P)"
   prefix="$(git rev-parse --show-prefix)"
   selected=()
-  # while-read, not mapfile: stock macOS Bash is 3.2.
+  # while-read, not mapfile (Bash 3.2). Tracked diff and untracked lists are disjoint, so no sort/dedupe is needed.
   while IFS= read -r -d '' f; do
     [ -f "$root/$f" ] || continue
     if [ ${#paths[@]} -gt 0 ]; then
@@ -81,7 +81,7 @@ if [ "$full" = 0 ] && [ "$in_git" = 1 ]; then
       [ $keep = 1 ] || continue
     fi
     selected+=("$root/$f")
-  done < <({ git diff -z --name-only --diff-filter=ACMR "$mb" -- ; git ls-files -z --others --exclude-standard; } 2>/dev/null | sort -zu)
+  done < <({ git diff -z --name-only --diff-filter=ACMR "$mb" -- ; git ls-files -z --others --exclude-standard; } 2>/dev/null)
   [ ${#selected[@]} -gt 0 ] || { echo "no changed files since ${mb:0:10} (base: $base)" >&2; echo -e "CCN\tNLOC\tPARAMS\tFUNCTION\tLOCATION\tFLAGS"; exit 0; }
   paths=("${selected[@]}")
 elif [ ${#paths[@]} -eq 0 ]; then
