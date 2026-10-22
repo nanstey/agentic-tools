@@ -47,14 +47,26 @@ fails "empty brief rejected" bash -c "echo '' | '$P' start a --dry-run"
 fails "worker cannot start work without a user request" bash -c "echo '$BRIEF' | PI_SELF_IMPROVE_CHILD=worker '$P' start a --dry-run"
 requested=$(echo "$BRIEF" | PI_SELF_IMPROVE_CHILD=worker "$P" start user-requested --user-requested "Start an improvement for the reported issue" --dry-run 2>&1)
 echo "$requested" | jq -e '.slug=="user-requested" and .userRequested=="Start an improvement for the reported issue"' >/dev/null && ok "worker starts a user-requested job" || bad "worker starts a user-requested job"
+git clone -q "$REPO" "$SB/repo"
+git -C "$SB/repo" branch -f main HEAD
+git -C "$SB/repo" update-ref refs/remotes/origin/main HEAD
+git -C "$SB/repo" symbolic-ref refs/remotes/origin/HEAD refs/remotes/origin/main
+export AGENTIC_TOOLS_REPO="$SB/repo"
 mkdir -p "$PI_CODING_AGENT_DIR/self-improve/runs"
-printf '%s\n' '{"kind":"worker","parent":"worker-run","root":"worker-run","slug":"existing","state":"started"}' > "$PI_CODING_AGENT_DIR/self-improve/runs/existing.json"
+printf '%s\n' '{"kind":"worker","parent":"another-worker","root":"worker-run","slug":"existing","state":"started"}' > "$PI_CODING_AGENT_DIR/self-improve/runs/existing.json"
 cap=$(echo "$BRIEF" | PI_SELF_IMPROVE_CHILD=worker PI_SELF_IMPROVE_RUN=worker-run PI_IMPROVE_MAX_WORKERS=1 "$P" start a --user-requested "Start an improvement for the reported issue" 2>&1)
 echo "$cap" | grep -Fq "worker cap reached" && ok "worker user request still obeys the root cap" || bad "worker user request still obeys the root cap"
-new_env
+rm -rf "$PI_CODING_AGENT_DIR/self-improve/runs"
 mkdir -p "$PI_CODING_AGENT_DIR/self-improve/runs"
 printf '%s\n' '{"id":"worker-run","kind":"worker","parent":"manual","root":"manual","userRequested":"Earlier request","slug":"first","state":"started"}' > "$PI_CODING_AGENT_DIR/self-improve/runs/parent.json"
-fails "user-requested follow-up cannot recurse" bash -c "echo '$BRIEF' | PI_SELF_IMPROVE_CHILD=worker PI_SELF_IMPROVE_RUN=worker-run '$P' start child --user-requested 'Start another improvement'"
+recursion=$(echo "$BRIEF" | PI_SELF_IMPROVE_CHILD=worker PI_SELF_IMPROVE_RUN=worker-run "$P" start child --user-requested "Start another improvement" 2>&1)
+echo "$recursion" | grep -Fq "cannot start another follow-up" && ok "user-requested follow-up cannot recurse" || bad "user-requested follow-up cannot recurse"
+rm -rf "$PI_CODING_AGENT_DIR/self-improve/runs"
+mkdir -p "$PI_CODING_AGENT_DIR/self-improve/runs"
+printf '%s\n' '{"id":"worker-run","kind":"worker","parent":"manual","root":"manual","slug":"first","state":"started"}' > "$PI_CODING_AGENT_DIR/self-improve/runs/parent.json"
+printf '%s\n' '{"id":"child-run","kind":"worker","parent":"worker-run","root":"worker-run","userRequested":"First request","slug":"child","state":"started"}' > "$PI_CODING_AGENT_DIR/self-improve/runs/child.json"
+direct=$(echo "$BRIEF" | PI_SELF_IMPROVE_CHILD=worker PI_SELF_IMPROVE_RUN=worker-run "$P" start second --user-requested "Start another improvement" 2>&1)
+echo "$direct" | grep -Fq "only one direct user-requested follow-up" && ok "manual worker has one direct follow-up" || bad "manual worker has one direct follow-up"
 fails "worker cannot force a user request" bash -c "echo '$BRIEF' | PI_SELF_IMPROVE_CHILD=worker '$P' start a --user-requested 'Start an improvement for the reported issue' --force --dry-run"
 fails "headless worker cannot use a user request" bash -c "echo '$BRIEF' | PI_SELF_IMPROVE_CHILD=worker PI_SELF_IMPROVE_HEADLESS=1 '$P' start a --user-requested 'Start an improvement for the reported issue' --dry-run"
 fails "user-requested needs an instruction" bash -c "echo '$BRIEF' | PI_SELF_IMPROVE_CHILD=worker '$P' start a --user-requested --dry-run"

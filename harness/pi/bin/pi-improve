@@ -333,7 +333,8 @@ function cmdStart(argv) {
 	const slug = pos[0].toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40).replace(/-+$/, "");
 	if (!slug) die("slug must contain letters or digits");
 	const parent = process.env.PI_SELF_IMPROVE_RUN || "manual";
-	const root = process.env.PI_SELF_IMPROVE_ROOT || parent;
+	let root = process.env.PI_SELF_IMPROVE_ROOT || parent;
+	if (isWorker && root === "manual") root = parent;
 
 	let brief = "";
 	if (pos[1] && pos[1] !== "-") brief = fs.readFileSync(path.resolve(pos[1]), "utf8");
@@ -380,6 +381,8 @@ function cmdStart(argv) {
 		const runs = readRuns().filter((r) => r.kind === "worker");
 		if (isWorker && runs.some((r) => r.id === parent && r.userRequested !== undefined))
 			die("a user-requested follow-up cannot start another follow-up", 3);
+		const directFollowups = runs.filter((r) => r.parent === parent).length;
+		if (isWorker && directFollowups >= 1) die("a worker can start only one direct user-requested follow-up", 3);
 		const lineage = runs.filter((r) => (r.root || r.parent) === root).length;
 		if (root !== "manual" && lineage >= MAX_WORKERS_PER_REFLECTION)
 			die(`worker cap reached for ${root} (${lineage}/${MAX_WORKERS_PER_REFLECTION}); merge ideas or split the request`, 4);
