@@ -2,7 +2,7 @@
 
 ## Core Contract
 
-Merge one verified open PR by squash, using the PR title followed by ` (#<pr-number>)` as the commit subject and an empty commit body. Load [`gates.md`](gates.md); require current outcome/expected-CI/quality/security evidence with no unresolved verified requests, then use `/pr ready` for any draft conversion. Human approvals/jobs, merge queues, and release flag/rollback policy remain later gates; never bypass or self-grant them. Any missing material evidence, failing/nonterminal required check, or unresolved thread stops the skill. This skill never remediates; `/pr ci` and `/pr comments` own that work and are not invoked here.
+Merge one verified open PR by squash, using the PR title followed by ` (#<pr-number>)` as the commit subject and an empty commit body. Load [`gates.md`](gates.md); require current outcome/expected-CI/quality/security evidence, or a `clean` docs-only evidence entry, with no unresolved verified requests, then use `/pr ready` for any draft conversion. Human approvals/jobs, merge queues, and release flag/rollback policy remain later gates; never bypass or self-grant them. Any missing material evidence, failing/nonterminal required check, or unresolved thread stops the skill. This skill never remediates; `/pr ci` and `/pr comments` own that work and are not invoked here.
 
 Default tool is `gh`. After a confirmed merge, a linked Orca-managed worktree is removed; the primary checkout is instead synced to the default branch and its terminal starts a new agent session. Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
@@ -14,7 +14,7 @@ Default tool is `gh`. After a confirmed merge, a linked Orca-managed worktree is
 ## Workflow
 
 1. Invoke `/pr info` to resolve one open PR and record number/title/draft state and authoritative base/head. Stop on its no-PR, multiple-PR, branch-mismatch, closed/merged, or other gate, including GitHub native-stack membership.
-2. Require current matching outcome/quality/security/check evidence under `gates.md`. If draft, invoke `/pr ready` with that evidence and preserve its stop gates; do not call raw `gh pr ready` or convert merely to start jobs.
+2. Require current matching outcome/quality/security/check evidence, or a `clean` docs-only evidence entry, under `gates.md`. If draft, invoke `/pr ready` with that evidence and preserve its stop gates; do not call raw `gh pr ready` or convert merely to start jobs.
 3. Discover expected required checks/dependencies via `ci.md` and match current-head results. Stop on failing, cancelled, timed-out, action-required, queued, pending, in-progress, or missing expected checks. For zero observed jobs use the verified-policy rule below.
 4. Snapshot unresolved review threads and unresolved verified requests; either blocks. Verify actual required human approval/review jobs and merge-queue/release prerequisites from trusted policy and GitHub state, with evidence valid for the current base/head/policy, not a stale or self-authored approval. Do not use bypass/admin flags; if a required queue only schedules the merge, report pending rather than confirmed merged.
 5. Re-run `/pr info` and require unchanged base/head and trusted policy; either revision changing invalidates snapshots and prior readiness/approval evidence.
