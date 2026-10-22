@@ -66,10 +66,12 @@ All installation commands below run from the repository root.
 | Agent Browser | `./install.sh --tool agent-browser` | `agent-browser --version` | Node.js 20+, npm and browser system dependencies. |
 | Chrome DevTools CLI | `./install.sh --tool chrome-devtools-cli` | `chrome-devtools status` | Node.js v20.19+, npm and Chrome/Chromium. |
 | Orca CLI | `./install.sh --tool orca` | `orca --version` | Homebrew on macOS or Go 1.18+ on Linux. |
+| Lizard | `./install.sh --tool lizard` | `lizard --version` | uv, pipx, or Python 3 with pip. |
 
 GitHub CLI supports PRs, issues and repository management. gh-stack adds stacked-PR workflows.
 Playwright CLI, Agent Browser and Chrome DevTools CLI support browser skills.
 Orca supports agent orchestration and is optional.
+Lizard supports the `complexity` skill. The skill also runs it through `uvx` or `pipx run` without installation.
 
 The root installer uses npm for the browser CLIs. Agent Browser also provisions a browser.
 Chrome DevTools CLI requires a separately available browser. Linux browser dependencies can require separate system setup.
@@ -85,6 +87,7 @@ Orca uses Homebrew on macOS and a source build on Linux.
 | `agent-browser` | npm | npm |
 | `chrome-devtools-cli` | npm | npm |
 | `orca` | Source build with Go | Homebrew |
+| `lizard` | uv, pipx, or pip | uv, pipx, or pip |
 
 ## Troubleshooting
 

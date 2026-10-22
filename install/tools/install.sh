@@ -13,6 +13,7 @@ TOOLS=(
   "chrome-devtools-cli"
   "agent-browser"
   "orca"
+  "lizard"
 )
 
 show_usage() {

@@ -25,6 +25,7 @@ All installation commands below run from the repository root.
 | Agent Browser | `./install.sh --tool agent-browser` | Node.js 20+, npm and browser dependencies. | [vercel-labs/agent-browser](https://github.com/vercel-labs/agent-browser) |
 | Chrome DevTools CLI | `./install.sh --tool chrome-devtools-cli` | Node.js v20.19+, npm and Chrome/Chromium. | [ChromeDevTools/chrome-devtools-mcp](https://github.com/ChromeDevTools/chrome-devtools-mcp) |
 | Orca CLI | `./install.sh --tool orca` | Homebrew on macOS or Go 1.18+ on Linux. | [orca-cli/orca](https://github.com/orca-cli/orca) |
+| Lizard | `./install.sh --tool lizard` | uv, pipx, or Python 3 with pip. | [terryyin/lizard](https://github.com/terryyin/lizard) |
 
 ## Root Contract
 
@@ -45,7 +46,7 @@ See the [Tool Installation guide](../TOOL_INSTALLATION.md) for requirements, fai
 
 ## Internal Layout
 
-The public entrypoint is root `install.sh`. This directory contains the master tool CLI and six adapters.
+The public entrypoint is root `install.sh`. This directory contains the master tool CLI and seven adapters.
 The master owns the only runtime registry and normalization implementation.
 Root invokes its install actions internally. Direct interfaces remain available for compatibility and tests, not as recommended installation commands.
 
