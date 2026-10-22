@@ -4,7 +4,7 @@ Status: implemented. Documentation implementation is complete; validation claims
 
 ## Goal
 
-Bare `/pr` ends only with (a) an exact-match completed review packet for the final head plus monitor's returned result, or (b) a documented `gates.md` blocked state. It never offers the user a next command. A missing packet starts review immediately. `/pr review <target> fix` runs up to three review/fix rounds **per invocation**.
+Bare `/pr` ends only with (a) an exact-match completed review packet for the final head plus monitor's returned result, or (b) a documented `gates.md` blocked state. It never offers the user a next command. A missing packet starts review immediately. A `mode: once` external-head race permits one reconciliation only, then blocks if the monitor still names a different head. `/pr review <target> fix` runs up to three review/fix rounds **per invocation**.
 
 ## Evidence (current files)
 
@@ -30,7 +30,7 @@ No existing recon result was accessible, so this plan rests on the files above.
    - It never resets mid-invocation: pushes, `/pr push`, `/pr description` and `review-code` calls inside the invocation share the one state.
    - No nested or recursive `/pr review`.
 3. **Other remediating actions get the same rule.** Each invocation of `monitor`, `ci` or `comments` owns its own `limit: 3, round: 1` for heads it publishes. A nested delegate in the same invocation inherits it (for example monitor → ci/comments/rebase). Monitor `monitor` mode keeps one budget across all its polling cycles.
-4. **Lifecycle owns no remediation budget.** Bare `/pr` dispatches `/pr review fix` once and `/pr monitor` once. Each is a separate action invocation with its own limit, so the worst case is bounded at 3 + 3 rounds. See Risks.
+4. **Lifecycle owns no remediation budget.** Bare `/pr` dispatches separate `/pr review fix` and `/pr monitor` invocations. A `mode: once` external-head mismatch permits at most one additional ownership-appropriate review/re-monitor reconciliation; it never repeats that reconciliation. Each action invocation retains its own limit. See Risks.
 5. **Blocked form.** Add one shared blocked-state form to `gates.md`:
    `blocked: <gate> — <exact missing evidence or failed check>; unblock requires: <input/state>`.
    - It states a condition, not an offer: no "run X", "would you like", "next you can" or other next-command phrasing.
@@ -38,7 +38,7 @@ No existing recon result was accessible, so this plan rests on the files above.
    - Dispatch unavailable uses the fixed text `blocked: needs a coordinator with subagent dispatch` (matches review-code).
    - A missing packet is never a blocker. It is the trigger to start review now.
 6. **Lifecycle completion gate (new).** A bare `/pr` or `auto-merge` run may end only in one of:
-   - `complete`: the packet for the final authoritative base/head/policy/scope/coverage/evidence snapshot is exact-match and complete (`clean`), **and** monitor returned its result (`clean`, or `pending` under `mode: once`, with the reason) for the same head. If `once` returns `pending` for a different head, start review for that head and monitor again, or return the blocked form if that cannot proceed. `auto-merge` additionally needs a `clean` monitor result before `/pr merge`.
+   - `complete`: the packet for the final authoritative base/head/policy/scope/coverage/evidence snapshot is exact-match and complete (`clean`), **and** monitor returned its result (`clean`, or `pending` under `mode: once`, with the reason) for the same head. If `once` returns `pending` for a different head, perform exactly one reconciliation: reuse monitor's fresh exact-match complete packet for that head or start the ownership-appropriate review, then monitor once. If it still names a different head, return the external-head-churn/no-progress blocked form. `auto-merge` additionally needs a `clean` monitor result before `/pr merge`.
    - `blocked`, in the form above. Setup completion or green CI is never a terminal state.
    - Packet `changes_required` or `incomplete`, or monitor `blocked`, becomes lifecycle `blocked`.
 
@@ -74,7 +74,7 @@ No existing recon result was accessible, so this plan rests on the files above.
 - Step 1: "recover the inherited packet/round state before any remediation commit; do not treat resumed work as a new allowance" → "recover the prior packet/findings only. Round limits are per invocation, not inherited".
 - Step 5: "Establish … recover or initialize the caller-owned review state" → "recover the prior packet/findings". Add: "Passing step 5 is not an end state. Continue to step 6 in the same run."
 - Step 6 rewrite: exact matching complete packet → reuse. **Otherwise, start `/pr review <PR> fix` now (own PR) or report-only review (other's PR), in this run.** Remove "report missing coverage rather than waive". Replace with "`review` skip never waives; a missing packet starts review." If dispatch is unavailable, use `blocked: needs a coordinator with subagent dispatch`. Keep the automatic round-to-round continuation; the delegate's limit is its own three rounds.
-- Step 7: monitor runs only after a matching `clean` packet, and always runs; the lifecycle cannot return before the monitor result. A `once`-mode `pending` result for a different head starts review for that head and then monitoring again, or returns blocked. Pass the packet and evidence, not round counters.
+- Step 7: monitor runs only after a matching `clean` packet, and always runs; the lifecycle cannot return before the monitor result. A `once`-mode `pending` result for a different head permits exactly one reconciliation: reuse monitor's fresh exact-match complete packet or start the ownership-appropriate review, then monitor once. A further mismatched monitor head returns the external-head-churn/no-progress blocked form. Pass the packet and evidence, not round counters.
 - Step 10 and Output Style: report the final packet verdict and head and monitor's result per the completion gate, or the blocked form. Remove the possibility of "report outcomes" without these.
 - Safety Rules: replace "Never reset the shared review budget" with "Never reset or nest within an invocation". Add "Never end after setup/green CI without the completion gate" and "Never offer, suggest or ask for a next command (including `/pr review`, `/pr monitor`); start it or report blocked".
 
@@ -120,14 +120,14 @@ No existing recon result was accessible, so this plan rests on the files above.
    - (c) `/pr review X fix` run twice in one session → each run starts at round 1; each stops at round 3 `blocked` with the blocked form.
    - (d) lifecycle → review (3 rounds) → monitor remediation head → monitor's own round 1, bounded.
    - (e) `monitor` mode across several `pending` cycles keeps one budget.
-   - (f) `once`-mode `pending` on a head that differs from the clean packet starts review for that head and re-monitors, or returns the blocked form.
+   - (f) `once`-mode `pending` on a head that differs from the clean packet performs one reconciliation, reusing monitor-created fresh coverage when available or starting ownership-appropriate review, then re-monitors once; further head movement returns the external-head-churn/no-progress blocked form.
 4. Check for internal consistency: every `gates.md` link anchor still resolves. Check that "three-round" occurrences refer to the same scoping. `idea-to-pr`/`build`/`review-code` text agrees with `gates.md`.
 5. Static documentation checks: confirm frontmatter `name:` matches the directory for each edited skill, and that `README.md` row descriptions are unchanged. The implementation's recorded installer regression is not behavioral execution evidence for these documentation traces.
 6. Verify the documentation diff touches only the files listed above.
 
 ## Risks
 
-- **Budget semantics decision.** Per-invocation limits let lifecycle run review (3) and monitor (3). Loops are bounded, but total fix heads can exceed three across a bare `/pr`. Alternative: monitor inherits the lifecycle's remaining rounds (stricter, but contradicts "not across separate `/pr` action invocations" if monitor counts as one). The plan chose the independent reading. The parent should confirm.
+- **Budget semantics decision.** Per-invocation limits let lifecycle run review and monitor independently; the one permitted external-head reconciliation can add one ownership-appropriate review and monitor invocation. Loops are bounded, but total fix heads can exceed three across a bare `/pr`. Alternative: monitor inherits the lifecycle's remaining rounds (stricter, but contradicts "not across separate `/pr` action invocations" if monitor counts as one). The plan chose the independent reading. The parent should confirm.
 - **"Three rounds" meaning.** The plan keeps "3 reviews, ≤2 fix heads". If the user means 3 *fix* rounds plus a final review, `gates.md` round arithmetic changes (reserve round ≤ 4). Confirm if unsure.
 - **Spin across invocations.** A fresh budget per invocation means a user or autopilot re-invoking `/pr review fix` repeatedly on a no-progress finding could loop forever. Keep the no-progress / unchanged-feedback stop (`monitor.md` L57, `gates.md` L48) active, using retained findings from the prior packet as the evidence.
 - **Blocked vs offer wording.** The blocked form states the unblock *condition*. Reviewers must check the wording never reads as a prompt or suggestion.

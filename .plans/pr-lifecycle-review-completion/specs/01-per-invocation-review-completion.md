@@ -20,7 +20,7 @@ These are documentation read-through traces, not executed behavior.
 - [x] Static trace: review-code dispatch is unavailable; bare `/pr` returns exactly `blocked: needs a coordinator with subagent dispatch` without a next-command offer.
 - [x] Static trace: `/pr review <target> fix` runs twice; each invocation starts at round 1 and permits at most three reviews and two fix heads.
 - [x] Static trace: monitor remediates a changed head; it uses monitor's own invocation-scoped state and does not reset during polling cycles.
-- [x] Static trace: `mode: once` returns `pending` for a head different from the matching clean packet; lifecycle starts review for that head, then monitors again, or returns the blocked form.
+- [x] Static trace: `mode: once` returns `pending` for a head different from the matching clean packet; lifecycle performs exactly one reconciliation, reusing monitor-created fresh matching coverage when available or starting ownership-appropriate review, then monitors once. A further mismatched monitor head returns the external-head-churn/no-progress blocked form.
 
 ## Risk Controls
 
