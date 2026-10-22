@@ -3,7 +3,7 @@ name: complexity
 description: Measures cyclomatic complexity, function length, and parameter count on code with Lizard, then judges whether code needs refactoring. Use when self-assessing code you wrote or changed, deciding if a refactor is warranted, or finding the most complex functions in a scope.
 user-invocable: true
 disable-model-invocation: false
-argument-hint: "[--changed [BASE]] [--ccn N] [--nloc N] [--args N] [PATH...]"
+argument-hint: "[--base REF] [--full] [--ccn N] [--nloc N] [--args N] [PATH...]"
 ---
 
 # Complexity
@@ -15,7 +15,12 @@ Invoke directly with `/complexity`. Other skills also call it: [`build`](../../w
 ## Workflow
 
 1. **Run the script.** From this skill's directory:
-   `scripts/complexity.sh --changed` (files changed since `HEAD`, plus untracked), or `scripts/complexity.sh PATH...` for a scope, or no argument for the whole repo. Add `--all` to list every function.
+   `scripts/complexity.sh` with no argument analyzes the files changed on this branch: commits since the merge-base with the default branch, plus staged, unstaged, and untracked files. The base is `origin/HEAD`, then `origin/main`, `main`, `master`, else `HEAD` (uncommitted only). A branch that has fallen behind `main` is not affected.
+   - `scripts/complexity.sh PATH...` narrows the changed set to those files or folders.
+   - `--base REF` compares against another ref. An unknown ref exits 2.
+   - `--full [PATH...]` ignores git state and analyzes the paths completely (whole repo if none). Use it for an audit.
+   - `--all` lists every function, not only violations.
+   It analyzes whole files, so a changed file can list functions you did not touch. Check each against your diff.
    It prints a TSV of violating functions, worst first: `CCN NLOC PARAMS FUNCTION LOCATION FLAGS`.
 2. **If exit code is 3**, Lizard is missing. The script resolves `lizard`, `uvx lizard`, `pipx run lizard`, then `python3 -m lizard`. Run `./install.sh --tool lizard` from the repo root, or `uv tool install lizard` / `pipx install lizard`. Do not hand-count complexity.
 3. **Judge each flagged function** against the thresholds below. Read the function before deciding.

@@ -31,7 +31,7 @@ Use the active environment's delegation mechanisms when a separate execution con
 3. Confirm validation tooling is available and runnable; acquire or flag missing tooling before relying on it.
 4. Decompose into individually verifiable phases.
 5. For each phase: implement focused edits, have a distinct validator step execute checks/observe success criteria, and update speclist checkboxes only after validation. Run `/git commit` only when shipping was requested.
-   After a phase passes validation, run [`complexity`](../../code-quality/complexity/SKILL.md) `--changed` on the code you wrote. Simplify a function in the Refactor band that you changed, then re-validate. Treat a Review-band function as a note. If Lizard is unavailable, record the gap and continue.
+   After a phase passes validation, run [`complexity`](../../code-quality/complexity/SKILL.md) (default scope: this branch's changes) on the code you wrote. Simplify a function in the Refactor band that you changed, then re-validate. Treat a Review-band function as a note. If Lizard is unavailable, record the gap and continue.
 6. When a caller such as `idea-to-pr` states that it owns runtime QA, review, and shipping, stop after step 5 and return phase evidence. Otherwise, after phases pass, run [`/review-code fix`](../review-code/SKILL.md) per the [caller contract](../review-code/references/caller-contract.md). Build is the caller: it owns the round budget. Record slice/top-level status: local validation, draft publication, and readiness.
 7. If a design changes during implementation, update the affected `## Design` doc or spec and append a dated entry to the README `## Decision log`; keep the plan folder consistent with what shipped.
 8. Summarize changes, validation, assumptions, and risks.

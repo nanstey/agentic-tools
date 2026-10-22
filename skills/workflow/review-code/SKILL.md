@@ -51,7 +51,7 @@ The coordinator dispatches every required row below as one separate parallel sub
 | Reviewer | Assignment |
 | --- | --- |
 | [risk-review](../../code-quality/risk-review/SKILL.md) | Quality packet: behavior, tests, contracts, impact paths, selected deeper checks. |
-| [refactor](../../code-quality/refactor/SKILL.md) | `/refactor --report` (`mode: report`) on changed units/paths and affected context, with existing findings; never its whole-repository default. It uses [complexity](../../code-quality/complexity/SKILL.md) `--changed` measurements as evidence. |
+| [refactor](../../code-quality/refactor/SKILL.md) | `/refactor --report` (`mode: report`) on changed units/paths and affected context, with existing findings; never its whole-repository default. It uses [complexity](../../code-quality/complexity/SKILL.md) measurements of the changed files as evidence. |
 | [security](../../code-quality/security/SKILL.md) | Parallel triage always. If risk-review selects deep security, dispatch `--deep` in a follow-up turn before synthesis, reusing discovery. Record both activities in the one `security` coverage row. |
 | [bugs](../../code-quality/bugs/SKILL.md) | Report-only on changed units and affected paths. No execution or edits; hand security/design leads to their assigned reviewers. |
 | [context-engineering](../../agent/context-engineering/SKILL.md) | Conditional: dispatch only when the scope changes agent-context artifacts (`SKILL.md`, agent profiles, system prompts, `CLAUDE.md`/`AGENTS.md`, tool definitions, harness prompt config). Audit-only on those changed artifacts; skip its apply-improvements step and never edit. Findings enter synthesis as normal candidates. Record skipped-as-inapplicable, not as a gap. |
