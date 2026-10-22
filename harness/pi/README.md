@@ -95,12 +95,13 @@ skill, agent profile, system-prompt rule, tool config, or installer gap), it cal
    verifies, and opens a PR. A human reviews and merges; nothing merges itself.
 
 Guards: loop-started sessions cannot report back (no recursion). A worker normally cannot
-start work. After its final output, a human can explicitly request one follow-up from an
-interactive worker by using `pi-improve start <slug> --user-requested "instruction"`.
-Headless workers cannot use this exception. The instruction must be one line, contain no
-secrets, and is recorded in the run state and generated brief. This exception does not bypass
-one reflection per source session, 5 per 24 hours (`PI_IMPROVE_MAX_REFLECTIONS_PER_DAY`),
-3 workers per reflection (`PI_IMPROVE_MAX_WORKERS`), dedupe, or the kill switch. Kill switch:
+start work. After its final output, a human can explicitly request one direct follow-up from an
+interactive worker with `pi-improve start <unique-slug> --user-requested "instruction"`.
+Headless workers and user-requested follow-ups cannot use this exception. The instruction must
+be one line, use at most 280 characters, contain no secrets, and is recorded in the run state
+and generated brief. Do not use `--force`. This exception does not bypass one reflection per
+source session, 5 per 24 hours (`PI_IMPROVE_MAX_REFLECTIONS_PER_DAY`), the root reflection cap
+of 3 workers (`PI_IMPROVE_MAX_WORKERS`), dedupe, or the kill switch. Kill switch:
 `/self-improve off`, `PI_SELF_IMPROVE=0`, or the file
 `$PI_AGENT_DIR/self-improve/disabled`. `pi-improve status` lists runs;
 `PI_IMPROVE_DRY_RUN=1` prints what `reflect`/`start` would do. Defaults come from `self-improve.json`: workers run
