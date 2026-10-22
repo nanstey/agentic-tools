@@ -2,7 +2,7 @@
 
 ## Core Contract
 
-`pr-monitor` is the sole PR reconciliation engine. It accepts `mode: monitor` (default) or `mode: once`; both execute the same cycle for one verified open PR. Load [`gates.md`](gates.md), inherit packet/findings, initialize monitor's own `limit: 3, round: 1` for remediation, and bind outcome, review, and expected-CI evidence to authoritative base/head and trusted policy. Monitor owns health/CI/threads, requests only missing/invalidated source coverage, and never duplicates full reviews or recurses into `/pr`. The lifecycle reports its returned result under the lifecycle completion gate.
+`pr-monitor` is the sole PR reconciliation engine. It accepts `mode: monitor` (default) or `mode: once`; both execute the same cycle for one verified open PR. Load [`gates.md`](gates.md), inherit packet/findings, initialize monitor's own `limit: 3, round: 1` on its first cycle for remediation, reuse it on later polling cycles, and bind outcome, review, and expected-CI evidence to authoritative base/head and trusted policy. Monitor owns health/CI/threads, requests only missing/invalidated source coverage, and never duplicates full reviews or recurses into `/pr`. The lifecycle reports its returned result under the lifecycle completion gate.
 
 The engine returns one of:
 
@@ -22,11 +22,11 @@ Delegate to `/pr info`, `/pr comments`, `/pr ci`, `/pr ready`, `/pr rebase` (or 
 2. PR URL or number when supplied; otherwise the current branch.
 3. Optional polling interval for `monitor` (default: 60 seconds).
 4. Any explicit scope or stop condition from the user.
-5. Current acceptance/outcome and validator evidence, trusted policy/expected checks, review packet, and retained findings. Monitor initializes its own state before remediation and keeps one budget across all `monitor` polling cycles.
+5. Current acceptance/outcome and validator evidence, trusted policy/expected checks, review packet, and retained findings. Monitor initializes its own state before remediation on its first cycle only and reuses it across all later `monitor` polling cycles.
 
 ## Reconciliation Cycle
 
-1. Invoke `/pr info` to verify one open PR, branch/repository, and authoritative entry base/head. Stop on its no-PR, ambiguity, branch-mismatch, closed/merged, or other gate. Recover current policy/packet/findings, initialize this invocation's round state, and invalidate stale readiness/approval evidence.
+1. Invoke `/pr info` to verify one open PR, branch/repository, and authoritative entry base/head. Stop on its no-PR, ambiguity, branch-mismatch, closed/merged, or other gate. Recover current policy/packet/findings, initialize this invocation's round state only on its first cycle and reuse it on later cycles, and invalidate stale readiness/approval evidence.
 2. Snapshot the entry state with `/pr comments` in snapshot-only mode, expected required checks/dependencies from `ci.md`, outcome evidence, and current quality/security packet. Surround observations with `/pr info` and require unchanged base/head/policy. No observed checks is not success; missing expected-policy evidence is blocked.
 3. Triage actionable threads through `/pr comments` with commits, pushes, replies, and resolutions deferred. Pass this invocation's state. It source-verifies candidates and may stage narrow authorized request fixes only after reserving a next round. Stop on its blockers; optional nits/unchanged existing issues do not compel fixes.
 4. For completed failing required checks, invoke `/pr ci` with commits/pushes deferred and the same reserved-round/batch state. It investigates and may stage narrow code fixes after validation. Do not retry failures without its evidence/safety decisions; do not run downstream quality/security gates while outcome or independent required CI fails.
