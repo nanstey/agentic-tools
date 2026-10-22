@@ -244,7 +244,7 @@ echo 'ok: pnpm skip/reset/rerun and pinned vendor clone/ok/update/unsafe paths u
 # Master CLI dispatch: recording adapters, never installation of real tools.
 DISPATCH="$SB/dispatch"; mkdir -p "$DISPATCH"
 cp "$FIXTURE/install/tools/install.sh" "$DISPATCH/"
-for tool in gh gh-stack playwright-cli chrome-devtools-cli agent-browser orca; do
+for tool in gh gh-stack playwright-cli chrome-devtools-cli agent-browser orca lizard; do
   printf '%s\n' '#!/usr/bin/env bash' 'tool="$(basename "$0" .sh)"' \
     'printf "%s %s\n" "$tool" "${1:-help}" >>"$TEST_LOG"' \
     'echo "$tool ${1:-help}"' \
@@ -257,7 +257,7 @@ for tool in gh gh-stack playwright-cli chrome-devtools-cli agent-browser orca; d
     '[ "${1:-}" != --help ]' >"$DISPATCH/$tool.sh"
 done
 : >"$TEST_LOG"
-for tool in gh gh-stack playwright-cli chrome-devtools-cli agent-browser orca gh_stack; do
+for tool in gh gh-stack playwright-cli chrome-devtools-cli agent-browser orca lizard gh_stack; do
   run validate 0 bash "$DISPATCH/install.sh" --validate "$tool"
   [ ! -s "$SB/validate.out" ] && [ ! -s "$SB/validate.err" ] || fail 'validation emitted output'
 done
@@ -268,19 +268,19 @@ run missingvalidate 1 bash "$DISPATCH/install.sh" --validate
 run extravalidate 1 bash "$DISPATCH/install.sh" --validate gh extra
 [ ! -s "$TEST_LOG" ] || fail 'validation invoked an adapter'
 run check 0 bash "$DISPATCH/install.sh" --check
-has check 'Summary: 6/6 tools installed'
-[ "$(grep -c ' check$' "$TEST_LOG")" = 12 ] || fail 'check frequency changed'
+has check 'Summary: 7/7 tools installed'
+[ "$(grep -c ' check$' "$TEST_LOG")" = 14 ] || fail 'check frequency changed'
 : >"$TEST_LOG"
 run strictcheck 1 env FAIL_TOOL=orca bash "$DISPATCH/install.sh" --check-status
-[ "$(grep -c ' check$' "$TEST_LOG")" = 12 ] || fail 'strict check added an extra probe'
+[ "$(grep -c ' check$' "$TEST_LOG")" = 14 ] || fail 'strict check added an extra probe'
 run compatiblecheck 0 env FAIL_TOOL=orca bash "$DISPATCH/install.sh" --check
 cmp "$SB/strictcheck.out" "$SB/compatiblecheck.out"
 run skip 0 env TOOLS_SKIP=gh-stack bash "$DISPATCH/install.sh" --check
-has skip 'gh (skipped)'; has skip 'gh-stack (skipped)'; has skip 'Summary: 4/6'
+has skip 'gh (skipped)'; has skip 'gh-stack (skipped)'; has skip 'Summary: 5/7'
 run all 0 bash "$DISPATCH/install.sh" --install-all
-has all 'Installed: 6'; has all 'Already installed: 0'; has all 'Skipped: 0'
+has all 'Installed: 7'; has all 'Already installed: 0'; has all 'Skipped: 0'
 run failedinstall 1 env FAIL_TOOL=orca bash "$DISPATCH/install.sh" --install-all
-has failedinstall 'Installed: 5'; has failedinstall 'Failed: 1'
+has failedinstall 'Installed: 6'; has failedinstall 'Failed: 1'
 run specific 0 bash "$DISPATCH/install.sh" --install gh_stack
 has specific 'gh-stack install'
 run toolhelp 0 bash "$DISPATCH/install.sh" --tool-help gh_stack
@@ -298,10 +298,10 @@ cmp "$SB/help.out" "$SB/shorthelp.out"; cmp "$SB/help.out" "$SB/empty.out"
 has help "$FIXTURE/install/tools/install.sh"
 has help './install.sh --tools'; has help './install.sh --tool gh'
 run missingtools 0 bash "$FIXTURE/install/tools/install.sh" --check
-has missingtools 'Summary: 0/6 tools installed'
+has missingtools 'Summary: 0/7 tools installed'
 run realtoolhelp 1 bash "$FIXTURE/install/tools/install.sh" --tool-help gh
 has realtoolhelp 'Tool: gh'
-for tool in gh gh-stack playwright-cli chrome-devtools-cli agent-browser orca; do
+for tool in gh gh-stack playwright-cli chrome-devtools-cli agent-browser orca lizard; do
   run adapterhelp 1 bash "$FIXTURE/install/tools/$tool.sh" --help
   has adapterhelp "./install.sh --tool $tool"
   has adapterhelp 'Internal adapter interface:'
@@ -313,7 +313,7 @@ cp "$DISPATCH/"*.sh "$FIXTURE/install/tools/"
 rm "$FIXTURE/harness/pi/vendor/bad.txt"
 export HOME="$SB/root-cli-home" TYPESAFE_API_KEY=fixture EXPECT_REPO=1 ADAPTER_STDERR=1
 mkdir -p "$HOME/.claude" "$HOME/.codex"
-ALL_TOOLS='gh gh-stack playwright-cli chrome-devtools-cli agent-browser orca'
+ALL_TOOLS='gh gh-stack playwright-cli chrome-devtools-cli agent-browser orca lizard'
 expect_root_log() {
   local installed="$1" checked="$2" tool
   {
@@ -339,7 +339,7 @@ awk '/\[self-improve\]/{repo=NR} /^Installing tools/{install=NR} /^== Tools$/{ch
   END { exit !(repo && repo < install && install < check) }' "$SB/rootall.out" || fail 'root phase order'
 : >"$TEST_LOG"; : >"$TEST_LOG.env"
 run rootskip 0 env TOOLS_SKIP=gh-stack TOOLS_INTERACTIVE=1 bash "$FIXTURE/install.sh" --tools
-KEPT_TOOLS='playwright-cli chrome-devtools-cli agent-browser orca'
+KEPT_TOOLS='playwright-cli chrome-devtools-cli agent-browser orca lizard'
 expect_root_log "$KEPT_TOOLS" "$KEPT_TOOLS"
 for tool in $KEPT_TOOLS; do printf '%s|gh-stack|1\n' "$tool"; done >"$SB/expected-env"
 cmp "$TEST_LOG.env" "$SB/expected-env"
@@ -355,12 +355,12 @@ run rootoneskip 0 env TOOLS_SKIP=gh-stack bash "$FIXTURE/install.sh" --tool gh
 expect_root_log gh "$KEPT_TOOLS"
 : >"$TEST_LOG"
 run rootonefail 9 env FAIL_TOOL=gh FAIL_STATUS=9 bash "$FIXTURE/install.sh" --tool gh
-expect_root_log gh "$ALL_TOOLS"; has rootonefail 'Summary: 5/6'
+expect_root_log gh "$ALL_TOOLS"; has rootonefail 'Summary: 6/7'
 printf 'install-stderr:gh\n' >"$SB/expected-stderr"
 cmp "$SB/rootonefail.err" "$SB/expected-stderr"
 : >"$TEST_LOG"
 run rootallfail 1 env FAIL_TOOL=orca FAIL_STATUS=9 bash "$FIXTURE/install.sh" --tools
-expect_root_log "$ALL_TOOLS" "$ALL_TOOLS"; has rootallfail 'Failed: 1'; has rootallfail 'Summary: 5/6'
+expect_root_log "$ALL_TOOLS" "$ALL_TOOLS"; has rootallfail 'Failed: 1'; has rootallfail 'Summary: 6/7'
 for tool in $ALL_TOOLS; do echo "install-stderr:$tool"; done >"$SB/expected-stderr"
 cmp "$SB/rootallfail.err" "$SB/expected-stderr"
 
