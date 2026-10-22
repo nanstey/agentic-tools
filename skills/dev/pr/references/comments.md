@@ -54,4 +54,4 @@ Findings from `/pr review` on your own PR are not threads; `/pr review <target> 
 
 ## Output Style
 
-Report source-verified thread/finding IDs and categories, fixed/resolved/explained vs unresolved requests and coverage gaps, validator/current-head review evidence, round/packet updates, commit/push or deferred status, and exact blockers/next actions.
+Report source-verified thread/finding IDs and categories, fixed/resolved/explained vs unresolved requests and coverage gaps, validator/current-head review evidence, round/packet updates, commit/push or deferred status, and, when blocked, the `gates.md` blocked form with its unblocking condition.

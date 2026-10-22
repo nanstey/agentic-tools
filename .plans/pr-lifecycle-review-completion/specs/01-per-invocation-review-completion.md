@@ -12,12 +12,15 @@ Make bare `/pr` complete review and monitoring before reporting, or return the d
 - [x] Reconcile `review-code`, `idea-to-pr`, `build`, and the shared packet contract so handoff to `/pr` passes packet/findings/evidence rather than cross-invocation round state.
 - [x] Update this plan README's slice status and decision log after implementation.
 
-## Test Scenarios
+## Static read-through traces
 
-- [x] Given bare `/pr` has green CI but no matching packet, when lifecycle reaches review, then it starts `/pr review <PR> fix` in the same run and cannot report before monitor returns.
-- [x] Given review-code dispatch is unavailable, when bare `/pr` needs a review, then it returns exactly `blocked: needs a coordinator with subagent dispatch` without a next-command offer.
-- [x] Given `/pr review <target> fix` is run twice, when each invocation starts, then each starts at round 1 and permits at most three reviews and two fix heads.
-- [x] Given monitor remediates a changed head, when it needs review coverage, then it uses monitor's own invocation-scoped state and does not reset during polling cycles.
+These are documentation read-through traces, not executed behavior.
+
+- [x] Static trace: bare `/pr` has green CI but no matching packet; lifecycle starts `/pr review <PR> fix` in the same run and cannot report before monitor returns.
+- [x] Static trace: review-code dispatch is unavailable; bare `/pr` returns exactly `blocked: needs a coordinator with subagent dispatch` without a next-command offer.
+- [x] Static trace: `/pr review <target> fix` runs twice; each invocation starts at round 1 and permits at most three reviews and two fix heads.
+- [x] Static trace: monitor remediates a changed head; it uses monitor's own invocation-scoped state and does not reset during polling cycles.
+- [x] Static trace: `mode: once` returns `pending` for a head different from the matching clean packet; lifecycle starts review for that head, then monitors again, or returns the blocked form.
 
 ## Risk Controls
 

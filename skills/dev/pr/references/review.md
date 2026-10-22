@@ -46,7 +46,7 @@ Report requests first, then optional nits and baseline-proven unchanged existing
 
 ## Own PR: `fix`
 
-1. Before editing, require authorization, `author.login` = viewer, current branch = `headRefName`, `HEAD` = authoritative `headRefOid`, unchanged base/head, a clean working tree, and a pushable non-fork source branch in the expected repository. Then apply the draft-before-changes rule in `gates.md`. Otherwise stop `blocked` with the exact checkout/sync/access action; never switch branches or overwrite work to proceed. Recheck before commit/push and on every changed head.
+1. Before editing, require authorization, `author.login` = viewer, current branch = `headRefName`, `HEAD` = authoritative `headRefOid`, unchanged base/head, a clean working tree, and a pushable non-fork source branch in the expected repository. Then apply the draft-before-changes rule in `gates.md`. Otherwise stop with the `gates.md` blocked form, naming the required checkout/sync/access state; never switch branches or overwrite work to proceed. Recheck before commit/push and on every changed head.
 2. Follow outcome → independent required CI → quality → security → review-dependent required CI from `gates.md`/`ci.md`. Missing/failed prerequisites block lifecycle/fix completion; diagnostic source findings are not gate passes.
 3. Call `/review-code fix` with the guarded source snapshot and current PR-owned state. Allow only verified `request` remediation. `fix` alone does not select nits: they need separate explicit selection and authorization. Keep optional cleanup as followup. Pass product/risky-scope decisions back as `blocked`, never downgrade requests.
 4. Require the delegate to reserve the next round before any edit and return one validated batch plus updated packet/state. Apply the stop conditions in `gates.md`. Never nest/reset the loop within this invocation or call `/pr review` recursively.
@@ -56,7 +56,7 @@ Report requests first, then optional nits and baseline-proven unchanged existing
 
 ## Others' PR: `comment`
 
-1. Re-read both base/head; if either changed, do not post stale findings. Return for affected-path reassessment under inherited state.
+1. Re-read both base/head; if either changed, do not post stale findings. Return for affected-path reassessment using this invocation's state.
 2. Post only source-verified findings at the reviewed snapshot. Changed head-side hunk lines may be inline (`path`, `line`, `side: RIGHT`); other findings go in the review body. Include finding ID/category/severity, evidence, and a concrete suggestion; disclose coverage gaps. Optional nits/existing issues stay separate and nonblocking; never post low-confidence optional noise or unverified candidates.
 3. Every inline comment and the review body starts with the disclosure block from `comments.md` step 7 (`gh api user --jq '.name // .login'`, first name only for multi-word names), a blank line, then terse text. The body includes the assessment and limitations.
 4. Post one review with `gh api repos/{owner}/{repo}/pulls/{number}/reviews --method POST --input <json>`, `commit_id: <headRefOid>`, `event: "COMMENT"`, `body`, and `comments`. If GitHub rejects an inline position, recheck the snapshot, move that finding to the body, and retry once. Do not repeat an already-posted finding without new evidence.
@@ -73,4 +73,4 @@ Report requests first, then optional nits and baseline-proven unchanged existing
 
 ## Output Style
 
-Report PR/class/mode, authoritative range/policy/scope, packet verdict and location, outcome/check evidence and gaps, models used and role-enforcement limits, named impact paths/containment, and round used/remaining. For each finding give stable ID/root cause, category, severity, confidence, source/provenance/location, resolution, and fix/comment. After a mode run include applied/posted vs unresolved/rejected IDs with reasons, validator results, commit/push status or review URL, and the exact blocked next action. Never claim independent review without evidence.
+Report PR/class/mode, authoritative range/policy/scope, packet verdict and location, outcome/check evidence and gaps, models used and role-enforcement limits, named impact paths/containment, and round used/remaining. For each finding give stable ID/root cause, category, severity, confidence, source/provenance/location, resolution, and fix/comment. After a mode run include applied/posted vs unresolved/rejected IDs with reasons, validator results, commit/push status or review URL, and, when blocked, the `gates.md` blocked form with its unblocking condition. Never claim independent review without evidence.

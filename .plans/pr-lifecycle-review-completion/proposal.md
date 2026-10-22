@@ -1,6 +1,6 @@
 # Proposal: PR lifecycle review completion + per-invocation review/fix limit
 
-Status: planned. No skill files edited by this plan.
+Status: implemented. Documentation implementation is complete; validation claims in this plan are static read-through traces, not executed behavior.
 
 ## Goal
 
@@ -38,7 +38,7 @@ No existing recon result was accessible, so this plan rests on the files above.
    - Dispatch unavailable uses the fixed text `blocked: needs a coordinator with subagent dispatch` (matches review-code).
    - A missing packet is never a blocker. It is the trigger to start review now.
 6. **Lifecycle completion gate (new).** A bare `/pr` or `auto-merge` run may end only in one of:
-   - `complete`: the packet for the final authoritative base/head/policy/scope/coverage/evidence snapshot is exact-match and complete (`clean`), **and** monitor returned its result (`clean`, or `pending` under `mode: once`, with the reason) for the same head. `auto-merge` additionally needs a `clean` monitor result before `/pr merge`.
+   - `complete`: the packet for the final authoritative base/head/policy/scope/coverage/evidence snapshot is exact-match and complete (`clean`), **and** monitor returned its result (`clean`, or `pending` under `mode: once`, with the reason) for the same head. If `once` returns `pending` for a different head, start review for that head and monitor again, or return the blocked form if that cannot proceed. `auto-merge` additionally needs a `clean` monitor result before `/pr merge`.
    - `blocked`, in the form above. Setup completion or green CI is never a terminal state.
    - Packet `changes_required` or `incomplete`, or monitor `blocked`, becomes lifecycle `blocked`.
 
@@ -74,7 +74,7 @@ No existing recon result was accessible, so this plan rests on the files above.
 - Step 1: "recover the inherited packet/round state before any remediation commit; do not treat resumed work as a new allowance" → "recover the prior packet/findings only. Round limits are per invocation, not inherited".
 - Step 5: "Establish … recover or initialize the caller-owned review state" → "recover the prior packet/findings". Add: "Passing step 5 is not an end state. Continue to step 6 in the same run."
 - Step 6 rewrite: exact matching complete packet → reuse. **Otherwise, start `/pr review <PR> fix` now (own PR) or report-only review (other's PR), in this run.** Remove "report missing coverage rather than waive". Replace with "`review` skip never waives; a missing packet starts review." If dispatch is unavailable, use `blocked: needs a coordinator with subagent dispatch`. Keep the automatic round-to-round continuation; the delegate's limit is its own three rounds.
-- Step 7: monitor runs only after a matching `clean` packet, and always runs; the lifecycle cannot return before the monitor result. Pass the packet and evidence, not round counters.
+- Step 7: monitor runs only after a matching `clean` packet, and always runs; the lifecycle cannot return before the monitor result. A `once`-mode `pending` result for a different head starts review for that head and then monitoring again, or returns blocked. Pass the packet and evidence, not round counters.
 - Step 10 and Output Style: report the final packet verdict and head and monitor's result per the completion gate, or the blocked form. Remove the possibility of "report outcomes" without these.
 - Safety Rules: replace "Never reset the shared review budget" with "Never reset or nest within an invocation". Add "Never end after setup/green CI without the completion gate" and "Never offer, suggest or ask for a next command (including `/pr review`, `/pr monitor`); start it or report blocked".
 
@@ -114,15 +114,16 @@ No existing recon result was accessible, so this plan rests on the files above.
 
 1. `grep -rniE "recover this state|never reset it by dispatching|one caller-owned three-round|shared three-round|single three-round|same budget|inherit.*round state|do not reset the budget on publication" skills/` finds no stale cross-invocation wording. Any hit must be reworded or justified.
 2. `grep -rniE "would you like|want me to|you can (now )?run|next (step|command)|offer" skills/dev/pr/references/{lifecycle,review,monitor,gates}.md skills/dev/pr/SKILL.md` finds no next-command offer phrasing. Existing "offer a narrow fix/split/revert" in `gates.md` L40 and `merge.md`/`stack` text concern PR content, not a user next command. Reword L40 to "Propose" to avoid confusion.
-3. Read-through traces against the edited docs:
+3. Static read-through traces against the edited docs (documentation traces, not executed behavior):
    - (a) bare `/pr`, green CI, no packet → review starts in the same run, then monitor, then the completion gate. No end state before it.
    - (b) dispatch unavailable → exact `blocked: needs a coordinator with subagent dispatch`; no offer text.
    - (c) `/pr review X fix` run twice in one session → each run starts at round 1; each stops at round 3 `blocked` with the blocked form.
    - (d) lifecycle → review (3 rounds) → monitor remediation head → monitor's own round 1, bounded.
    - (e) `monitor` mode across several `pending` cycles keeps one budget.
+   - (f) `once`-mode `pending` on a head that differs from the clean packet starts review for that head and re-monitors, or returns the blocked form.
 4. Check for internal consistency: every `gates.md` link anchor still resolves. Check that "three-round" occurrences refer to the same scoping. `idea-to-pr`/`build`/`review-code` text agrees with `gates.md`.
-5. Run `bash install/tests/install.test.sh` if present (offline regression; docs-only change should be a no-op). Confirm frontmatter `name:` matches the directory for each edited skill, and that `README.md` row descriptions are unchanged.
-6. Verify `git diff --stat` touches only the files listed above.
+5. Static documentation checks: confirm frontmatter `name:` matches the directory for each edited skill, and that `README.md` row descriptions are unchanged. The implementation's recorded installer regression is not behavioral execution evidence for these documentation traces.
+6. Verify the documentation diff touches only the files listed above.
 
 ## Risks
 
@@ -135,7 +136,7 @@ No existing recon result was accessible, so this plan rests on the files above.
 
 ## Slice recommendation
 
-One slice, **`slice-1-per-invocation-review-completion`** (spec `.plans/pr-lifecycle-review-completion/slice-1-per-invocation-review-completion.md`), because the budget scope, blocked form and completion gate cross-reference each other and cannot ship partially. Vertical order inside the slice:
+One slice, **`slice-1-per-invocation-review-completion`** (spec [specs/01-per-invocation-review-completion.md](specs/01-per-invocation-review-completion.md)), because the budget scope, blocked form and completion gate cross-reference each other and cannot ship partially. Vertical order inside the slice:
 1. `gates.md` contract: per-invocation limit, blocked form, completion gate.
 2. `lifecycle.md` + `SKILL.md`: end-state rules and no-offer rule.
 3. `review.md` + `monitor.md`: invocation-owned state.
