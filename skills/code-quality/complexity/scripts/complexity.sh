@@ -29,6 +29,13 @@ while [ $# -gt 0 ]; do
   esac
 done
 
+for v in "$ccn" "$nloc" "$args"; do
+  case "$v" in ''|*[!0-9]*) echo "limits must be non-negative integers: $v" >&2; exit 2 ;; esac
+done
+if [ -n "$base" ]; then
+  git rev-parse --verify -q "$base^{commit}" >/dev/null 2>&1 || { echo "unknown base ref: $base" >&2; exit 2; }
+fi
+
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if ! cmd="$("$here/resolve-lizard.sh")"; then
   echo "Lizard not found. Install: ./install.sh --tool lizard (or: pipx install lizard / uv tool install lizard)" >&2
@@ -39,38 +46,43 @@ in_git=0
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 && in_git=1
 
 if [ "$full" = 0 ] && [ "$in_git" = 1 ]; then
-  if [ -n "$base" ]; then
-    git rev-parse --verify -q "$base^{commit}" >/dev/null || { echo "unknown base ref: $base" >&2; exit 2; }
-  else
+  if [ -z "$base" ]; then
     base=HEAD
     for c in "$(git symbolic-ref -q --short refs/remotes/origin/HEAD 2>/dev/null)" origin/main main master; do
       [ -n "$c" ] && git rev-parse --verify -q "$c^{commit}" >/dev/null && { base="$c"; break; }
     done
   fi
-  mb="$(git merge-base "$base" HEAD 2>/dev/null || echo HEAD)"
+  if ! mb="$(git merge-base "$base" HEAD 2>/dev/null)"; then
+    echo "warning: no merge-base with $base (shallow clone?); diffing against $base directly" >&2
+    mb="$base"
+  fi
   # Run from the repo root so diff paths resolve; keep user paths relative to the caller.
-  root="$(git rev-parse --show-toplevel)"
+  root="$(cd "$(git rev-parse --show-toplevel)" && pwd -P)"
   prefix="$(git rev-parse --show-prefix)"
-  mapfile -t files < <({ git diff --name-only --diff-filter=ACMR "$mb" -- ; git ls-files --others --exclude-standard; } 2>/dev/null | sort -u)
   selected=()
-  for f in "${files[@]}"; do
+  # while-read, not mapfile: stock macOS Bash is 3.2.
+  while IFS= read -r f; do
     [ -f "$root/$f" ] || continue
     if [ ${#paths[@]} -gt 0 ]; then
       keep=0
       for p in "${paths[@]}"; do
         rp="${p#./}"; [ "$rp" = . ] && rp=""
-        case "$p" in /*) rel="${p#"$root"/}" ;; *) rel="$prefix$rp" ;; esac
+        case "$p" in
+          /*) ap="$(realpath -m "$p" 2>/dev/null || echo "$p")"; rel="${ap#"$root"}"; rel="${rel#/}" ;;
+          *) rel="$prefix$rp" ;;
+        esac
         rel="${rel%/}"
         if [ -z "$rel" ] || [ "$f" = "$rel" ] || [[ "$f" == "$rel"/* ]]; then keep=1; break; fi
       done
       [ $keep = 1 ] || continue
     fi
     selected+=("$root/$f")
-  done
+  done < <({ git diff --name-only --diff-filter=ACMR "$mb" -- ; git ls-files --others --exclude-standard; } 2>/dev/null | sort -u)
   [ ${#selected[@]} -gt 0 ] || { echo "no changed files since ${mb:0:10} (base: $base)" >&2; echo -e "CCN\tNLOC\tPARAMS\tFUNCTION\tLOCATION\tFLAGS"; exit 0; }
   paths=("${selected[@]}")
 elif [ ${#paths[@]} -eq 0 ]; then
-  paths=(.)
+  # Whole repository when inside git, else the current directory.
+  if [ "$in_git" = 1 ]; then paths=("$(git rev-parse --show-toplevel)"); else paths=(.); fi
 fi
 
 # CSV columns: NLOC,CCN,token,PARAM,length,location,file,function,long_name,start,end

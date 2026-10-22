@@ -21,8 +21,8 @@ Invoke directly with `/complexity`. Other skills also call it: [`build`](../../w
    - `--full [PATH...]` ignores git state and analyzes the paths completely (whole repo if none). Use it for an audit.
    - `--all` lists every function, not only violations.
    It analyzes whole files, so a changed file can list functions you did not touch. Check each against your diff.
-   It prints a TSV of violating functions, worst first: `CCN NLOC PARAMS FUNCTION LOCATION FLAGS`.
-2. **If exit code is 3**, Lizard is missing. The script resolves `lizard`, `uvx lizard`, `pipx run lizard`, then `python3 -m lizard`. Run `./install.sh --tool lizard` from the repo root, or `uv tool install lizard` / `pipx install lizard`. Do not hand-count complexity.
+   It prints a TSV, worst first. By default only violating functions appear, and `--all` lists every function. Columns: `CCN NLOC PARAMS FUNCTION LOCATION FLAGS`.
+2. **If exit code is 3**, Lizard is missing. The script resolves `lizard`, `python3 -I -m lizard`, `uvx lizard`, then `pipx run lizard`. `uvx` and `pipx run` download an unpinned package. Set `COMPLEXITY_NO_FETCH=1` to forbid that. Run `./install.sh --tool lizard` from the repo root, or `uv tool install lizard` / `pipx install lizard`. Do not hand-count complexity.
 3. **Judge each flagged function** against the thresholds below. Read the function before deciding.
 4. **Act.** When called directly or by `build`, and if you wrote or changed the function and it is over the red line, simplify it now (see [`refactor`](../refactor/SKILL.md), goal `simplify` or `extract`). Otherwise, or in a report-only caller, report it. Never refactor unrelated code only because it scores high.
 5. **Re-measure** after a change. Report before and after numbers.
