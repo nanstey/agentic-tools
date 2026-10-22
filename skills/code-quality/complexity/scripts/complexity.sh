@@ -11,7 +11,7 @@
 #   --args N   parameter count limit            (default 5)
 #   --all      list every function, not only violations
 # Output: TSV  CCN  NLOC  PARAMS  FUNCTION  LOCATION  FLAGS   (header first; summary on stderr)
-# Exit: 0 analyzed (violations are data, not failure), 2 bad usage, 3 Lizard unavailable.
+# Exit: 0 analyzed (violations are data, not failure), 2 bad usage, 3 Lizard unavailable or failed.
 set -uo pipefail
 
 ccn=10 nloc=60 args=5 all=0 full=0 base="" paths=()
@@ -44,6 +44,12 @@ fi
 
 in_git=0
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 && in_git=1
+if [ "$in_git" = 1 ]; then
+  root="$(cd "$(git rev-parse --show-toplevel)" && pwd -P)"
+  prefix="$(git rev-parse --show-prefix)"
+else
+  root="$(pwd -P)"
+fi
 
 if [ "$full" = 0 ] && [ "$in_git" = 1 ]; then
   if [ -z "$base" ]; then
@@ -56,9 +62,7 @@ if [ "$full" = 0 ] && [ "$in_git" = 1 ]; then
     echo "warning: no merge-base with $base (shallow clone?); diffing against $base directly" >&2
     mb="$base"
   fi
-  # Run from the repo root so diff paths resolve; keep user paths relative to the caller.
-  root="$(cd "$(git rev-parse --show-toplevel)" && pwd -P)"
-  prefix="$(git rev-parse --show-prefix)"
+  # Diff paths are root-relative; keep user paths relative to the caller.
   selected=()
   # while-read, not mapfile (Bash 3.2). Tracked diff and untracked lists are disjoint, so no sort/dedupe is needed.
   while IFS= read -r -d '' f; do
@@ -81,7 +85,7 @@ if [ "$full" = 0 ] && [ "$in_git" = 1 ]; then
       [ $keep = 1 ] || continue
     fi
     selected+=("$root/$f")
-  done < <({ git diff -z --name-only --diff-filter=ACMR "$mb" -- ; git ls-files -z --others --exclude-standard; } 2>/dev/null)
+  done < <({ git diff -z --name-only --diff-filter=ACMR "$mb" -- ; git -C "$root" ls-files -z --others --exclude-standard; } 2>/dev/null)
   [ ${#selected[@]} -gt 0 ] || { echo "no changed files since ${mb:0:10} (base: $base)" >&2; echo -e "CCN\tNLOC\tPARAMS\tFUNCTION\tLOCATION\tFLAGS"; exit 0; }
   paths=("${selected[@]}")
 elif [ ${#paths[@]} -eq 0 ]; then
@@ -89,11 +93,28 @@ elif [ ${#paths[@]} -eq 0 ]; then
   if [ "$in_git" = 1 ]; then paths=("$(git rev-parse --show-toplevel)"); else paths=(.); fi
 fi
 
+# Run from the repository root so exclusion globs apply only to paths inside it.
+lizard_paths=()
+for p in "${paths[@]}"; do
+  lizard_paths+=("$(python3 -I -c 'import os,sys; print(os.path.relpath(os.path.abspath(sys.argv[1]), sys.argv[2]))' "$p" "$root")")
+done
+read -r -a cmd_parts <<< "$cmd"
+lizard_out="$(mktemp)"
+lizard_err="$(mktemp)"
+trap 'rm -f "$lizard_out" "$lizard_err"' EXIT
+if (cd "$root" && "${cmd_parts[@]}" --csv \
+  -x '*/node_modules/*' -x '*/vendor/*' -x '*/dist/*' -x '*/build/*' -x '*/.git/*' -x '*/target/*' \
+  -x '*/__pycache__/*' -x '*.min.js' -x '*/.venv/*' "${lizard_paths[@]}") >"$lizard_out" 2>"$lizard_err"; then
+  :
+else
+  status=$?
+  cat "$lizard_err" >&2
+  echo "lizard failed (exit $status)" >&2
+  exit 3
+fi
+
 # CSV columns: NLOC,CCN,token,PARAM,length,location,file,function,long_name,start,end
 # No -l filter: Lizard auto-detects every language it supports. Exclude vendored/generated trees.
-$cmd --csv \
-  -x '*/node_modules/*' -x '*/vendor/*' -x '*/dist/*' -x '*/build/*' -x '*/.git/*' -x '*/target/*' \
-  -x '*/__pycache__/*' -x '*.min.js' -x '*/.venv/*' "${paths[@]}" 2>/dev/null |
 python3 -I -c '
 import csv, sys, os
 ccn_l, nloc_l, args_l, show_all = map(int, sys.argv[1:5])
@@ -104,10 +125,10 @@ for r in csv.reader(sys.stdin):
     except ValueError: continue
     flags = [n for n, bad in (("CCN", ccn > ccn_l), ("NLOC", nloc > nloc_l), ("ARGS", par > args_l)) if bad]
     if flags or show_all:
-        f = os.path.relpath(r[6])
+        f = os.path.relpath(r[6], sys.argv[5]) if os.path.isabs(r[6]) else os.path.normpath(r[6])
         rows.append((ccn, nloc, par, r[7], f"{f}:{r[9]}", ",".join(flags) or "-"))
 rows.sort(key=lambda x: (-x[0], -x[1]))
 print("CCN\tNLOC\tPARAMS\tFUNCTION\tLOCATION\tFLAGS")
 for x in rows: print("\t".join(map(str, x)))
 print(f"# {len(rows)} function(s) listed; limits CCN>{ccn_l} NLOC>{nloc_l} ARGS>{args_l}", file=sys.stderr)
-' "$ccn" "$nloc" "$args" "$all"
+' "$ccn" "$nloc" "$args" "$all" "$root" < "$lizard_out"

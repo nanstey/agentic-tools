@@ -14,15 +14,14 @@ Invoke directly with `/complexity`. Other skills also call it: [`build`](../../w
 
 ## Workflow
 
-1. **Run the script.** From this skill's directory:
-   `scripts/complexity.sh` with no argument analyzes the files changed on this branch: commits since the merge-base with the default branch, plus staged, unstaged, and untracked files. The base is `origin/HEAD`, then `origin/main`, `main`, `master`, else `HEAD` (uncommitted only). A branch that has fallen behind `main` is not affected.
+1. **Run the script.** From the target project's directory, run this skill's `scripts/complexity.sh` by its absolute path. With no argument, it analyzes the files changed on this branch: commits since the merge-base with the default branch, plus staged, unstaged, and untracked files. The base is `origin/HEAD`, then `origin/main`, `main`, `master`, else `HEAD` (uncommitted only). A branch that has fallen behind `main` is not affected.
    - `scripts/complexity.sh PATH...` narrows the changed set to those files or folders.
    - `--base REF` compares against another ref. An unknown ref exits 2, even with `--full`.
    - `--full [PATH...]` ignores git state and analyzes the paths completely (whole repo if none). Use it for an audit.
    - `--all` lists every function, not only violations.
    It analyzes whole files, so a changed file can list functions you did not touch. Check each against your diff.
    It prints a TSV, worst first. By default only violating functions appear, and `--all` lists every function. Columns: `CCN NLOC PARAMS FUNCTION LOCATION FLAGS`.
-2. **If exit code is 3**, Lizard is missing. The script resolves `lizard`, `python3 -I -m lizard`, `uvx lizard`, then `pipx run lizard`. `uvx` and `pipx run` download an unpinned package. Set `COMPLEXITY_NO_FETCH=1` to forbid that. Run `./install.sh --tool lizard` from the repo root, or `uv tool install lizard` / `pipx install lizard`. Do not hand-count complexity.
+2. **If exit code is 3**, Lizard is missing or failed to run. The script resolves `lizard`, `python3 -I -m lizard`, `uvx lizard`, then `pipx run lizard`. `uvx` and `pipx run` download an unpinned package. Set `COMPLEXITY_NO_FETCH=1` to forbid that. Run `./install.sh --tool lizard` from the repo root, or `uv tool install lizard` / `pipx install lizard`. Do not hand-count complexity.
 3. **Judge each flagged function** against the thresholds below. Read the function before deciding.
 4. **Act.** When called directly or by `build`, and if you wrote or changed the function and it is over the red line, simplify it now (see [`refactor`](../refactor/SKILL.md), goal `simplify` or `extract`). Otherwise, or in a report-only caller, report it. Never refactor unrelated code only because it scores high.
 5. **Re-measure** after a change. Report before and after numbers.
