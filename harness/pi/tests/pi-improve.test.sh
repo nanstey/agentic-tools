@@ -44,7 +44,23 @@ fails "same-family reviewer rejected" bash -c "echo '$BRIEF' | PI_IMPROVE_REVIEW
 fails "routed same-family reviewer rejected" bash -c "echo '$BRIEF' | PI_IMPROVE_REVIEWER_MODEL=openrouter/anthropic/claude-opus-5-5 '$P' start a --model anthropic/y --dry-run"
 fails "unqualified model rejected" bash -c "echo '$BRIEF' | '$P' start a --model gpt --dry-run"
 fails "empty brief rejected" bash -c "echo '' | '$P' start a --dry-run"
-fails "worker cannot start work" bash -c "echo '$BRIEF' | PI_SELF_IMPROVE_CHILD=worker '$P' start a --dry-run"
+fails "worker cannot start work without a user request" bash -c "echo '$BRIEF' | PI_SELF_IMPROVE_CHILD=worker '$P' start a --dry-run"
+requested=$(echo "$BRIEF" | PI_SELF_IMPROVE_CHILD=worker "$P" start user-requested --user-requested "Start an improvement for the reported issue" --dry-run 2>&1)
+echo "$requested" | jq -e '.slug=="user-requested" and .userRequested=="Start an improvement for the reported issue"' >/dev/null && ok "worker starts a user-requested job" || bad "worker starts a user-requested job"
+mkdir -p "$PI_CODING_AGENT_DIR/self-improve/runs"
+printf '%s\n' '{"kind":"worker","parent":"worker-run","slug":"existing","state":"started"}' > "$PI_CODING_AGENT_DIR/self-improve/runs/existing.json"
+cap=$(echo "$BRIEF" | PI_SELF_IMPROVE_CHILD=worker PI_SELF_IMPROVE_RUN=worker-run PI_IMPROVE_MAX_WORKERS=1 "$P" start a --user-requested "Start an improvement for the reported issue" 2>&1)
+echo "$cap" | grep -Fq "worker cap reached" && ok "worker user request still obeys the worker cap" || bad "worker user request still obeys the worker cap"
+fails "headless worker cannot use a user request" bash -c "echo '$BRIEF' | PI_SELF_IMPROVE_CHILD=worker PI_SELF_IMPROVE_HEADLESS=1 '$P' start a --user-requested 'Start an improvement for the reported issue' --dry-run"
+fails "user-requested needs an instruction" bash -c "echo '$BRIEF' | PI_SELF_IMPROVE_CHILD=worker '$P' start a --user-requested --dry-run"
+fails "user-requested rejects multiple lines" bash -c "echo '$BRIEF' | PI_SELF_IMPROVE_CHILD=worker '$P' start a --user-requested $'one\\ntwo' --dry-run"
+new_env
+git clone -q "$REPO" "$SB/repo"
+export AGENTIC_TOOLS_REPO="$SB/repo"
+record=$(echo "$BRIEF" | PI_SELF_IMPROVE_CHILD=worker "$P" start recorded-request --user-requested "Start an improvement for the reported issue" 2>&1)
+brief=$(echo "$record" | jq -r '.brief')
+echo "$record" | jq -e '.userRequested=="Start an improvement for the reported issue"' >/dev/null && ok "run record stores a user request" || bad "run record stores a user request"
+grep -Fq -- '- user-requested instruction: "Start an improvement for the reported issue"' "$brief" && ok "generated brief stores a user request" || bad "generated brief stores a user request"
 
 # explicit repo override is authoritative
 new_env

@@ -30,7 +30,7 @@ rather than symlinked because Pi may rewrite them locally.
 | `harness/pi/bin/pi-secret` | `$PI_AGENT_DIR/bin/pi-secret` | CLI to set, unset, and list per-profile secrets (`pi-secret -p work set TYPESAFE_API_KEY`). Prompts without echo; files are mode 600. `install.sh` also symlinks it to `~/.local/bin/pi-secret` so ordinary shells find it. Run `set` from a normal terminal, not inside Pi. |
 | `harness/pi/self-improve.json` | `$PI_AGENT_DIR/self-improve.json` | Policy defaults for the [self-improvement loop](#self-improvement-loop): reflection and worker caps, Terra/medium workers, and Sonnet/medium or Terra/medium independent reviewers. Reflection model and thinking inherit Pi defaults. Environment variables override it. |
 | `harness/pi/extensions/self-improve.ts` | `$PI_AGENT_DIR/extensions/self-improve.ts` | Starts the [self-improvement loop](#self-improvement-loop): registers the `report_harness_issue` tool (agents call it on harness-caused procedural problems) and the `/self-improve` command (`status`, `now [note]`, `on`, `off`). Queued reports spawn a background reflection when the run settles. Not loaded in loop-started sessions (`PI_SELF_IMPROVE_CHILD`). |
-| `harness/pi/bin/pi-improve` | `$PI_AGENT_DIR/bin/pi-improve` | Loop plumbing: `reflect` (detached headless `/reflect` session), `start` (worktree plus one `/improve` session, in an Orca terminal when Orca is reachable), `digest` (compact session-log view), `status`, `repo`. Also symlinked to `~/.local/bin/pi-improve`. Caps and the kill switch live here. |
+| `harness/pi/bin/pi-improve` | `$PI_AGENT_DIR/bin/pi-improve` | Loop plumbing: `reflect` (detached headless `/reflect` session), `start` (worktree plus one `/improve` session, in an Orca terminal when Orca is reachable), `digest` (compact session-log view), `status`, `repo`. An interactive worker can start a human-requested follow-up only with `--user-requested "instruction"`. Also symlinked to `~/.local/bin/pi-improve`. Caps and the kill switch live here. |
 | `harness/pi/prompts/reflect.md` | `$PI_AGENT_DIR/prompts/reflect.md` | `/reflect [report.json \| session.jsonl]`: runs the [`reflect`](../../skills/agent/reflect/SKILL.md) skill unattended on a session log, limited to harness-caused problems. Dedupes against open PRs and branches, then starts one `pi-improve start` run per real improvement (max 3) in place of the skill's approval step. Never edits files itself. |
 | `harness/pi/prompts/improve.md` | `$PI_AGENT_DIR/prompts/improve.md` | `/improve <brief.md>`: end-to-end worker for one improvement in its own worktree: scope, implement, test, cross-family review, verify, and open the PR for human review. |
 | `harness/pi/extensions/jev-router-openrouter-fallback.ts` | `$PI_AGENT_DIR/extensions/jev-router-openrouter-fallback.ts` | When no `TYPESAFE_API_KEY` is set but the active profile has OpenRouter auth, sets `PI_JEV_API_KEY` and `PI_JEV_BASE_URL` so pi-jev's tools bill to OpenRouter's System One endpoint. Pi's native classifier never sees the OpenRouter key. A real TypeSafe key or an external `PI_JEV_*` value always wins. |
@@ -94,9 +94,14 @@ skill, agent profile, system-prompt rule, tool config, or installer gap), it cal
    That session scopes, implements, tests, gets a review from a different model family,
    verifies, and opens a PR. A human reviews and merges; nothing merges itself.
 
-Guards: loop-started sessions cannot report back (no recursion); one reflection per source
-session, 5 per 24 hours (`PI_IMPROVE_MAX_REFLECTIONS_PER_DAY`), 3 workers per reflection
-(`PI_IMPROVE_MAX_WORKERS`). Kill switch: `/self-improve off`, `PI_SELF_IMPROVE=0`, or the file
+Guards: loop-started sessions cannot report back (no recursion). A worker normally cannot
+start work. After its final output, a human can explicitly request one follow-up from an
+interactive worker by using `pi-improve start <slug> --user-requested "instruction"`.
+Headless workers cannot use this exception. The instruction must be one line, contain no
+secrets, and is recorded in the run state and generated brief. This exception does not bypass
+one reflection per source session, 5 per 24 hours (`PI_IMPROVE_MAX_REFLECTIONS_PER_DAY`),
+3 workers per reflection (`PI_IMPROVE_MAX_WORKERS`), dedupe, or the kill switch. Kill switch:
+`/self-improve off`, `PI_SELF_IMPROVE=0`, or the file
 `$PI_AGENT_DIR/self-improve/disabled`. `pi-improve status` lists runs;
 `PI_IMPROVE_DRY_RUN=1` prints what `reflect`/`start` would do. Defaults come from `self-improve.json`: workers run
 `openai-codex/gpt-5.6-terra` at medium thinking. OpenAI workers use a
