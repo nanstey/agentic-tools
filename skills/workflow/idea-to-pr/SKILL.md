@@ -30,7 +30,7 @@ If the idea is vague, derive acceptance criteria from the best reading and recor
 
 Give delegated work a clear purpose, relevant context, and expected result. Run independent work concurrently only when the environment can keep writers isolated. Let the environment choose its native agents, tools, and coordination pattern.
 
-Track timing, cost, or resource usage when the environment reports it. Do not require resource budgets or controls unless the user requests them or the environment requires them. The shared review/fix limit in [`gates.md`](../../dev/pr/references/gates.md) is a workflow safety constraint, not a resource-budget requirement.
+Track timing, cost, or resource usage when the environment reports it. Do not require resource budgets or controls unless the user requests them or the environment requires them. The per-invocation review/fix limit in [`gates.md`](../../dev/pr/references/gates.md) is a workflow safety constraint, not a resource-budget requirement.
 
 ### State and handoffs
 
@@ -46,7 +46,7 @@ Decisions already made and decisions still open
 Affected boundaries and likely files
 Validation/runtime commands, observed acceptance outcomes, executed results and gaps
 Review packet: base/head/trusted policy/scope/check coverage/evidence snapshot
-Retained finding IDs/root causes/categories/resolutions and inherited round state
+Retained finding IDs/root causes/categories/resolutions and invocation-scoped round state
 Risks, dependencies, and assumptions
 Required artifact and return contract
 ```
@@ -60,7 +60,7 @@ Required artifact and return contract
 
 Record each assignment and expected artifact in the README. Verify returned evidence, artifacts, and validation results before advancing.
 
-Treat a partial, blocked, cancelled, artifact-less, or gate-failed task as a blocked stage. Diagnose the failure, then retry with a narrower scope, different approach, or alternative tool as needed; escalate only after distinct approaches fail and no workaround exists. Review/fix recovery remains within the inherited three-round limit and stops for unfixable/no-progress work or missing material evidence; generic retries never reset it. Keep reconnaissance focused on relevant paths, targeted reads, and package metadata. Do not scan lockfiles or dependency directories as source evidence.
+Treat a partial, blocked, cancelled, artifact-less, or gate-failed task as a blocked stage. Diagnose the failure, then retry with a narrower scope, different approach, or alternative tool as needed; escalate only after distinct approaches fail and no workaround exists. Review/fix recovery remains within its invocation's three-round limit and stops for unfixable/no-progress work or missing material evidence; generic retries never reset it within that invocation. Keep reconnaissance focused on relevant paths, targeted reads, and package metadata. Do not scan lockfiles or dependency directories as source evidence.
 
 ## Workflow
 
@@ -106,9 +106,9 @@ For each slice, use the spec plus current decision packet. Dependent slices rema
 4. For runnable behaviour, use a separate QA step to boot the app and observe every Given/When/Then scenario end-to-end. Use `playwright-cli` for browser-facing behaviour or equivalent CLI/API verification otherwise. QA returns per-scenario evidence and checks only `## Test Scenarios`; unit tests alone do not prove runtime behaviour.
 5. For user-facing UI, run `visual-capture` only after QA passes. Store evidence outside git and hand its paths to the PR step.
 6. The coordinator is the review caller and owns the round budget. Start each PR's review with one [`/review-code fix`](../review-code/SKILL.md) call on combined scope per the [caller contract](../review-code/references/caller-contract.md). Include step 4 QA evidence.
-7. After successful validation, run `/git commit`, then `/pr` with the resulting packet/evidence and caller-owned round state (see the caller contract; do not reset the budget on publication). Update README with actual PR/draft/readiness status, evidence/packet paths, round state, and deviations; a published draft is not yet review-ready. When a later fix or rebase changes an already-open non-draft PR, convert it back to draft first per the draft-before-changes rule in [`gates.md`](../../dev/pr/references/gates.md).
+7. After successful validation, run `/git commit`, then `/pr` with the resulting packet/findings/evidence (see the caller contract; `/pr` review/fix has its own per-invocation three-round limit). Update README with actual PR/draft/readiness status, evidence/packet paths, round state, and deviations; a published draft is not yet review-ready. When a later fix or rebase changes an already-open non-draft PR, convert it back to draft first per the draft-before-changes rule in [`gates.md`](../../dev/pr/references/gates.md).
 
-**GATE (gated mode):** require user approval before the next dependent slice. Autopilot proceeds after successful ordinary transitions; it stops for an unresolved product decision, a destructive or hard-to-reverse action not already authorized, unavailable access, or an unfixable/exhausted/no-progress review or validation gate. Fix ordinary validation/runtime failures within the inherited budget; never bypass a gate, erase a gap, or restart the budget to continue.
+**GATE (gated mode):** require user approval before the next dependent slice. Autopilot proceeds after successful ordinary transitions; it stops for an unresolved product decision, a destructive or hard-to-reverse action not already authorized, unavailable access, or an unfixable/exhausted/no-progress review or validation gate. Fix ordinary validation/runtime failures within the invoking action's limit; never bypass a gate, erase a gap, or restart that limit within its invocation to continue.
 
 ### 6. Close-out
 

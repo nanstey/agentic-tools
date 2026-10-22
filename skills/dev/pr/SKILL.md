@@ -43,7 +43,7 @@ Load every referenced workflow before acting and preserve its stop gates, safety
 
 Never bypass a referenced workflow's verification, approval, or stop gate. Do not silently substitute a direct implementation for a dispatched workflow.
 
-Lifecycle, review, CI/comment fixes, monitor, ready, and merge share [`references/gates.md`](references/gates.md): authoritative outcome/check/review evidence, finding categories, and one caller-owned three-round review/fix budget including initial review. Carry that state across dispatches; never reset it or start nested review loops. `/pr review` delegates code review to `review-code` and retains PR actions and round-state ownership. It defaults to report-only (no edits, tests, commits, pushes, comments, or approval); source-review cleanliness alone grants no readiness permission.
+Lifecycle, review, CI/comment fixes, monitor, ready, and merge share [`references/gates.md`](references/gates.md): authoritative outcome/check/review evidence, finding categories, and a per-invocation three-round review/fix limit owned by the invoked remediating action (initial review is round 1). Delegates inside an invocation share it; separate invocations do not carry it. Never reset mid-invocation or start nested review loops. `/pr review` delegates code review to `review-code` and retains PR actions and round-state ownership. It defaults to report-only (no edits, tests, commits, pushes, comments, or approval); source-review cleanliness alone grants no readiness permission.
 
 `/pr verification` is a sibling that defaults to report and audits the description/screenshots without starting review loops. Reuse a caller-supplied `review-code` verification result matching base/head/claim set/environment; otherwise run base verification. Never rerun covered claim checks.
 
@@ -55,10 +55,10 @@ Never ask the user a question, request clarification, or wait for approval. Ever
 2. Repository instructions (`CLAUDE.md` / `AGENTS.md`, PR templates, `CONTRIBUTING*`).
 3. The documented default in the dispatched reference.
 4. Otherwise use best judgment: choose the safest reversible option that satisfies the request and record it.
-5. Stop as `blocked` only when the action would be destructive or hard to reverse, or no workaround exists: make no further changes, report the blocker, and give the exact input or command that unblocks it.
+5. Stop as `blocked` only when the action would be destructive or hard to reverse, or no workaround exists: make no further changes and use the `gates.md` blocked report form. A blocked report states the unblocking condition; it never offers or suggests the user run a next command or asks whether to continue.
 
 Invoking an action authorizes the mutations that action declares. Destructive extras (pruning branches, dissolving a stack, aborting an operation) run only when the invocation names them, never by prompt. References that say "stop" mean stop with a `blocked` report; they never mean ask.
 
 ## Output Behavior
 
-Report the selected action, resolved target, workflow outcome, and any inherited blocker. Each detailed reference defines additional required output.
+Report the selected action, resolved target, workflow outcome, and any inherited blocker. Bare `/pr` and `auto-merge` report the packet verdict/head and monitor result, or the blocked form. Each detailed reference defines additional required output.

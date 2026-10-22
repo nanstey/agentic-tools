@@ -32,7 +32,7 @@ Use the active environment's delegation mechanisms when a separate execution con
 4. Decompose into individually verifiable phases.
 5. For each phase: implement focused edits, have a distinct validator step execute checks/observe success criteria, and update speclist checkboxes only after validation. Run `/git commit` only when shipping was requested.
    After a phase passes validation, run [`complexity`](../../code-quality/complexity/SKILL.md) (default scope: this branch's changes) on the code you wrote. Simplify a function in the Refactor band that you changed, then re-validate. Treat a Review-band function as a note. If Lizard is unavailable, record the gap and continue.
-6. When a caller such as `idea-to-pr` states that it owns runtime QA, review, and shipping, stop after step 5 and return phase evidence. Otherwise, after phases pass, run [`/review-code fix`](../review-code/SKILL.md) per the [caller contract](../review-code/references/caller-contract.md). Build is the caller: it owns the round budget. Record slice/top-level status: local validation, draft publication, and readiness.
+6. When a caller such as `idea-to-pr` states that it owns runtime QA, review, and shipping, stop after step 5 and return phase evidence. Otherwise, after phases pass, run [`/review-code fix`](../review-code/SKILL.md) per the [caller contract](../review-code/references/caller-contract.md). Build owns its review/fix invocation's round limit; a handoff to `/pr` passes packet/findings/evidence and `/pr` owns its own per-invocation limit. Record slice/top-level status: local validation, draft publication, and readiness.
 7. If a design changes during implementation, update the affected `## Design` doc or spec and append a dated entry to the README `## Decision log`; keep the plan folder consistent with what shipped.
 8. Summarize changes, validation, assumptions, and risks.
 
@@ -49,4 +49,4 @@ Use the active environment's delegation mechanisms when a separate execution con
 
 ## Output Style
 
-Report source/objective and per-phase success criteria/results, branch/worktree decision, validator commands/outcome evidence and limitations, assignments, files changed, packet snapshot/verdict/findings and inherited round state, commits/publication or local-only status, and blockers/next actions. Distinguish source review, draft publication, human readiness, and approval; never claim independent review without evidence.
+Report source/objective and per-phase success criteria/results, branch/worktree decision, validator commands/outcome evidence and limitations, assignments, files changed, packet snapshot/verdict/findings and invocation-scoped round state, commits/publication or local-only status, and blockers/next actions. Distinguish source review, draft publication, human readiness, and approval; never claim independent review without evidence.
