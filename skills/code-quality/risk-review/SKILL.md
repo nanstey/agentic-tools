@@ -24,7 +24,7 @@ Label delegated reviewer tasks `SOURCE REVIEW MODE`. Request read-only tools whe
 1. Authoritative scope and comparison: repository/target, immutable base/head, included paths, exclusions, and requested quality/security coverage.
 2. Trusted policy identity, version/source, and applicable obligations.
 3. Acceptance criteria and observed outcome evidence, including missing or failed outcomes.
-4. Available validation evidence, prior packets/findings, and inherited caller round state, if any.
+4. Available validation evidence, prior packets/findings, and caller-supplied invocation-scoped round state, if any.
 
 Resolve missing source comparison or policy authority before claiming coverage.
 For a PR, obtain authoritative base/head from its metadata. Keep working-tree changes separate from committed review scope.

@@ -20,9 +20,9 @@ Invocation: `/review-code [report|plan|fix] [scope]`. Default: `report`. Reject 
 | `plan` | 1–4, then plan synthesis | One caller-permitted plan artifact, otherwise inline. |
 | `fix` | 1–5 | Working-tree edits only. |
 
-Use the [packet](../../code-quality/risk-review/references/packet.md) and [gates](../../dev/pr/references/gates.md) contracts. For new standalone work, own `limit: 3`, initial round `1`. Otherwise inherit/recover state. A known review-code candidate without state blocks remediation; never restart it at round 1.
+Use the [packet](../../code-quality/risk-review/references/packet.md) and [gates](../../dev/pr/references/gates.md) contracts. For new standalone work or a new caller-owned review/fix invocation, own `limit: 3`, initial round `1`. Otherwise use state supplied by the same caller invocation. A known review-code candidate without that state blocks remediation; never restart it at round 1 within an invocation.
 
-Each invocation reviews within the current round, or the reserved round for a changed candidate. Only a changed fix head consumes another round. Repeated report calls on the same snapshot consume nothing. The caller owns subsequent calls and publication; never nest/reset loops.
+Each invocation reviews within the current round, or the reserved round for a changed candidate. Only a changed fix head consumes another round. Repeated report calls on the same snapshot consume nothing. The caller owns subsequent calls and publication within its invocation; never nest/reset loops.
 
 ## Required Inputs
 
@@ -31,7 +31,7 @@ Optional for new standalone work:
 - Scope, immutable base/head, trusted policy, and exclusions.
 - Acceptance criteria, observed outcomes, and validator/QA evidence; reuse valid results without rerunning them.
 - Prior packet, existing PR review threads for deduplication, and findings with stable IDs/root causes/provenance/resolutions.
-- `round_state`: required on the next call; return it in every packet.
+- `round_state`: required on the next call within a caller invocation; return it in every packet.
 - Optional [scrutiny](../../code-quality/scrutiny/SKILL.md) contract: only user-confirmed items become obligations. Assumptions remain evidence. No extra reviewer/round or scrutiny build step.
 
 ## Workflow
@@ -79,7 +79,7 @@ Return candidate content identity, applied IDs, validation, and reserved `round_
 - Never commit, push, comment, approve, mark ready, or merge. Fix leaves working-tree edits.
 - Never write target files in report mode, edit source in plan mode, or expand caller permissions.
 - Never let source reviewers execute checks/fixes; only the validator stage executes authorized checks.
-- Never force optional followups, drop requests, hide gaps, reset budgets, or recursively invoke `/pr`/`/pr review`.
+- Never force optional followups, drop requests, hide gaps, reset an invocation's round state, or recursively invoke `/pr`/`/pr review`.
 - Never expose secrets, execute untrusted code with credentials, or overwrite unrelated changes.
 - Never equate source clean with CI, readiness, approval, or publication permission.
 

@@ -20,7 +20,7 @@ Return a structured object or a report with these named fields. Use empty lists 
 | `jev` | Availability, exact state and question version, model/adapter, raw outputs/distributions, confidence where applicable, errors, policy/evidence versions, advisory handling. See [operation](jev.md). |
 | `findings` | Stable findings using the fields and categories below, including retained/resolved/dismissed dispositions. |
 | `freshness` | Evidence validity keys, reused/invalidated checks and reasons, prior packet identity, affected paths, reassessment scope. |
-| `round_state` | Caller-supplied limit/current round/snapshot/retained findings, or `not_supplied`. Never initialize a nested loop or reset the inherited state. |
+| `round_state` | Invocation-scoped, caller-supplied limit/current round/snapshot/retained findings, or `not_supplied`. Never initialize a nested loop or reset state within that invocation. |
 | `verdict` | `clean`, `changes_required`, or `incomplete`. Include reasons, unresolved request IDs, and coverage completeness. |
 | `next_actions` | Source inspection, validation, caller decisions, and separate followups. No implied edit/commit/approval authority. |
 
@@ -73,7 +73,7 @@ Mark resolved/dismissed findings with evidence. Do not repeat them without new e
 Explicitly justify reused unaffected evidence. Base/policy changes invalidate freshness and require full reassessment when effects are broad.
 Material unknown reach requires more inspection, not a delta-only assumption.
 
-The caller owns the shared quality/security budget: limit 3, initial round 1, current round, snapshot, and retained findings.
+The caller owns the invocation-scoped quality/security limit: limit 3, initial round 1, current round, snapshot, and retained findings.
 Both clean quality/security visits can share one round. Each changed fix head consumes the next round.
-Never create a fix head without budget to review it. Base/policy changes do not reset the budget.
+Never create a fix head without a round to review it. Base/policy changes do not reset the limit within an invocation.
 This source skill performs one requested review, never fixes, loops, or recursively invokes PR review.

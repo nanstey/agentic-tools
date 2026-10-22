@@ -9,7 +9,7 @@ Default tool is `gh`. After a confirmed merge, a linked Orca-managed worktree is
 ## Required Inputs
 
 1. PR URL or number when supplied; otherwise the current branch.
-2. Current outcome/check/review evidence, trusted policy, retained findings, and inherited round state; no reset or new review loop is authorized here.
+2. Current outcome/check/review evidence, trusted policy, retained findings, and the invoking action's round state; no reset within that invocation or new review loop is authorized here.
 
 ## Workflow
 
@@ -68,8 +68,8 @@ Only enter this step after this workflow's merge succeeded and was confirmed abo
 - Never remove a worktree unless this workflow successfully merged the verified PR, confirmed its merged state, and detected the current cwd as a linked Orca-managed worktree. Never remove the primary checkout.
 - When the confirmed-merge and Orca-current-worktree conditions pass, run the required removal without asking, offering, refusing, or deferring it because it is irreversible or session-ending.
 - Never treat pending, queued, in-progress, missing expected, or stale-base/head CI as passing, or a clean source packet as overall readiness.
-- Never waive unresolved verified requests by severity/cost, reset the shared budget, grant human approval, or bypass merge-queue/release policy.
+- Never waive unresolved verified requests by severity/cost, reset the invoking action's state, grant human approval, or bypass merge-queue/release policy.
 
 ## Output Style
 
-Report the verified PR, draft conversion, authoritative base/head/policy and outcome/review/expected-CI evidence, request/thread and human/queue gate snapshot, inherited round state, head merged and commit subject, post-merge path (worktree removed, primary synced/new session sent, or skipped), and any blocker.
+Report the verified PR, draft conversion, authoritative base/head/policy and outcome/review/expected-CI evidence, request/thread and human/queue gate snapshot, invoking action's round state, head merged and commit subject, post-merge path (worktree removed, primary synced/new session sent, or skipped), and any blocker.

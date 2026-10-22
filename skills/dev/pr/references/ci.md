@@ -4,14 +4,14 @@
 
 Investigate and fix failed CI for the current branch PR end-to-end.
 Default tool is `gh`. Follow `CLAUDE.md` / `AGENTS.md` on conflict.
-Default flow includes fix, validation, commit, and push unless user scopes it down. Load [`gates.md`](gates.md); inherit its packet/findings and three-round state for every changed fix head. Source reviewers do not run CI/tests; separate validators execute checks.
+Default flow includes fix, validation, commit, and push unless user scopes it down. Load [`gates.md`](gates.md); receive packet/findings and the invoking action's per-invocation round state for every changed fix head. Source reviewers do not run CI/tests; separate validators execute checks.
 
 ## Required Inputs
 
 1. Current branch.
 2. Matching PR.
 3. Requested scope (full flow or investigation only).
-4. Current outcome/check evidence and caller-owned round state; honor deferred commit/push when monitor batches remediation.
+4. Current outcome/check evidence and the invoking action's round state; honor deferred commit/push when monitor batches remediation.
 
 ## Workflow
 
@@ -20,7 +20,7 @@ Default flow includes fix, validation, commit, and push unless user scopes it do
 3. Group failures by root cause; keep evidence per group and stable finding IDs. Classify as real code issue, already fixed, flaky, external, or unclear; do not fabricate fixes for external/flaky failures.
 4. For code remediation, verify viewer ownership, non-fork pushable source branch/repository, matching branch and authoritative `HEAD`, clean working tree, authorization, and a reserved next review round before edits. Then apply the draft-before-changes rule in `gates.md`. During a monitor batch, only tracked batch changes are permitted; any unexpected change stops. Fix verified requests only, with minimal scope; optional nits require separate explicit selection/authorization and never drive rounds.
 5. Separate validators recheck acceptance outcomes and touched-area lint/typecheck/tests. Publish only changed code with passing validation through `/pr push`; honor caller-deferred commit/publication.
-6. Every published fix head consumes the reserved next round. Return updated evidence/state and repeat affected outcome/required-CI/quality/security gates before readiness; use the shared source packet, not a nested lifecycle or reset review loop. Monitor owns this continuation when called from monitor; a standalone CI run must obtain the affected review coverage before reporting gate completion.
+6. Every published fix head consumes the reserved next round. Return updated evidence/state and repeat affected outcome/required-CI/quality/security gates before readiness; use the shared source packet, not a nested lifecycle or reset review loop within the invocation. Monitor owns this continuation when called from monitor; a standalone CI run must obtain the affected review coverage before reporting gate completion.
 7. Report rerun guidance, remaining expected jobs, review coverage, and unresolved blockers. Failed checks or material evidence gaps do not permit readiness.
 
 Stop as blocked on risky architecture/product decisions or ambiguous trade-offs; report the options and do not choose.
