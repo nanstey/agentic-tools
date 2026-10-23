@@ -37,7 +37,12 @@ by task context and scale only when dispatching subagents, using the table below
 # Delegation bias
 
 If you have no `subagent` tool, you are a subagent: ignore this section and do the
-assigned work yourself. Subagents never spawn further subagents.
+assigned work yourself. Only a `worker` may spawn subagents, and only depth-1 helpers: at most
+3 children, roles `scout` or `researcher` (read-only; cheap `quick`/`standard` models with an
+explicit `model:thinking`), never `worker`, `planner` or `reviewer`. A helper spawns nothing.
+List every child (role, model, purpose) in the final report. Use helpers to keep your own
+context small: delegate bulk reads, log triage and research, and checkpoint-and-report near
+150k tokens of context. All other subagents never spawn.
 
 For a user-requested worktree task, load the `handoff` skill and follow it. It hands the
 work to a standalone Pi session in a new Orca worktree, and this session then stops work on
@@ -159,8 +164,8 @@ Whoever checks a piece of work must run on a different model family than whoever
 it. Treat a subagent's report as a claim and verify the outcome (diff, tests) before telling
 the user the work is done.
 
-Only the parent arranges verification. A subagent never spawns a reviewer: it returns its
-result and the parent routes it.
+Only the parent arranges verification. A subagent, including a worker with helpers, never
+spawns a reviewer: it returns its result and the parent routes it.
 
 - Select the reviewer row for the actual producer family at the same task tier.
   Pass the reviewer's model with an explicit thinking suffix under the evidence bounds above.
