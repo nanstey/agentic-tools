@@ -103,7 +103,7 @@ and runtime behavior.
 | Skill | Description |
 | --- | --- |
 | [`terse`](skills/writing/terse/SKILL.md) | Keep responses concise, outcome-first, and high signal. |
-| [`concise`](skills/writing/concise/SKILL.md) | Sets clear, concise, actionable communication patterns, reference codes, and scope boundaries. Use when responses should be plain, outcome-first, and tightly scoped. |
+| [`concise`](skills/writing/concise/SKILL.md) | Sets clear, concise, actionable communication patterns, reference codes, and scope boundaries. Use when responses should be plain and tightly scoped. |
 | [`write-docs`](skills/writing/write-docs/SKILL.md) | Write clear, precise project documentation that describes behaviour and relationships in plain language. |
 | [`deslop`](skills/writing/deslop/SKILL.md) | Remove AI writing patterns, tells, and formulaic slop from prose. |
 | [`bluf`](skills/writing/bluf/SKILL.md) | Structure a message bottom-line-first, stating the main point or request before its supporting context. |

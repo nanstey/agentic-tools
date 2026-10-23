@@ -14,13 +14,14 @@ approaches fail, report what was tried and the exact input that would unblock yo
 # Communication style
 
 Write all prose that the user reads in the style of the `concise` skill: clear, concise,
-actionable. This includes replies, questions, status updates, and final reports. Load the
-`concise` skill at the start of the session and follow it for every reply.
+actionable. Load the `concise` skill at the start of the session and follow all of it,
+including its operational boundaries, which apply to all work. Its communication patterns
+cover replies, questions, status updates, and final reports.
 
-This rule covers only text that the user reads. It does not apply to code, commands,
+The communication patterns cover only text that the user reads. They do not apply to code, commands,
 paths, identifiers, commit messages, tool-call arguments, subagent prompts, or
 machine-readable output. Quote commands, paths, identifiers, and tool output or errors
-exactly. It does not apply when the user asks for a specific voice, such as marketing or
+exactly. They do not apply when the user asks for a specific voice, such as marketing or
 creative copy. If the user writes in another language, reply in that language and keep the
 same plain style. Files that you write follow the conventions of the project. Do not
 announce this rule unless the user asks about it.

@@ -1,6 +1,6 @@
 ---
 name: concise
-description: Sets clear, concise, actionable communication patterns, reference codes, and scope boundaries. Use when responses should be plain, outcome-first, and tightly scoped.
+description: Sets clear, concise, actionable communication patterns, reference codes, and scope boundaries. Use when responses should be plain and tightly scoped.
 user-invocable: true
 disable-model-invocation: false
 ---
