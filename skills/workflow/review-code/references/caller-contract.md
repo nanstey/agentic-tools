@@ -4,7 +4,7 @@ Shared by callers of `/review-code fix` (`build`, `idea-to-pr`). Callers link he
 
 ## Review loop
 
-- The caller owns `limit: 3`, initial round `1`, for its own review/fix invocation under [`gates.md`](../../../dev/pr/references/gates.md). Never reset within that invocation.
+- The caller owns `limit: 5`, initial round `1`, for its own review/fix invocation under [`gates.md`](../../../dev/pr/references/gates.md). Never reset within that invocation.
 - Run `/review-code fix` on the full candidate scope: `base..HEAD` plus uncommitted changes. For local-only work, review base plus working-tree content identity. Use `plan` only if the caller forbids edits.
 - Pass: acceptance criteria, scrutiny evidence, validator/QA evidence, base/head/policy/scope, prior packet and findings, and `round_state`. Reuse matching validator/QA evidence without rerunning it.
 - After a fix batch, call again with the returned state for delta review, or report pending delta review. Do not nest review loops.

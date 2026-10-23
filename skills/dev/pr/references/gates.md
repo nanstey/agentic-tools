@@ -12,7 +12,26 @@ Route source assessment through `/review-code report`, with [`risk-review`](../.
 
 Reuse a packet only for the exact authoritative base/head, trusted policy, scope, check coverage, and evidence snapshot. Changed heads require `/review-code report` over delta and affected paths/checks, retaining findings/IDs. Either base or head changing invalidates readiness and approval evidence. Broad base/policy changes require full reassessment. Never label a local unpublished diff as the authoritative PR review.
 
-Review depth is a gradient that follows evidenced impact paths, consequences, containment, uncertainty, and required checks, never diff size or numerical risk tiers. `/review-code` uses the explicit per-row models required by its skill. Unknown or mixed provenance is a coverage gap and cannot support an independence claim. Main-model routing is unchanged. Source reviewers read source but neither execute tests nor edit; separate validators execute checks and authorized implementers make fixes. Record self-review or context limitations without claiming independence.
+Review depth scales with the change. See Review depth below. `/review-code` uses the explicit per-row models required by its skill. Unknown or mixed provenance is a coverage gap and cannot support an independence claim. Main-model routing is unchanged. Source reviewers read source but neither execute tests nor edit; separate validators execute checks and authorized implementers make fixes. Record self-review or context limitations without claiming independence.
+
+## Review depth
+
+Pick the depth before dispatching review, from evidence about the change, and record it with its reason. Size alone never decides it; a one-line auth change outranks a large generated diff.
+
+| Depth | Fits | Coverage |
+| --- | --- | --- |
+| `skip` | Trusted-base docs-only substitute below returns `clean`; or a pure revert, version bump, or lockfile/generated refresh whose source of truth is verified | Docs-only substitute evidence, or for non-doc cases (revert, version bump, lockfile/generated refresh) the verified source-of-truth check recorded in the packet |
+| `light` | Small, local, well-tested, reversible change with no sensitive surface: typos in code comments, renames, config tweaks, simple fixes inside covered code | Rows: `risk-review`, `security` (triage only), `bugs`. Plus the separate candidate verifier. The validator only reuses existing CI/caller evidence and runs no new checks; one round |
+| `standard` | Ordinary feature or fix: behavior change inside one component with tests | Rows: `risk-review`, `refactor`, `security` (triage; deep only if triage escalates), `bugs`, `context-engineering` when applicable. Validator and candidate verifier |
+| `deep` | Sensitive or wide: auth, secrets, permissions, crypto, input parsing, data migrations or deletion, public API or schema contracts, concurrency, money, infra/CI/policy surfaces, dependency additions, cross-component contracts, weak test coverage over changed paths, an unfamiliar or untrusted author, or high uncertainty | All `standard` rows, plus `security --deep` always (not only on triage escalation) and validator execution of affected checks |
+
+Rules:
+
+- Start at the lowest depth the evidence supports. Move up one level for each of: weak tests over changed paths, wide blast radius, hard to roll back, untrusted source, or unresolved uncertainty. Move down only on direct evidence (tests cover it, change is local and reversible).
+- A finding of `request` severity or any critical security signal escalates to `deep` for the remaining rounds.
+- Fix heads re-review at the same depth, scoped to delta and affected paths. Trivial fix heads (comment, formatting, rename within the reviewed delta) may use `light`.
+- Pass the chosen depth to `review-code` with the reason. `review-code` treats the rows this table lists for the chosen depth as its required rows (default `deep` when no depth is passed); the packet coverage table lists only those rows. `skip` never reaches `review-code`: the caller records the docs-only substitute evidence. Depth changes how much to dispatch, never whether the gate order or finding categories apply.
+- Own draft PRs in early iteration may defer `deep` until the PR is about to leave draft; run at least `light` on each head.
 
 ## Docs-only review substitute
 
@@ -31,6 +50,17 @@ A separate validator from an independent model family must check the trusted bas
 
 Record the exact base/head, trusted policy, validator result, changed-file list, diff stat, link/path results, independent required-CI result, and unresolved-thread snapshot. `clean` requires every check and no unresolved thread. Otherwise record `incomplete` and use normal review coverage. Re-snapshot threads before monitor, ready, or merge uses the entry. A changed base, head, policy, file list, diff, or thread snapshot invalidates the entry.
 
+## Force override
+
+`force` is the user's right to push forward. Bare `/pr`, `auto-merge`, `ready`, and `merge` accept it; other actions ignore it. Monitor never forces fixes: under `force` its non-`clean` result becomes an overridden gate, not a stop.
+
+- **Soft gates** (overridable): missing or stale review, `changes_required`/`incomplete` verdict, failing or pending or missing required CI, unresolved threads, unverified outcomes, missing human approval, exhausted round limit, description/verification gaps, draft state.
+- **Hard stops** (not overridable): no resolvable PR, closed or already merged PR, no authentication or access, a push or merge GitHub itself refuses with no permitted path, and destructive extras the invocation did not name.
+
+With `force`: first try to satisfy the gate normally, once, and if it cannot be satisfied quickly, proceed anyway. Record each overridden gate with its evidence (what was missing or failing) and report it in the output. Never fabricate passing evidence, never label a forced result `clean`, and never hide an override. Where GitHub's own rule blocks the action and the viewer has permission, use the permitted override (for merge, `--admin`); without that permission it is a hard stop.
+
+Without `force`, an unmet soft gate is first work for the invoked action's phase, not a refusal. Block only when the work cannot proceed.
+
 ## Gate order
 
 1. **Outcome:** observe the applicable acceptance outcomes with cited current evidence. A PR description, claimed test pass, or green CI alone is insufficient.
@@ -40,7 +70,7 @@ Record the exact base/head, trusted policy, validator result, changed-file list,
 5. **Automated-review-dependent required CI:** run after its documented review prerequisites; verify all expected results for the current snapshot.
 6. **Human readiness:** current outcome/CI/quality/security evidence, or a `clean` docs-only evidence entry, no unresolved verified requests, and resolved review threads permit `/pr ready` when authorized.
 
-Reviewers may run concurrently within a round; judge gate passes in order. Never report security passed while quality has unresolved requests. Failed prerequisites/quality requests stop downstream lifecycle/fix/readiness gates. Standalone findings remain diagnostic, not readiness. Human approval, required human-review jobs, merge queues, release flags, and rollback policy remain later gates; readiness never grants approval or merge authority. Classify check dependencies to avoid cycles. Ready-only required jobs need a supported draft/manual trigger or explicitly authorized configuration change; otherwise report `blocked`. Never mark ready merely to start checks, skip them, or infer success from zero observed checks.
+Reviewers may run concurrently within a round; judge gate passes in order. Never report security passed while quality has unresolved requests. Failed prerequisites/quality requests are fixed first; if they cannot be, they stop downstream lifecycle/fix/readiness gates unless `force` applies. Standalone findings remain diagnostic, not readiness. Human approval, required human-review jobs, merge queues, release flags, and rollback policy remain later gates; readiness never grants approval or merge authority. Classify check dependencies to avoid cycles. Ready-only required jobs need a supported draft/manual trigger or explicitly authorized configuration change; otherwise report `blocked`. Never mark ready merely to start checks, skip them, or infer success from zero observed checks.
 
 ## Draft before changes
 
@@ -56,12 +86,12 @@ Keep category separate from severity and evidence confidence. Verify every candi
 
 Propose a narrow fix, split, or revert for large requests. Broad unrelated redesign/cleanup belongs in followup. Product decisions or risky scope/trade-offs stop `blocked`, with the required decision. Convergence requires no unresolved verified requests **and** complete required current evidence. Read-only/comment mode reports `changes_required` for verified requests and `incomplete` for coverage gaps without forcing fixes. Lifecycle/readiness report `blocked` for either unresolved requests or material gaps, reviewer/check failure, unfixable/no-progress work, or exhausted budget.
 
-## Per-invocation three-round review/fix limit
+## Per-invocation five-round review/fix limit
 
-A `/pr review <target> fix` invocation initializes `limit: 3, round: 1`, its snapshot, retained findings, and evidence. Other remediating action invocations (`monitor`, `ci`, or `comments`) likewise own `limit: 3, round: 1` for heads they publish. A monitor invocation initializes this state on its first cycle only and reuses it across polling cycles. Packet freshness and retained findings persist for exact-match reuse and deduplication, but the round limit never carries across action invocations or sessions.
+A `/pr review <target> fix` invocation initializes `limit: 5, round: 1`, its snapshot, retained findings, and evidence. Other remediating action invocations (`monitor`, `ci`, or `comments`) likewise own `limit: 5, round: 1` for heads they publish. A monitor invocation initializes this state on its first cycle only and reuses it across polling cycles. Packet freshness and retained findings persist for exact-match reuse and deduplication, but the round limit never carries across action invocations or sessions.
 
 - Round 1 includes initial quality and security visits; both clean visits share the round.
-- Each changed fix head consumes the next round. Reserve that round before editing or publishing; never create a fix head beyond round 3 that cannot receive required review. Batch a round's related remediation into one candidate head.
+- Each changed fix head consumes the next round. Reserve that round before editing or publishing; never create a fix head beyond round 5 that cannot receive required review. Batch a round's related remediation into one candidate head.
 - Quality fixes require outcome/required-CI revalidation, then delta and affected-path quality review and applicable security coverage. Security fixes repeat affected quality **and** security, after outcome/CI revalidation.
 - CI, comment, remote, rebase, or synchronization changes invalidate affected evidence and inherit the invoking action's state. Reassess affected impact paths/checks and retained findings; broad base/policy changes need full reassessment, not a reset.
 - Monitor requests only missing/invalidated coverage. Its remediation heads use monitor's own invocation limit; it does not run duplicate full reviews or call a recursive `/pr` lifecycle.
@@ -69,12 +99,12 @@ A `/pr review <target> fix` invocation initializes `limit: 3, round: 1`, its sna
 
 Rounds run back-to-back by default: the caller starts the next round itself and never waits for user confirmation, ending only at convergence or a stop condition.
 
-At round 3, unresolved requests remain blockers: report `blocked` without producing another fix head. Failed reviewers/checks, missing material evidence, unfixable requests, and no progress also stop safely rather than spin.
+At round 5, unresolved requests remain blockers: report `blocked` without producing another fix head. Failed reviewers/checks, missing material evidence, unfixable requests, and no progress also stop safely rather than spin.
 
 ## Blocked report form
 
-Use `blocked: <gate> — <exact missing evidence or failed check>; unblock requires: <input/state>` for a blocking cause. A blocked report states the unblocking condition; it never offers, suggests, or asks the user to run a next command. For unavailable review-code dispatch, return exactly `blocked: needs a coordinator with subagent dispatch`. For an action allowed to start review, a missing matching packet is never a blocker: start review now. An action that cannot start review, including `/pr ready` or `/pr merge`, blocks on the missing packet.
+Use `blocked: <gate> — <exact missing evidence or failed check>; unblock requires: <input/state>` only after the work for that gate was attempted or is impossible. A blocked report states the unblocking condition and may note that `force` overrides a soft gate; it never asks the user a question. For unavailable review-code dispatch, return exactly `blocked: needs a coordinator with subagent dispatch`. For an action allowed to start review, a missing matching packet is never a blocker: start review now. `/pr ready` and `/pr merge` also start the missing phase themselves (review, CI fix, thread handling) through the lifecycle phase actions in [`lifecycle.md`](lifecycle.md) instead of blocking; they block only when that work cannot proceed and `force` is absent.
 
 ## Lifecycle completion gate
 
-A bare `/pr` or `auto-merge` run may end only as `complete` or `blocked`. `complete` requires an exact-match, complete `clean` packet, or `clean` docs-only evidence entry, for the final authoritative base/head/policy/scope/coverage/evidence snapshot and a monitor result for that same head: `clean`, or `pending` in `mode: once` with its reason. If monitor returns `clean`, or returns `pending` in `mode: once`, for a head that differs from the matching packet or entry, permit exactly one reconciliation: accept and reuse monitor's exact-match complete fresh packet or `clean` docs-only evidence entry for that head, or run the lifecycle's ownership-appropriate coverage for it, then run the second monitor pass in the same mode as the first (`once` or `monitor`). If this reconciliation monitor result still names a different head, return `blocked: external head churn or no progress — monitor head differs after the one permitted reconciliation; unblock requires: a stable head with matching complete packet or clean docs-only evidence entry and monitor result`. This bound prevents an unbounded bare-lifecycle loop. It must not end with mismatched coverage and monitor head. In `auto-merge`, the second monitor pass must return `clean`; otherwise the lifecycle is `blocked` and must not merge. This is the sole reconciliation, not permission for another pass. `auto-merge` additionally requires monitor `clean` before `/pr merge`. A packet verdict of `changes_required` or `incomplete`, a docs-only evidence verdict of `incomplete`, or a monitor result of `blocked`, makes the lifecycle `blocked`. Setup completion or green CI is never terminal.
+[`lifecycle.md`](lifecycle.md) Completion is authoritative: a bare `/pr` or `auto-merge` run ends only as `complete` (exact-match `clean` packet or docs-only entry for the final head, plus monitor `clean`), `pending` (same packet, monitor `pending` in `mode: once`; not success), `forced` (force applied, overrides listed), or `blocked`. The one-time monitor head reconciliation rule lives there. Setup completion or green CI is never terminal.

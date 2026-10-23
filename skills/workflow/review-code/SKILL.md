@@ -20,7 +20,7 @@ Invocation: `/review-code [report|plan|fix] [scope]`. Default: `report`. Reject 
 | `plan` | 1–4, then plan synthesis | One caller-permitted plan artifact, otherwise inline. |
 | `fix` | 1–5 | Working-tree edits only. |
 
-Use the [packet](../../code-quality/risk-review/references/packet.md) and [gates](../../dev/pr/references/gates.md) contracts. For new standalone work or a new caller-owned review/fix invocation, own `limit: 3`, initial round `1`. Otherwise use state supplied by the same caller invocation. A known review-code candidate without that state blocks remediation; never restart it at round 1 within an invocation.
+Use the [packet](../../code-quality/risk-review/references/packet.md) and [gates](../../dev/pr/references/gates.md) contracts. For new standalone work or a new caller-owned review/fix invocation, own `limit: 5`, initial round `1`. Otherwise use state supplied by the same caller invocation. A known review-code candidate without that state blocks remediation; never restart it at round 1 within an invocation.
 
 Each invocation reviews within the current round, or the reserved round for a changed candidate. Only a changed fix head consumes another round. Repeated report calls on the same snapshot consume nothing. The caller owns subsequent calls and publication within its invocation; never nest/reset loops.
 
@@ -46,13 +46,13 @@ The coordinator dispatches [verification](../../code-quality/verification/SKILL.
 
 ### 3. Parallel source review
 
-The coordinator dispatches every required row below as one separate parallel subagent in one turn. Label every task `SOURCE REVIEW MODE`. Request read-only tools; forbid edits, artifact writes, tests/builds, scanners, and publication. Disclose unenforced restrictions/unavailable contexts as gaps. Supply snapshot, obligations, validation, prior findings/threads, and scope. Use an explicit `model:thinking` from the reviewer model table, on the family opposite the actual producer, and confirm successful-message logs for each row. Context-engineering is conditional. Record it as `skipped-inapplicable` with its reason when it does not apply.
+The coordinator dispatches every required row below as one separate parallel subagent in one turn. A caller may pass a review depth (`light`, `standard`, `deep`; default `deep`); `deep` always dispatches `security --deep`; `light` validator stage only reuses existing evidence; `skip` is handled by the caller and never reaches this skill. The required rows are those that [gates](../../dev/pr/references/gates.md) Review depth lists for it. Label every task `SOURCE REVIEW MODE`. Request read-only tools; forbid edits, artifact writes, tests/builds, scanners, and publication. Disclose unenforced restrictions/unavailable contexts as gaps. Supply snapshot, obligations, validation, prior findings/threads, and scope. Use an explicit `model:thinking` from the reviewer model table, on the family opposite the actual producer, and confirm successful-message logs for each row. Context-engineering is conditional. Record it as `skipped-inapplicable` with its reason when it does not apply.
 
 | Reviewer | Assignment |
 | --- | --- |
 | [risk-review](../../code-quality/risk-review/SKILL.md) | Quality packet: behavior, tests, contracts, impact paths, selected deeper checks. |
 | [refactor](../../code-quality/refactor/SKILL.md) | `/refactor --report` (`mode: report`) on changed units/paths and affected context, with existing findings; never its whole-repository default. It passes the resolved scope paths to [complexity](../../code-quality/complexity/SKILL.md) with `--full` (never a bare whole-repo invocation) as evidence. |
-| [security](../../code-quality/security/SKILL.md) | Parallel triage always. If risk-review selects deep security, dispatch `--deep` in a follow-up turn before synthesis, reusing discovery. Record both activities in the one `security` coverage row. |
+| [security](../../code-quality/security/SKILL.md) | Parallel triage always. If risk-review selects deep security, or the caller passed depth `deep`, dispatch `--deep` in a follow-up turn before synthesis, reusing discovery. Record both activities in the one `security` coverage row. |
 | [bugs](../../code-quality/bugs/SKILL.md) | Report-only on changed units and affected paths. No execution or edits; hand security/design leads to their assigned reviewers. |
 | [context-engineering](../../agent/context-engineering/SKILL.md) | Conditional: dispatch only when the scope changes agent-context artifacts (`SKILL.md`, agent profiles, system prompts, `CLAUDE.md`/`AGENTS.md`, tool definitions, harness prompt config). Audit-only on those changed artifacts; skip its apply-improvements step and never edit. Findings enter synthesis as normal candidates. Record skipped-as-inapplicable, not as a gap. |
 

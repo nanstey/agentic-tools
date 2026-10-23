@@ -2,7 +2,7 @@
 
 ## Core Contract
 
-Delegate one PR's code review to [`review-code`](../../../workflow/review-code/SKILL.md), then own PR reporting and authorized publication. Load [`gates.md`](gates.md) for packet freshness, categories, gate order, and the per-invocation three-round limit.
+Delegate one PR's code review to [`review-code`](../../../workflow/review-code/SKILL.md), then own PR reporting and authorized publication. Load [`gates.md`](gates.md) for packet freshness, categories, gate order, and the per-invocation five-round limit.
 
 Invocation: `/pr review [target] [fix|comment]`. Default tool is `gh`. Follow `CLAUDE.md` / `AGENTS.md` on conflict. Write prose using `terse`. Apply the non-interactive policy in `SKILL.md`.
 
@@ -13,7 +13,7 @@ Default is report-only: no source edits, tests, commits, pushes, comments, threa
 1. PR URL/number; otherwise current branch, resolved per `/pr info`.
 2. Optional mode: `fix` or `comment`.
 3. Viewer: `gh api user --jq .login`.
-4. Acceptance/outcome and validation evidence, trusted policy identity, any matching packet, and retained findings. A `fix` invocation initializes `limit: 3, round: 1`; `report` and `comment` are single-snapshot and consume no budget.
+4. Acceptance/outcome and validation evidence, trusted policy identity, any matching packet, and retained findings. A `fix` invocation initializes `limit: 5, round: 1`; `report` and `comment` are single-snapshot and consume no budget.
 
 ## Workflow
 
@@ -35,7 +35,9 @@ The PR comparison is always `git diff <baseRefOid>..<headRefOid>`, never a local
 
 ### 3. Delegate the code review
 
-1. The main session loads `review-code` and remains its coordinator. It must not delegate the whole command to one leaf `reviewer`. It dispatches each required `review-code` row in parallel, the separate validator, and the separate read-only candidate verifier. If dispatch is unavailable, return exactly `blocked: needs a coordinator with subagent dispatch`. Pass the authoritative PR range, trusted policy, scope/exclusions, acceptance criteria and optional scrutiny obligations, changed behavior/impact evidence, validator results, prior packet/findings/threads, and this invocation's round state. Reuse only an exact matching packet/coverage/evidence snapshot under `gates.md`, including correspondence for a diagnostic prepublication packet.
+If the chosen depth is `skip`, do not call `review-code`: record the substitute evidence from `gates.md` and continue to reporting. Call `review-code` only for `light`, `standard`, or `deep`.
+
+1. The main session loads `review-code` and remains its coordinator. It must not delegate the whole command to one leaf `reviewer`. It dispatches each required `review-code` row in parallel, the separate validator, and the separate read-only candidate verifier. If dispatch is unavailable, return exactly `blocked: needs a coordinator with subagent dispatch`. Choose the review depth (`skip`/`light`/`standard`/`deep`) per `gates.md` Review depth, record it with its reason, and dispatch only the rows that depth requires. Pass the depth, authoritative PR range, trusted policy, scope/exclusions, acceptance criteria and optional scrutiny obligations, changed behavior/impact evidence, validator results, prior packet/findings/threads, and this invocation's round state. Reuse only an exact matching packet/coverage/evidence snapshot under `gates.md`, including correspondence for a diagnostic prepublication packet.
 2. Default maps to `/review-code report`; `comment` maps to `/review-code report` followed by the publication steps below. Pass the stricter no-tests/no-writes permission in both modes. Its verification stage consumes existing evidence only; missing evidence remains a gap.
 3. `fix` maps to `/review-code fix` only after the own-PR guards below. `review-code` owns verification, reviewer dispatch/model choice, synthesis, deduplication, separate source verification of candidates, and packet verdict. It returns working-tree fixes and any reserved next-round state; it never commits or pushes.
 4. Each call reviews within this invocation's current/reserved `round_state`; same-snapshot report calls consume nothing. PR owns subsequent calls within this invocation and passes returned state unchanged. Require the `review-code` packet coverage table. A required row that is not done makes its verdict `incomplete`; context-engineering may instead be `skipped-inapplicable` with its recorded reason. Failed prerequisites stop lifecycle/fix gates; report/comment findings remain diagnostic.
@@ -51,7 +53,7 @@ Report requests first, then optional nits and baseline-proven unchanged existing
 3. Call `/review-code fix` with the guarded source snapshot and current PR-owned state. Allow only verified `request` remediation. `fix` alone does not select nits: they need separate explicit selection and authorization. Keep optional cleanup as followup. Pass product/risky-scope decisions back as `blocked`, never downgrade requests.
 4. Require the delegate to reserve the next round before any edit and return one validated batch plus updated packet/state. Apply the stop conditions in `gates.md`. Never nest/reset the loop within this invocation or call `/pr review` recursively.
 5. Failed validation or blocked remediation means no commit/push. After successful validation, recheck ownership/checkout/base/head and require that only the returned fix batch dirties the tree. Publish the logical fix group (referencing finding IDs) through `/pr push`, unless the caller explicitly defers publication. `/pr push` owns commit safeguards and the description side effect. If publication is deferred, return the pending review state without claiming convergence.
-6. Resolve the new published authoritative base/head. Refresh outcome/required-CI evidence, then call `/review-code fix` again with the reserved next-round state, delta and affected scope, and retained findings/evidence. The delegate reviews that candidate before any further batch. Do not reuse stale citations or validation. Continue only within this invocation's three rounds until convergence or `blocked` at round 3 without another fix head.
+6. Resolve the new published authoritative base/head. Refresh outcome/required-CI evidence, then call `/review-code fix` again with the reserved next-round state, delta and affected scope, and retained findings/evidence. The delegate reviews that candidate before any further batch. Do not reuse stale citations or validation. Continue only within this invocation's five rounds until convergence or `blocked` at round 5 without another fix head.
 7. Return the updated packet and this invocation's final state to lifecycle/monitor; callers must not treat it as carry-over budget. Do not launch another lifecycle, post comments, reply to or resolve threads, approve, mark ready, or merge. Thread work belongs to `/pr comments`.
 
 ## Others' PR: `comment`
@@ -73,4 +75,4 @@ Report requests first, then optional nits and baseline-proven unchanged existing
 
 ## Output Style
 
-Report PR/class/mode, authoritative range/policy/scope, packet verdict and location, outcome/check evidence and gaps, models used and role-enforcement limits, named impact paths/containment, and round used/remaining. For each finding give stable ID/root cause, category, severity, confidence, source/provenance/location, resolution, and fix/comment. After a mode run include applied/posted vs unresolved/rejected IDs with reasons, validator results, commit/push status or review URL, and, when blocked, the `gates.md` blocked form with its unblocking condition. Never claim independent review without evidence.
+Report PR/class/mode, review depth and reason, authoritative range/policy/scope, packet verdict and location, outcome/check evidence and gaps, models used and role-enforcement limits, named impact paths/containment, and round used/remaining. For each finding give stable ID/root cause, category, severity, confidence, source/provenance/location, resolution, and fix/comment. After a mode run include applied/posted vs unresolved/rejected IDs with reasons, validator results, commit/push status or review URL, and, when blocked, the `gates.md` blocked form with its unblocking condition. Never claim independent review without evidence.
