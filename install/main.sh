@@ -63,6 +63,8 @@ install_main() {
     set +a
   fi
   PI_AGENT_DIR="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}"
+  DURABLE_HOME="${DURABLE_HOME:-$HOME/.pi/durable}"
+  DURABLE_VENDOR_PAIR="$DURABLE_HOME/vendor::$REPO_ROOT/harness/durable/vendor"
 
   # Each harness declares: name | detect_dir | binaries | type:dir;type:dir;...
   # A harness installs only the artifact types it lists. Add a "type:dir" pair to
@@ -79,6 +81,7 @@ install_main() {
   source "$(dirname "${BASH_SOURCE[0]}")/modules/artifacts.sh"
   source "$(dirname "${BASH_SOURCE[0]}")/modules/config.sh"
   source "$(dirname "${BASH_SOURCE[0]}")/modules/pi.sh"
+  source "$(dirname "${BASH_SOURCE[0]}")/modules/durable.sh"
   source "$(dirname "${BASH_SOURCE[0]}")/modules/patches.sh"
   source "$(dirname "${BASH_SOURCE[0]}")/modules/omp.sh"
   source "$(dirname "${BASH_SOURCE[0]}")/modules/tools.sh"
@@ -163,6 +166,18 @@ install_main() {
       install_artifacts "$type" "$pattern"
     done
   done
+
+  # Durable is an optional Pi companion. Its vendor-git pair is kept here rather
+  # than in Pi's typemap because Node gates both cloning and dependency setup.
+  if [ "${DURABLE_SKIP:-0}" = 1 ]; then
+    echo "== durable (skipped by DURABLE_SKIP=1)"
+  elif [ -d "$PI_AGENT_DIR" ] && command -v node >/dev/null 2>&1 && \
+       node -e 'const [major, minor] = process.versions.node.split(".").map(Number); process.exit(major > 22 || (major === 22 && minor >= 19) ? 0 : 1)'; then
+    echo "== durable"
+    install_durable "${DURABLE_VENDOR_PAIR%%::*}" "${DURABLE_VENDOR_PAIR##*::}" || PATCH_FAILED=1
+  else
+    echo "== durable (skipped; requires Pi and Node >= 22.19)"
+  fi
 
   # After the harness loop so a fresh install has copied the CLIs first.
   install_pi_cli_links

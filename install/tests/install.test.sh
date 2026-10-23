@@ -8,7 +8,7 @@ if [ "${1:-}" != --isolated ]; then
   trap 'rm -rf "$SB"' EXIT
   mkdir -p "$SB/bin" "$SB/home" "$SB/tmp"
   # An allowlist prevents inherited harnesses, package managers or network CLIs.
-  for cmd in bash env awk basename cat chmod cmp cp dirname find grep ln mkdir mktemp mv patch python3 readlink rm sed sort tr; do
+  for cmd in bash env awk basename cat chmod cmp cp dirname find grep ln mkdir mktemp mv patch python3 readlink rm sed sha256sum sort tr; do
     ln -s "$(command -v "$cmd")" "$SB/bin/$cmd"
   done
   env -i HOME="$SB/home" PATH="$SB/bin" TMPDIR="$SB/tmp" LC_ALL=C \
@@ -127,7 +127,7 @@ run imports 0 bash -euc '
   trap ":" RETURN
   before="$(trap -p RETURN)"
   source "$1/install/main.sh"
-  for module in artifacts config pi patches omp tools; do source "$1/install/modules/$module.sh"; done
+  for module in artifacts config pi durable patches omp tools; do source "$1/install/modules/$module.sh"; done
   [ "$(umask)" = 0022 ] && [ "$(trap -p RETURN)" = "$before" ]
   declare -F apply_package_patch >/dev/null
   declare -F install_vendor_git >/dev/null
@@ -240,6 +240,25 @@ has provisioning 'hoisting is pnpm-only'; has provisioning 'store reset'; has pr
 has provisioning '(cloned at'; has provisioning '(updated to'
 grep -qF 'cannot derive a safe path' "$SB/provisioning.err" || fail 'unsafe vendor accepted'
 echo 'ok: pnpm skip/reset/rerun and pinned vendor clone/ok/update/unsafe paths use only stubs'
+
+# Durable keeps its dependency stamp separate from the generic pinned-clone flow.
+printf '%s\n' '#!/usr/bin/env bash' 'set -eu' 'printf "pnpm %s\\n" "$*" >>"$TEST_LOG"' >"$SB/bin/pnpm"
+chmod +x "$SB/bin/pnpm"
+run durable 0 bash -euc '
+  source "$1/install/modules/artifacts.sh"; source "$1/install/modules/durable.sh"
+  clone="$2/durable"; mkdir -p "$clone/bin"
+  printf "{}\\n" >"$clone/package.json"; printf "lock\\n" >"$clone/pnpm-lock.yaml"
+  printf "#!/usr/bin/env bash\\n" >"$clone/bin/durable"; chmod +x "$clone/bin/durable"
+  install_durable_deps "$clone"
+  install_durable_deps "$clone"
+  printf "changed\\n" >>"$clone/pnpm-lock.yaml"
+  install_durable_deps "$clone"
+  install_durable_cli_link "$clone"
+  [ -L "$HOME/.local/bin/durable" ]
+' test "$FIXTURE" "$SB"
+[ "$(grep -c '^pnpm ' "$TEST_LOG")" -eq 2 ] || fail 'durable dependencies did not stamp metadata changes'
+has durable 'dependencies ->'; has durable '(ok)'; has durable '[link] durable:'
+echo 'ok: durable dependency stamp installs once per metadata hash and links the CLI'
 
 # Master CLI dispatch: recording adapters, never installation of real tools.
 DISPATCH="$SB/dispatch"; mkdir -p "$DISPATCH"
