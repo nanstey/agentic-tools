@@ -1,53 +1,70 @@
-
-# PR
+# PR Lifecycle
 
 ## Core Contract
 
-Prepare the current branch for an open pull request, establish current outcome/required-CI evidence, and run bounded quality/security review with authorized fixes on your own PR. Then invoke `/pr monitor` with `mode: once`; monitor owns subsequent PR health and update work. Load [`gates.md`](gates.md) and pass its review packet or `clean` docs-only evidence entry and retained findings; each delegate invocation (`/pr review fix`, `/pr monitor`) owns its own three-round limit. This workflow may end only through the lifecycle completion gate in `gates.md`.
+Push the PR as close to merge as one run can. Detect where the PR is, run each unmet phase in order, and continue until it is ready and monitored (or merged, with `auto-merge`). A run never stops to warn: it does the work, or reports the exact thing that cannot be done.
 
-With `auto-merge`, invoke `/pr monitor` with `mode: monitor` instead, and when it returns `clean`, invoke `/pr merge` for the same PR. Monitor may mark a draft ready only through `/pr ready` after all current prerequisite evidence is complete, then re-observes it. Human approval, required human-review jobs, queue and release policy remain later gates. This workflow never merges directly or grants its own approval.
+Load [`gates.md`](gates.md) for evidence, review depth, force, and the round limit. Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
-Follow `CLAUDE.md` / `AGENTS.md` on conflict.
+- `/pr`: phases 0–10, ending at merge-ready. Merge needs `/pr merge` or `auto-merge`.
+- `/pr auto-merge [target]`: phases 0–10, then phase 11 (`/pr merge`) once monitor returns `clean`.
+- `force` on either: apply the `gates.md` force override to soft gates instead of blocking.
 
-## Required Inputs
+## Inputs
 
-1. Current branch or PR URL/number.
-2. Optional setup steps to skip (`review` permits reuse of an exact-matching complete packet or `clean` docs-only evidence entry and skips only redundant self-review; it never skips the missing-coverage gate).
-3. Optional `auto-merge` flag.
-4. Acceptance criteria, observed outcome/validator evidence, trusted policy, matching review packet or `clean` docs-only evidence entry, and retained findings when available.
+1. Current branch, or PR URL/number.
+2. Optional `auto-merge` and `force`.
+3. Optional skip words (`review` reuses an exact-matching packet and skips only redundant self-review; it never waives missing coverage).
+4. Acceptance criteria, trusted policy, any matching packet or docs-only evidence entry, and retained findings.
 
-## Workflow
+## Phases
 
-1. Run `/git changes` first to resolve the comparison scope and record the exact base and head refs. When an existing PR is found, use `/pr info` for its base/head and recover the prior packet/findings or docs-only evidence entry before any remediation commit. Round limits are per invocation, not inherited.
-2. If `/git changes` reports uncommitted work:
-   - on `main` or `develop`, create a branch with `/git branch`, then `/git commit` the work;
-   - otherwise, `/git commit` the work.
-3. Invoke `/pr info` to resolve and verify an existing PR.
-4. If no PR exists, invoke `/pr create` (never raw `gh pr create`, including `--fill`), then use its resulting PR as the target. `/pr create` must run `/pr description`; confirm the body has the structured sections (`## Summary`, `## Changes`, `## Testing`) and the PR is a draft. If not, run `/pr description` now. Stop on any other `/pr info` gate.
-5. Establish the authoritative base/head/policy and recover the prior packet/findings or docs-only evidence entry. Observe acceptance outcomes through separate validators and discover expected required CI/dependencies using `ci.md`. Do not advance quality/security lifecycle gates until outcome and independent required CI pass. Passing this step is not an end state: continue to step 6 in the same run. Green CI or PR prose alone does not prove the outcome; zero observed jobs is not a pass.
-6. Reuse an exact matching complete quality/security packet. Otherwise, evaluate the trusted-base docs-only review substitute in `gates.md` through its separate validator. When the validator records `clean`, record that evidence entry and do not start `/pr review`. When the validator is unavailable or records `incomplete`, use normal review coverage and start `/pr review <PR> fix` now on your own verified PR; it owns its three-round limit, reviews and narrowly fixes verified requests, validates, publishes, and reviews the fix delta/affected paths at the new head. On another author's PR start report-only review, never automatic fixes. A `review` skip skips only otherwise redundant self-review; it never waives this gate, so a missing packet starts review in this run. If review-code dispatch is unavailable, return exactly `blocked: needs a coordinator with subagent dispatch`. Run the review/fix cycle automatically: after each fix head is published and revalidated, start the next review round without waiting for user input or reporting a partial result. Stop only at convergence (`clean`) or a `blocked` stop condition in `gates.md`. Unresolved verified requests, material gaps, exhausted/no-progress work, failed validation/review/push, or unexpected state stop `blocked`; nits and unchanged existing issues are nonblocking.
-7. Complete automated-review-dependent required CI after its prerequisites, then always invoke `/pr monitor` for the same PR only after matching complete coverage (a `clean` packet or `clean` docs-only evidence entry; re-resolve after any push): `mode: once` by default, `mode: monitor` with `auto-merge`. Pass the coverage and evidence, not round counters. Monitor requests only missing/invalidated coverage, not a duplicate full review, and the lifecycle cannot return before monitor returns its result. If monitor returns `clean`, or returns `pending` in `mode: once`, for a final head different from that coverage's head, permit exactly one reconciliation: accept and reuse monitor's exact-match complete fresh packet or `clean` docs-only evidence entry for that head when it satisfies `gates.md` freshness; otherwise start the step-6 appropriate coverage for that head. Then run the second monitor pass in the same mode as the first (`once` or `monitor`). If that reconciliation monitor result still names a head different from its matching coverage, return the `gates.md` blocked form for external head churn or no progress. With `auto-merge`, any second-pass result other than `clean` blocks and prevents merge; do not reconcile again. If review or monitoring cannot proceed, return the `gates.md` blocked form; do not end with mismatched coverage/head evidence.
-8. When monitor passes (all readiness prerequisites complete on the current head) and the PR is still a draft, mark it ready through `/pr ready` by default, never merely to start checks. Human approval and merge remain separate gates.
-9. With `auto-merge`, invoke `/pr merge` only after monitor returns `clean` and current evidence has no unresolved verified requests or material gaps. An inherited blocker or later merge gate stops merging regardless of finding severity.
-10. Report the final packet or docs-only evidence verdict and head and monitor result under the lifecycle completion gate, or the blocked form; report merge outcome only when `auto-merge` was requested.
+Each phase has an entry test. Run a phase only when its test shows it is unmet or invalidated by a new head. After any head change, re-snapshot and re-test later phases.
 
-Stop as blocked when setup fails, a setup delegate reaches its stop gate, or the branch enters an unexpected state.
+| # | Phase | Unmet when | Action |
+| --- | --- | --- | --- |
+| 0 | Resolve | Always run first | `/git changes` for scope and base/head. `/pr info` for an existing PR and its prior packet/findings. Uncommitted work on `main`/`develop`: `/git branch`, then `/git commit`. Otherwise `/git commit`. |
+| 1 | Create | No PR exists | `/pr create` (never raw `gh pr create`). It opens a draft and runs `/pr description`. |
+| 2 | Publish | Local commits are unpushed or the tree has validated changes | `/pr push` |
+| 3 | Describe | Body is a placeholder, lacks `## Summary`/`## Changes`/`## Testing`, or is stale for this head; UI changed with no current screenshots | `/pr description` (owns `/pr screenshots`) |
+| 4 | Sync | Behind base, conflicting, or a stack layer out of order | Stack member: `/pr stack`. Otherwise `/pr rebase`. After a parent merges: `/pr restack`. `/pr split` only when invoked explicitly. |
+| 5 | CI | Outcome unobserved, or an expected required check failed or is missing | `/pr ci`: fix and publish. Pending checks are waited on by monitor, not blockers. |
+| 6 | Review | No exact-match complete packet or `clean` docs-only entry for this head | Own PR: `/pr review <PR> fix`. Other author's PR: `/pr review <PR>` report-only. Depth follows `gates.md` review depth. |
+| 7 | Threads | Unresolved review threads | `/pr comments` |
+| 8 | Verify | Claims lack cited evidence in the body | `/pr verification fix` (own PR) |
+| 9 | Ready | PR is draft and phases 1–8 pass | `/pr ready` |
+| 10 | Monitor | Always, last | `/pr monitor` with `mode: once` (`mode: monitor` for `auto-merge`) |
+| 11 | Merge | `auto-merge` and monitor `clean` | `/pr merge` (with `force` if given) |
+
+Phase order matches the gate order in `gates.md`: outcome and independent CI before quality and security review, review-dependent CI after.
+
+### Rules for the run
+
+1. Run phases back-to-back. Never pause between phases or review/fix rounds to ask whether to continue.
+2. Publish every change through `/pr push`, which describes the new head.
+3. Reuse an exact-match packet; start the review now when none matches. A missing packet is work, not a blocker. If review-code dispatch is unavailable, return exactly `blocked: needs a coordinator with subagent dispatch`.
+4. Monitor owns PR health after phase 9. It requests only missing or invalidated coverage, never a duplicate full review. The lifecycle cannot return before monitor does.
+5. If monitor returns `clean`, or `pending` in `mode: once`, for a head different from the reviewed head, reconcile exactly once: reuse monitor's exact-match fresh coverage, or run phase 6 for that head, then rerun monitor in the same mode. If the head still differs, return `blocked: external head churn or no progress — monitor head differs after the one permitted reconciliation; unblock requires: a stable head with matching coverage and monitor result`. With `auto-merge`, the second monitor must return `clean` before merging.
+6. Failed setup or an unexpected working-tree state stops `blocked`. Fix what can be fixed first.
+
+## Completion
+
+A run ends only as one of:
+
+- `complete`: current head has an exact-match complete `clean` packet (or `clean` docs-only entry) and monitor returned `clean`, or `pending` in `mode: once` with its reason (usually CI still running). The PR is ready for human approval; with `auto-merge`, it is also merged.
+- `forced`: `force` was applied. Report it as complete with the overridden gates listed.
+- `blocked`: the `gates.md` blocked form, naming what is left and what unblocks it.
+
+Setup finishing or green CI alone is never completion. Never end `changes_required` or `incomplete` without first attempting the fix within the round limit.
 
 ## Safety Rules
 
-- Never continue from uncommitted work on `main` or `develop` without first creating a branch and committing it.
-- Never continue past a failed setup step or its stop gate; report it as blocked instead.
-- Never proceed when unexpected working-tree changes appear during setup.
-- Never post review comments or approve from the lifecycle; automatic remediation is `fix` mode on your own PR only under ownership/branch/clean-tree/current-head authorization checks.
-- Never pause between review/fix rounds to ask whether to continue; continuing within the budget is the default.
-- Never reset or nest a review loop within an invocation, omit fix-head review, or treat a skipped review, an unapplied request, or missing outcome/check evidence as a readiness pass.
-- Never end after setup or green CI without satisfying the lifecycle completion gate.
-- Never offer, suggest, or ask for a next command (including `/pr review` or `/pr monitor`); start it or report blocked.
-- Publish every change to the PR branch through `/pr push`, which runs the description check for the new head.
-- Never create a PR with raw `gh pr create` or reuse a commit message as the body; always go through `/pr create` and its `/pr description` step.
-- Never perform PR health or update work directly; invoke `/pr monitor`.
-- Never merge without `auto-merge`, and never merge directly; invoke `/pr merge` only after a `clean` `/pr monitor` result.
+- Never continue uncommitted work on `main` or `develop` without first branching and committing.
+- Never post review comments or approve from the lifecycle. Automatic remediation is `fix` mode on your own PR, after ownership, branch, clean-tree, and current-head checks.
+- Never reset or nest a review loop within an invocation, or skip fix-head review.
+- Never create a PR with raw `gh pr create` or reuse a commit message as the body.
+- Never merge without `auto-merge` or an explicit `/pr merge`.
 
 ## Output Style
 
-Report comparison base/head/policy; branch/commit outcomes; PR; outcome and expected-CI evidence; final packet or docs-only evidence verdict/head, retained/request/nit/existing IDs, rounds consumed, fixes/pushes or skipped coverage; monitor's final head/result or the blocked form; and, only with `auto-merge`, merge result or gate that stopped it.
+Report base/head/policy, branch and commit outcomes, PR, phases run and skipped, review depth chosen with reason, packet verdict and head, findings by ID, rounds used, monitor result, overridden gates, merge result (`auto-merge` only), and what remains to reach merge.

@@ -2,7 +2,9 @@
 
 ## Core Contract
 
-Merge one verified open PR by squash, using the PR title followed by ` (#<pr-number>)` as the commit subject and an empty commit body. Load [`gates.md`](gates.md); require current outcome/expected-CI/quality/security evidence, or a `clean` docs-only evidence entry, with no unresolved verified requests, then use `/pr ready` for any draft conversion. Human approvals/jobs, merge queues, and release flag/rollback policy remain later gates; never bypass or self-grant them. Any missing material evidence, failing/nonterminal required check, or unresolved thread stops the skill. This skill never remediates; `/pr ci` and `/pr comments` own that work and are not invoked here.
+Merge one open PR by squash, using the PR title followed by ` (#<pr-number>)` as the commit subject and an empty commit body. Load [`gates.md`](gates.md). Aim to merge: when a gate is unmet, run the lifecycle phase that satisfies it (`/pr ci`, `/pr review fix`, `/pr comments`, `/pr ready`; see [`lifecycle.md`](lifecycle.md)) and re-check, then merge. Pending required checks are waited on within `/pr monitor` semantics, not treated as failures. Human approvals, merge queues, and release policy are enforced by GitHub; a self-authored approval is never fabricated.
+
+`force` merges even when soft gates in `gates.md` remain unmet (failing or pending CI, missing review, unresolved threads, draft, missing approval). Make one attempt to satisfy each gate, then merge anyway and report every overridden gate. If GitHub rejects the merge for branch protection and the viewer has admin permission, retry with `gh pr merge --admin`; without permission, report the hard stop. Without `force`, block only when a gate's work cannot proceed.
 
 Default tool is `gh`. After a confirmed merge, a linked Orca-managed worktree is removed; the primary checkout is instead synced to the default branch and its terminal starts a new agent session. Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
@@ -14,9 +16,9 @@ Default tool is `gh`. After a confirmed merge, a linked Orca-managed worktree is
 ## Workflow
 
 1. Invoke `/pr info` to resolve one open PR and record number/title/draft state and authoritative base/head. Stop on its no-PR, multiple-PR, branch-mismatch, closed/merged, or other gate, including GitHub native-stack membership.
-2. Require current matching outcome/quality/security/check evidence, or a `clean` docs-only evidence entry, under `gates.md`. If draft, invoke `/pr ready` with that evidence and preserve its stop gates; do not call raw `gh pr ready` or convert merely to start jobs.
+2. Check current outcome/quality/security/check evidence, or a `clean` docs-only evidence entry, under `gates.md`. Run any missing phase now rather than blocking. If draft, invoke `/pr ready` (with `force` when given); do not call raw `gh pr ready` or convert merely to start jobs.
 3. Discover expected required checks/dependencies via `ci.md` and match current-head results. Stop on failing, cancelled, timed-out, action-required, queued, pending, in-progress, or missing expected checks. For zero observed jobs use the verified-policy rule below.
-4. Snapshot unresolved review threads and unresolved verified requests; either blocks. Verify actual required human approval/review jobs and merge-queue/release prerequisites from trusted policy and GitHub state, with evidence valid for the current base/head/policy, not a stale or self-authored approval. Do not use bypass/admin flags; if a required queue only schedules the merge, report pending rather than confirmed merged.
+4. Snapshot unresolved review threads and unresolved verified requests; run `/pr comments` or `/pr review fix` for them, and anything left blocks unless `force`. Verify actual required human approval/review jobs and merge-queue/release prerequisites from trusted policy and GitHub state, with evidence valid for the current base/head/policy, not a stale or self-authored approval. Use `--admin` only under `force`; if a required queue only schedules the merge, report pending rather than confirmed merged.
 5. Re-run `/pr info` and require unchanged base/head and trusted policy; either revision changing invalidates snapshots and prior readiness/approval evidence.
 6. Squash-merge with the PR title followed by ` (#<pr-number>)` as the commit subject and an empty body, following the subject rules below.
 7. Confirm the PR is merged and report the merge result. A successful command that only queues or schedules a merge is not confirmation.
@@ -24,7 +26,7 @@ Default tool is `gh`. After a confirmed merge, a linked Orca-managed worktree is
    - **Primary checkout** (`git rev-parse --path-format=absolute --git-dir` equals `git rev-parse --path-format=absolute --git-common-dir`): follow the primary checkout notes below. Never remove it.
    - **Linked worktree**: automatically detect and remove the current Orca-managed worktree using the Orca cleanup notes below. Invoking `pr-merge` preauthorizes this removal once its conditions pass: do not ask for confirmation, offer cleanup, or defer it because it is destructive or ends the session. Skip cleanup silently outside Orca.
 
-Stop as blocked when a gate blocks, GitHub rejects the merge, or the PR head moves during the workflow.
+Stop as blocked when work for a gate cannot proceed without `force`, GitHub rejects the merge with no permitted override, or the PR head moves during the workflow (re-run the affected phases once, then merge).
 
 ## GitHub Implementation Notes
 
@@ -59,17 +61,16 @@ Only enter this step after this workflow's merge succeeded and was confirmed abo
 
 ## Safety Rules
 
-- Never merge an unverified, ambiguous, closed, merged, or branch-mismatched PR.
-- Never fix, retry, or rerun failing CI; stop and report it.
-- Never reply to, resolve, or dismiss review threads; stop and report them.
+- Never merge an ambiguous, closed, already merged, or branch-mismatched PR; `force` does not change this.
+- Fix failing CI, thread feedback, and missing review only through their `/pr` phase actions, never inline here.
 - Never edit the PR title or description.
 - Never merge with a method other than squash, or with a non-empty commit body.
 - Never explicitly delete the head branch, force-push, or change local git state except through the final post-merge path above.
 - Never remove a worktree unless this workflow successfully merged the verified PR, confirmed its merged state, and detected the current cwd as a linked Orca-managed worktree. Never remove the primary checkout.
 - When the confirmed-merge and Orca-current-worktree conditions pass, run the required removal without asking, offering, refusing, or deferring it because it is irreversible or session-ending.
-- Never treat pending, queued, in-progress, missing expected, or stale-base/head CI as passing, or a clean source packet as overall readiness.
-- Never waive unresolved verified requests by severity/cost, reset the invoking action's state, grant human approval, or bypass merge-queue/release policy.
+- Never record pending, queued, in-progress, missing expected, or stale-base/head CI as passing; under `force` record it as overridden.
+- Never reset the invoking action's state or fabricate human approval. Without `force`, do not waive unresolved verified requests by severity or cost.
 
 ## Output Style
 
-Report the verified PR, draft conversion, authoritative base/head/policy and outcome/review/expected-CI evidence, request/thread and human/queue gate snapshot, invoking action's round state, head merged and commit subject, post-merge path (worktree removed, primary synced/new session sent, or skipped), and any blocker.
+Report the PR, overridden gates (under `force`), draft conversion, authoritative base/head/policy and outcome/review/expected-CI evidence, request/thread and human/queue gate snapshot, invoking action's round state, head merged and commit subject, post-merge path (worktree removed, primary synced/new session sent, or skipped), and any blocker.
