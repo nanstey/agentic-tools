@@ -21,16 +21,16 @@ Pick the depth before dispatching review, from evidence about the change, and re
 | Depth | Fits | Coverage |
 | --- | --- | --- |
 | `skip` | Trusted-base docs-only substitute below returns `clean`; or a pure revert, version bump, or lockfile/generated refresh whose source of truth is verified | Substitute evidence only |
-| `light` | Small, local, well-tested, reversible change with no sensitive surface: typos in code comments, renames, config tweaks, simple fixes inside covered code | One combined quality+security `review-code` pass with fewest rows; security triage only; one round |
-| `standard` | Ordinary feature or fix: behavior change inside one component with tests | Normal `review-code` rows, security triage, deep security only if triage escalates |
-| `deep` | Sensitive or wide: auth, secrets, permissions, crypto, input parsing, data migrations or deletion, public API or schema contracts, concurrency, money, infra/CI/policy surfaces, dependency additions, cross-component contracts, weak test coverage over changed paths, an unfamiliar or untrusted author, or high uncertainty | Every required `review-code` row, deep security, validator execution of affected checks |
+| `light` | Small, local, well-tested, reversible change with no sensitive surface: typos in code comments, renames, config tweaks, simple fixes inside covered code | Rows: `risk-review`, `security` (triage only), `bugs`. Plus the separate candidate verifier. No validator beyond existing CI evidence; one round |
+| `standard` | Ordinary feature or fix: behavior change inside one component with tests | Rows: `risk-review`, `refactor`, `security` (triage; deep only if triage escalates), `bugs`, `context-engineering` when applicable. Validator and candidate verifier |
+| `deep` | Sensitive or wide: auth, secrets, permissions, crypto, input parsing, data migrations or deletion, public API or schema contracts, concurrency, money, infra/CI/policy surfaces, dependency additions, cross-component contracts, weak test coverage over changed paths, an unfamiliar or untrusted author, or high uncertainty | All `standard` rows, plus deep security and validator execution of affected checks |
 
 Rules:
 
 - Start at the lowest depth the evidence supports. Move up one level for each of: weak tests over changed paths, wide blast radius, hard to roll back, untrusted source, or unresolved uncertainty. Move down only on direct evidence (tests cover it, change is local and reversible).
 - A finding of `request` severity or any critical security signal escalates to `deep` for the remaining rounds.
 - Fix heads re-review at the same depth, scoped to delta and affected paths. Trivial fix heads (comment, formatting, rename within the reviewed delta) may use `light`.
-- Pass the chosen depth to `review-code` with the reason. Depth changes how much to dispatch, never whether the gate order or finding categories apply.
+- Pass the chosen depth to `review-code` with the reason. `review-code` treats the rows this table lists for the chosen depth as its required rows (default `deep` when no depth is passed); the packet coverage table lists only those rows. Depth changes how much to dispatch, never whether the gate order or finding categories apply.
 - Own draft PRs in early iteration may defer `deep` until the PR is about to leave draft; run at least `light` on each head.
 
 ## Docs-only review substitute
@@ -52,7 +52,7 @@ Record the exact base/head, trusted policy, validator result, changed-file list,
 
 ## Force override
 
-`force` is the user's right to push forward. Any action accepts it.
+`force` is the user's right to push forward. Bare `/pr`, `auto-merge`, `ready`, and `merge` accept it; other actions ignore it. Monitor never forces fixes: under `force` its non-`clean` result becomes an overridden gate, not a stop.
 
 - **Soft gates** (overridable): missing or stale review, `changes_required`/`incomplete` verdict, failing or pending or missing required CI, unresolved threads, unverified outcomes, missing human approval, exhausted round limit, description/verification gaps, draft state.
 - **Hard stops** (not overridable): no resolvable PR, closed or already merged PR, no authentication or access, a push or merge GitHub itself refuses with no permitted path, and destructive extras the invocation did not name.

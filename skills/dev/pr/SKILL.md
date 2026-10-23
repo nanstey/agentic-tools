@@ -37,7 +37,7 @@ Reject an unknown action, more than one action word, or legacy `--` action flags
 
 - An unmet gate is work to do. Run the phase that satisfies it (missing review: review; failing CI: fix; behind base: rebase; draft: ready). Do not report it and wait.
 - Stop only when no workaround exists: no PR, no auth or access, a product decision the evidence cannot settle, or a destructive action the invocation did not name. Report what is left, in the `gates.md` blocked form.
-- The user can always push forward. `force` on any action overrides every soft gate in [`gates.md`](references/gates.md): run the action with the gaps recorded, not fixed. `/pr merge force` merges even when CI, review, threads, or approvals are incomplete.
+- The user can always push forward. `force` (accepted by bare `/pr`, `auto-merge`, `ready`, and `merge`; other actions ignore it) overrides every soft gate in [`gates.md`](references/gates.md): run the action with the gaps recorded, not fixed. `/pr merge force` merges even when CI, review, threads, or approvals are incomplete.
 - `force` never invents evidence. Record each overridden gate in the output so the result stays honest.
 
 ## Shared Rules

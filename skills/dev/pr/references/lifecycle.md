@@ -7,7 +7,7 @@ Push the PR as close to merge as one run can. Detect where the PR is, run each u
 Load [`gates.md`](gates.md) for evidence, review depth, force, and the round limit. Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 - `/pr`: phases 0–10, ending at merge-ready. Merge needs `/pr merge` or `auto-merge`.
-- `/pr auto-merge [target]`: phases 0–10, then phase 11 (`/pr merge`) once monitor returns `clean`.
+- `/pr auto-merge [target]`: phases 0–10, then phase 11 (`/pr merge`) once monitor returns `clean`. With `force`, phase 11 runs after the second monitor attempt whatever it returns; non-`clean` results are recorded as overridden gates.
 - `force` on either: apply the `gates.md` force override to soft gates instead of blocking.
 
 ## Inputs
@@ -28,7 +28,7 @@ Each phase has an entry test. Run a phase only when its test shows it is unmet o
 | 2 | Publish | Local commits are unpushed or the tree has validated changes | `/pr push` |
 | 3 | Describe | Body is a placeholder, lacks `## Summary`/`## Changes`/`## Testing`, or is stale for this head; UI changed with no current screenshots | `/pr description` (owns `/pr screenshots`) |
 | 4 | Sync | Behind base, conflicting, or a stack layer out of order | Stack member: `/pr stack`. Otherwise `/pr rebase`. After a parent merges: `/pr restack`. `/pr split` only when invoked explicitly. |
-| 5 | CI | Outcome unobserved, or an expected required check failed or is missing | `/pr ci`: fix and publish. Pending checks are waited on by monitor, not blockers. |
+| 5 | CI | Outcome unobserved, or an expected required check failed or is missing | `/pr ci`: fix and publish. Pending independent checks are waited on (poll as monitor does) until terminal before phase 6; `force` proceeds without waiting. |
 | 6 | Review | No exact-match complete packet or `clean` docs-only entry for this head | Own PR: `/pr review <PR> fix`. Other author's PR: `/pr review <PR>` report-only. Depth follows `gates.md` review depth. |
 | 7 | Threads | Unresolved review threads | `/pr comments` |
 | 8 | Verify | Claims lack cited evidence in the body | `/pr verification fix` (own PR) |
@@ -51,8 +51,9 @@ Phase order matches the gate order in `gates.md`: outcome and independent CI bef
 
 A run ends only as one of:
 
-- `complete`: current head has an exact-match complete `clean` packet (or `clean` docs-only entry) and monitor returned `clean`, or `pending` in `mode: once` with its reason (usually CI still running). The PR is ready for human approval; with `auto-merge`, it is also merged.
-- `forced`: `force` was applied. Report it as complete with the overridden gates listed.
+- `complete`: current head has an exact-match complete `clean` packet (or `clean` docs-only entry) and monitor returned `clean`. The PR is ready for human approval; with `auto-merge`, it is also merged.
+- `pending`: same packet, but monitor returned `pending` in `mode: once` (usually required CI still running). Not success; the PR is ready for review once CI passes.
+- `forced`: `force` was applied (including `auto-merge force` through an unclean monitor). Report it as complete with the overridden gates listed.
 - `blocked`: the `gates.md` blocked form, naming what is left and what unblocks it.
 
 Setup finishing or green CI alone is never completion. Never end `changes_required` or `incomplete` without first attempting the fix within the round limit.
