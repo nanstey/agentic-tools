@@ -11,9 +11,3 @@ and Node.js is at least 22.19. Set `DURABLE_SKIP=1` to skip it.
 Update flow: merge and verify durable first, run `harness/durable/bump-pin.sh <ref>`,
 then open and merge this repository's pin-bump PR. The next `install.sh` updates the
 local clone.
-
-The initial pin exposes `bin/durable.ts` rather than the planned executable
-`bin/durable`, and its `doctor` command requires an agent id (so `durable doctor
---help` is not available at this pin). The installer links that Node entrypoint;
-a durable-first follow-up should add the wrapper and help handling before a later
-pin bump.
