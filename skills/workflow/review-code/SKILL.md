@@ -20,7 +20,7 @@ Invocation: `/review-code [report|plan|fix] [scope]`. Default: `report`. Reject 
 | `plan` | 1–4, then plan synthesis | One caller-permitted plan artifact, otherwise inline. |
 | `fix` | 1–5 | Working-tree edits only. |
 
-Use the [packet](../../code-quality/risk-review/references/packet.md) and [gates](../../dev/pr/references/gates.md) contracts. For new standalone work or a new caller-owned review/fix invocation, own `limit: 3`, initial round `1`. Otherwise use state supplied by the same caller invocation. A known review-code candidate without that state blocks remediation; never restart it at round 1 within an invocation.
+Use the [packet](../../code-quality/risk-review/references/packet.md) and [gates](../../dev/pr/references/gates.md) contracts. For new standalone work or a new caller-owned review/fix invocation, own `limit: 5`, initial round `1`. Otherwise use state supplied by the same caller invocation. A known review-code candidate without that state blocks remediation; never restart it at round 1 within an invocation.
 
 Each invocation reviews within the current round, or the reserved round for a changed candidate. Only a changed fix head consumes another round. Repeated report calls on the same snapshot consume nothing. The caller owns subsequent calls and publication within its invocation; never nest/reset loops.
 

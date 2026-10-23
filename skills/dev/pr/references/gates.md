@@ -86,12 +86,12 @@ Keep category separate from severity and evidence confidence. Verify every candi
 
 Propose a narrow fix, split, or revert for large requests. Broad unrelated redesign/cleanup belongs in followup. Product decisions or risky scope/trade-offs stop `blocked`, with the required decision. Convergence requires no unresolved verified requests **and** complete required current evidence. Read-only/comment mode reports `changes_required` for verified requests and `incomplete` for coverage gaps without forcing fixes. Lifecycle/readiness report `blocked` for either unresolved requests or material gaps, reviewer/check failure, unfixable/no-progress work, or exhausted budget.
 
-## Per-invocation three-round review/fix limit
+## Per-invocation five-round review/fix limit
 
-A `/pr review <target> fix` invocation initializes `limit: 3, round: 1`, its snapshot, retained findings, and evidence. Other remediating action invocations (`monitor`, `ci`, or `comments`) likewise own `limit: 3, round: 1` for heads they publish. A monitor invocation initializes this state on its first cycle only and reuses it across polling cycles. Packet freshness and retained findings persist for exact-match reuse and deduplication, but the round limit never carries across action invocations or sessions.
+A `/pr review <target> fix` invocation initializes `limit: 5, round: 1`, its snapshot, retained findings, and evidence. Other remediating action invocations (`monitor`, `ci`, or `comments`) likewise own `limit: 5, round: 1` for heads they publish. A monitor invocation initializes this state on its first cycle only and reuses it across polling cycles. Packet freshness and retained findings persist for exact-match reuse and deduplication, but the round limit never carries across action invocations or sessions.
 
 - Round 1 includes initial quality and security visits; both clean visits share the round.
-- Each changed fix head consumes the next round. Reserve that round before editing or publishing; never create a fix head beyond round 3 that cannot receive required review. Batch a round's related remediation into one candidate head.
+- Each changed fix head consumes the next round. Reserve that round before editing or publishing; never create a fix head beyond round 5 that cannot receive required review. Batch a round's related remediation into one candidate head.
 - Quality fixes require outcome/required-CI revalidation, then delta and affected-path quality review and applicable security coverage. Security fixes repeat affected quality **and** security, after outcome/CI revalidation.
 - CI, comment, remote, rebase, or synchronization changes invalidate affected evidence and inherit the invoking action's state. Reassess affected impact paths/checks and retained findings; broad base/policy changes need full reassessment, not a reset.
 - Monitor requests only missing/invalidated coverage. Its remediation heads use monitor's own invocation limit; it does not run duplicate full reviews or call a recursive `/pr` lifecycle.
@@ -99,7 +99,7 @@ A `/pr review <target> fix` invocation initializes `limit: 3, round: 1`, its sna
 
 Rounds run back-to-back by default: the caller starts the next round itself and never waits for user confirmation, ending only at convergence or a stop condition.
 
-At round 3, unresolved requests remain blockers: report `blocked` without producing another fix head. Failed reviewers/checks, missing material evidence, unfixable requests, and no progress also stop safely rather than spin.
+At round 5, unresolved requests remain blockers: report `blocked` without producing another fix head. Failed reviewers/checks, missing material evidence, unfixable requests, and no progress also stop safely rather than spin.
 
 ## Blocked report form
 

@@ -2,7 +2,7 @@
 
 ## Core Contract
 
-Delegate one PR's code review to [`review-code`](../../../workflow/review-code/SKILL.md), then own PR reporting and authorized publication. Load [`gates.md`](gates.md) for packet freshness, categories, gate order, and the per-invocation three-round limit.
+Delegate one PR's code review to [`review-code`](../../../workflow/review-code/SKILL.md), then own PR reporting and authorized publication. Load [`gates.md`](gates.md) for packet freshness, categories, gate order, and the per-invocation five-round limit.
 
 Invocation: `/pr review [target] [fix|comment]`. Default tool is `gh`. Follow `CLAUDE.md` / `AGENTS.md` on conflict. Write prose using `terse`. Apply the non-interactive policy in `SKILL.md`.
 
@@ -13,7 +13,7 @@ Default is report-only: no source edits, tests, commits, pushes, comments, threa
 1. PR URL/number; otherwise current branch, resolved per `/pr info`.
 2. Optional mode: `fix` or `comment`.
 3. Viewer: `gh api user --jq .login`.
-4. Acceptance/outcome and validation evidence, trusted policy identity, any matching packet, and retained findings. A `fix` invocation initializes `limit: 3, round: 1`; `report` and `comment` are single-snapshot and consume no budget.
+4. Acceptance/outcome and validation evidence, trusted policy identity, any matching packet, and retained findings. A `fix` invocation initializes `limit: 5, round: 1`; `report` and `comment` are single-snapshot and consume no budget.
 
 ## Workflow
 
@@ -51,7 +51,7 @@ Report requests first, then optional nits and baseline-proven unchanged existing
 3. Call `/review-code fix` with the guarded source snapshot and current PR-owned state. Allow only verified `request` remediation. `fix` alone does not select nits: they need separate explicit selection and authorization. Keep optional cleanup as followup. Pass product/risky-scope decisions back as `blocked`, never downgrade requests.
 4. Require the delegate to reserve the next round before any edit and return one validated batch plus updated packet/state. Apply the stop conditions in `gates.md`. Never nest/reset the loop within this invocation or call `/pr review` recursively.
 5. Failed validation or blocked remediation means no commit/push. After successful validation, recheck ownership/checkout/base/head and require that only the returned fix batch dirties the tree. Publish the logical fix group (referencing finding IDs) through `/pr push`, unless the caller explicitly defers publication. `/pr push` owns commit safeguards and the description side effect. If publication is deferred, return the pending review state without claiming convergence.
-6. Resolve the new published authoritative base/head. Refresh outcome/required-CI evidence, then call `/review-code fix` again with the reserved next-round state, delta and affected scope, and retained findings/evidence. The delegate reviews that candidate before any further batch. Do not reuse stale citations or validation. Continue only within this invocation's three rounds until convergence or `blocked` at round 3 without another fix head.
+6. Resolve the new published authoritative base/head. Refresh outcome/required-CI evidence, then call `/review-code fix` again with the reserved next-round state, delta and affected scope, and retained findings/evidence. The delegate reviews that candidate before any further batch. Do not reuse stale citations or validation. Continue only within this invocation's five rounds until convergence or `blocked` at round 5 without another fix head.
 7. Return the updated packet and this invocation's final state to lifecycle/monitor; callers must not treat it as carry-over budget. Do not launch another lifecycle, post comments, reply to or resolve threads, approve, mark ready, or merge. Thread work belongs to `/pr comments`.
 
 ## Others' PR: `comment`

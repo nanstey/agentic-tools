@@ -42,7 +42,7 @@ Reject an unknown action, more than one action word, or legacy `--` action flags
 
 ## Shared Rules
 
-Load every referenced workflow before acting. [`gates.md`](references/gates.md) owns evidence, review depth scaling, finding categories, the force override, and the per-invocation three-round fix limit. Delegates inside an invocation share that limit; separate invocations do not carry it. Never reset it mid-invocation or start nested review loops.
+Load every referenced workflow before acting. [`gates.md`](references/gates.md) owns evidence, review depth scaling, finding categories, the force override, and the per-invocation five-round fix limit. Delegates inside an invocation share that limit; separate invocations do not carry it. Never reset it mid-invocation or start nested review loops.
 
 `/pr review` delegates code review to `review-code` and keeps PR actions and round-state ownership. It defaults to report-only. `/pr verification` defaults to report and audits the description and screenshots without starting review loops.
 
