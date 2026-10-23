@@ -44,7 +44,7 @@ Phase order matches the gate order in `gates.md`: outcome and independent CI bef
 2. Publish every change through `/pr push`, which describes the new head.
 3. Reuse an exact-match packet; start the review now when none matches. A missing packet is work, not a blocker. If review-code dispatch is unavailable, return exactly `blocked: needs a coordinator with subagent dispatch`.
 4. Monitor owns PR health after phase 9. It requests only missing or invalidated coverage, never a duplicate full review. The lifecycle cannot return before monitor does.
-5. If monitor returns `clean`, or `pending` in `mode: once`, for a head different from the reviewed head, reconcile exactly once: reuse monitor's exact-match fresh coverage, or run phase 6 for that head, then rerun monitor in the same mode. If the head still differs, return `blocked: external head churn or no progress — monitor head differs after the one permitted reconciliation; unblock requires: a stable head with matching coverage and monitor result`. With `auto-merge`, the second monitor must return `clean` before merging.
+5. If monitor returns `clean`, or `pending` in `mode: once`, for a head different from the reviewed head, reconcile exactly once: reuse monitor's exact-match fresh coverage, or run phase 6 for that head, then rerun monitor in the same mode. If the head still differs, return `blocked: external head churn or no progress — monitor head differs after the one permitted reconciliation; unblock requires: a stable head with matching coverage and monitor result`. With `auto-merge`, the second monitor must return `clean` before merging, except under `force`.
 6. Failed setup or an unexpected working-tree state stops `blocked`. Fix what can be fixed first.
 
 ## Completion
