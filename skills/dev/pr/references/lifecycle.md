@@ -7,7 +7,7 @@ Push the PR as close to merge as one run can. Detect where the PR is, run each u
 Load [`gates.md`](gates.md) for evidence, review depth, force, and the round limit. Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 - `/pr`: phases 0–10, ending at merge-ready. Merge needs `/pr merge` or `auto-merge`.
-- `/pr auto-merge [target]`: phases 0–10, then phase 11 (`/pr merge`) once monitor returns `clean`. With `force`, both monitor passes use `mode: once`, and phase 11 runs after the second whatever it returns; non-`clean` results are recorded as overridden gates.
+- `/pr auto-merge [target]`: phases 0–10, then phase 11 (`/pr merge`) once monitor returns `clean`. With `force`, both monitor passes use `mode: once`, and phase 11 runs after the last monitor attempt (one, or two after head reconciliation) whatever it returns; non-`clean` results are recorded as overridden gates.
 - `force` on either: apply the `gates.md` force override to soft gates instead of blocking.
 
 ## Inputs

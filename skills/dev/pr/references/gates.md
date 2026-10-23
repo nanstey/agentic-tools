@@ -20,7 +20,7 @@ Pick the depth before dispatching review, from evidence about the change, and re
 
 | Depth | Fits | Coverage |
 | --- | --- | --- |
-| `skip` | Trusted-base docs-only substitute below returns `clean`; or a pure revert, version bump, or lockfile/generated refresh whose source of truth is verified | Substitute evidence only |
+| `skip` | Trusted-base docs-only substitute below returns `clean`; or a pure revert, version bump, or lockfile/generated refresh whose source of truth is verified | Docs-only substitute evidence, or for non-doc cases (revert, version bump, lockfile/generated refresh) the verified source-of-truth check recorded in the packet |
 | `light` | Small, local, well-tested, reversible change with no sensitive surface: typos in code comments, renames, config tweaks, simple fixes inside covered code | Rows: `risk-review`, `security` (triage only), `bugs`. Plus the separate candidate verifier. The validator only reuses existing CI/caller evidence and runs no new checks; one round |
 | `standard` | Ordinary feature or fix: behavior change inside one component with tests | Rows: `risk-review`, `refactor`, `security` (triage; deep only if triage escalates), `bugs`, `context-engineering` when applicable. Validator and candidate verifier |
 | `deep` | Sensitive or wide: auth, secrets, permissions, crypto, input parsing, data migrations or deletion, public API or schema contracts, concurrency, money, infra/CI/policy surfaces, dependency additions, cross-component contracts, weak test coverage over changed paths, an unfamiliar or untrusted author, or high uncertainty | All `standard` rows, plus `security --deep` always (not only on triage escalation) and validator execution of affected checks |
