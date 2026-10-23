@@ -21,16 +21,16 @@ Pick the depth before dispatching review, from evidence about the change, and re
 | Depth | Fits | Coverage |
 | --- | --- | --- |
 | `skip` | Trusted-base docs-only substitute below returns `clean`; or a pure revert, version bump, or lockfile/generated refresh whose source of truth is verified | Substitute evidence only |
-| `light` | Small, local, well-tested, reversible change with no sensitive surface: typos in code comments, renames, config tweaks, simple fixes inside covered code | Rows: `risk-review`, `security` (triage only), `bugs`. Plus the separate candidate verifier. No validator beyond existing CI evidence; one round |
+| `light` | Small, local, well-tested, reversible change with no sensitive surface: typos in code comments, renames, config tweaks, simple fixes inside covered code | Rows: `risk-review`, `security` (triage only), `bugs`. Plus the separate candidate verifier. The validator only reuses existing CI/caller evidence and runs no new checks; one round |
 | `standard` | Ordinary feature or fix: behavior change inside one component with tests | Rows: `risk-review`, `refactor`, `security` (triage; deep only if triage escalates), `bugs`, `context-engineering` when applicable. Validator and candidate verifier |
-| `deep` | Sensitive or wide: auth, secrets, permissions, crypto, input parsing, data migrations or deletion, public API or schema contracts, concurrency, money, infra/CI/policy surfaces, dependency additions, cross-component contracts, weak test coverage over changed paths, an unfamiliar or untrusted author, or high uncertainty | All `standard` rows, plus deep security and validator execution of affected checks |
+| `deep` | Sensitive or wide: auth, secrets, permissions, crypto, input parsing, data migrations or deletion, public API or schema contracts, concurrency, money, infra/CI/policy surfaces, dependency additions, cross-component contracts, weak test coverage over changed paths, an unfamiliar or untrusted author, or high uncertainty | All `standard` rows, plus `security --deep` always (not only on triage escalation) and validator execution of affected checks |
 
 Rules:
 
 - Start at the lowest depth the evidence supports. Move up one level for each of: weak tests over changed paths, wide blast radius, hard to roll back, untrusted source, or unresolved uncertainty. Move down only on direct evidence (tests cover it, change is local and reversible).
 - A finding of `request` severity or any critical security signal escalates to `deep` for the remaining rounds.
 - Fix heads re-review at the same depth, scoped to delta and affected paths. Trivial fix heads (comment, formatting, rename within the reviewed delta) may use `light`.
-- Pass the chosen depth to `review-code` with the reason. `review-code` treats the rows this table lists for the chosen depth as its required rows (default `deep` when no depth is passed); the packet coverage table lists only those rows. Depth changes how much to dispatch, never whether the gate order or finding categories apply.
+- Pass the chosen depth to `review-code` with the reason. `review-code` treats the rows this table lists for the chosen depth as its required rows (default `deep` when no depth is passed); the packet coverage table lists only those rows. `skip` never reaches `review-code`: the caller records the docs-only substitute evidence. Depth changes how much to dispatch, never whether the gate order or finding categories apply.
 - Own draft PRs in early iteration may defer `deep` until the PR is about to leave draft; run at least `light` on each head.
 
 ## Docs-only review substitute
@@ -107,4 +107,4 @@ Use `blocked: <gate> — <exact missing evidence or failed check>; unblock requi
 
 ## Lifecycle completion gate
 
-[`lifecycle.md`](lifecycle.md) Completion is authoritative: a bare `/pr` or `auto-merge` run ends only as `complete` (exact-match `clean` packet or docs-only entry for the final head, plus monitor `clean` or `pending` in `mode: once`), `forced` (force applied, overrides listed), or `blocked`. The one-time monitor head reconciliation rule lives there. Setup completion or green CI is never terminal.
+[`lifecycle.md`](lifecycle.md) Completion is authoritative: a bare `/pr` or `auto-merge` run ends only as `complete` (exact-match `clean` packet or docs-only entry for the final head, plus monitor `clean`), `pending` (same packet, monitor `pending` in `mode: once`; not success), `forced` (force applied, overrides listed), or `blocked`. The one-time monitor head reconciliation rule lives there. Setup completion or green CI is never terminal.
