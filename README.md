@@ -5,7 +5,7 @@ Reusable tools for real engineering work across machines and projects.
 | Tool Type | Description |
 | --- | --- |
 | **Skills** | Portable `SKILL.md` workflows for reliable end-to-end tasks. |
-| **Agent profiles** | Claude Code subagents I can delegate focused work to. |
+| **Agent types** | Pi Lite delegated-agent types with fixed model and thinking tiers. |
 
 ## Quick Start
 
@@ -159,28 +159,41 @@ Refactor's internal simplification method is vendored and adapted from
 | [`check-skill-name`](.agents/skills/check-skill-name/SKILL.md) | Check skill names for collisions and return CLEAR/CONFLICT/RISKY plus safe alternatives. |
 | [`pi-sync`](.agents/skills/pi-sync/SKILL.md) | Capture portable, non-secret pi config from a live `~/.pi/agent` into `harness/pi/` and commit it, without touching secrets. |
 | [`make-skill`](.agents/skills/make-skill/SKILL.md) | Plan and scaffold a convention-compliant repo skill, including name validation. |
-| [`make-agent`](.agents/skills/make-agent/SKILL.md) | Plan and scaffold a convention-compliant repo agent profile and align the catalog. |
+| [`make-agent`](.agents/skills/make-agent/SKILL.md) | Creates Lite agent types from plan to scaffolded `agents/<name>.md` and catalog alignment. Use when adding a Pi agent type to this repository. |
 
 ## Agents
 
-Subagent profiles for focused delegated work. Every profile is a leaf agent that
-never spawns further agents. Pi-specific runtime details are under
-[Pi agent profiles](#pi-agent-profiles) in the Pi harness section.
+Pi Lite agent types for focused delegated work. Every type is a leaf agent that never spawns
+further agents. Pi-specific runtime details are under [Pi agent types](harness/pi/README.md#pi-agent-types).
 
 | Agent | Model and thinking | Description |
 | --- | --- | --- |
-| [`worker`](agents/worker.md) | Task-selected `model:thinking` | Implementation agent for normal tasks and approved plans. Single writer thread; escalates unapproved decisions via `caller_ping`. |
-| [`scout`](agents/scout.md) | Task-selected `model:thinking` | Fast codebase recon that returns compressed context for handoff. Writes `context.md`. |
-| [`researcher`](agents/researcher.md) | Task-selected `model:thinking` | Autonomous web researcher — searches, evaluates, and synthesizes a focused research brief into `research.md`. |
-| [`planner`](agents/planner.md) | Task-selected `model:thinking` | Creates concrete implementation plans from context and requirements. Read-only; writes `plan.md`. |
-| [`reviewer`](agents/reviewer.md) | Task-selected `model:thinking` | Versatile review specialist for code diffs, plans, proposed solutions, codebase health, and PR/issue validation. |
+| [`scout-quick`](agents/scout-quick.md) | `anthropic/claude-haiku-5-5`, low | Fast codebase reconnaissance at a fixed model tier. Delegate when focused implementation context is needed. |
+| [`scout-standard`](agents/scout-standard.md) | `anthropic/claude-sonnet-5-5`, medium | Fast codebase reconnaissance at a fixed model tier. Delegate when focused implementation context is needed. |
+| [`scout-high`](agents/scout-high.md) | `anthropic/claude-sonnet-5-5`, high | Fast codebase reconnaissance at a fixed model tier. Delegate when focused implementation context is needed. |
+| [`scout-premium`](agents/scout-premium.md) | `anthropic/claude-sonnet-5-5`, high | Fast codebase reconnaissance at a fixed model tier. Delegate when focused implementation context is needed. |
+| [`researcher-quick`](agents/researcher-quick.md) | `anthropic/claude-haiku-5-5`, low | Focused web research at a fixed model tier. Delegate when sourced external evidence is needed. |
+| [`researcher-standard`](agents/researcher-standard.md) | `anthropic/claude-sonnet-5-5`, medium | Focused web research at a fixed model tier. Delegate when sourced external evidence is needed. |
+| [`researcher-high`](agents/researcher-high.md) | `anthropic/claude-sonnet-5-5`, high | Focused web research at a fixed model tier. Delegate when sourced external evidence is needed. |
+| [`researcher-premium`](agents/researcher-premium.md) | `anthropic/claude-opus-5-5`, high | Focused web research at a fixed model tier. Delegate when sourced external evidence is needed. |
+| [`planner-quick`](agents/planner-quick.md) | `anthropic/claude-sonnet-5-5`, low | Concrete implementation planning at a fixed model tier. Delegate when requirements must become an actionable plan. |
+| [`planner-standard`](agents/planner-standard.md) | `anthropic/claude-sonnet-5-5`, medium | Concrete implementation planning at a fixed model tier. Delegate when requirements must become an actionable plan. |
+| [`planner-high`](agents/planner-high.md) | `anthropic/claude-sonnet-5-5`, high | Concrete implementation planning at a fixed model tier. Delegate when requirements must become an actionable plan. |
+| [`planner-premium`](agents/planner-premium.md) | `anthropic/claude-fable-5-1`, high | Concrete implementation planning at a fixed model tier. Delegate when requirements must become an actionable plan. |
+| [`worker-quick`](agents/worker-quick.md) | `openai-codex/gpt-6-luna`, low | Narrow implementation work at a fixed model tier. Delegate when an approved task needs one writer. |
+| [`worker-standard`](agents/worker-standard.md) | `openai-codex/gpt-5.6-terra`, medium | Narrow implementation work at a fixed model tier. Delegate when an approved task needs one writer. |
+| [`worker-high`](agents/worker-high.md) | `openai-codex/gpt-5.6-terra`, high | Narrow implementation work at a fixed model tier. Delegate when an approved task needs one writer. |
+| [`worker-premium`](agents/worker-premium.md) | `openai-codex/gpt-6.1-sol`, high | Narrow implementation work at a fixed model tier. Delegate when an approved task needs one writer. |
+| [`reviewer-openai-quick`](agents/reviewer-openai-quick.md) | `anthropic/claude-haiku-5-5`, low | Independent Anthropic review of OpenAI-produced work at a fixed model tier. Delegate when OpenAI work needs review. |
+| [`reviewer-openai-standard`](agents/reviewer-openai-standard.md) | `anthropic/claude-sonnet-5-5`, medium | Independent Anthropic review of OpenAI-produced work at a fixed model tier. Delegate when OpenAI work needs review. |
+| [`reviewer-openai-high`](agents/reviewer-openai-high.md) | `anthropic/claude-sonnet-5-5`, high | Independent Anthropic review of OpenAI-produced work at a fixed model tier. Delegate when OpenAI work needs review. |
+| [`reviewer-openai-premium`](agents/reviewer-openai-premium.md) | `anthropic/claude-opus-5-5`, high | Independent Anthropic review of OpenAI-produced work at a fixed model tier. Delegate when OpenAI work needs review. |
+| [`reviewer-anthropic-quick`](agents/reviewer-anthropic-quick.md) | `openai-codex/gpt-6-luna`, low | Independent OpenAI review of Anthropic-produced work at a fixed model tier. Delegate when Anthropic work needs review. |
+| [`reviewer-anthropic-standard`](agents/reviewer-anthropic-standard.md) | `openai-codex/gpt-5.6-terra`, medium | Independent OpenAI review of Anthropic-produced work at a fixed model tier. Delegate when Anthropic work needs review. |
+| [`reviewer-anthropic-high`](agents/reviewer-anthropic-high.md) | `openai-codex/gpt-5.6-terra`, high | Independent OpenAI review of Anthropic-produced work at a fixed model tier. Delegate when Anthropic work needs review. |
+| [`reviewer-anthropic-premium`](agents/reviewer-anthropic-premium.md) | `openai-codex/gpt-6.1-sol`, high | Independent OpenAI review of Anthropic-produced work at a fixed model tier. Delegate when Anthropic work needs review. |
 
-Model routing: Anthropic handles reading, research, planning, and review. OpenAI handles
-implementation and independent judgment. The dispatcher selects the model and thinking for
-each task under the routing policy and passes an explicit `model:thinking` suffix. Profiles
-contain no model or thinking default. Ordinary subagent work starts at standard tier and
-medium thinking. Premium and `xhigh` require direct exception evidence and a recorded reason.
-Low classifier confidence does not cause escalation. The parent selects a reviewer from the
-other model family at the same tier. See [`harness/pi/APPEND_SYSTEM.md`](harness/pi/APPEND_SYSTEM.md)
-for routing and fallback rules. The main agent stays on the user's selected model unless
-provider/failure fallback is needed.
+Jev selects the tier; frontmatter pins its primary model and thinking. On provider failure
+Lite can use `pi-fallback-models`' configured global chain, which does not guarantee the table's
+fallback arrow or reviewer-family independence. See [`harness/pi/APPEND_SYSTEM.md`](harness/pi/APPEND_SYSTEM.md)
+for the dispatch, fallback, and provenance rules.
