@@ -13,8 +13,9 @@ rather than symlinked because Pi may rewrite them locally.
 | `harness/pi/patches/pi-jev.patch` | applied to `$PI_AGENT_DIR/npm/node_modules/pi-jev/src/jev.ts` | Unified diff that `install.sh` applies to `pi-jev`: rebuilds its SDK client on credential changes and adds `PI_JEV_API_KEY`. Not copied. |
 | `harness/pi/patches/pi-jev-prompt-guard.patch` | applied to `$PI_AGENT_DIR/npm/node_modules/pi-jev/` (`src/thinking.ts`, `extensions/index.ts`) | Unified diff that `install.sh` applies to `pi-jev`: tolerates a missing `event.prompt` (runs started by `sendCustomMessage`, such as agent completion messages) instead of throwing `Cannot read properties of undefined (reading 'trim')`. Not copied. |
 | `harness/pi/patches/pi-jev-conservative-thinking.patch` | applied to `$PI_AGENT_DIR/npm/node_modules/pi-jev/src/thinking.ts` | Routes only user-owned text, defaults to medium, and caps automatic thinking to one rank above the user-selected baseline. `xhigh` requires explicit user intent. Not copied. |
-| `harness/pi/patches/pi-jev-self-improve-thinking.patch` | applied to `$PI_AGENT_DIR/npm/node_modules/pi-jev/extensions/index.ts` | Disables auto-thinking for `PI_SELF_IMPROVE_CHILD` workers and reflections at router construction. The modular `patch-*` installer loop applies it with the other Jev patches. Not copied. |
-| `harness/pi/tests/package-patches.test.sh` | Not installed | Offline regression tests for patch idempotency, missing packages, upstream mismatch safety, and twice-run sandboxed installation from pristine and partial Jev patch states. Run with `bash`. |
+| `harness/pi/patches/pi-jev-self-improve-thinking.patch` | applied to `$PI_AGENT_DIR/npm/node_modules/pi-jev/extensions/index.ts` | Disables auto-thinking for `PI_SELF_IMPROVE_CHILD` workers and reflections at router construction. Lite fixed-tier agents instead exclude the `pi-jev` extension in their frontmatter. The modular `patch-*` installer loop applies it with the other Jev patches. Not copied. |
+| `harness/pi/tests/package-patches.test.sh` | Not installed | Offline regression tests for patch idempotency, missing packages, upstream mismatch safety, retired-package removal, and twice-run sandboxed installation from pristine and partial Jev patch states. Run with `bash`. |
+| `install/tests/agent-drift.test.sh` | Not installed | Offline check that agent tier bodies, fixed model/thinking frontmatter, and README catalog rows stay synchronized. Run with `bash`. |
 | `harness/pi/tests/fixtures/pi-jev-0.7.0/` | Not installed | Pristine upstream Jev sources for all 16 Jev patch-order subsets and thinking-policy regression tests. |
 | `harness/pi/tests/fixtures/pi-jev-skill-wrapped-prompt.txt` | Not installed | Representative `before_agent_start` skill wrapper plus a plain user request for conservative thinking-policy regression tests. |
 | `harness/pi/tests/package-extensions.test.mjs` | Not installed | Offline smoke test for pi-diff registration. Run with `node`, passing the installed Pi SDK package directory and Pi agent directory. |
@@ -149,7 +150,8 @@ installs and then exits 1.
   rebuilds the client when the resolved key or base URL changes and reads `PI_JEV_API_KEY` ahead of
   `TYPESAFE_API_KEY`. The separate `pi-jev-self-improve-thinking.patch` disables
   the thinking router for self-improvement workers and reflections, preserving their
-  selected or inherited level. Ordinary main sessions keep automatic thinking enabled.
+  selected or inherited level. Lite fixed-tier agents exclude the `pi-jev` extension instead;
+  ordinary main sessions keep automatic thinking enabled.
   `pi-jev-prompt-guard.patch` tolerates missing prompts from custom-message runs.
   `pi-jev-conservative-thinking.patch` strips injected skills, tagged context, pasted
   content, and handoffs before classification; ordinary or empty user text stays medium,
@@ -166,15 +168,17 @@ skill (allowlist-based; it never reads or copies secrets).
 
 ## Pi agent types
 
-The 24 files under [`agents/`](../../agents/) are Lite agent types named
-`<role>-<tier>`; reviewers add a producer-family suffix. Their frontmatter uses Lite fields
-(`tools`, `extensions`, `skills`, `model`, `thinking`, `output_transcript`, and prompt/context
-settings). Every type pins the table's primary model and fixed tier thinking. Read-only roles
-omit edit/write tools; worker and reviewer types retain their existing edit-capable contracts.
-`extensions: true` loads normal child extensions, including auth and model fallback. Each run
-writes a human-readable result transcript to `/tmp/pi-agent-outputs/<agentId>.log`; its parent
-session JSONL completion record carries the final resolved model. Profiles do not auto-create
-handoff files; the delegating agent names output paths in the task.
+The 24 files under [`agents/`](../../agents/) are Pi-only Lite agent types named
+`<role>-<tier>`; reviewers add a producer-family suffix. `install.sh` links them only into
+`$PI_AGENT_DIR/agents`, not Claude or OMP. Their frontmatter uses Lite fields (`tools`,
+`extensions`, `exclude_extensions`, `skills`, `model`, `thinking`, `output_transcript`, and
+prompt/context settings). Every type pins the table's primary model and fixed tier thinking and
+excludes `pi-jev`, so auto-thinking cannot override that level. Reviewer types are report-only
+and omit `edit`/`write`; `bash` remains an unenforced mutation gap. `extensions: true` loads
+normal child extensions, including auth and model fallback. Each run writes a human-readable
+result transcript to `/tmp/pi-agent-outputs/<agentId>.log`; only its background parent-session
+completion record carries the final resolved model. Profiles do not auto-create handoff files;
+the delegating agent names output paths in the task.
 
 ## New machine bootstrap
 ```sh

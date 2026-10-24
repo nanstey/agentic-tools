@@ -14,7 +14,7 @@ Clone the repo:
 git clone git@github.com:nanstey/agentic-tools.git
 ```
 
-Install or update skills, agents and harness configuration, then report external-tool status:
+Install or update skills, Pi-only Lite agent types, and harness configuration, then report external-tool status:
 ```sh
 bash install.sh
 ```
@@ -42,7 +42,7 @@ and runtime behavior.
 <details>
 <summary><code>harness/omp/</code> (OMP)</summary>
 
-`install.sh` links skills and agents into `~/.omp/agent`, copies portable OMP config, applies the status-line settings, and installs OMP packages. See [`harness/omp/README.md`](harness/omp/README.md) for the managed-file table and behavior.
+`install.sh` links skills into `~/.omp/agent`, copies portable OMP config, applies the status-line settings, and installs OMP packages. The Lite agent types are Pi-only. See [`harness/omp/README.md`](harness/omp/README.md) for the managed-file table and behavior.
 
 </details>
 
@@ -163,8 +163,7 @@ Refactor's internal simplification method is vendored and adapted from
 
 ## Agents
 
-Pi Lite agent types for focused delegated work. Every type is a leaf agent that never spawns
-further agents. Pi-specific runtime details are under [Pi agent types](harness/pi/README.md#pi-agent-types).
+Pi-only Lite agent types for focused delegated work. `install.sh` links them only into Pi, not Claude or OMP. Every type is a leaf agent that never spawns further agents. Pi-specific runtime details are under [Pi agent types](harness/pi/README.md#pi-agent-types).
 
 | Agent | Model and thinking | Description |
 | --- | --- | --- |

@@ -17,7 +17,7 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 A Lite agent type is one `.md` file whose body is the agent system prompt. Lite discovers
 these files from `~/.pi/agent/agents`, `.agents/agents`, and `.pi/agents`; this repository
-installs them into the global directory by symlink.
+installs them only into Pi's global directory by symlink.
 
 Location contract:
 
@@ -41,6 +41,7 @@ thinking: medium
 - `description`: required; third person; ends with `Delegate when ...`.
 - `tools` or `exclude_tools`: optional and mutually exclusive. Use an allowlist for least privilege; read-only types must omit `edit` and `write`.
 - `extensions`: `true`, `false`, or a named allowlist. Set `true` when the type needs normal Pi extensions such as auth, fallback, web access, or codemode.
+- `exclude_extensions`: optional blacklist. Fixed-tier types must exclude `pi-jev`, whose auto-thinking router can otherwise override the pinned `thinking` value.
 - `skills`: `true`, `false`, or a named allowlist.
 - `model`: fixed `provider/model-id` when the routing policy assigns this type a model.
 - `thinking`: fixed supported level (`off`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`, or `parent`). Tool dispatch cannot override it.

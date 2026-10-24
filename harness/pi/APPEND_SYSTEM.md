@@ -97,7 +97,8 @@ low-quality result.
 Use the matching `<role>-<tier>` type in the table. Its frontmatter, not the dispatch call,
 pins model and thinking: quick is low, standard medium, high and premium high. `xhigh` and
 off-tier thinking are unavailable to tool dispatch; only a user override in `/agents` can change
-them. Do not pass model or thinking fields to `Agent`.
+them. Fixed-tier types exclude `pi-jev`, so its auto-thinking router cannot override the pinned
+level. Do not pass model or thinking fields to `Agent`.
 
 | Role | quick | standard | high | premium |
 | --- | --- | --- | --- | --- |
@@ -113,9 +114,9 @@ Names starting `haiku`, `sonnet`, `opus`, or `fable` are `anthropic/claude-*`; n
 
 Fallback rules:
 
-- Each agent type loads extensions (`extensions: true`), so it loads the installed auth,
-  `pi-fallback-models`, and other normal Pi extensions. Lite's source creates its child session
-  with those extensions and uses an in-memory child session.
+- Each agent type loads normal child extensions (`extensions: true`) but excludes `pi-jev` to
+  preserve its fixed thinking tier. This does not remove `codemode` classifier access. Lite's
+  source creates each child session in memory.
 - On a quota, rate-limit, auth, or provider error, retry the same role/tier once. The installed
   fallback extension may switch to its configured fallback chain. It cannot select the table's
   per-cell arrow, because the `Agent` tool accepts no model override and this repository does
@@ -136,20 +137,11 @@ reviewer.
   `reviewer-anthropic-<tier>` for work actually produced on an Anthropic model.
 - Never have the producer review its own output or deliberately send both halves of a
   produce/verify pair to the same family.
-- Lite persists no child session JSONL: `SessionManager.inMemory()` owns the child. With
-  `output_transcript: true`, its human-readable transcript is
-  `/tmp/pi-agent-outputs/<agentId>.log`; it contains text and tools, not model metadata.
-  Parent session JSONL files are under `$PI_AGENT_DIR/sessions/` and background completion
-  records carry the final resolved model. Check a successful completion with:
-
-  ```sh
-  jq -r 'select(.type == "custom_message" and .customType == "subagent-result" and .details.status == "completed") | .details.modelId // .details.modelName // "unknown"' "$PI_AGENT_DIR/sessions/<session>.jsonl"
-  ```
-
-  This command works against Pi's custom-message JSONL format. It records only the final model,
-  not a model for every assistant message; output transcripts cannot prove mixed-provider runs.
-  Therefore reviewer-family independence is a best-effort policy, not mechanically enforced.
-  Unknown or potentially mixed provenance is a recorded gap: do not claim cross-family review.
+- Dispatch every source-review row, validator, and candidate verifier with
+  `run_in_background: true`. Only background completion records carry the final resolved model;
+  a foreground row has model `unknown`, a recorded gap. See the
+  [model provenance reference](../../skills/workflow/review-code/references/model-provenance.md)
+  for the inspection command and evidence limits.
 
 # Codemode and Jev
 
