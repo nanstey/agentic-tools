@@ -1,8 +1,9 @@
 ---
 name: researcher-quick
-description: Focused web research at a fixed model tier. Delegate when sourced external evidence is needed.
+description: Focused web research (quick tier: bounded mechanical task). Delegate when sourced external evidence is needed.
 tools: [read, web_search, fetch_content, get_search_content]
 extensions: true
+exclude_extensions: [pi-jev]
 skills: true
 model: anthropic/claude-haiku-5-5
 thinking: low

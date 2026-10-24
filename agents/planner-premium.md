@@ -1,8 +1,9 @@
 ---
 name: planner-premium
-description: Concrete implementation planning at a fixed model tier. Delegate when requirements must become an actionable plan.
+description: Concrete implementation planning (premium tier: explicitly requested or indivisible irreversible or security-critical work). Delegate when requirements must become an actionable plan.
 tools: [read, grep, find, ls]
 extensions: true
+exclude_extensions: [pi-jev]
 skills: true
 model: anthropic/claude-fable-5-1
 thinking: high

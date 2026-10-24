@@ -1,8 +1,9 @@
 ---
 name: researcher-high
-description: Focused web research at a fixed model tier. Delegate when sourced external evidence is needed.
+description: Focused web research (high tier: cross-boundary or high-blast-radius work). Delegate when sourced external evidence is needed.
 tools: [read, web_search, fetch_content, get_search_content]
 extensions: true
+exclude_extensions: [pi-jev]
 skills: true
 model: anthropic/claude-sonnet-5-5
 thinking: high

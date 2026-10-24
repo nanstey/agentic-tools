@@ -1,8 +1,9 @@
 ---
 name: scout-premium
-description: Fast codebase reconnaissance at a fixed model tier. Delegate when focused implementation context is needed.
+description: Fast codebase reconnaissance (premium tier: explicitly requested or indivisible irreversible or security-critical work). Delegate when focused implementation context is needed.
 tools: [read, grep, find, ls, bash, codemode]
 extensions: true
+exclude_extensions: [pi-jev]
 skills: true
 model: anthropic/claude-sonnet-5-5
 thinking: high

@@ -1,8 +1,9 @@
 ---
 name: scout-quick
-description: Fast codebase reconnaissance at a fixed model tier. Delegate when focused implementation context is needed.
+description: Fast codebase reconnaissance (quick tier: bounded mechanical task). Delegate when focused implementation context is needed.
 tools: [read, grep, find, ls, bash, codemode]
 extensions: true
+exclude_extensions: [pi-jev]
 skills: true
 model: anthropic/claude-haiku-5-5
 thinking: low

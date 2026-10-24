@@ -1,8 +1,9 @@
 ---
 name: researcher-standard
-description: Focused web research at a fixed model tier. Delegate when sourced external evidence is needed.
+description: Focused web research (standard tier: ordinary work). Delegate when sourced external evidence is needed.
 tools: [read, web_search, fetch_content, get_search_content]
 extensions: true
+exclude_extensions: [pi-jev]
 skills: true
 model: anthropic/claude-sonnet-5-5
 thinking: medium

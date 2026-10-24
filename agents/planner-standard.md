@@ -1,8 +1,9 @@
 ---
 name: planner-standard
-description: Concrete implementation planning at a fixed model tier. Delegate when requirements must become an actionable plan.
+description: Concrete implementation planning (standard tier: ordinary work). Delegate when requirements must become an actionable plan.
 tools: [read, grep, find, ls]
 extensions: true
+exclude_extensions: [pi-jev]
 skills: true
 model: anthropic/claude-sonnet-5-5
 thinking: medium

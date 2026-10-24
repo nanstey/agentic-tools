@@ -168,30 +168,30 @@ further agents. Pi-specific runtime details are under [Pi agent types](harness/p
 
 | Agent | Model and thinking | Description |
 | --- | --- | --- |
-| [`scout-quick`](agents/scout-quick.md) | `anthropic/claude-haiku-5-5`, low | Fast codebase reconnaissance at a fixed model tier. Delegate when focused implementation context is needed. |
-| [`scout-standard`](agents/scout-standard.md) | `anthropic/claude-sonnet-5-5`, medium | Fast codebase reconnaissance at a fixed model tier. Delegate when focused implementation context is needed. |
-| [`scout-high`](agents/scout-high.md) | `anthropic/claude-sonnet-5-5`, high | Fast codebase reconnaissance at a fixed model tier. Delegate when focused implementation context is needed. |
-| [`scout-premium`](agents/scout-premium.md) | `anthropic/claude-sonnet-5-5`, high | Fast codebase reconnaissance at a fixed model tier. Delegate when focused implementation context is needed. |
-| [`researcher-quick`](agents/researcher-quick.md) | `anthropic/claude-haiku-5-5`, low | Focused web research at a fixed model tier. Delegate when sourced external evidence is needed. |
-| [`researcher-standard`](agents/researcher-standard.md) | `anthropic/claude-sonnet-5-5`, medium | Focused web research at a fixed model tier. Delegate when sourced external evidence is needed. |
-| [`researcher-high`](agents/researcher-high.md) | `anthropic/claude-sonnet-5-5`, high | Focused web research at a fixed model tier. Delegate when sourced external evidence is needed. |
-| [`researcher-premium`](agents/researcher-premium.md) | `anthropic/claude-opus-5-5`, high | Focused web research at a fixed model tier. Delegate when sourced external evidence is needed. |
-| [`planner-quick`](agents/planner-quick.md) | `anthropic/claude-sonnet-5-5`, low | Concrete implementation planning at a fixed model tier. Delegate when requirements must become an actionable plan. |
-| [`planner-standard`](agents/planner-standard.md) | `anthropic/claude-sonnet-5-5`, medium | Concrete implementation planning at a fixed model tier. Delegate when requirements must become an actionable plan. |
-| [`planner-high`](agents/planner-high.md) | `anthropic/claude-sonnet-5-5`, high | Concrete implementation planning at a fixed model tier. Delegate when requirements must become an actionable plan. |
-| [`planner-premium`](agents/planner-premium.md) | `anthropic/claude-fable-5-1`, high | Concrete implementation planning at a fixed model tier. Delegate when requirements must become an actionable plan. |
-| [`worker-quick`](agents/worker-quick.md) | `openai-codex/gpt-6-luna`, low | Narrow implementation work at a fixed model tier. Delegate when an approved task needs one writer. |
-| [`worker-standard`](agents/worker-standard.md) | `openai-codex/gpt-5.6-terra`, medium | Narrow implementation work at a fixed model tier. Delegate when an approved task needs one writer. |
-| [`worker-high`](agents/worker-high.md) | `openai-codex/gpt-5.6-terra`, high | Narrow implementation work at a fixed model tier. Delegate when an approved task needs one writer. |
-| [`worker-premium`](agents/worker-premium.md) | `openai-codex/gpt-6.1-sol`, high | Narrow implementation work at a fixed model tier. Delegate when an approved task needs one writer. |
-| [`reviewer-openai-quick`](agents/reviewer-openai-quick.md) | `anthropic/claude-haiku-5-5`, low | Independent Anthropic review of OpenAI-produced work at a fixed model tier. Delegate when OpenAI work needs review. |
-| [`reviewer-openai-standard`](agents/reviewer-openai-standard.md) | `anthropic/claude-sonnet-5-5`, medium | Independent Anthropic review of OpenAI-produced work at a fixed model tier. Delegate when OpenAI work needs review. |
-| [`reviewer-openai-high`](agents/reviewer-openai-high.md) | `anthropic/claude-sonnet-5-5`, high | Independent Anthropic review of OpenAI-produced work at a fixed model tier. Delegate when OpenAI work needs review. |
-| [`reviewer-openai-premium`](agents/reviewer-openai-premium.md) | `anthropic/claude-opus-5-5`, high | Independent Anthropic review of OpenAI-produced work at a fixed model tier. Delegate when OpenAI work needs review. |
-| [`reviewer-anthropic-quick`](agents/reviewer-anthropic-quick.md) | `openai-codex/gpt-6-luna`, low | Independent OpenAI review of Anthropic-produced work at a fixed model tier. Delegate when Anthropic work needs review. |
-| [`reviewer-anthropic-standard`](agents/reviewer-anthropic-standard.md) | `openai-codex/gpt-5.6-terra`, medium | Independent OpenAI review of Anthropic-produced work at a fixed model tier. Delegate when Anthropic work needs review. |
-| [`reviewer-anthropic-high`](agents/reviewer-anthropic-high.md) | `openai-codex/gpt-5.6-terra`, high | Independent OpenAI review of Anthropic-produced work at a fixed model tier. Delegate when Anthropic work needs review. |
-| [`reviewer-anthropic-premium`](agents/reviewer-anthropic-premium.md) | `openai-codex/gpt-6.1-sol`, high | Independent OpenAI review of Anthropic-produced work at a fixed model tier. Delegate when Anthropic work needs review. |
+| [`scout-quick`](agents/scout-quick.md) | `anthropic/claude-haiku-5-5`, low | Fast codebase reconnaissance (quick tier: bounded mechanical task). Delegate when focused implementation context is needed. |
+| [`scout-standard`](agents/scout-standard.md) | `anthropic/claude-sonnet-5-5`, medium | Fast codebase reconnaissance (standard tier: ordinary work). Delegate when focused implementation context is needed. |
+| [`scout-high`](agents/scout-high.md) | `anthropic/claude-sonnet-5-5`, high | Fast codebase reconnaissance (high tier: cross-boundary or high-blast-radius work). Delegate when focused implementation context is needed. |
+| [`scout-premium`](agents/scout-premium.md) | `anthropic/claude-sonnet-5-5`, high | Fast codebase reconnaissance (premium tier: explicitly requested or indivisible irreversible or security-critical work). Delegate when focused implementation context is needed. |
+| [`researcher-quick`](agents/researcher-quick.md) | `anthropic/claude-haiku-5-5`, low | Focused web research (quick tier: bounded mechanical task). Delegate when sourced external evidence is needed. |
+| [`researcher-standard`](agents/researcher-standard.md) | `anthropic/claude-sonnet-5-5`, medium | Focused web research (standard tier: ordinary work). Delegate when sourced external evidence is needed. |
+| [`researcher-high`](agents/researcher-high.md) | `anthropic/claude-sonnet-5-5`, high | Focused web research (high tier: cross-boundary or high-blast-radius work). Delegate when sourced external evidence is needed. |
+| [`researcher-premium`](agents/researcher-premium.md) | `anthropic/claude-opus-5-5`, high | Focused web research (premium tier: explicitly requested or indivisible irreversible or security-critical work). Delegate when sourced external evidence is needed. |
+| [`planner-quick`](agents/planner-quick.md) | `anthropic/claude-sonnet-5-5`, low | Concrete implementation planning (quick tier: bounded mechanical task). Delegate when requirements must become an actionable plan. |
+| [`planner-standard`](agents/planner-standard.md) | `anthropic/claude-sonnet-5-5`, medium | Concrete implementation planning (standard tier: ordinary work). Delegate when requirements must become an actionable plan. |
+| [`planner-high`](agents/planner-high.md) | `anthropic/claude-sonnet-5-5`, high | Concrete implementation planning (high tier: cross-boundary or high-blast-radius work). Delegate when requirements must become an actionable plan. |
+| [`planner-premium`](agents/planner-premium.md) | `anthropic/claude-fable-5-1`, high | Concrete implementation planning (premium tier: explicitly requested or indivisible irreversible or security-critical work). Delegate when requirements must become an actionable plan. |
+| [`worker-quick`](agents/worker-quick.md) | `openai-codex/gpt-6-luna`, low | Narrow implementation work (quick tier: bounded mechanical task). Delegate when an approved task needs one writer. |
+| [`worker-standard`](agents/worker-standard.md) | `openai-codex/gpt-5.6-terra`, medium | Narrow implementation work (standard tier: ordinary work). Delegate when an approved task needs one writer. |
+| [`worker-high`](agents/worker-high.md) | `openai-codex/gpt-5.6-terra`, high | Narrow implementation work (high tier: cross-boundary or high-blast-radius work). Delegate when an approved task needs one writer. |
+| [`worker-premium`](agents/worker-premium.md) | `openai-codex/gpt-6.1-sol`, high | Narrow implementation work (premium tier: explicitly requested or indivisible irreversible or security-critical work). Delegate when an approved task needs one writer. |
+| [`reviewer-openai-quick`](agents/reviewer-openai-quick.md) | `anthropic/claude-haiku-5-5`, low | Independent Anthropic review of OpenAI-produced work (quick tier: bounded mechanical task). Delegate when OpenAI work needs review. |
+| [`reviewer-openai-standard`](agents/reviewer-openai-standard.md) | `anthropic/claude-sonnet-5-5`, medium | Independent Anthropic review of OpenAI-produced work (standard tier: ordinary work). Delegate when OpenAI work needs review. |
+| [`reviewer-openai-high`](agents/reviewer-openai-high.md) | `anthropic/claude-sonnet-5-5`, high | Independent Anthropic review of OpenAI-produced work (high tier: cross-boundary or high-blast-radius work). Delegate when OpenAI work needs review. |
+| [`reviewer-openai-premium`](agents/reviewer-openai-premium.md) | `anthropic/claude-opus-5-5`, high | Independent Anthropic review of OpenAI-produced work (premium tier: explicitly requested or indivisible irreversible or security-critical work). Delegate when OpenAI work needs review. |
+| [`reviewer-anthropic-quick`](agents/reviewer-anthropic-quick.md) | `openai-codex/gpt-6-luna`, low | Independent OpenAI review of Anthropic-produced work (quick tier: bounded mechanical task). Delegate when Anthropic work needs review. |
+| [`reviewer-anthropic-standard`](agents/reviewer-anthropic-standard.md) | `openai-codex/gpt-5.6-terra`, medium | Independent OpenAI review of Anthropic-produced work (standard tier: ordinary work). Delegate when Anthropic work needs review. |
+| [`reviewer-anthropic-high`](agents/reviewer-anthropic-high.md) | `openai-codex/gpt-5.6-terra`, high | Independent OpenAI review of Anthropic-produced work (high tier: cross-boundary or high-blast-radius work). Delegate when Anthropic work needs review. |
+| [`reviewer-anthropic-premium`](agents/reviewer-anthropic-premium.md) | `openai-codex/gpt-6.1-sol`, high | Independent OpenAI review of Anthropic-produced work (premium tier: explicitly requested or indivisible irreversible or security-critical work). Delegate when Anthropic work needs review. |
 
 Jev selects the tier; frontmatter pins its primary model and thinking. On provider failure
 Lite can use `pi-fallback-models`' configured global chain, which does not guarantee the table's

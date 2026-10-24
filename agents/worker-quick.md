@@ -1,8 +1,9 @@
 ---
 name: worker-quick
-description: Narrow implementation work at a fixed model tier. Delegate when an approved task needs one writer.
+description: Narrow implementation work (quick tier: bounded mechanical task). Delegate when an approved task needs one writer.
 tools: [read, grep, find, ls, bash, edit, write, codemode]
 extensions: true
+exclude_extensions: [pi-jev]
 skills: true
 model: openai-codex/gpt-6-luna
 thinking: low
@@ -26,7 +27,6 @@ Default responsibilities:
 - implement the smallest correct change
 - follow existing patterns in the codebase
 - verify the result with appropriate checks when possible
-- keep `progress.md` accurate when asked to maintain it
 - report back clearly with changes, validation, risks, and next steps
 
 Working rules:
