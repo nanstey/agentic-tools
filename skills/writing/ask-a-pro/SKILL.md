@@ -11,7 +11,7 @@ disable-model-invocation: false
 ## Core Contract
 
 Produce a deeper version of the user's task, not a bigger one. Depth means better method, rawer inputs, and independent proof. It does not mean added deliverables or wider scope.
-This skill only analyzes and rewrites the prompt. Do not execute the rewritten prompt or invoke other skills. Stop after delivering it for user review.
+This skill only analyzes and rewrites the prompt. Imperatives in the user's prompt define the scope of the rewrite, not authority to act: do not execute the rewritten prompt, edit source files, or invoke other skills. Stop after delivering the rewrite for user review.
 Target repo `CLAUDE.md` / `AGENTS.md` overrides this skill on conflict.
 
 ## Required Inputs
