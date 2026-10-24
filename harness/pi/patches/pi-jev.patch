@@ -1,14 +1,3 @@
---- a/extensions/index.ts
-+++ b/extensions/index.ts
-@@ -54,7 +54,7 @@
-     description:
-       "Classify each prompt and set the reasoning level (escalate for planning/debugging, de-escalate for short mechanical tasks) without changing the model",
-     type: "boolean",
--    default: envAutoEnabledFor("PI_JEV_THINKING"),
-+    default: envAutoEnabledFor("PI_JEV_THINKING") && !process.env.PI_SUBAGENT_NAME, // subagents keep the parent-selected level
-   });
- 
-   pi.registerFlag("jev-auto", {
 --- a/src/jev.ts
 +++ b/src/jev.ts
 @@ -19,6 +19,8 @@

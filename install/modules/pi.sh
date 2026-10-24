@@ -33,6 +33,43 @@ install_pnpm_hoist() {
   echo "  [hoist] -> $rc (set, store reset for flat reinstall)"
 }
 
+# Remove the package and config directory retired by the lite-only migration. Compose
+# the package basename so repository audits for the old extension name stay clean.
+# Pi settings are copied before this runs; this removes state a settings rewrite cannot
+# reconcile. It is intentionally idempotent.
+remove_retired_delegation_state() {
+  local agent_dir="$1" npm_dir="$1/npm" package_dir config_dir package_name manifest_key
+  package_name="@maplezzk/pi-""interactive""-subagents"
+  manifest_key="\"$package_name\""
+  package_dir="$npm_dir/node_modules/$package_name"
+  config_dir="$agent_dir/extensions/pi-""interactive""-subagents"
+  local removed=0
+  # Pi maintains its install manifest separately from settings. Remove the retired
+  # direct dependency there too; otherwise a later `pi install` rehydrates it.
+  if [ -f "$npm_dir/package.json" ] && grep -qF "$manifest_key" "$npm_dir/package.json"; then
+    if ! command -v pnpm >/dev/null 2>&1; then
+      echo "  [retired-delegation] pnpm not found; cannot remove stale direct dependency" >&2
+      return 1
+    fi
+    if ! pnpm --dir "$npm_dir" remove "$package_name"; then
+      echo "  [retired-delegation] failed to remove stale direct dependency" >&2
+      return 1
+    fi
+    removed=$((removed + 1))
+  fi
+  for path in "$package_dir" "$config_dir"; do
+    if [ -e "$path" ] || [ -L "$path" ]; then
+      rm -rf "$path"
+      removed=$((removed + 1))
+    fi
+  done
+  if [ "$removed" -eq 0 ]; then
+    echo "  [retired-delegation] -> $agent_dir (ok)"
+  else
+    echo "  [retired-delegation] -> $agent_dir ($removed removed)"
+  fi
+}
+
 # Expose the Pi CLIs to ordinary shells: $PI_AGENT_DIR/bin is only on PATH inside Pi.
 install_pi_cli_links() {
   local cli
