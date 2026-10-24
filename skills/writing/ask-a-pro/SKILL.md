@@ -27,7 +27,7 @@ Target repo `CLAUDE.md` / `AGENTS.md` overrides this skill on conflict.
    2. **Raw material**: the primary, undigested sources they would start from, instead of summaries, tutorials, or prior conclusions already processed for the user.
    3. **Methods and tools**: the named techniques, instruments, and software they would use.
    4. **External check**: what, other than the assistant or the user, would show the result is right (a test suite, measurement, reference dataset, standard, independent reviewer, real-world outcome).
-3. Rewrite the prompt so it asks for exactly those four things. Keep the original goal, deliverable, and constraints unchanged.
+3. Rewrite the prompt so it keeps the original goal, deliverable, and constraints unchanged, and instructs the executor to work the way points 1-4 describe: apply the unasked practice, start from the raw material, use the named methods and tools, and verify against the external check. Write these as how to do the task, not as extra outputs.
 4. Check the rewrite for scope creep: every added line must deepen the original task. Remove any line that adds a new deliverable.
 
 ## Safety Rules
