@@ -38,7 +38,9 @@ install_pnpm_hoist() {
 # Pi settings are copied before this runs; this removes state a settings rewrite cannot
 # reconcile. It is intentionally idempotent.
 remove_retired_delegation_state() {
-  local agent_dir="$1" npm_dir="$1/npm" package_dir config_dir package_name manifest_key
+  local agent_dir="$1" npm_dir package_dir config_dir package_name manifest_key path
+  : "${agent_dir:?}"
+  npm_dir="$agent_dir/npm"
   package_name="@maplezzk/pi-""interactive""-subagents"
   manifest_key="\"$package_name\""
   package_dir="$npm_dir/node_modules/$package_name"

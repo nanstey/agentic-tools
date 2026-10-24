@@ -7,6 +7,7 @@ SB="$(mktemp -d)"
 trap 'rm -rf "$SB"' EXIT
 # Load definitions only, without running the installer or reading local secrets.
 source "$REPO/install/modules/patches.sh"
+source "$REPO/install/modules/pi.sh"
 pkg="$SB/package"
 mkdir -p "$pkg/src"
 printf 'first\nsecond\n' > "$pkg/src/test.ts"
@@ -73,6 +74,36 @@ else:
         json.dump(config, f)
 PY
 chmod +x "$SB/bin/pi" "$SB/bin/omp"
+cat > "$SB/bin/pnpm" <<'SH'
+#!/bin/sh
+printf 'pnpm %s\n' "$*" >> "${PNPM_LOG:?}"
+exit "${PNPM_STATUS:-0}"
+SH
+chmod +x "$SB/bin/pnpm"
+
+retired_name="@maplezzk/pi-""interactive""-subagents"
+for outcome in success failure; do
+  agent_dir="$SB/retired-$outcome"
+  package_dir="$agent_dir/npm/node_modules/$retired_name"
+  config_dir="$agent_dir/extensions/pi-""interactive""-subagents"
+  mkdir -p "$package_dir" "$config_dir"
+  printf '{"dependencies":{"%s":"1.0.0"}}\n' "$retired_name" > "$agent_dir/npm/package.json"
+  : > "$package_dir/marker"
+  : > "$config_dir/marker"
+  status=0
+  if [ "$outcome" = success ]; then
+    PATH="$SB/bin:$PATH" PNPM_LOG="$SB/pnpm-$outcome.log" remove_retired_delegation_state "$agent_dir" || status=$?
+    [ "$status" -eq 0 ] || { echo "FAIL: pnpm removal success returned $status" >&2; exit 1; }
+    grep -qF -- "--dir $agent_dir/npm remove $retired_name" "$SB/pnpm-$outcome.log"
+    [ ! -e "$package_dir" ] && [ ! -e "$config_dir" ] || { echo 'FAIL: successful pnpm removal left retired state' >&2; exit 1; }
+  else
+    PATH="$SB/bin:$PATH" PNPM_LOG="$SB/pnpm-$outcome.log" PNPM_STATUS=7 remove_retired_delegation_state "$agent_dir" || status=$?
+    [ "$status" -eq 1 ] || { echo "FAIL: pnpm removal failure returned $status" >&2; exit 1; }
+    [ -e "$package_dir" ] && [ -e "$config_dir" ] || { echo 'FAIL: failed pnpm removal removed retired state' >&2; exit 1; }
+  fi
+done
+echo 'ok: retired delegation pnpm removal success and failure paths'
+
 patches=(pi-jev.patch pi-jev-prompt-guard.patch pi-jev-conservative-thinking.patch pi-jev-self-improve-thinking.patch)
 labels=(patch-jev-client patch-jev-prompt-guard patch-jev-conservative-thinking patch-jev-self-improve-thinking)
 # All 16 subsets exercise pristine, partial, and fully patched packages.

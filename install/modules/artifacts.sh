@@ -43,6 +43,28 @@ link_one() {
   fi
 }
 
+# Remove dangling artifact links from destinations that no longer install that artifact
+# type. This mirrors the cleanup in install_artifacts without creating a missing
+# destination directory.
+prune_dangling_artifacts() {
+  local pattern="$1" dir stale
+  local -a dirs
+  shopt -s nullglob; dirs=( $pattern ); shopt -u nullglob
+  if [ "${#dirs[@]}" -eq 0 ]; then
+    case "$pattern" in
+      *[*?[]*) return 0 ;;
+      *) dirs=( "$pattern" ) ;;
+    esac
+  fi
+  for dir in "${dirs[@]}"; do
+    [ -d "$dir" ] || continue
+    for stale in "$dir"/*; do
+      [ -L "$stale" ] && [ ! -e "$stale" ] && { rm -f "$stale"; echo "  [agents] removed dangling $(basename "$stale")"; }
+    done
+  done
+  return 0
+}
+
 # Keep the destination loop in the calling shell, including its shared counters.
 install_artifacts() {
   type="$1"; pattern="$2"

@@ -140,10 +140,13 @@ echo 'ok: all definition modules import without installation, env, umask or trap
 mkdir -p "$HOME/.claude/skills/sample" "$HOME/.claude/agents" "$HOME/.codex" \
   "$HOME/.omp/agent" "$HOME/.omp/profiles/alpha/agent/skills" "$HOME/.omp/profiles/alpha/agent/agents"
 ln -s /dev/null "$HOME/.claude/agents/reviewer.md"
+ln -s "$SB/missing" "$HOME/.claude/agents/retired.md"
 ln -s "$SB/missing" "$HOME/.claude/skills/retired"
 run first 0 env PATH="$SB/capabilities:$PATH" USE_BUN=1 bash "$FIXTURE/install.sh"
 [ ! -s "$SB/first.err" ] || fail 'fresh install stderr'
-has first '1 overwritten'; has first '1 repointed'; has first 'removed dangling retired'
+has first '1 overwritten'; has first 'removed dangling retired'
+[ -L "$HOME/.claude/agents/reviewer.md" ] && [ "$(readlink "$HOME/.claude/agents/reviewer.md")" = /dev/null ] || fail 'Claude received a Pi-only agent type'
+[ ! -e "$HOME/.claude/agents/retired.md" ] || fail 'Claude dangling agent link remains'
 has first '10 settings updated'; has first '1 installed, 0 up to date'
 [ -f "$HOME/env-loaded" ] || fail '.env not loaded'
 [ "$(cat "$HOME/custom-agent/secrets/typesafe_api_key")" = fixture-file-key ] || fail 'file key precedence'
