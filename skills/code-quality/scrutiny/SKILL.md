@@ -84,7 +84,7 @@ Examples:
 - Use `packs/operations/core.md` when the work must survive production — timeouts, retries, load shedding, rollback, or alerting.
 - Use `packs/threat-modeling/core.md` when mapping trust boundaries, attacker paths, abuse cases, mitigations, or security verification.
 - Use `packs/ai-engineering/core.md` when building an LLM product, RAG system, model evaluation, or tool-enabled workflow.
-- Use `packs/agent-design/core.md` when building an agent or subagent, splitting work across agents, setting tool permissions, or deciding how agent output gets verified.
+- Use `packs/agent-design/core.md` when building an agent or delegated agent, splitting work across agents, setting tool permissions, or deciding how agent output gets verified.
 - Use `packs/legacy-change/core.md` when modifying code that already works, has no tests, or is being replaced incrementally.
 - Use `packs/testing-design/core.md` when deciding what to test, what to mock, or why a suite is brittle or untrusted.
 - Use `packs/product-discovery/core.md` when the value of the thing itself is unproven — before the engineering packs, not alongside them.
@@ -179,4 +179,4 @@ Use these as a sanity check, not a fixed router:
 - Do not keep interviewing after the user asks to proceed.
 - Do not claim verification without evidence.
 - Do not present legal conclusions; identify matters requiring counsel.
-- Do not depend on vendor-specific planning modes, memory systems, tool names, or subagent APIs.
+- Do not depend on vendor-specific planning modes, memory systems, tool names, or delegated-agent APIs.

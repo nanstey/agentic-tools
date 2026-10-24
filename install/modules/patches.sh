@@ -52,44 +52,19 @@ install_fallback_quota_patch() {
 '|plan limit|no more (?:fast )?requests|billing|out of extra usage/i;'
 }
 
-# pi-fallback-models@0.1.1 can switch reviewers to the producer's provider.
-# Restrict fallback candidates before either the switch bus or setModel runs.
-# Keep this separate from the quota patch for installations that already have it.
-install_fallback_reviewer_lock_patch() {
-  apply_package_patch "$1" patch-fallback-reviewer-lock "$REPO_ROOT/harness/pi/patches/pi-fallback-reviewer-provider-lock.patch" src/extension.ts
-}
-
-# @maplezzk/pi-interactive-subagents@3.16.4 derives the widget's denied list
-# from a Set now, so the former literal patch no longer matches. Hide only the
-# display list; keep deniedTools intact for tool-registration enforcement.
-# Remove once upstream makes the list optional.
-install_subagent_widget_patch() {
-  apply_package_patch "$1" patch-subagent-widget "$REPO_ROOT/harness/pi/patches/pi-subagent-widget-3.16.patch" pi-extension/subagents/subagent-done.ts
-}
-
-# @maplezzk/pi-interactive-subagents@3.16.4 accepts a text-less
-# subagent_done call and exits before the agent sends a summary. Require either
-# a prior assistant summary or a result. Keep this separate from the widget
-# patch so installations that already have it receive this fix too.
-install_subagent_done_summary_patch() {
-  apply_package_patch "$1" patch-subagent-done-summary "$REPO_ROOT/harness/pi/patches/pi-subagent-done-requires-summary.patch" pi-extension/subagents/subagent-done.ts
-}
-
 # pi-jev@0.7.0 builds its SDK client once and keeps a stale base URL, so a
 # profile switch keeps billing the first profile's key and endpoint. It also reads
-# only TYPESAFE_API_KEY (shared with Pi's native classifier) and auto-adjusts
-# thinking inside subagents. Apply harness/pi/patches/pi-jev.patch (a unified
-# diff) to rebuild the client when the key or base URL changes, prefer
-# PI_JEV_API_KEY, and skip auto-thinking in subagents. Remove once upstream does.
+# only TYPESAFE_API_KEY (shared with Pi's native classifier). Apply
+# harness/pi/patches/pi-jev.patch (a unified diff) to rebuild the client when the
+# key or base URL changes and prefer PI_JEV_API_KEY. Remove once upstream does.
 install_jev_client_patch() {
   apply_package_patch "$1" patch-jev-client "$REPO_ROOT/harness/pi/patches/pi-jev.patch" src/jev.ts
 }
 
-# pi-jev@0.7.0 assumes before_agent_start's event.prompt is a string, but runs
-# started by sendCustomMessage (e.g. subagent results) have none, so
-# classifyThinkingNeed throws "Cannot read properties of undefined (reading
-# 'trim')". Apply harness/pi/patches/pi-jev-prompt-guard.patch. Kept separate from
-# pi-jev.patch so machines that already applied that one still get this fix.
+# pi-jev@0.7.0 assumes before_agent_start's event.prompt is a string. Custom-message
+# runs can omit it, so classifyThinkingNeed throws "Cannot read properties of
+# undefined (reading 'trim')". Apply harness/pi/patches/pi-jev-prompt-guard.patch.
+# Kept separate from pi-jev.patch so machines that already applied that one still get this fix.
 # Remove once upstream guards it.
 install_jev_prompt_guard_patch() {
   apply_package_patch "$1" patch-jev-prompt-guard "$REPO_ROOT/harness/pi/patches/pi-jev-prompt-guard.patch" src/jev.ts

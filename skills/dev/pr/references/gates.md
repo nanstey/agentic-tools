@@ -103,7 +103,7 @@ At round 5, unresolved requests remain blockers: report `blocked` without produc
 
 ## Blocked report form
 
-Use `blocked: <gate> — <exact missing evidence or failed check>; unblock requires: <input/state>` only after the work for that gate was attempted or is impossible. A blocked report states the unblocking condition and may note that `force` overrides a soft gate; it never asks the user a question. For unavailable review-code dispatch, return exactly `blocked: needs a coordinator with subagent dispatch`. For an action allowed to start review, a missing matching packet is never a blocker: start review now. `/pr ready` and `/pr merge` also start the missing phase themselves (review, CI fix, thread handling) through the lifecycle phase actions in [`lifecycle.md`](lifecycle.md) instead of blocking; they block only when that work cannot proceed and `force` is absent.
+Use `blocked: <gate> — <exact missing evidence or failed check>; unblock requires: <input/state>` only after the work for that gate was attempted or is impossible. A blocked report states the unblocking condition and may note that `force` overrides a soft gate; it never asks the user a question. For unavailable review-code dispatch, return exactly `blocked: needs a coordinator with Agent-tool dispatch`. For an action allowed to start review, a missing matching packet is never a blocker: start review now. `/pr ready` and `/pr merge` also start the missing phase themselves (review, CI fix, thread handling) through the lifecycle phase actions in [`lifecycle.md`](lifecycle.md) instead of blocking; they block only when that work cannot proceed and `force` is absent.
 
 ## Lifecycle completion gate
 

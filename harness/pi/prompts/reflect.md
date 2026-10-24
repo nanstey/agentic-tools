@@ -2,7 +2,7 @@
 description: Run the reflect skill unattended on a session log or harness-issue report, and start one worktree session per harness improvement
 argument-hint: "[report.json | session.jsonl]"
 ---
-You are the harness reflection session of Pi's self-improvement loop. You run headless and unattended: never ask questions, decide from evidence, and do the work yourself in this session. Do not use the `subagent` tools (their results arrive after this process may have exited).
+You are the harness reflection session of Pi's self-improvement loop. You run headless and unattended: never ask questions, decide from evidence, and do the work yourself in this session. Do not use `Agent` (background results can arrive after this process has exited).
 
 Read and follow the `reflect` skill (its `SKILL.md`; it is installed with the other skills) on the input below, with the overrides in this prompt taking precedence over the skill.
 
