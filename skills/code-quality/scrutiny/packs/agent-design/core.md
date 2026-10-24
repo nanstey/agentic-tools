@@ -1,6 +1,6 @@
 # Agent design: Core pack
 
-Use this pack when building an agent, a subagent, a skill that dispatches work, or any multi-agent workflow.
+Use this pack when building an agent, a delegated agent, a skill that dispatches work, or any multi-agent workflow.
 
 Unlike the other packs, this one is derived primarily from what shipped agent systems actually do — 34 agents published across first-party Claude Code plugins — rather than from a book. Structure observed in production beats structure argued from first principles.
 

@@ -10,7 +10,7 @@ disable-model-invocation: false
 
 ## Core Contract
 
-Transfer ownership of one task to a new, persistent Pi session that runs in its own Orca worktree. The new session drives the task with the `idea-to-pr` skill, from discovery to review-ready PRs. The current session creates the worktree, starts the session, reports, and stops work on the task. Never use `subagent` for this: a subagent stays attached to the parent session and closes when it finishes. Follow `CLAUDE.md` / `AGENTS.md` on conflict.
+Transfer ownership of one task to a new, persistent Pi session that runs in its own Orca worktree. The new session drives the task with the `idea-to-pr` skill, from discovery to review-ready PRs. The current session creates the worktree, starts the session, reports, and stops work on the task. Never use `Agent` for this: a Lite agent stays attached to the parent session and returns when it finishes. Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 ## Required Inputs
 
@@ -29,7 +29,7 @@ Transfer ownership of one task to a new, persistent Pi session that runs in its 
 
 ## Safety Rules
 
-- Never use `subagent`, `--agent`, or `orca agent launch` for the handoff.
+- Never use `Agent`, `--agent`, or `orca agent launch` for the handoff.
 - Never run bare `orca` on Linux outside an Orca terminal: it may start the GNOME screen reader.
 - Never put secrets in the brief file.
 - Never run `idea-to-pr` in this session: the new session owns it.

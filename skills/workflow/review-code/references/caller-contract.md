@@ -9,7 +9,7 @@ Shared by callers of `/review-code fix` (`build`, `idea-to-pr`). Callers link he
 - Pass: acceptance criteria, scrutiny evidence, validator/QA evidence, base/head/policy/scope, prior packet and findings, and `round_state`. Reuse matching validator/QA evidence without rerunning it.
 - After a fix batch, call again with the returned state for delta review, or report pending delta review. Do not nest review loops.
 - If shipping was requested and no gate blocks, pass the packet, findings, and evidence to `/pr`; `/pr review fix` initializes its own per-invocation limit. Otherwise stop locally without commit, push, or PR.
-- A prepublication packet is diagnostic. `/pr` reuses it only on an exact base/head/policy/scope/coverage/evidence match. If PR review-code dispatch is unavailable, it returns `blocked: needs a coordinator with subagent dispatch`.
+- A prepublication packet is diagnostic. `/pr` reuses it only on an exact base/head/policy/scope/coverage/evidence match. If PR review-code dispatch is unavailable, it returns `blocked: needs a coordinator with Agent-tool dispatch`.
 
 ## PR split rule
 

@@ -10,7 +10,7 @@ Read this only after choosing the relevant base domains and Core/Full depth. Sel
 | `operations` | timeouts, retries, load shedding, backpressure, rollback, alerting, or anything that must stay up under failure | Infra, Observability, Backend, Cost/Performance, Testing |
 | `threat-modeling` | trust boundaries, attacker paths, abuse cases, privilege escalation, data exposure, or security mitigations | Security, API, Data, Infra, Testing |
 | `ai-engineering` | LLM products, RAG, model selection, evals, prompt/version changes, tool use, or model serving cost | AI/LLM, Security, Cost/Performance, Observability, Testing |
-| `agent-design` | building an agent or subagent, splitting responsibilities across agents, tool permissions, model tiering, or verifying agent output | AI/LLM, Security, Testing, Product/UX |
+| `agent-design` | building an agent or delegated agent, splitting responsibilities across agents, tool permissions, model tiering, or verifying agent output | AI/LLM, Security, Testing, Product/UX |
 | `legacy-change` | modifying code that already works, has no tests, or nobody fully understands; incremental replacement | Testing, Backend, Team/Maintenance, Infra |
 | `testing-design` | deciding what to test, what to mock, or why a suite is slow, brittle, or untrusted | Testing, Backend, Data, Team/Maintenance |
 | `product-discovery` | whether the thing should exist at all — unproven value, unvalidated problem, undefined audience | Requirements, Product/UX, Cost/Performance |
