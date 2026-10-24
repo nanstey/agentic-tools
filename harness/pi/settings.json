@@ -22,6 +22,7 @@
     "npm:pi-fallback-models@0.1.1",
     "npm:pi-jev@0.7.0",
     "npm:@lazco/pi-rich-model-selector@0.7.0",
+    "npm:pi-queue-steer-factory@0.17.11",
     "./vendor/github.com/pr83-glitch/Pr83-glitch-Pi-Extensions/sleek-ui",
     "./vendor/github.com/pr83-glitch/Pr83-glitch-Pi-Extensions/edit-message"
   ],
