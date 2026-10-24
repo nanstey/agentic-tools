@@ -124,6 +124,12 @@ selection. Producer fallbacks use the opposite provider because quota is per pro
 Reviewer fallbacks stay in the independent family and differ from the primary.
 A provider-failure fallback need not be stronger than its primary.
 
+The `Agent`, `StopAgent`, `MessageAgent`, and `AgentStatus` tools (pi-subagents-lite) take no
+per-dispatch model or thinking value. Do not use them for policy-governed delegation: use
+`subagent` with an explicit `model:thinking`. Ordinary requests to delegate, spawn an agent, or
+use a subagent mean `subagent`. Use the lite tools only when the user names pi-subagents-lite or
+one of these exact tool names.
+
 | Role | quick | standard | high | premium |
 | --- | --- | --- | --- | --- |
 | `scout` | haiku-5-5 → gpt-6-luna | sonnet-5-5 → gpt-5.6-terra | sonnet-5-5 → gpt-6.1-sol | sonnet-5-5 → gpt-6.1-sol |
