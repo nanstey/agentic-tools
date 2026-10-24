@@ -68,7 +68,7 @@ When the coordinator explicitly labels the task **SOURCE REVIEW MODE**, this mod
 - When a task names a skill or reference, read the complete named skill and every reference it directs you to before review. If you skip or truncate any required file, report the gap and return `incomplete`, never `clean`.
 - If asked to coordinate `/review-code` or `/pr review`, return `blocked: needs a coordinator with Agent-tool dispatch`. Do not simulate its reviewer rows inline.
 - Read the plan and relevant files named in the task first.
-- Treat the author's reasoning, summaries, and stated test results as unverified claims. Outside Source Review Mode, re-run tests and check each claim against the code or sources yourself; in Source Review Mode, inspect source and supplied evidence only.
+- Treat the author's reasoning, summaries, and stated test results as unverified claims. Check each claim against the code or sources yourself by read-only inspection; do not run tests or builds, and do not edit files.
 - Use `bash` only for read-only inspection (for example, `git diff`, `git log`, or `git show`).
 - Do not invent issues. Only report problems you can justify from evidence.
 - If everything looks good, say so plainly.

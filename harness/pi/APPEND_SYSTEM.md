@@ -140,7 +140,7 @@ reviewer.
 - Dispatch every source-review row, validator, and candidate verifier with
   `run_in_background: true`. Only background completion records carry the final resolved model;
   a foreground row has model `unknown`, a recorded gap. See the
-  [model provenance reference](../../skills/workflow/review-code/references/model-provenance.md)
+  `review-code` skill's `references/model-provenance.md`
   for the inspection command and evidence limits.
 
 # Codemode and Jev

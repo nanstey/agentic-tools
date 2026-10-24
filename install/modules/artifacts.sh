@@ -43,7 +43,7 @@ link_one() {
   fi
 }
 
-# Remove dangling artifact links from destinations that no longer install that artifact
+# Remove dangling artifact links, and live links into this repo's agents/ (Pi-only), from destinations that no longer install that artifact
 # type. This mirrors the cleanup in install_artifacts without creating a missing
 # destination directory.
 prune_dangling_artifacts() {
@@ -59,7 +59,14 @@ prune_dangling_artifacts() {
   for dir in "${dirs[@]}"; do
     [ -d "$dir" ] || continue
     for stale in "$dir"/*; do
-      [ -L "$stale" ] && [ ! -e "$stale" ] && { rm -f "$stale"; echo "  [agents] removed dangling $(basename "$stale")"; }
+      [ -L "$stale" ] || continue
+      if [ ! -e "$stale" ]; then
+        rm -f "$stale"; echo "  [agents] removed dangling $(basename "$stale")"
+      elif [ -n "${REPO_ROOT:-}" ]; then
+        case "$(readlink -f "$stale")" in
+          "$REPO_ROOT"/agents/*) rm -f "$stale"; echo "  [agents] removed Pi-only $(basename "$stale")" ;;
+        esac
+      fi
     done
   done
   return 0
