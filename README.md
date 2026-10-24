@@ -112,6 +112,7 @@ and runtime behavior.
 | [`observation-impact-question`](skills/writing/observation-impact-question/SKILL.md) | Structure lightweight feedback as Observation, Impact, Question to stay specific and non-accusatory. |
 | [`before-after-bridge`](skills/writing/before-after-bridge/SKILL.md) | Structure a results story as Before, After, Bridge so a demo or outcome leads with impact. |
 | [`ste`](skills/writing/ste/SKILL.md) | Rewrite dense or ambiguous English into ASD-STE100 Simplified Technical English so a machine or non-native reader cannot misparse it. |
+| [`ask-a-pro`](skills/writing/ask-a-pro/SKILL.md) | Rewrites a user's prompt into a deeper version of the same task, shaped by what a top professional in the field would do. Use when a prompt should get more depth rather than more scope, or when asked to "ask a pro" or pressure-test a prompt before running it. |
 
 ### Visual
 
