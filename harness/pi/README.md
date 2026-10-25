@@ -172,7 +172,9 @@ skill (allowlist-based; it never reads or copies secrets).
 
 The 24 files under [`agents/`](../../agents/) are Pi-only Lite agent types named
 `<role>-<tier>`; reviewers add a producer-family suffix. `install.sh` links them only into
-`$PI_AGENT_DIR/agents`, not Claude or OMP. Their frontmatter uses Lite fields (`tools`,
+`$PI_AGENT_DIR/agents`, not Claude or OMP. Lite reads this directory through `getAgentDir()` when
+the session starts, which follows `PI_CODING_AGENT_DIR` when set; a session launched with another
+agent directory will not register these types. Their frontmatter uses Lite fields (`tools`,
 `extensions`, `exclude_extensions`, `skills`, `model`, `thinking`, `output_transcript`, and
 prompt/context settings). Every type pins the table's primary model and fixed tier thinking and
 excludes `pi-jev`, so auto-thinking cannot override that level. Reviewer types are report-only
