@@ -1,7 +1,7 @@
 ---
 name: pr
 description: Runs PR creation, maintenance, and stacked-PR workflows from one command. Use when a branch or pull request needs creation, reconciliation, remediation, publication, merge, or stack management.
-argument-hint: "[info|create|push|description|screenshots|rebase|restack|split|stack|ci|review|comments|verification|ready|monitor|merge|auto-merge] [PR-URL-or-number] [fix|comment] [force]"
+argument-hint: "[info|create|push|description|screenshots|rebase|restack|split|stack|ci|review|comments|verification|ready|monitor|merge|automerge] [PR-URL-or-number] [fix|comment] [force]"
 user-invocable: true
 disable-model-invocation: false
 ---
@@ -29,7 +29,7 @@ Subcommands follow the order a PR moves through. Bare `/pr` detects the first un
 | 10 | Monitor | Re-observe until clean | `/pr monitor [target] [mode: once]` | [`monitor.md`](references/monitor.md) |
 | 11 | Merge | Squash-merge | `/pr merge [target] [force]` | [`merge.md`](references/merge.md) |
 
-`/pr` runs phases 0–10 and stops at merge-ready. `/pr auto-merge [target]` runs the same lifecycle, then phase 11. Both load [`lifecycle.md`](references/lifecycle.md). Every other action loads exactly its mapped reference.
+`/pr` runs phases 0–10 and stops at merge-ready. `/pr automerge [target]` (the expected command to run the full lifecycle and merge when ready) runs the same lifecycle, then phase 11. After a confirmed merge, `/pr automerge` and `/pr merge` automatically remove the current Orca worktree, ending this session by design. Both load [`lifecycle.md`](references/lifecycle.md). Every other action loads exactly its mapped reference.
 
 Reject an unknown action, more than one action word, or legacy `--` action flags. A supplied PR URL or number is the target; otherwise references resolve the current branch. Follow `CLAUDE.md` / `AGENTS.md` on conflict. Default GitHub tool is `gh`.
 
@@ -37,7 +37,7 @@ Reject an unknown action, more than one action word, or legacy `--` action flags
 
 - An unmet gate is work to do. Run the phase that satisfies it (missing review: review; failing CI: fix; behind base: rebase; draft: ready). Do not report it and wait.
 - Stop only when no workaround exists: no PR, no auth or access, a product decision the evidence cannot settle, or a destructive action the invocation did not name. Report what is left, in the `gates.md` blocked form.
-- The user can always push forward. `force` (accepted by bare `/pr`, `auto-merge`, `ready`, and `merge`; other actions ignore it) overrides every soft gate in [`gates.md`](references/gates.md): run the action with the gaps recorded, not fixed. `/pr merge force` merges even when CI, review, threads, or approvals are incomplete.
+- The user can always push forward. `force` (accepted by bare `/pr`, `automerge`, `ready`, and `merge`; other actions ignore it) overrides every soft gate in [`gates.md`](references/gates.md): run the action with the gaps recorded, not fixed. `/pr merge force` merges even when CI, review, threads, or approvals are incomplete.
 - `force` never invents evidence. Record each overridden gate in the output so the result stays honest.
 
 ## Shared Rules
@@ -60,4 +60,4 @@ Invoking an action authorizes the mutations it declares. Destructive extras (pru
 
 ## Output Behavior
 
-Report the action, resolved target, phases run, outcome, what remains to reach merge, and any overridden gates. Bare `/pr` and `auto-merge` also report the review verdict/head and monitor result.
+Report the action, resolved target, phases run, outcome, what remains to reach merge, and any overridden gates. Bare `/pr` and `automerge` also report the review verdict/head and monitor result.

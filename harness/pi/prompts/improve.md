@@ -44,7 +44,7 @@ Run it with a long bash timeout (at least 1800 seconds). The review prompt must 
 
 ## 6. Publish
 - Push: `git push -u origin HEAD`.
-- Open the PR for human review with `gh pr create` against the default branch, following the `pr` skill's create workflow (`skills/dev/pr/SKILL.md`, `references/create.md`) and repo templates. Use create only: never `merge` or `auto-merge`.
+- Open the PR for human review with `gh pr create` against the default branch, following the `pr` skill's create workflow (`skills/dev/pr/SKILL.md`, `references/create.md`) and repo templates. Use create only: never `merge` or `automerge`.
 - PR body: **Problem** (redacted), **Change**, **Testing** (commands and outcomes), **Review** (reviewer model, verdict, findings addressed or declined), **Risks**. Mention that it was produced by the self-improvement loop.
 - If push or PR creation fails, retry once, then stop and report the exact error and the command that would unblock it. Leave the commits in the worktree.
 

@@ -52,7 +52,7 @@ Record the exact base/head, trusted policy, validator result, changed-file list,
 
 ## Force override
 
-`force` is the user's right to push forward. Bare `/pr`, `auto-merge`, `ready`, and `merge` accept it; other actions ignore it. Monitor never forces fixes: under `force` its non-`clean` result becomes an overridden gate, not a stop.
+`force` is the user's right to push forward. Bare `/pr`, `automerge`, `ready`, and `merge` accept it; other actions ignore it. Monitor never forces fixes: under `force` its non-`clean` result becomes an overridden gate, not a stop.
 
 - **Soft gates** (overridable): missing or stale review, `changes_required`/`incomplete` verdict, failing or pending or missing required CI, unresolved threads, unverified outcomes, missing human approval, exhausted round limit, description/verification gaps, draft state.
 - **Hard stops** (not overridable): no resolvable PR, closed or already merged PR, no authentication or access, a push or merge GitHub itself refuses with no permitted path, and destructive extras the invocation did not name.
@@ -107,4 +107,4 @@ Use `blocked: <gate> — <exact missing evidence or failed check>; unblock requi
 
 ## Lifecycle completion gate
 
-[`lifecycle.md`](lifecycle.md) Completion is authoritative: a bare `/pr` or `auto-merge` run ends only as `complete` (exact-match `clean` packet or docs-only entry for the final head, plus monitor `clean`), `pending` (same packet, monitor `pending` in `mode: once`; not success), `forced` (force applied, overrides listed), or `blocked`. The one-time monitor head reconciliation rule lives there. Setup completion or green CI is never terminal.
+[`lifecycle.md`](lifecycle.md) Completion is authoritative: a bare `/pr` or `automerge` run ends only as `complete` (exact-match `clean` packet or docs-only entry for the final head, plus monitor `clean`), `pending` (same packet, monitor `pending` in `mode: once`; not success), `forced` (force applied, overrides listed), or `blocked`. The one-time monitor head reconciliation rule lives there. Setup completion or green CI is never terminal.
