@@ -84,6 +84,14 @@ install_jev_self_improve_thinking_patch() {
   apply_package_patch "$1" patch-jev-self-improve-thinking "$REPO_ROOT/harness/pi/patches/pi-jev-self-improve-thinking.patch" extensions/index.ts
 }
 
+# pi-subagents-lite@1.17.1 installs user agent profiles as symlinks, but its
+# discovery scan accepts only Dirent files. Follow symlinks to files so the
+# installer-managed tier profiles remain discoverable. Remove once upstream
+# accepts file symlinks.
+install_subagents_lite_symlink_patch() {
+  apply_package_patch "$1" patch-subagents-lite-symlinks "$REPO_ROOT/harness/pi/patches/pi-subagents-lite-symlink-discovery.patch" src/agents/agent-discovery.ts
+}
+
 apply_package_patch() {
   local pkg="$1" label="$2" patch_file="$3" entry="$4"
   if [ ! -f "$pkg/$entry" ]; then

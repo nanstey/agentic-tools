@@ -33,6 +33,77 @@ fi
 cmp "$pkg/src/test.ts" "$SB/before"
 echo 'ok: failed multi-hunk dry run leaves file untouched'
 
+# pi-subagents-lite@1.17.1 ignores the symlinked profiles installed by this
+# repository because Dirent.isFile() is false for a symlink. Exercise the
+# package patch against its original scan shape and prove discovery changes.
+subagents="$SB/pi-subagents-lite"
+mkdir -p "$subagents/src/agents" "$SB/agent-profiles"
+cat > "$subagents/src/agents/agent-discovery.ts" <<'TS'
+import * as fs from "node:fs";
+import * as path from "node:path";
+
+type AgentConfigFromMd = { name: string; source: string };
+
+function parseAgentFile(content, source): AgentConfigFromMd {
+  return { name: content.trim(), source };
+}
+
+export async function scanAgentFilesInDir(dirPath, source = "user") {
+  try {
+    await fs.promises.access(dirPath);
+  } catch {
+    return [];
+  }
+
+  const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
+  const mdFiles = entries.filter((e) => e.isFile() && e.name.endsWith(".md"));
+
+  const agents: AgentConfigFromMd[] = [];
+  for (const entry of mdFiles) {
+    const filePath = path.join(dirPath, entry.name);
+    try {
+      const content = await fs.promises.readFile(filePath, "utf-8");
+      const info = parseAgentFile(content, source);
+      if (info.name) {
+        agents.push(info);
+      }
+    } catch {
+      // Skip files that can't be read
+    }
+  }
+  return agents;
+}
+TS
+cp "$subagents/src/agents/agent-discovery.ts" "$SB/subagents-agent-discovery.pristine.ts"
+printf 'regular\n' > "$SB/agent-profiles/regular.md"
+printf 'symlinked\n' > "$SB/symlinked.md"
+ln -s "$SB/symlinked.md" "$SB/agent-profiles/symlinked.md"
+ln -s "$SB/missing.md" "$SB/agent-profiles/dangling.md"
+check_subagents_discovery() {
+  python3 - "$subagents/src/agents/agent-discovery.ts" "$SB/agent-discovery.mjs" <<'PY'
+import sys
+source = open(sys.argv[1]).read()
+source = source.replace('type AgentConfigFromMd = { name: string; source: string };\n\n', '')
+source = source.replace('function parseAgentFile(content, source): AgentConfigFromMd', 'function parseAgentFile(content, source)')
+source = source.replace('const agents: AgentConfigFromMd[] = [];', 'const agents = [];')
+open(sys.argv[2], 'w').write(source)
+PY
+  node - "$SB/agent-discovery.mjs" "$SB/agent-profiles" "$1" <<'JS'
+const assert = require("node:assert/strict");
+(async () => {
+  const [modulePath, dir, expected] = process.argv.slice(2);
+  const { scanAgentFilesInDir } = await import(`file://${modulePath}`);
+  const names = (await scanAgentFilesInDir(dir)).map((agent) => agent.name).sort();
+  assert.deepEqual(names, expected.split(","));
+})().catch((error) => { console.error(error); process.exitCode = 1; });
+JS
+}
+check_subagents_discovery regular
+apply_package_patch "$subagents" patch-subagents-lite-symlinks "$REPO/harness/pi/patches/pi-subagents-lite-symlink-discovery.patch" src/agents/agent-discovery.ts | grep -q '(patched)'
+check_subagents_discovery regular,symlinked
+apply_package_patch "$subagents" patch-subagents-lite-symlinks "$REPO/harness/pi/patches/pi-subagents-lite-symlink-discovery.patch" src/agents/agent-discovery.ts | grep -q '(ok)'
+echo 'ok: subagents discovery patch finds symlinked profiles and is idempotent'
+
 # Pristine sources from pi-jev@0.7.0 (MIT, license beside the fixture).
 # Copy only managed local artifacts: no vendor clones, package installs, secrets,
 # real home-directory writes, or model calls occur in this sandbox.
@@ -140,6 +211,9 @@ for state in {0..15}; do
   pkg="$home/.pi/agent/npm/node_modules/pi-jev"
   mkdir -p "$(dirname "$pkg")" "$home/.omp/agent" "$home/.omp/profiles/work/agent"
   cp -R "$fixture" "$pkg"
+  subagents_pkg="$home/.pi/agent/npm/node_modules/pi-subagents-lite"
+  mkdir -p "$subagents_pkg/src/agents"
+  cp "$SB/subagents-agent-discovery.pristine.ts" "$subagents_pkg/src/agents/agent-discovery.ts"
   retired_package="$home/.pi/agent/npm/node_modules/@maplezzk/pi-""interactive""-subagents"
   retired_config="$home/.pi/agent/extensions/pi-""interactive""-subagents"
   mkdir -p "$retired_package" "$retired_config"
@@ -167,6 +241,8 @@ for state in {0..15}; do
       if (( run == 1 && !(state & (1 << i)) )); then expected=patched; fi
       grep -qF "[${labels[$i]}] -> $pkg ($expected)" "$SB/install-$state-$run.log"
     done
+    expected=ok; [ "$run" = 1 ] && expected=patched
+    grep -qF "[patch-subagents-lite-symlinks] -> $subagents_pkg ($expected)" "$SB/install-$state-$run.log"
     for config in "$home/.omp/agent/config.yml" "$home/.omp/profiles/work/agent/config.yml"; do
       jq -e '.modelRoles == {"default":"local-standard","slow":"local-premium"} and .composer.shape == "compact" and .statusLine.preset == "custom"' "$config" >/dev/null
     done
