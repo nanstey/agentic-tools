@@ -1,0 +1,20 @@
+--- a/src/agents/agent-discovery.ts
++++ b/src/agents/agent-discovery.ts
+@@ -270,12 +270,15 @@
+   }
+ 
+   const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
+-  const mdFiles = entries.filter((e) => e.isFile() && e.name.endsWith(".md"));
+ 
+   const agents: AgentConfigFromMd[] = [];
+-  for (const entry of mdFiles) {
++  for (const entry of entries) {
++    if (!entry.name.endsWith(".md")) continue;
+     const filePath = path.join(dirPath, entry.name);
+     try {
++      const isFile = entry.isFile()
++        || (entry.isSymbolicLink() && (await fs.promises.stat(filePath)).isFile());
++      if (!isFile) continue;
+       const content = await fs.promises.readFile(filePath, "utf-8");
+       const info = parseAgentFile(content, source);
+       if (info.name) {

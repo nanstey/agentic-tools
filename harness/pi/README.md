@@ -14,6 +14,7 @@ rather than symlinked because Pi may rewrite them locally.
 | `harness/pi/patches/pi-jev-prompt-guard.patch` | applied to `$PI_AGENT_DIR/npm/node_modules/pi-jev/` (`src/thinking.ts`, `extensions/index.ts`) | Unified diff that `install.sh` applies to `pi-jev`: tolerates a missing `event.prompt` (runs started by `sendCustomMessage`, such as agent completion messages) instead of throwing `Cannot read properties of undefined (reading 'trim')`. Not copied. |
 | `harness/pi/patches/pi-jev-conservative-thinking.patch` | applied to `$PI_AGENT_DIR/npm/node_modules/pi-jev/src/thinking.ts` | Routes only user-owned text, defaults to medium, and caps automatic thinking to one rank above the user-selected baseline. `xhigh` requires explicit user intent. Not copied. |
 | `harness/pi/patches/pi-jev-self-improve-thinking.patch` | applied to `$PI_AGENT_DIR/npm/node_modules/pi-jev/extensions/index.ts` | Disables auto-thinking for `PI_SELF_IMPROVE_CHILD` workers and reflections at router construction. Lite fixed-tier agents instead exclude the `pi-jev` extension in their frontmatter. The modular `patch-*` installer loop applies it with the other Jev patches. Not copied. |
+| `harness/pi/patches/pi-subagents-lite-symlink-discovery.patch` | applied to `$PI_AGENT_DIR/npm/node_modules/pi-subagents-lite/src/agents/agent-discovery.ts` | Makes Lite discovery follow agent-profile symlinks to files, so the installer-managed tiered profiles are available to `Agent`. Not copied. |
 | `harness/pi/tests/package-patches.test.sh` | Not installed | Offline regression tests for patch idempotency, missing packages, upstream mismatch safety, retired-package removal, and twice-run sandboxed installation from pristine and partial Jev patch states. Run with `bash`. |
 | `install/tests/agent-drift.test.sh` | Not installed | Offline check that agent tier bodies, fixed model/thinking frontmatter, and README catalog rows stay synchronized. Run with `bash`. |
 | `harness/pi/tests/fixtures/pi-jev-0.7.0/` | Not installed | Pristine upstream Jev sources for all 16 Jev patch-order subsets and thinking-policy regression tests. |
@@ -145,6 +146,7 @@ installs and then exits 1.
   reviewer-family independence or the per-cell fallback arrows. The parent must record the final
   model and treat unknown or potentially mixed provenance as a review gap. Drop the quota patch
   once upstream provides the corresponding behavior.
+- **`pi-subagents-lite`:** 1.17.1 filters agent directories with `Dirent.isFile()`, which excludes the symlinked profiles installed by this repository. `harness/pi/patches/pi-subagents-lite-symlink-discovery.patch` follows symlinks only when their targets are files. Drop it once upstream accepts file symlinks.
 - **`pi-jev`:** 0.7.0 builds its SDK client once, so a profile switch keeps the first profile's
   key and endpoint. `harness/pi/patches/pi-jev.patch` (a unified diff applied with `patch`)
   rebuilds the client when the resolved key or base URL changes and reads `PI_JEV_API_KEY` ahead of
