@@ -29,7 +29,7 @@ Subcommands follow the order a PR moves through. Bare `/pr` detects the first un
 | 10 | Monitor | Re-observe until clean | `/pr monitor [target] [mode: once]` | [`monitor.md`](references/monitor.md) |
 | 11 | Merge | Squash-merge | `/pr merge [target] [force]` | [`merge.md`](references/merge.md) |
 
-`/pr` runs phases 0–10 and stops at merge-ready. `/pr automerge [target]` (the expected command to run the full lifecycle and merge when ready) runs the same lifecycle, then phase 11. After a confirmed merge, `/pr automerge` and `/pr merge` automatically remove the current Orca worktree, ending this session by design. Both load [`lifecycle.md`](references/lifecycle.md). Every other action loads exactly its mapped reference.
+`/pr` runs phases 0–10 and stops at merge-ready. `/pr automerge [target]` (the expected command to run the full lifecycle and merge when ready) runs the same lifecycle, then phase 11. After a confirmed merge, `/pr automerge` and `/pr merge` automatically remove the current Orca-managed linked worktree, ending this session by design; the conditions and skip cases are in [`merge.md`](references/merge.md). Both load [`lifecycle.md`](references/lifecycle.md). Every other action loads exactly its mapped reference.
 
 Reject an unknown action, more than one action word, or legacy `--` action flags. A supplied PR URL or number is the target; otherwise references resolve the current branch. Follow `CLAUDE.md` / `AGENTS.md` on conflict. Default GitHub tool is `gh`.
 

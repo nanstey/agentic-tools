@@ -65,7 +65,7 @@ Setup finishing or green CI alone is never completion. Never end `changes_requir
 - Never reset or nest a review loop within an invocation, or skip fix-head review.
 - Never create a PR with raw `gh pr create` or reuse a commit message as the body.
 - Never merge without `automerge` or an explicit `/pr merge`.
-- After `automerge` merges, phase 11 (`merge.md`) removes the current Orca worktree automatically, with no confirmation; ending the session is intended.
+- After `automerge` merges, phase 11 removes the current linked Orca-managed worktree automatically, with no confirmation, under the conditions in `merge.md` (skipped silently outside Orca; the primary checkout is synced instead). Ending the session is intended.
 
 ## Output Style
 
