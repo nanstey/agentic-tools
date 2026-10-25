@@ -121,6 +121,12 @@ Fallback rules:
   fallback extension may switch to its configured fallback chain. It cannot select the table's
   per-cell arrow, because the `Agent` tool accepts no model override and this repository does
   not create fallback-only types. Record the limitation and actual final model.
+- On `Unknown agent type: <role>-<tier>`, do not retry blindly. Check
+  `ls "${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/agents"` and the `agent` values in the tool
+  schema. If the type is absent from either, do not substitute `general-purpose` for write-capable
+  or tier-sensitive work, including reviewer, validator, and verifier rows. Do a small task in the
+  main thread, or use `general-purpose` only for a read-only, low-stakes slice; state that the
+  tier/model pin was not applied and call `report_harness_issue` once when available.
 - If the provider remains unavailable, report the failure. Do not claim a fallback row was used
   merely because it is shown in the table.
 
