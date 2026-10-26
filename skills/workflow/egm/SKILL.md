@@ -1,9 +1,9 @@
 ---
 name: egm
-description: Produces and independently stress-tests planning artifacts through context-rich drafting, fresh-context review, and human decisions. Use when a change needs a concept brief, design document, or design review.
+description: Produces and independently stress-tests planning artifacts through context-rich drafting, fresh-context review, and human decisions. Use when a change needs a concept brief, design document, design review, or codebase documentation hierarchy.
 user-invocable: true
 disable-model-invocation: false
-argument-hint: "<brainstorm|draft|review> [target] [--auto] [--polish]"
+argument-hint: "<brainstorm|draft|review|bootstrap> [target] [--auto] [--polish]"
 ---
 
 # EGM
@@ -26,7 +26,7 @@ This skill is planning-only. Requests to build, implement, ship, or edit source 
 
 1. Resolve the artifact location with `plan-dir`; use the `plan-init` folder layout. Never write reports to the repository root or current directory.
 2. Register each artifact in the plan README `## Design` index as `egm-design`, status `draft` or `done`. Set approved documents to `Approved`.
-3. Follow the selected reference: [brainstorm](references/brainstorm.md), [draft](references/draft.md), or [review](references/review.md).
+3. Follow the selected reference: [brainstorm](references/brainstorm.md), [draft](references/draft.md), [review](references/review.md), or [bootstrap](references/bootstrap.md).
 4. Use [design-doc-template.md](references/design-doc-template.md) and the linked standards where applicable.
 
 ## Safety Rules

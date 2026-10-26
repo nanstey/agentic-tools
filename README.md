@@ -88,7 +88,7 @@ and runtime behavior.
 | [`build`](skills/workflow/build/SKILL.md) | Implements scoped changes from context, plans, or speclists through verifiable phases with up-front success criteria and per-phase validation. Use when execution should start from existing requirements. |
 | [`review-code`](skills/workflow/review-code/SKILL.md) | Produces one source-verified review packet with optional fix planning or working-tree remediation. Use when a changeset needs coordinated quality, refactor, and security review. |
 | [`planning`](skills/workflow/planning/SKILL.md) | Plans a change end-to-end by sizing it and composing the focused planning skills it needs into one plan folder, from a single proposal up to the full product, architecture, design, slice, and spec chain. Use when a change needs a plan and the right depth of planning is not yet decided. |
-| [`egm`](skills/workflow/egm/SKILL.md) | Produces and independently stress-tests planning artifacts through context-rich drafting, fresh-context review, and human decisions. Use when a change needs a concept brief, design document, or design review. |
+| [`egm`](skills/workflow/egm/SKILL.md) | Produces and independently stress-tests planning artifacts through context-rich drafting, fresh-context review, and human decisions. Use when a change needs a concept brief, design document, design review, or codebase documentation hierarchy. |
 
 ### Agent
 
