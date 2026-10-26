@@ -25,13 +25,13 @@ This skill is planning-only. Requests to build, implement, ship, or edit source 
 ## Workflow
 
 1. Resolve the artifact location with `plan-dir`; use the `plan-init` folder layout. Never write reports to the repository root or current directory.
-2. Register each artifact in the plan README `## Design` index as `egm-design`, status `draft` or `done`. Set approved documents to `Approved`.
+2. Register each artifact in the plan README `## Design` index under its own stage, with status `draft` or `done`: `egm-concept` (brainstorm brief), `egm-design` (design doc), `egm-review` (review record), `egm-bootstrap` (bootstrap record), `egm-drift` (drift report). Set an approved design doc's row to `Approved`. Bootstrap writes README files inside the codebase tree as its product; only its record goes in the plan folder.
 3. Follow the selected reference: [brainstorm](references/brainstorm.md), [draft](references/draft.md), [review](references/review.md), [bootstrap](references/bootstrap.md), or [drift](references/drift.md).
 4. Use [design-doc-template.md](references/design-doc-template.md) and the linked standards where applicable.
 
 ## Safety Rules
 
-- Goldfish receives no conversation history, Elephant hypothesis, or unlisted files.
+- Goldfish receives no conversation history, no unconfirmed Elephant conclusions, and no unlisted files. Brainstorm may pass the human-confirmed anchored hypothesis; diagnosis hides the Elephant's suspected cause.
 - Goldfish is read-only. The Elephant alone revises artifacts after human approval.
 - Do not treat agreeable feedback as evidence. Require specific document or code evidence for each finding.
 - `--auto` consolidates stage gates; it does not remove the final human decision.
