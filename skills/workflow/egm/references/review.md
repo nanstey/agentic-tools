@@ -4,6 +4,8 @@
 
 Give each fresh, read-only Goldfish only the target document, its explicitly referenced files, the current stage prompt, and the relevant standard. Do not provide Elephant conversation history or conclusions. Prefer another model family from the drafter when available.
 
+Ask each Goldfish to return a findings table graded `Blocker`, `Major`, or `Nit`, then a final line `STAGE: PASS` (no Blocker or Major) or `STAGE: FAIL`. The Elephant still re-grades after deduplication.
+
 ## Workflow
 
 1. Confirm the document and referenced-file set. Start a review record beside the document in its plan folder.
