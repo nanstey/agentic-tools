@@ -65,7 +65,7 @@ The README is a live index, not a one-time scaffold: whenever a plan file in the
 Section ownership (each owner keeps its rows and links current every time it touches a file):
 
 - **plan-init** writes the title, `Status: planning`, summary, and the empty `## Design`, `## Slices`, and `## Decision log` sections.
-- **Design skills** (`product-review`, `system-architecture`, `program-design`, `proposal`) each upsert their own `## Design` row (`Stage | [<file>](./<file>.md) | draft|done`).
+- **Design skills** (`product-review`, `system-architecture`, `program-design`, `proposal`, `egm`) each upsert their own `## Design` row (`Stage | [<file>](./<file>.md) | draft|done`).
 - **vertical-slices** seeds `## Slices` with one numbered row per slice and upserts its own `## Design` row.
 - **speclist** writes `specs/NN-<slice-slug>.md` and links it from the `Spec` cell of the matching slice row.
 - **build** updates each slice row's `PR` and `Status`, sets top-level `Status`, and appends to `## Decision log` when a design changes during implementation.
@@ -74,7 +74,7 @@ Section ownership (each owner keeps its rows and links current every time it tou
 ## Workflow
 
 1. State that this is planning-only: do not edit source or dependencies. Treat implementation imperatives such as "build," "implement," "ship," or "wire up" as folder-setup scope, not permission to execute.
-2. Resolve the base plans directory by investigation, not guessing: prefer a documented or conventional spot (`docs/plans/`, `plans/`, `.plans/`, `rfcs/`, `design/`, `specs/`, `docs/specs/`), references in `CLAUDE.md` / `AGENTS.md` / `README`, or where existing plans already sit. If none exists, propose a sensible default and confirm before writing.
+2. Resolve the base plans directory with the `plan-dir` skill unless the caller already passed one. Reuse its result; do not apply a separate location rule.
 3. Derive a short `<slug>` from the change; confirm if not given.
 4. If `<base>/<slug>/` already exists, reuse it if it matches the same change (never overwrite existing artifacts); otherwise append a numeric suffix.
 5. Create `<base>/<slug>/README.md` from the README Index Contract, filling title, `Status: planning`, and summary; leave the tables empty.

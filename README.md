@@ -70,6 +70,7 @@ and runtime behavior.
 
 | Skill | Description |
 | --- | --- |
+| [`plan-dir`](skills/planning/plan-dir/SKILL.md) | Resolves the base directory where a repository keeps plans, proposals, and design docs, by investigating the repo rather than assuming a path. Use when a planning skill must decide where to write or find plan folders. |
 | [`plan-init`](skills/planning/plan-init/SKILL.md) | Creates a plan folder with a README index so a change's planning artifacts and per-slice specs live together and stay linked. Use when starting planning that will produce multiple related documents or feed a build. |
 | [`proposal`](skills/planning/proposal/SKILL.md) | Runs discovery and uncertainty resolution for a change, then writes one self-contained plan document covering purpose, behaviour, validation, architecture, and phased vertical slices. Use for a small or trivial change simple enough to plan in a single document rather than decomposed focused artifacts. |
 | [`speclist`](skills/planning/speclist/SKILL.md) | Convert reports into ordered implementation checklists with blockers and validation steps. |
@@ -87,6 +88,7 @@ and runtime behavior.
 | [`build`](skills/workflow/build/SKILL.md) | Implements scoped changes from context, plans, or speclists through verifiable phases with up-front success criteria and per-phase validation. Use when execution should start from existing requirements. |
 | [`review-code`](skills/workflow/review-code/SKILL.md) | Produces one source-verified review packet with optional fix planning or working-tree remediation. Use when a changeset needs coordinated quality, refactor, and security review. |
 | [`planning`](skills/workflow/planning/SKILL.md) | Plans a change end-to-end by sizing it and composing the focused planning skills it needs into one plan folder, from a single proposal up to the full product, architecture, design, slice, and spec chain. Use when a change needs a plan and the right depth of planning is not yet decided. |
+| [`egm`](skills/workflow/egm/SKILL.md) | Produces and independently stress-tests planning artifacts through context-rich drafting, fresh-context review, and human decisions. Use when a change needs a concept brief, design document, design review, documentation hierarchy, or specification drift check. |
 
 ### Agent
 
