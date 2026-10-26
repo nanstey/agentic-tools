@@ -18,7 +18,7 @@ This skill is planning-only. Requests to build, implement, ship, or edit source 
 
 ## Required Inputs
 
-1. Mode: `brainstorm`, `draft`, or `review`.
+1. Mode: `brainstorm`, `draft`, `review`, `bootstrap`, or `drift`.
 2. Target idea, concept brief, or design document.
 3. Repository context and a plan folder when an artifact is written.
 
