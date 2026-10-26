@@ -46,10 +46,8 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 The plan lives in a plan folder (`plan-init`'s Plan Folder Layout) as `<plan-folder>/proposal.md`, so it stays linked to any later architecture, design, slice, and spec files through the folder's README index. Decide the folder by investigating the codebase, not by guessing.
 
 1. Reuse an existing plan folder for this change if one exists.
-2. Otherwise resolve the base plans directory: a documented or conventional spot (`docs/plans/`, `plans/`, `.plans/`, `rfcs/`, `design/`, `specs/`, `docs/specs/`), references in `CLAUDE.md` / `AGENTS.md` / `README`, or where existing plans already sit. If one clear base exists, assert it and state why.
-3. If evidence shows both a persistent base (tracked, e.g. `docs/plans/`) and an ephemeral one (gitignored or temp), surface the choice and default to the persistent base unless told otherwise.
-4. If no base exists, propose a sensible default and confirm before writing.
-5. Create the folder and README via `plan-init` (or its layout) before writing `proposal.md`.
+2. Otherwise resolve the base plans directory with the `plan-dir` skill and state why.
+3. Create the folder and README via `plan-init` (or its layout) before writing `proposal.md`.
 
 ## Plan Document Contract
 

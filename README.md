@@ -70,6 +70,7 @@ and runtime behavior.
 
 | Skill | Description |
 | --- | --- |
+| [`plan-dir`](skills/planning/plan-dir/SKILL.md) | Resolves the base directory where a repository keeps plans, proposals, and design docs, by investigating the repo rather than assuming a path. Use when a planning skill must decide where to write or find plan folders. |
 | [`plan-init`](skills/planning/plan-init/SKILL.md) | Creates a plan folder with a README index so a change's planning artifacts and per-slice specs live together and stay linked. Use when starting planning that will produce multiple related documents or feed a build. |
 | [`proposal`](skills/planning/proposal/SKILL.md) | Runs discovery and uncertainty resolution for a change, then writes one self-contained plan document covering purpose, behaviour, validation, architecture, and phased vertical slices. Use for a small or trivial change simple enough to plan in a single document rather than decomposed focused artifacts. |
 | [`speclist`](skills/planning/speclist/SKILL.md) | Convert reports into ordered implementation checklists with blockers and validation steps. |
