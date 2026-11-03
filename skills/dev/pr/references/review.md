@@ -2,7 +2,7 @@
 
 ## Core Contract
 
-Delegate one PR's code review to [`review-code`](../../../workflow/review-code/SKILL.md), then own PR reporting and authorized publication. Load [`gates.md`](gates.md) for packet freshness, categories, gate order, and the per-invocation five-round limit.
+Delegate one PR's code review to `review-code`, then own PR reporting and authorized publication. Load [`gates.md`](gates.md) for packet freshness, categories, gate order, and the per-invocation five-round limit.
 
 Invocation: `/pr review [target] [fix|comment]`. Default tool is `gh`. Follow `CLAUDE.md` / `AGENTS.md` on conflict. Write prose using `terse`. Apply the non-interactive policy in `SKILL.md`.
 

@@ -45,9 +45,9 @@ Standalone source review remains useful without full readiness prerequisites. Di
    File/line counts estimate workload only. Never derive safety, numerical risk tiers, or forced reviewer counts from size.
 4. **Select and perform source checks.** Use [effect-driven checks](references/checks.md).
    Every change receives source/behavior/tests review and security triage.
-   For repository-wide or no-diff defect audits, use [bugs](../bugs/SKILL.md) directly. For a change, use its [check catalog](../bugs/references/checks.md) as the behavior-review method.
+   For repository-wide or no-diff defect audits, use `bugs` directly. For a change, use its `references/checks.md` as the behavior-review method.
    Union trusted-policy requirements and known effects with advisory suggestions. Record required expertise and evidence for each check.
-   Select refactor's internal [deep-review method](../refactor/references/simplify.md#structural-review) when structural checks apply. Pass `mode: report`, resolved scope/exclusions, source identity, coverage/depth, existing findings, and SOURCE REVIEW MODE restrictions to shared methods. Refactor's fix default applies only to authorized direct invocation, never this read-only caller. Select specialist work explicitly, without automatic fanout.
+   Select `refactor`'s internal `references/simplify.md` deep-review method when structural checks apply. Pass `mode: report`, resolved scope/exclusions, source identity, coverage/depth, existing findings, and SOURCE REVIEW MODE restrictions to shared methods. Refactor's fix default applies only to authorized direct invocation, never this read-only caller. Select specialist work explicitly, without automatic fanout.
 5. **Ask advisory typed judgments.** Follow [Jev operation](references/jev.md) with the complete [questions](references/questions.json).
    The coordinator prepares and checks supplied state. Jev judges that state only, without browsing or inventing dependencies or references.
    Unavailable or malformed responses require conservative source assessment or explicit incomplete coverage, never an inferred pass.

@@ -12,6 +12,7 @@ disable-model-invocation: true
 Create one new skill in this repository, including compliant `SKILL.md` and `README.md` catalog entry.
 Default location is `skills/<category>/<name>/SKILL.md`; use `.agents/skills/` only when explicitly requested.
 Start with a brief plan and explicit assumptions.
+Refer to another skill or its files by `name` and file path in code font. Never use a category-relative Markdown link.
 Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 ## Name Gate

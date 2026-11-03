@@ -10,7 +10,7 @@ disable-model-invocation: false
 ## Core Contract
 
 Produce visual artifacts of a running site to document UI, primarily before/after evidence for PRs.
-This skill is the decision and orchestration layer: it decides *what* to capture and *how*, then drives the browser through the companion [`playwright-cli`](../../tools/playwright-cli/SKILL.md) skill for every action — never Playwright MCP, `@playwright/test`, or Puppeteer. Load that skill first; it is the command reference, and the recipes here are capture-specific patterns built on its verbs. The only runtime dependency is the `playwright-cli` tool it wraps (resolved in Preflight).
+This skill is the decision and orchestration layer: it decides *what* to capture and *how*, then drives the browser through the companion `playwright-cli` skill for every action — never Playwright MCP, `@playwright/test`, or Puppeteer. Load that skill first; it is the command reference, and the recipes here are capture-specific patterns built on its verbs. The only runtime dependency is the `playwright-cli` tool it wraps (resolved in Preflight).
 Choose the medium by change type: static change → screenshot; interaction, scroll, or multi-page flow → video (a `.webm` screencast, transcoded to `.mp4` for PR embedding).
 Follow the target repo's `CLAUDE.md` / `AGENTS.md` on conflict.
 
@@ -25,7 +25,7 @@ Follow the target repo's `CLAUDE.md` / `AGENTS.md` on conflict.
 
 ## Prerequisites
 
-- The companion [`playwright-cli`](../../tools/playwright-cli/SKILL.md) skill and the `playwright-cli` tool it drives. Install the tool per that skill's Installation section; the Preflight below is a fast gate.
+- The companion `playwright-cli` skill and the `playwright-cli` tool it drives. Install the tool per that skill's Installation section; the Preflight below is a fast gate.
 - For PR-embeddable video: `ffmpeg`, to transcode the recorded `.webm` to `.mp4`. GitHub plays `.mp4`/`.mov` inline reliably; `.webm` rendering is inconsistent (codec-dependent), so the `.mp4` is the artifact you attach to a PR. The Preflight gates on `ffmpeg`. Install if missing: `brew install ffmpeg`, `apt install ffmpeg`, etc.
 
 ## Preflight — resolve the tool
@@ -51,7 +51,7 @@ Deterministic helpers so the agent reads a result instead of choosing (paths rel
 | `scripts/scroll-capture.sh <url> <out.webm> [w] [h] [px_per_sec]` | Record a smooth, correctly-sized full-page scroll (no gray margins) at a constant, relaxed speed via a `run-code` hero script. |
 | `scripts/encode-mp4.sh <in> <out.mp4> [crf] [width]` | Transcode a recording to a GitHub-playable H.264 mp4 at native resolution; pass a smaller width/higher crf to shrink for a PR. |
 
-Load the companion [`playwright-cli`](../../tools/playwright-cli/SKILL.md) skill before capturing — it documents every command used below, plus `references/video-recording.md` (recording source) and `references/session-management.md` (named sessions).
+Load the companion `playwright-cli` skill before capturing — it documents every command used below, plus `references/video-recording.md` (recording source) and `references/session-management.md` (named sessions).
 
 ## Medium Decision
 
