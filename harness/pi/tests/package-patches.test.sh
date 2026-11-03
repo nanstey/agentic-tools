@@ -33,12 +33,11 @@ fi
 cmp "$pkg/src/test.ts" "$SB/before"
 echo 'ok: failed multi-hunk dry run leaves file untouched'
 
-# pi-subagents-lite@1.17.1 ignores the symlinked profiles installed by this
-# repository because Dirent.isFile() is false for a symlink. Exercise the
-# package patch against its original scan shape and prove discovery changes.
-subagents="$SB/pi-subagents-lite"
-mkdir -p "$subagents/src/agents" "$SB/agent-profiles"
-cat > "$subagents/src/agents/agent-discovery.ts" <<'TS'
+# pi-subagents-lite@1.17.1 discovers only regular .md directory entries. Keep
+# its source pristine, then run its exact readdir/isFile filter against the
+# profiles installed into a sandboxed Pi agent directory below.
+subagents_fixture="$SB/subagents-agent-discovery.pristine.ts"
+cat > "$subagents_fixture" <<'TS'
 import * as fs from "node:fs";
 import * as path from "node:path";
 
@@ -74,13 +73,7 @@ export async function scanAgentFilesInDir(dirPath, source = "user") {
   return agents;
 }
 TS
-cp "$subagents/src/agents/agent-discovery.ts" "$SB/subagents-agent-discovery.pristine.ts"
-printf 'regular\n' > "$SB/agent-profiles/regular.md"
-printf 'symlinked\n' > "$SB/symlinked.md"
-ln -s "$SB/symlinked.md" "$SB/agent-profiles/symlinked.md"
-ln -s "$SB/missing.md" "$SB/agent-profiles/dangling.md"
-check_subagents_discovery() {
-  python3 - "$subagents/src/agents/agent-discovery.ts" "$SB/agent-discovery.mjs" <<'PY'
+python3 - "$subagents_fixture" "$SB/subagents-agent-discovery.mjs" <<'PY'
 import sys
 source = open(sys.argv[1]).read()
 source = source.replace('type AgentConfigFromMd = { name: string; source: string };\n\n', '')
@@ -88,21 +81,44 @@ source = source.replace('function parseAgentFile(content, source): AgentConfigFr
 source = source.replace('const agents: AgentConfigFromMd[] = [];', 'const agents = [];')
 open(sys.argv[2], 'w').write(source)
 PY
-  node - "$SB/agent-discovery.mjs" "$SB/agent-profiles" "$1" <<'JS'
+check_legacy_pi_agent_symlinks_hidden() {
+  node - "$1" "$SB/subagents-agent-discovery.mjs" <<'JS'
 const assert = require("node:assert/strict");
+const { pathToFileURL } = require("node:url");
 (async () => {
-  const [modulePath, dir, expected] = process.argv.slice(2);
-  const { scanAgentFilesInDir } = await import(`file://${modulePath}`);
-  const names = (await scanAgentFilesInDir(dir)).map((agent) => agent.name).sort();
-  assert.deepEqual(names, expected.split(","));
+  const [installedDir, modulePath] = process.argv.slice(2);
+  const { scanAgentFilesInDir } = await import(pathToFileURL(modulePath).href);
+  assert.deepEqual((await scanAgentFilesInDir(installedDir)).map((agent) => agent.name), ["retired"]);
 })().catch((error) => { console.error(error); process.exitCode = 1; });
 JS
 }
-check_subagents_discovery regular
-apply_package_patch "$subagents" patch-subagents-lite-symlinks "$REPO/harness/pi/patches/pi-subagents-lite-symlink-discovery.patch" src/agents/agent-discovery.ts | grep -q '(patched)'
-check_subagents_discovery regular,symlinked
-apply_package_patch "$subagents" patch-subagents-lite-symlinks "$REPO/harness/pi/patches/pi-subagents-lite-symlink-discovery.patch" src/agents/agent-discovery.ts | grep -q '(ok)'
-echo 'ok: subagents discovery patch finds symlinked profiles and is idempotent'
+check_installed_pi_agents() {
+  node - "$1" "$2" "$SB/subagents-agent-discovery.mjs" <<'JS'
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const { pathToFileURL } = require("node:url");
+(async () => {
+  const [installedDir, sourceDir, modulePath] = process.argv.slice(2);
+  const { scanAgentFilesInDir } = await import(pathToFileURL(modulePath).href);
+  const sourceEntries = await fs.promises.readdir(sourceDir, { withFileTypes: true });
+  const expected = sourceEntries
+    .filter((entry) => entry.isFile() && entry.name.endsWith(".md"))
+    .map((entry) => entry.name)
+    .sort();
+  const discovered = await scanAgentFilesInDir(installedDir);
+  assert.equal(discovered.length, expected.length, "Lite's exact isFile scan discovers every profile");
+  for (const name of expected) {
+    const installed = path.join(installedDir, name);
+    assert((await fs.promises.lstat(installed)).isFile(), `${name} is a regular file`);
+    assert.deepEqual(await fs.promises.readFile(installed), await fs.promises.readFile(path.join(sourceDir, name)));
+  }
+  await assert.rejects(fs.promises.lstat(path.join(installedDir, "retired-agent.md")), { code: "ENOENT" });
+  await assert.rejects(fs.promises.lstat(path.join(installedDir, "retired-link.md")), { code: "ENOENT" });
+  assert((await fs.promises.lstat(path.join(installedDir, "user-link.md"))).isSymbolicLink(), "user-owned dangling link preserved");
+})().catch((error) => { console.error(error); process.exitCode = 1; });
+JS
+}
 
 # Pristine sources from pi-jev@0.7.0 (MIT, license beside the fixture).
 # Copy only managed local artifacts: no vendor clones, package installs, secrets,
@@ -213,7 +229,21 @@ for state in {0..15}; do
   cp -R "$fixture" "$pkg"
   subagents_pkg="$home/.pi/agent/npm/node_modules/pi-subagents-lite"
   mkdir -p "$subagents_pkg/src/agents"
-  cp "$SB/subagents-agent-discovery.pristine.ts" "$subagents_pkg/src/agents/agent-discovery.ts"
+  cp "$subagents_fixture" "$subagents_pkg/src/agents/agent-discovery.ts"
+  legacy_patch_status=ok
+  if (( state & 1 )); then
+    patch -p1 -s -f -d "$subagents_pkg" < "$REPO/harness/pi/patches/pi-subagents-lite-symlink-discovery.patch"
+    legacy_patch_status=removed
+  fi
+  agent_profiles="$home/.pi/agent/agents"
+  mkdir -p "$agent_profiles"
+  ln -s "$sandbox_repo/agents/worker-standard.md" "$agent_profiles/worker-standard.md"
+  ln -s "$sandbox_repo/agents/reviewer-anthropic-high.md" "$agent_profiles/reviewer-anthropic-high.md"
+  ln -s "$sandbox_repo/agents/retired-link.md" "$agent_profiles/retired-link.md"
+  ln -s "$agent_profiles/missing.md" "$agent_profiles/user-link.md"
+  printf 'retired-agent.md\n' > "$agent_profiles/.agentic-tools-pi-agents"
+  printf 'retired\n' > "$agent_profiles/retired-agent.md"
+  check_legacy_pi_agent_symlinks_hidden "$agent_profiles"
   retired_package="$home/.pi/agent/npm/node_modules/@maplezzk/pi-""interactive""-subagents"
   retired_config="$home/.pi/agent/extensions/pi-""interactive""-subagents"
   mkdir -p "$retired_package" "$retired_config"
@@ -241,8 +271,16 @@ for state in {0..15}; do
       if (( run == 1 && !(state & (1 << i)) )); then expected=patched; fi
       grep -qF "[${labels[$i]}] -> $pkg ($expected)" "$SB/install-$state-$run.log"
     done
-    expected=ok; [ "$run" = 1 ] && expected=patched
-    grep -qF "[patch-subagents-lite-symlinks] -> $subagents_pkg ($expected)" "$SB/install-$state-$run.log"
+    cmp "$subagents_fixture" "$subagents_pkg/src/agents/agent-discovery.ts"
+    check_installed_pi_agents "$agent_profiles" "$REPO/agents"
+    expected_legacy_patch_status=ok
+    [ "$run" = 1 ] && expected_legacy_patch_status="$legacy_patch_status"
+    grep -qF "[retire-subagents-lite-symlink-patch] -> $subagents_pkg ($expected_legacy_patch_status)" "$SB/install-$state-$run.log"
+    if [ "$run" = 1 ]; then
+      grep -qF "[pi-agents] -> $agent_profiles (0 ok, 24 copied, 2 migrated, 2 removed)" "$SB/install-$state-$run.log"
+    else
+      grep -qF "[pi-agents] -> $agent_profiles (24 ok)" "$SB/install-$state-$run.log"
+    fi
     for config in "$home/.omp/agent/config.yml" "$home/.omp/profiles/work/agent/config.yml"; do
       jq -e '.modelRoles == {"default":"local-standard","slow":"local-premium"} and .composer.shape == "compact" and .statusLine.preset == "custom"' "$config" >/dev/null
     done
@@ -252,7 +290,7 @@ for state in {0..15}; do
   cmp "$REPO/harness/pi/extensions/pi-fallback.json" "$home/.pi/agent/extensions/pi-fallback.json"
   cmp "$REPO/harness/pi/APPEND_SYSTEM.md" "$home/.pi/agent/APPEND_SYSTEM.md"
   cmp "$REPO/harness/omp/APPEND_SYSTEM.md" "$home/.omp/agent/APPEND_SYSTEM.md"
-  echo "ok: Jev patches install missing patches, then all report ok; policies copied; OMP modelRoles preserved"
+  echo "ok: legacy Lite patch is removed; pristine Lite skips the old symlink layout; copied Pi profiles and Jev patches are idempotent"
 done
 # A failed patch remains an installer failure, but the modular loop still runs
 # the unrelated Jev patches before install_main reports PATCH_FAILED.

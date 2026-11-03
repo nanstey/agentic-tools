@@ -27,6 +27,99 @@ collect_agents() {
   done
 }
 
+# Pi Lite's discovery recognizes directory entries only when isFile() is true,
+# so its managed agent profiles must be regular files rather than symlinks. A
+# small manifest lets future installs retire only files that this installer owns,
+# leaving user-created profiles alone.
+install_pi_agents() {
+  local dir="$1" manifest next_manifest entry target linkname src stale
+  local ok=0 copied=0 migrated=0 replaced=0 removed=0
+  mkdir -p "$dir"
+  manifest="$dir/.agentic-tools-pi-agents"
+  next_manifest="$(mktemp "$dir/.agentic-tools-pi-agents.XXXXXX")" || {
+    echo "  [pi-agents] cannot create manifest in $dir" >&2
+    return 1
+  }
+
+  # Migrate the previous per-file symlink layout and remove managed dangling
+  # links. Do not touch user-owned links outside this repository's agents/ tree.
+  for entry in "$dir"/*; do
+    [ -L "$entry" ] || continue
+    if [ ! -e "$entry" ]; then
+      # link_one creates absolute links, so this catches only dangling profiles
+      # from the old Pi install layout and preserves dangling user-owned links.
+      target="$(readlink "$entry" 2>/dev/null || true)"
+      case "$target" in
+        "$REPO_ROOT"/agents/*.md)
+          rm -f "$entry"
+          removed=$((removed + 1))
+          ;;
+      esac
+      continue
+    fi
+    target="$(readlink -f "$entry" 2>/dev/null || true)"
+    case "$target" in
+      "$REPO_ROOT"/agents/*.md)
+        rm -f "$entry"
+        migrated=$((migrated + 1))
+        ;;
+    esac
+  done
+
+  while IFS=$'\t' read -r linkname src; do
+    [ -n "$linkname" ] || continue
+    printf '%s\n' "$linkname" >>"$next_manifest"
+  done < <(collect_agents)
+
+  # Retire only files listed by a previous installer manifest. Reject unsafe
+  # names in case a local manifest was edited outside the installer.
+  if [ -f "$manifest" ]; then
+    while IFS= read -r stale; do
+      case "$stale" in
+        *.md) ;;
+        *) continue ;;
+      esac
+      case "$stale" in .*|*/*) continue ;; esac
+      if grep -qxF -- "$stale" "$next_manifest"; then continue; fi
+      target="$dir/$stale"
+      if [ -e "$target" ] || [ -L "$target" ]; then
+        rm -rf "$target"
+        removed=$((removed + 1))
+      fi
+    done <"$manifest"
+  fi
+
+  while IFS=$'\t' read -r linkname src; do
+    [ -n "$linkname" ] || continue
+    target="$dir/$linkname"
+    if [ -L "$target" ]; then
+      rm -f "$target"
+      replaced=$((replaced + 1))
+    elif [ -f "$target" ]; then
+      if cmp -s "$src" "$target"; then
+        ok=$((ok + 1))
+        continue
+      fi
+    elif [ -e "$target" ]; then
+      rm -rf "$target"
+      replaced=$((replaced + 1))
+    fi
+    if ! cp "$src" "$target"; then
+      rm -f "$next_manifest"
+      return 1
+    fi
+    copied=$((copied + 1))
+  done < <(collect_agents)
+
+  mv -f "$next_manifest" "$manifest"
+  local summary="$ok ok"
+  [ "$copied" -gt 0 ] && summary="$summary, $copied copied"
+  [ "$migrated" -gt 0 ] && summary="$summary, $migrated migrated"
+  [ "$replaced" -gt 0 ] && summary="$summary, $replaced replaced"
+  [ "$removed" -gt 0 ] && summary="$summary, $removed removed"
+  echo "  [pi-agents] -> $dir ($summary)"
+}
+
 # Idempotent linker shared by all types (file or directory source). Prints a
 # single category word (ok|repoint|link|overwrite) so callers can tally rather
 # than emit a line per artifact. The repo is the source of truth, so a real
