@@ -10,9 +10,10 @@ This repo stores reusable **agentic tools** and portable harness configuration:
 - **Pi Lite agent types** under `agents/`.
 - **Harness configuration**: portable files under `harness/<harness>/`.
 
-Skills and agent types are installed by **symlink**. Harness configuration is
-copied into each harness's runtime directory. `README.md` is the catalog;
-`install.sh` performs the installation.
+Skills are installed by **symlink**. Pi Lite agent types are copied as regular
+profile files so Lite discovers them without patching installed packages. Harness
+configuration is copied into each harness's runtime directory. `README.md` is
+the catalog; `install.sh` performs the installation.
 
 Repo-local authoring helpers live in `.agents/skills/`. `.claude` is a symlink
 to `.agents`, so Claude sees the same files at `.claude/skills/`.
@@ -68,8 +69,8 @@ Use the matching authoring skill instead of copying conventions from here:
   `.agents/skills/make-agent/SKILL.md`.
 
 For supported types, installer changes are not needed. Re-run `install.sh` to
-link. When renaming a tool, rename both path and `name:`, then re-run install
-and remove stale links.
+refresh their installed form. When renaming a tool, rename both path and `name:`,
+then re-run install and remove stale managed entries.
 
 ## Catalog (README) policy
 

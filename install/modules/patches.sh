@@ -84,12 +84,35 @@ install_jev_self_improve_thinking_patch() {
   apply_package_patch "$1" patch-jev-self-improve-thinking "$REPO_ROOT/harness/pi/patches/pi-jev-self-improve-thinking.patch" extensions/index.ts
 }
 
-# pi-subagents-lite@1.17.1 installs user agent profiles as symlinks, but its
-# discovery scan accepts only Dirent files. Follow symlinks to files so the
-# installer-managed tier profiles remain discoverable. Remove once upstream
-# accepts file symlinks.
-install_subagents_lite_symlink_patch() {
-  apply_package_patch "$1" patch-subagents-lite-symlinks "$REPO_ROOT/harness/pi/patches/pi-subagents-lite-symlink-discovery.patch" src/agents/agent-discovery.ts
+# Pi profiles are now copied as regular files, so this former discovery patch is
+# obsolete. Reverse it once on existing installs; a pristine or changed upstream
+# source is safe to leave untouched because agent discovery no longer relies on it.
+retire_subagents_lite_symlink_patch() {
+  remove_package_patch "$1" retire-subagents-lite-symlink-patch "$REPO_ROOT/harness/pi/patches/pi-subagents-lite-symlink-discovery.patch" src/agents/agent-discovery.ts
+}
+
+# Reverse a retired patch when present. Unlike apply_package_patch, an unknown
+# upstream source is non-fatal because the retired behavior is no longer needed.
+remove_package_patch() {
+  local pkg="$1" label="$2" patch_file="$3" entry="$4"
+  if [ ! -f "$pkg/$entry" ]; then
+    echo "  [$label] $pkg not installed yet, skipping (re-run install.sh after pi installs packages)"; return 0
+  fi
+  if ! command -v patch >/dev/null 2>&1; then
+    echo "  [$label] patch not found; legacy patch was not removed" >&2; return 1
+  fi
+  if patch -R -p1 -s -f --dry-run -d "$pkg" <"$patch_file" >/dev/null 2>&1; then
+    if patch -R -p1 -s -f -d "$pkg" <"$patch_file" >/dev/null 2>&1; then
+      echo "  [$label] -> $pkg (removed)"
+    else
+      echo "  [$label] failed to remove legacy patch" >&2
+      return 1
+    fi
+  elif patch -p1 -s -f --dry-run -d "$pkg" <"$patch_file" >/dev/null 2>&1; then
+    echo "  [$label] -> $pkg (ok)"
+  else
+    echo "  [$label] -> $pkg (not applicable; left unchanged)"
+  fi
 }
 
 apply_package_patch() {

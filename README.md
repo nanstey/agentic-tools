@@ -35,7 +35,7 @@ and runtime behavior.
 <details>
 <summary><code>harness/pi/</code> (Pi)</summary>
 
-`install.sh` copies Pi configuration into `$PI_AGENT_DIR` (default `~/.pi/agent`) and patches installed Pi packages. See [`harness/pi/README.md`](harness/pi/README.md) for the managed-file table, third-party package patches, the self-improvement loop, `pi-secret`, and machine bootstrap.
+`install.sh` copies Pi configuration and Lite agent profiles into `$PI_AGENT_DIR` (default `~/.pi/agent`) and applies required third-party package patches. See [`harness/pi/README.md`](harness/pi/README.md) for the managed-file table, third-party package patches, the self-improvement loop, `pi-secret`, and machine bootstrap.
 
 </details>
 
@@ -166,7 +166,7 @@ Refactor's internal simplification method is vendored and adapted from
 
 ## Agents
 
-Pi-only Lite agent types for focused delegated work. `install.sh` links them only into Pi, not Claude or OMP. Every type is a leaf agent that never spawns further agents. Pi-specific runtime details are under [Pi agent types](harness/pi/README.md#pi-agent-types).
+Pi-only Lite agent types for focused delegated work. `install.sh` copies them as regular files only into Pi, not Claude or OMP. Every type is a leaf agent that never spawns further agents. Pi-specific runtime details are under [Pi agent types](harness/pi/README.md#pi-agent-types).
 
 | Agent | Model and thinking | Description |
 | --- | --- | --- |
