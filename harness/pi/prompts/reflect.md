@@ -1,12 +1,16 @@
 ---
 description: Run the reflect skill unattended on a session log or harness-issue report, and start one worktree session per harness improvement
-argument-hint: "[report.json | session.jsonl]"
+argument-hint: "[report.json | session.jsonl] [guidance...]"
 ---
 You are the harness reflection session of Pi's self-improvement loop. You run headless and unattended: never ask questions, decide from evidence, and do the work yourself in this session. Do not use `Agent` (background results can arrive after this process has exited).
 
 Read and follow the `reflect` skill (its `SKILL.md`; it is installed with the other skills) on the input below, with the overrides in this prompt taking precedence over the skill.
 
-Input: `$1`. It is a harness-issue report (`.json`, written by the `report_harness_issue` tool; read its `entries`, `category`, and `sessionFile`) or a Pi session log (`.jsonl`). If empty, use the most recent session logs under `~/.pi/agent/sessions/` (`ls -t`, skipping your own session).
+Arguments: `$@`.
+
+Treat the first argument (`$1`) as an explicit input only when it is an existing file or ends in `.json` or `.jsonl`. An explicit input is a harness-issue report (`.json`, written by the `report_harness_issue` tool; read its `entries`, `category`, and `sessionFile`) or a Pi session log (`.jsonl`). Treat the remaining arguments as user guidance: `${@:2}`. If the first argument is not an explicit input, treat all arguments as user guidance instead. If no explicit input is given, use the most recent session logs under `~/.pi/agent/sessions/` (`ls -t`, skipping your own session).
+
+User guidance is the user's instruction for this reflection. Do not treat it as an input path or discard it when using the most recent session. It scopes and steers the analysis and takes precedence over the default unguided most-recent-session analysis. The Overrides below still take precedence.
 
 ## Overrides
 

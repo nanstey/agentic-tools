@@ -25,6 +25,10 @@ new_env() {
 check "node --check pi-improve" node --check "$P"
 check "bash -n install.sh" bash -n "$REPO/install.sh"
 check "fixture is valid jsonl" bash -c "jq -e . '$FIX' >/dev/null"
+REFLECT_PROMPT="$REPO/harness/pi/prompts/reflect.md"
+check "reflect prompt advertises guidance" grep -Fq 'argument-hint: "[report.json | session.jsonl] [guidance...]"' "$REFLECT_PROMPT"
+check "reflect prompt preserves all arguments" grep -Fq 'Arguments: `$@`.' "$REFLECT_PROMPT"
+fails "reflect prompt no longer uses only the first argument as input" grep -Fq 'Input: `$1`.' "$REFLECT_PROMPT"
 
 # digest
 new_env
