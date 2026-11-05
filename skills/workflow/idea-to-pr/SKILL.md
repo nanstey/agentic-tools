@@ -30,7 +30,7 @@ If the idea is vague, derive acceptance criteria from the best reading and recor
 
 Give delegated work a clear purpose, relevant context, and expected result. Run independent work concurrently only when the environment can keep writers isolated. Let the environment choose its native agents, tools, and coordination pattern.
 
-Track timing, cost, or resource usage when the environment reports it. Do not require resource budgets or controls unless the user requests them or the environment requires them. The per-invocation review/fix limit in [`gates.md`](../../dev/pr/references/gates.md) is a workflow safety constraint, not a resource-budget requirement.
+Track timing, cost, or resource usage when the environment reports it. Do not require resource budgets or controls unless the user requests them or the environment requires them. The per-invocation review/fix limit in the `pr` skill's `references/gates.md` is a workflow safety constraint, not a resource-budget requirement.
 
 ### State and handoffs
 
@@ -81,17 +81,17 @@ Run `plan-init` to create the plan folder/README. For a resumed run, verify the 
 - **Narrow idea (one clear component):** use one focused reconnaissance task for the affected behaviour, files, tests, validation commands, and risks.
 - **Broad idea (cross-boundary or product-ambiguous):** split distinct read-only scopes across product/request evidence, code patterns and boundaries, and validation/runtime risks when parallel execution is available. Follow with one synthesis step that emits a single evidence packet.
 - Give every scope concrete paths and an evidence-bearing return contract. Do not fan out overlapping questions.
-- For underspecified ideas, run [scrutiny](../../code-quality/scrutiny/SKILL.md) Mode A's pre-build contract before fixing criteria. Only user-confirmed items become obligations; retain assumptions and unresolved decisions as evidence.
+- For underspecified ideas, run `scrutiny` Mode A's pre-build contract before fixing criteria. Only user-confirmed items become obligations; retain assumptions and unresolved decisions as evidence.
 
 #### 3b. Planning
 
-Run [`planning`](../planning/SKILL.md) with the evidence packet rather than full raw findings, and the plan folder from step 2. `planning` selects and runs the stages, writes their artifacts to the plan folder, and keeps the README `## Design` and `## Slices` tables current. Retain its artifact paths plus decision packet.
+Run `planning` with the evidence packet rather than full raw findings, and the plan folder from step 2. `planning` selects and runs the stages, writes their artifacts to the plan folder, and keeps the README `## Design` and `## Slices` tables current. Retain its artifact paths plus decision packet.
 
 In autopilot, state in the handoff: **“This is an `idea-to-pr` autopilot run. The user has authorized ordinary planning transitions.”** `planning` then returns the plan to the coordinator, which proceeds; resolve design questions from evidence and ask only for unresolved product decisions. In `gated` mode, omit that statement so `planning` stops for explicit approval.
 
 ### 4. Specification
 
-`planning` runs `speclist` to write one spec per slice under `<plan-folder>/specs/`; tell it to require the sections below. Apply the PR split rule in the [caller contract](../review-code/references/caller-contract.md). Validate each slice. Require each spec to contain:
+`planning` runs `speclist` to write one spec per slice under `<plan-folder>/specs/`; tell it to require the sections below. Apply the PR split rule in the `review-code` skill's `references/caller-contract.md`. Validate each slice. Require each spec to contain:
 
 - `## Implementation` — checked only after implementation validation passes.
 - `## Test Scenarios` — Given/When/Then scenarios checked only after a separate QA/review step observes them pass.
@@ -102,11 +102,11 @@ For each slice, use the spec plus current decision packet. Dependent slices rema
 
 1. Run a focused environment preflight: detect the package manager/lockfile, run the prospective deterministic gate, and, only for a dependency-shaped failure, make one immutable-install repair (for pnpm, `pnpm install --frozen-lockfile`) and retry the identical gate. Record both attempts and classify persistent failure as baseline code, lockfile/install, access/service, or unknown.
 2. Run `flow-design` when delegation would improve the slice. For simple or non-delegated slices, record the equivalent plan inline.
-3. Run [`build`](../build/SKILL.md) steps 1–5 on the slice spec, with the caller-owned QA, review, and shipping stated. Build covers branch/worktree fitness, tooling checks, phased implementation, and separate validation. Only implementation checks `## Implementation` items. Separate implementation from acceptance review when an independent context is available; otherwise record the limitation.
+3. Run `build` steps 1–5 on the slice spec, with the caller-owned QA, review, and shipping stated. Build covers branch/worktree fitness, tooling checks, phased implementation, and separate validation. Only implementation checks `## Implementation` items. Separate implementation from acceptance review when an independent context is available; otherwise record the limitation.
 4. For runnable behaviour, use a separate QA step to boot the app and observe every Given/When/Then scenario end-to-end. Use `playwright-cli` for browser-facing behaviour or equivalent CLI/API verification otherwise. QA returns per-scenario evidence and checks only `## Test Scenarios`; unit tests alone do not prove runtime behaviour.
 5. For user-facing UI, run `visual-capture` only after QA passes. Store evidence outside git and hand its paths to the PR step.
-6. The coordinator is the review caller and owns the round budget. Start each PR's review with one [`/review-code fix`](../review-code/SKILL.md) call on combined scope per the [caller contract](../review-code/references/caller-contract.md). Include step 4 QA evidence.
-7. After successful validation, run `/git commit`, then `/pr` with the resulting packet/findings/evidence (see the caller contract; `/pr` review/fix has its own per-invocation five-round limit). Update README with actual PR/draft/readiness status, evidence/packet paths, round state, and deviations; a published draft is not yet review-ready. When a later fix or rebase changes an already-open non-draft PR, convert it back to draft first per the draft-before-changes rule in [`gates.md`](../../dev/pr/references/gates.md).
+6. The coordinator is the review caller and owns the round budget. Start each PR's review with one `/review-code fix` call on combined scope per the `review-code` skill's `references/caller-contract.md`. Include step 4 QA evidence.
+7. After successful validation, run `/git commit`, then `/pr` with the resulting packet/findings/evidence (see the caller contract; `/pr` review/fix has its own per-invocation five-round limit). Update README with actual PR/draft/readiness status, evidence/packet paths, round state, and deviations; a published draft is not yet review-ready. When a later fix or rebase changes an already-open non-draft PR, convert it back to draft first per the draft-before-changes rule in the `pr` skill's `references/gates.md`.
 
 **GATE (gated mode):** require user approval before the next dependent slice. Autopilot proceeds after successful ordinary transitions; it stops for an unresolved product decision, a destructive or hard-to-reverse action not already authorized, unavailable access, or an unfixable/exhausted/no-progress review or validation gate. Fix ordinary validation/runtime failures within the invoking action's limit; never bypass a gate, erase a gap, or restart that limit within its invocation to continue.
 

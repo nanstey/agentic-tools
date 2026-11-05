@@ -2,7 +2,7 @@
 
 ## Core Contract
 
-Verify one PR's claims with the base [`verification`](../../../code-quality/verification/SKILL.md) skill, then check that the PR description cites the evidence, including screenshots where applicable.
+Verify one PR's claims with the base `verification` skill, then check that the PR description cites the evidence, including screenshots where applicable.
 
 Invocation: `/pr verification [target] [report|fix|comment]`. Default mode is `report`. Default tool is `gh`. Follow `CLAUDE.md` / `AGENTS.md` on conflict. Write prose using `terse`. Apply the non-interactive policy in `SKILL.md`.
 

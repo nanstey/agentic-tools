@@ -10,7 +10,7 @@ argument-hint: "[--base REF] [--full] [--ccn N] [--nloc N] [--args N] [PATH...]"
 
 Measure first, then judge. Numbers locate candidates. They do not prove a refactor is needed.
 
-Invoke directly with `/complexity`. Other skills also call it: [`build`](../../workflow/build/SKILL.md) after each validated phase, and [`refactor`](../refactor/SKILL.md) (and so `review-code`) as measurement evidence. Callers that set their own mode (for example report-only) keep it. This skill never edits code when called as a measurement step.
+Invoke directly with `/complexity`. Other skills also call it: `build` after each validated phase, and `refactor` (and so `review-code`) as measurement evidence. Callers that set their own mode (for example report-only) keep it. This skill never edits code when called as a measurement step.
 
 ## Workflow
 
@@ -23,7 +23,7 @@ Invoke directly with `/complexity`. Other skills also call it: [`build`](../../w
    It prints a TSV, worst first. By default only violating functions appear, and `--all` lists every function. Columns: `CCN NLOC PARAMS FUNCTION LOCATION FLAGS`.
 2. **If exit code is 3**, Lizard is missing or failed to run. The script resolves `lizard`, `python3 -I -m lizard`, `uvx lizard`, then `pipx run lizard`. `uvx` and `pipx run` download an unpinned package. Set `COMPLEXITY_NO_FETCH=1` to forbid that. Run `./install.sh --tool lizard` from the repo root, or `uv tool install lizard` / `pipx install lizard`. Do not hand-count complexity.
 3. **Judge each flagged function** against the thresholds below. Read the function before deciding.
-4. **Act.** When called directly or by `build`, and if you wrote or changed the function and it is over the red line, simplify it now (see [`refactor`](../refactor/SKILL.md), goal `simplify` or `extract`). Otherwise, or in a report-only caller, report it. Never refactor unrelated code only because it scores high.
+4. **Act.** When called directly or by `build`, and if you wrote or changed the function and it is over the red line, simplify it now (see `refactor`, goal `simplify` or `extract`). Otherwise, or in a report-only caller, report it. Never refactor unrelated code only because it scores high.
 5. **Re-measure** after a change. Report before and after numbers.
 
 ## Thresholds (defaults)

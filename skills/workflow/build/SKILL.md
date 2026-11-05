@@ -18,7 +18,7 @@ Use the active environment's delegation mechanisms when a separate execution con
 ## Required Inputs
 
 1. Source: a plan folder `README.md`, `context`, `plan`, or `speclist` (inline or filepath). If absent, derive a minimal plan from intent.
-   - Given a plan-folder README: read it for the big picture, follow its `## Design` docs for context, and use each approved slice's `specs/NN-*.md` as its phase checklist. Follow the PR split rule in the [caller contract](../review-code/references/caller-contract.md).
+   - Given a plan-folder README: read it for the big picture, follow its `## Design` docs for context, and use each approved slice's `specs/NN-*.md` as its phase checklist. Follow the PR split rule in the `review-code` skill's `references/caller-contract.md`.
 2. Outcome and boundaries.
 3. Success criteria stated as observable behaviour (BDD/TDD), not implementation details.
 4. Required validation and the tooling/methods it depends on.
@@ -26,13 +26,13 @@ Use the active environment's delegation mechanisms when a separate execution con
 
 ## Workflow
 
-1. Restate the objective and behavioural success criteria. For underspecified requests, run [scrutiny](../../code-quality/scrutiny/SKILL.md) Mode A's pre-build contract first. Only user-confirmed items become obligations; retain assumptions and unresolved decisions as evidence.
+1. Restate the objective and behavioural success criteria. For underspecified requests, run `scrutiny` Mode A's pre-build contract first. Only user-confirmed items become obligations; retain assumptions and unresolved decisions as evidence.
 2. Assess branch fitness: if the current branch is unsuitable or the tree is dirty, run `/git branch` or `/git worktree` before editing.
 3. Confirm validation tooling is available and runnable; acquire or flag missing tooling before relying on it.
 4. Decompose into individually verifiable phases.
 5. For each phase: implement focused edits, have a distinct validator step execute checks/observe success criteria, and update speclist checkboxes only after validation. Run `/git commit` only when shipping was requested.
-   After a phase passes validation, run [`complexity`](../../code-quality/complexity/SKILL.md) (default scope: this branch's changes) on the code you wrote. Simplify a function in the Refactor band that you changed, then re-validate. Treat a Review-band function as a note. If Lizard is unavailable, record the gap and continue.
-6. When a caller such as `idea-to-pr` states that it owns runtime QA, review, and shipping, stop after step 5 and return phase evidence. Otherwise, after phases pass, run [`/review-code fix`](../review-code/SKILL.md) per the [caller contract](../review-code/references/caller-contract.md). Build owns its review/fix invocation's round limit; a handoff to `/pr` passes packet/findings/evidence and `/pr` owns its own per-invocation limit. Record slice/top-level status: local validation, draft publication, and readiness.
+   After a phase passes validation, run `complexity` (default scope: this branch's changes) on the code you wrote. Simplify a function in the Refactor band that you changed, then re-validate. Treat a Review-band function as a note. If Lizard is unavailable, record the gap and continue.
+6. When a caller such as `idea-to-pr` states that it owns runtime QA, review, and shipping, stop after step 5 and return phase evidence. Otherwise, after phases pass, run `/review-code fix` per the `review-code` skill's `references/caller-contract.md`. Build owns its review/fix invocation's round limit; a handoff to `/pr` passes packet/findings/evidence and `/pr` owns its own per-invocation limit. Record slice/top-level status: local validation, draft publication, and readiness.
 7. If a design changes during implementation, update the affected `## Design` doc or spec and append a dated entry to the README `## Decision log`; keep the plan folder consistent with what shipped.
 8. Summarize changes, validation, assumptions, and risks.
 

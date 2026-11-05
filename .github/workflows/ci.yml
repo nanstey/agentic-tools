@@ -28,6 +28,8 @@ jobs:
             run: bash install/tests/install.test.sh
           - name: agent drift
             run: bash install/tests/agent-drift.test.sh
+          - name: skill links
+            run: bash install/tests/skill-links.test.sh
           - name: pi package patches
             run: bash harness/pi/tests/package-patches.test.sh
           - name: pi-improve
