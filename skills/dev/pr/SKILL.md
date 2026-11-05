@@ -44,7 +44,7 @@ Reject an unknown action, more than one action word, or legacy `--` action flags
 
 Load every referenced workflow before acting. [`gates.md`](references/gates.md) owns evidence, review depth scaling, finding categories, the force override, and the per-invocation five-round fix limit. Delegates inside an invocation share that limit; separate invocations do not carry it. Never reset it mid-invocation or start nested review loops.
 
-`/pr review` delegates code review to `review-code` and keeps PR actions and round-state ownership. It defaults to report-only. `/pr verification` defaults to report and audits the description and screenshots without starting review loops.
+`/pr review` delegates code review to `review-code` and keeps PR actions and round-state ownership. It defaults to report-only. `/pr verification` defaults to report and audits the description and screenshots without starting review loops. Published review comments and bodies contain only source-verified findings, evidence, and requested changes. Keep dispatch, agents/models/tiers, reviewer counts, validator/verifier status, `Limits:` notes, provenance, session/tooling availability, and local-checkout details in the local report to the user.
 
 ## Non-Interactive Policy
 

@@ -1,19 +1,21 @@
-# Lite model provenance
+# Review dispatch evidence
 
 Lite keeps child sessions in memory. Their human-readable transcripts under
-`/tmp/pi-agent-outputs/<agentId>.log` contain text and tools, not model metadata.
-Only a background completion record in the parent session JSONL carries the child's
-final resolved model. Dispatch every source-review row, validator, and candidate
-verifier with `run_in_background: true`.
-
-A foreground dispatch has model `unknown`. Record that as a coverage gap and do not
-claim cross-family review.
-
-For a completed background run, inspect the parent session record:
+`/tmp/pi-agent-outputs/<agentId>.log` contain text and tools, not final-model
+metadata. A background completion record in the parent session JSONL can supply
+that metadata:
 
 ```sh
 jq -r 'select(.type == "custom_message" and .customType == "subagent-result" and .details.status == "completed") | .details.modelId // .details.modelName // "unknown"' "$PI_AGENT_DIR/sessions/<session>.jsonl"
 ```
 
-The record reports only the final model, not the model used for every assistant
-message. Unknown or potentially mixed provenance remains a recorded gap.
+Use this evidence only when the reviewed work is positively known to be
+produced by the current agent session and the coordinator claims cross-family
+verification. Select the opposite reviewer family and keep an unavailable or
+unknown completion model in the local packet and user report.
+
+For third-party code, author and completion model provenance do not determine
+coverage. Assign source-review work across both reviewer families, verify task
+completion and findings, and merge/deduplicate the results. Do not mark the
+review incomplete or non-independent because that provenance is unknown or
+mixed, and never put it in a PR comment or review body.

@@ -12,7 +12,7 @@ Invocation: `/pr verification [target] [report|fix|comment]`. Default mode is `r
 | --- | --- | --- |
 | `report` (default) | Nothing beyond reading and evidence gathering. No edits, commits, pushes, comments, or PR body changes. | Any PR |
 | `fix` | Update the PR body to cite the evidence and refresh screenshots. May run `/pr screenshots`. Never edits source. | Own PR (`author.login` equals `gh api user --jq .login`) |
-| `comment` | Post one same-head review comment with the verdict and gaps. Never edits the PR or source. | Another author's PR |
+| `comment` | Post one same-head review comment with source-verified findings and requested evidence changes. Never edits the PR or source. | Another author's PR |
 
 Reject unknown mode words, more than one mode word, or a mode that does not match PR ownership. Stop as `blocked` and name the allowed mode.
 
@@ -46,8 +46,8 @@ Reject unknown mode words, more than one mode word, or a mode that does not matc
 ### `comment` (another author's PR)
 
 1. Recheck base/head. If either changed, do not post stale results.
-2. Post one review per `review.md` "Others' PR: `comment`" steps 3 and 4: disclosure block first, `event: "COMMENT"`, `commit_id: <headRefOid>`.
-3. Body lists the verdict, each non-`verified` claim with its gap, missing or stale description evidence, and the commands to reproduce. Never post secrets or unverified assertions. Never approve or request changes.
+2. Post one review per `review.md` "Others' PR: `comment`" steps 3 and 4 with `event: "COMMENT"` and `commit_id: <headRefOid>`.
+3. Body lists each source-verified missing, stale, or mismatched claim with evidence and the requested correction. Never post dispatch details, agents/models/tiers, reviewer counts, validator/verifier status, `Limits:` notes, provenance, session/tooling availability, local-checkout statements, coverage/limitation footers, secrets, or unverified assertions. Never approve or request changes.
 
 ## Safety Rules
 

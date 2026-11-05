@@ -48,9 +48,10 @@ needed. Context- and scale-based selection applies only to Lite agent types. A `
 `premium` suffix; frontmatter pins its model and thinking. Ordinary work starts at
 standard/medium. Low confidence does not cause escalation. High requires demonstrated
 cross-boundary complexity or high blast radius. Premium requires an explicit request or an
-indivisible irreversible or security-critical task, plus a recorded reason. Reviewer types
-use the opposite producer family at the same tier. See `APPEND_SYSTEM.md` for the fallback
-and model-provenance limitations.
+indivisible irreversible or security-critical task, plus a recorded reason. Third-party reviews
+use both reviewer families at the selected tier; opposite-family selection applies only to
+current-session producer/verifier pairs. See `APPEND_SYSTEM.md` for fallback and review-dispatch
+rules.
 
 After installation, start Pi from a new login session so `environment.d` applies,
 or export `PI_JEV_AUTO_MODEL=0` in the
@@ -112,7 +113,7 @@ remain available (`PI_IMPROVE_WORKER_MODEL`, `PI_IMPROVE_REVIEWER_MODEL`, `PI_IM
 `install.sh` records the main checkout in `$PI_AGENT_DIR/self-improve/repo`;
 `AGENTIC_TOOLS_REPO` overrides it. Run `/reflect [report.json | session.jsonl] [guidance...]` by hand. When the first argument is a report or log, later text is guidance; otherwise all supplied text is guidance for the most recent session. The repo is public, so briefs and PRs must stay redacted; the prompts require it.
 
-Offline tests (no models, worktrees, or PRs): `harness/pi/tests/pi-improve.test.sh` covers option parsing, caps and dedupe under concurrency, the reviewer-family rule, the kill switch, and a sandboxed idempotent install. `harness/pi/tests/fixtures/seeded-defect.jsonl` is a session log with one seeded harness defect for checking `/reflect` by hand. These files are not installed.
+Offline tests (no models, worktrees, or PRs): `harness/pi/tests/pi-improve.test.sh` covers option parsing, caps and dedupe under concurrency, the own-worker reviewer-family rule, the kill switch, and a sandboxed idempotent install. `harness/pi/tests/fixtures/seeded-defect.jsonl` is a session log with one seeded harness defect for checking `/reflect` by hand. These files are not installed.
 
 ## Per-profile secrets (`pi-secret`)
 
@@ -143,9 +144,10 @@ installs and then exits 1.
 - **`pi-fallback-models`:** 0.1.1 classifies Anthropic's "You're out of extra usage" 400 as
   ignorable, so no fallback happens on that quota error. The quota patch adds that phrase.
   Lite children load it through `extensions: true`, but its global fallback chain cannot enforce
-  reviewer-family independence or the per-cell fallback arrows. The parent must record the final
-  model and treat unknown or potentially mixed provenance as a review gap. Drop the quota patch
-  once upstream provides the corresponding behavior.
+  configured reviewer family or the per-cell fallback arrows. The parent records the final model
+  only when claiming cross-family verification of current-session work; unknown provenance does
+  not reduce third-party review coverage. Drop the quota patch once upstream provides the
+  corresponding behavior.
 - **`pi-subagents-lite`:** The former discovery patch is retained only so `install.sh` can reverse
   it on existing installs. Pi profiles are now copied as regular files, so pristine Lite discovery
   works without a package patch; unknown package sources are left unchanged.
@@ -173,11 +175,12 @@ skill (allowlist-based; it never reads or copies secrets).
 ## Pi agent types
 
 The 24 files under [`agents/`](../../agents/) are Pi-only Lite agent types named
-`<role>-<tier>`; reviewers add a producer-family suffix. `install.sh` copies them as regular
-files only into `$PI_AGENT_DIR/agents`, not Claude or OMP, so Lite's unpatched `isFile()` scan
-discovers them. Lite reads this directory through `getAgentDir()` when the session starts, which
-follows `PI_CODING_AGENT_DIR` when set; a session launched with another agent directory will not
-register these types. Their frontmatter uses Lite fields (`tools`,
+`<role>-<tier>`; reviewer names retain a producer-family suffix for current-session verification.
+`install.sh` copies them as regular files only into `$PI_AGENT_DIR/agents`, not Claude or OMP, so
+Lite's unpatched `isFile()` scan discovers them. Lite reads this directory through `getAgentDir()`
+when the session starts, which follows `PI_CODING_AGENT_DIR` when set; a session launched with
+another agent directory will not register these types. Rerun `install.sh` and start a new Pi
+session after adding or updating profiles. Their frontmatter uses Lite fields (`tools`,
 `extensions`, `exclude_extensions`, `skills`, `model`, `thinking`, `output_transcript`, and
 prompt/context settings). Every type pins the table's primary model and fixed tier thinking and
 excludes `pi-jev`, so auto-thinking cannot override that level. Reviewer types are report-only

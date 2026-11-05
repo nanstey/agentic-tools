@@ -18,8 +18,8 @@ roles = {
     "researcher": "researcher",
     "planner": "planner",
     "worker": "worker",
-    "reviewer-openai": "reviewer of OpenAI work",
-    "reviewer-anthropic": "reviewer of Anthropic work",
+    "reviewer-openai": "Anthropic reviewer (`reviewer-openai`)",
+    "reviewer-anthropic": "OpenAI reviewer (`reviewer-anthropic`)",
 }
 prefixes = {
     "haiku": "anthropic/claude-",

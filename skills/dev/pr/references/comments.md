@@ -24,16 +24,7 @@ Scope: threads on your own branch's PR. To review a PR (own or others') or post 
 7. Reply in-thread and resolve only after publication is confirmed and affected validation/review gates pass at the same authoritative base/head. Recheck before finalizing; keep requests or gaps unresolved:
    - Use GraphQL `addPullRequestReviewThreadReply` or `gh pr review --comment --body-file` targeting the thread.
    - Never use `gh pr comment` for thread-specific explanations; reserve that for general PR-wide status.
-   - Every reply (thread or PR-wide) starts with the agent disclosure block, then a blank line, then the reply text:
-
-     ```markdown
-     > [!NOTE]
-     > 🤖 Written by <owner>'s Agent
-     ```
-
-     `<owner>` is the authenticated GitHub user's display name, falling back to login:
-     `gh api user --jq '.name // .login'`. Use the first name only when the display name has several words.
-   - Write reply text using `terse` (outcome-first, no redundancy).
+   - Write reply text using `terse` (outcome-first, no redundancy). Published replies contain only the finding, evidence, requested change, or verified resolution. Never add agent attribution, dispatch details, agents/models/tiers, reviewer counts, validator/verifier status, `Limits:` notes, provenance, session/tooling availability, local-checkout statements, or coverage/limitation footers.
    - Reply text should appear nested under the original review comment in the thread.
    - Then resolve the thread via GraphQL `resolveReviewThread` if appropriate.
 8. Optional nit/unchanged-existing threads may be explained/resolved without code changes where thread policy permits. Otherwise report the needed thread/owner decision, never compel a nit fix. Leave unresolved requests or coverage gaps open and report blockers.

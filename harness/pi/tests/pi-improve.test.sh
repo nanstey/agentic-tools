@@ -38,11 +38,11 @@ echo "$out" | grep -q "1 errors\|1 error" && ok "digest counts errors" || bad "d
 fails "digest rejects unknown option" "$P" digest "$FIX" --bogus
 fails "digest rejects option missing value" "$P" digest "$FIX" --max-chars
 
-# start: dry run, slug, reviewer family
+# start: dry run, slug, and own-worker cross-family reviewer
 new_env
 dry=$(echo "$BRIEF" | "$P" start My-Slug --dry-run 2>&1)
 echo "$dry" | jq -e '.slug=="my-slug" and .branch=="self-improve-my-slug"' >/dev/null && ok "start --dry-run normalizes slug" || bad "start --dry-run normalizes slug"
-echo "$dry" | jq -e '.reviewer|startswith("anthropic/")' >/dev/null && ok "default reviewer is opposite family" || bad "default reviewer is opposite family"
+echo "$dry" | jq -e '.reviewer|startswith("anthropic/")' >/dev/null && ok "default own-worker reviewer is opposite family" || bad "default own-worker reviewer is opposite family"
 [ -z "$(ls "$PI_CODING_AGENT_DIR/self-improve/runs" 2>/dev/null)" ] && ok "dry-run writes no run record" || bad "dry-run writes no run record"
 fails "same-family reviewer rejected" bash -c "echo '$BRIEF' | PI_IMPROVE_REVIEWER_MODEL=anthropic/x '$P' start a --model anthropic/y --dry-run"
 fails "routed same-family reviewer rejected" bash -c "echo '$BRIEF' | PI_IMPROVE_REVIEWER_MODEL=openrouter/anthropic/claude-opus-5-5 '$P' start a --model anthropic/y --dry-run"

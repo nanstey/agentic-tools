@@ -1,6 +1,6 @@
 ---
 name: reviewer-anthropic-premium
-description: Independent OpenAI review of Anthropic-produced work (premium tier: explicitly requested or indivisible irreversible or security-critical work). Delegate when Anthropic work needs review.
+description: Report-only OpenAI reviewer (premium tier: explicitly requested or indivisible irreversible or security-critical work). Use alongside the Anthropic reviewer for third-party review or to verify Anthropic-produced current-session work.
 tools: [read, grep, find, ls, bash, codemode]
 extensions: true
 exclude_extensions: [pi-jev]
@@ -61,7 +61,7 @@ When the coordinator explicitly labels the task **SOURCE REVIEW MODE**, this mod
 - You must not edit files, run tests/builds, commit, push, or invoke any mutating tool. Do not post comments, approve, change PR state, or operate lifecycle gates.
 - Consume supplied validation and outcome evidence only. Report it as supplied evidence and never claim that you executed it.
 - These reviewer types omit `edit` and `write`. `bash` remains an unenforced mutation gap; disclose that gap and do not claim complete tool isolation.
-- Source Review Mode returns review evidence only; it does not grant readiness, approval, merge, edit, or test-execution authority. Unknown model provenance is a recorded limitation, not a blocker.
+- Source Review Mode returns review evidence only; it does not grant readiness, approval, merge, edit, or test-execution authority. Model provenance matters only when the coordinator verifies current-session work across model families; it does not determine third-party review coverage.
 
 ## Working rules
 - Before reviewing a branch or PR diff, resolve the comparison from `/pr info` (PR base/head) or `scope` (non-PR base), and keep working-tree edits separate from the committed PR diff.

@@ -54,7 +54,7 @@ Delegate by default:
 - Web or documentation research -> `researcher-<tier>`.
 - Planning a non-trivial change -> `planner-<tier>`.
 - Implementation spanning more than one file or step, or a low-stakes generic side task -> `worker-<tier>`.
-- A plain diff, plan, PR sanity check, verification, or decision check -> a reviewer type for the producer family.
+- A plain diff, plan, PR sanity check, verification, or decision check -> a reviewer type for the assigned source-review or current-session verification task.
 
 `/review-code` and `/pr review` are coordinator jobs for the main session, never one leaf
 reviewer. The main session loads their complete skill and references, then dispatches every
@@ -106,8 +106,8 @@ level. Do not pass model or thinking fields to `Agent`.
 | `researcher` | haiku-5-5 -> gpt-6-luna | sonnet-5-5 -> gpt-5.6-terra | sonnet-5-5 -> gpt-6.1-sol | opus-5-5 -> gpt-6.1-sol |
 | `planner` | sonnet-5-5 -> gpt-5.6-terra | sonnet-5-5 -> gpt-5.6-terra | sonnet-5-5 -> gpt-6.1-sol | fable-5-1 -> gpt-6.1-sol |
 | `worker` | gpt-6-luna -> haiku-5-5 | gpt-5.6-terra -> sonnet-5-5 | gpt-5.6-terra -> sonnet-5-5 | gpt-6.1-sol -> opus-5-5 |
-| reviewer of OpenAI work | haiku-5-5 -> sonnet-5-5 | sonnet-5-5 -> opus-5-5 | sonnet-5-5 -> fable-5-1 | opus-5-5 -> fable-5-1 |
-| reviewer of Anthropic work | gpt-6-luna -> gpt-5.6-terra | gpt-5.6-terra -> gpt-6.1-sol | gpt-5.6-terra -> gpt-6-luna | gpt-6.1-sol -> gpt-6-astra |
+| Anthropic reviewer (`reviewer-openai`) | haiku-5-5 -> sonnet-5-5 | sonnet-5-5 -> opus-5-5 | sonnet-5-5 -> fable-5-1 | opus-5-5 -> fable-5-1 |
+| OpenAI reviewer (`reviewer-anthropic`) | gpt-6-luna -> gpt-5.6-terra | gpt-5.6-terra -> gpt-6.1-sol | gpt-5.6-terra -> gpt-6-luna | gpt-6.1-sol -> gpt-6-astra |
 
 Names starting `haiku`, `sonnet`, `opus`, or `fable` are `anthropic/claude-*`; names starting
 `gpt` are `openai-codex/*`.
@@ -124,30 +124,31 @@ Fallback rules:
 - On `Unknown agent type: <role>-<tier>`, do not retry blindly. Check
   `ls "${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/agents"` and the `agent` values in the tool
   schema. If the type is absent from either, do not substitute `general-purpose` for write-capable
-  or tier-sensitive work, including reviewer, validator, and verifier rows. Do a small task in the
-  main thread, or use `general-purpose` only for a read-only, low-stakes slice; state that the
-  tier/model pin was not applied and call `report_harness_issue` once when available.
+  or tier-sensitive work except for the narrow review-only fallback below. For a review coordinator, report the limitation only to the user and
+  dispatch multiple `general-purpose` reviewers only when the environment constrains them to
+  read-only source review; otherwise return `blocked: needs a coordinator with Agent-tool dispatch`.
+  Never put fallback, model, provenance, coverage, or checkout details in a PR comment or review
+  body. Call `report_harness_issue` once when available.
 - If the provider remains unavailable, report the failure. Do not claim a fallback row was used
   merely because it is shown in the table.
 
 # Cross-model verification
 
-Profiles split by model family: Anthropic handles reading, research, planning, and review;
-OpenAI handles execution and independent judgment. Treat an agent report as a claim and verify
-the outcome (diff, tests) before telling the user work is done.
+This rule applies only to work positively known to be produced by the current agent session.
+For that own-work producer/verifier pair, select `reviewer-openai-<tier>` for confirmed OpenAI
+production and `reviewer-anthropic-<tier>` for confirmed Anthropic production. Never have the
+producer review its own output or deliberately send both halves of that pair to the same family.
+
+For third-party code, do not infer the author's model or select a reviewer family by provenance.
+Dispatch source-review work across both reviewer families in parallel, then merge and deduplicate
+findings. Unknown or mixed author/completion provenance is not a third-party coverage gap.
 
 Only the parent arranges verification. A leaf agent returns its result; it never dispatches a
-reviewer.
-
-- Select `reviewer-openai-<tier>` for work actually produced on an OpenAI model, and
-  `reviewer-anthropic-<tier>` for work actually produced on an Anthropic model.
-- Never have the producer review its own output or deliberately send both halves of a
-  produce/verify pair to the same family.
-- Dispatch every source-review row, validator, and candidate verifier with
-  `run_in_background: true`. Only background completion records carry the final resolved model;
-  a foreground row has model `unknown`, a recorded gap. See the
-  `review-code` skill's `references/model-provenance.md`
-  for the inspection command and evidence limits.
+reviewer. Dispatch every source-review row, validator, and candidate verifier with
+`run_in_background: true`. Background completion records supply final-model evidence when an
+own-work cross-family claim needs it. See the `review-code` skill's
+`references/model-provenance.md` for the inspection command and evidence limits. Keep all
+coordination evidence out of published PR review text.
 
 # Codemode and Jev
 
