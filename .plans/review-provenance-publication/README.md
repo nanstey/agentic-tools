@@ -11,7 +11,7 @@
 ## Slices
 | # | Slice | Spec | PR | Status |
 | --- | --- | --- | --- | --- |
-| 1 | Review policy and publication | [01-review-policy-and-publication](./specs/01-review-policy-and-publication.md) |  | building |
+| 1 | Review policy and publication | [01-review-policy-and-publication](./specs/01-review-policy-and-publication.md) | [#148](https://github.com/nanstey/agentic-tools/pull/148) | draft — review blocked |
 
 ## Decision log
 
@@ -19,3 +19,4 @@
 - 2026-11-05 — The fixed-tier profiles and installer are present in the repository, but the active runtime profile directory is empty and rejects fixed types. Treat this as stale local installation, not an installer defect; rerun `install.sh` and restart Pi after shipping.
 - 2026-11-05 — Ship one lock-step PR because review-code, PR publication, profile, harness, catalog, and test rules must agree.
 - 2026-11-05 — Static acceptance and installer validation passed. Fixed-tier review agents remain unavailable in this session, so independent Agent QA is unavailable until the profiles are installed and Pi restarts.
+- 2026-11-05 — Published draft PR #148. It cannot complete current-session cross-family review until `install.sh` installs the profiles and Pi restarts.
