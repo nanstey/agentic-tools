@@ -46,7 +46,15 @@ The coordinator dispatches `verification` as one separate validator using the `w
 
 ### 3. Parallel source review
 
-The coordinator dispatches every required row below as one separate parallel Lite agent in one turn with `run_in_background: true`. A caller may pass a review depth (`light`, `standard`, `deep`; default `deep`); `deep` always dispatches `security --deep`; `light` validator stage only reuses existing evidence; `skip` is handled by the caller and never reaches this skill. The required rows are those listed for the selected depth in the `pr` skill's `references/gates.md`. Label every task `SOURCE REVIEW MODE`. Reviewer types already omit `edit` and `write`; forbid edits, artifact writes, tests/builds, scanners, and publication. `bash` remains an unenforced mutation gap to disclose. Supply snapshot, obligations, validation, prior findings/threads, and scope. Use the reviewer type for the family opposite the actual producer and confirm its final model from the parent-session completion record for each row. A foreground row has model `unknown`, which is a recorded gap. See [model provenance](references/model-provenance.md). Context-engineering is conditional. Record it as `skipped-inapplicable` with its reason when it does not apply.
+The coordinator dispatches every required row below as one separate parallel Lite agent in one turn with `run_in_background: true`. A caller may pass a review depth (`light`, `standard`, `deep`; default `deep`); `deep` always dispatches `security --deep`; `light` validator stage only reuses existing evidence; `skip` is handled by the caller and never reaches this skill. The required rows are those listed for the selected depth in the `pr` skill's `references/gates.md`. Label every task `SOURCE REVIEW MODE`. Reviewer types already omit `edit` and `write`; forbid edits, artifact writes, tests/builds, scanners, and publication. `bash` remains an unenforced mutation gap to disclose. Supply snapshot, obligations, validation, prior findings/threads, and scope. Use the reviewer type for the family opposite the actual producer and confirm its final model from the parent-session completion record for each row. A foreground row has model `unknown`, which is a recorded gap. Context-engineering is conditional. Record it as `skipped-inapplicable` with its reason when it does not apply.
+
+Inspect the completed `subagent-result` records in `$PI_AGENT_DIR/sessions/<session>.jsonl`:
+
+```sh
+jq -r 'select(.type == "custom_message" and .customType == "subagent-result" and .details.status == "completed") | .details.modelId // .details.modelName // "unknown"' "$PI_AGENT_DIR/sessions/<session>.jsonl"
+```
+
+If the command returns no record, treat provenance as `unknown` and record a gap. The record reports only the final model, not every model used for every assistant message. Unknown or potentially mixed provenance remains a gap.
 
 | Reviewer | Assignment |
 | --- | --- |

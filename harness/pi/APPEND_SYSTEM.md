@@ -145,9 +145,9 @@ reviewer.
   produce/verify pair to the same family.
 - Dispatch every source-review row, validator, and candidate verifier with
   `run_in_background: true`. Only background completion records carry the final resolved model;
-  a foreground row has model `unknown`, a recorded gap. See the
-  `review-code` skill's `references/model-provenance.md`
-  for the inspection command and evidence limits.
+  a foreground row has model `unknown`, a recorded gap. Inspect the parent session's completed
+  `subagent-result` message for `.details.modelId` or `.details.modelName`; unknown or potentially
+  mixed provenance remains a gap.
 
 # Codemode and Jev
 
