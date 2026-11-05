@@ -6,13 +6,13 @@
 
 **Observable outcome:** A parent can call `Agent` with an existing role profile and an explicitly chosen registered, authenticated, scoped model and thinking level. The child runs with that initial selection. Invalid, unavailable, out-of-scope, unauthenticated, or unsupported requests fail before child creation. A constrained `null` model or thinking behaves exactly like omission.
 
-**Boundary:** Lite and fallback package patches, installer hooks, complete pristine and composed fallback fixtures, static lifecycle coverage, and focused resolver, replay, fallback-scope, and provenance coverage. The fallback scope patch is based on the existing quota-patched source and installs after the quota patch. Existing profiles and policy remain unchanged in this slice.
+**Boundary:** Lite and fallback package patches, including parent-scope propagation into child session lifecycle, installer hooks, complete pristine and composed fallback fixtures, static lifecycle coverage, and focused resolver, replay, fallback-scope, and provenance coverage. The fallback scope patch is based on the existing quota-patched source and installs after the quota patch. Existing profiles and policy remain unchanged in this slice.
 
 **Why this comes first:** The profile migration depends on a real dispatch-time override. Keeping current profiles temporarily allows direct behavior tests without combining package compatibility work with configuration migration.
 
 **Verification checkpoint:**
 
-- Lite fixture covers pinned `1.17.1` package metadata and all patched files: `registration.ts`, `tool-execution.ts`, and `restart-last-agents.ts`.
+- Lite fixture covers pinned `1.17.1` package metadata and all patched files: `registration.ts`, `tool-execution.ts`, `restart-last-agents.ts`, and `agent-runner.ts`; focused tests prove restrictive parent scope reaches child fallback lifecycle.
 - Lite-specific guard skips only an absent package and fails for wrong version or any missing expected patched file before a partial write.
 - Lite applies to its pristine fixture. The fallback lifecycle applies quota then scope from pristine, upgrades a quota-only fixture to both-patched state, reports `ok` on repeat from both-patched state, and rejects changed source.
 - Contract harness proves strict nullable omission, legacy omitted defaults, sole-resolver validation, strict thinking rejection, restart preservation, scope/auth-safe fallback, and requested/initial/final provenance.
