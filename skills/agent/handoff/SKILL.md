@@ -32,10 +32,10 @@ Transfer ownership of one task to a new, persistent Pi session that runs in its 
    - `ORCA terminal read --terminal <terminal-handle> --screen --json` returns `result.terminal.source` of `screen`, `status` of `running`, and `draft` absent or empty.
    - The last nonempty row of `result.terminal.tail` is an idle shell prompt with nothing typed after it. It visibly ends in a prompt marker such as `$`, `#`, or `%`. Reject continuation, password, choice, recovery, or program prompts, and truncated, limited, unavailable, or ambiguous screen output.
 7. Launch Pi in that terminal in four sub-steps, in one Bash invocation with literal values substituted for placeholders.
-   1. Validate. Require `[[ "<brief-file>" =~ ^/[A-Za-z0-9._/-]+$ ]]`. When a tier/model selection exists, also require `<model>` and `<thinking>` to match `^[A-Za-z0-9][A-Za-z0-9._/-]*$`. Stop with the failure report on any mismatch. These patterns admit no shell syntax.
-   2. Build. Set `launch_options="--model <model> --thinking <thinking>"` only when a tier/model selection exists, otherwise leave it empty. Then build the command; the quoted substitution passes the brief contents to Pi as one argument:
+   1. Validate before any value reaches shell syntax. Stop with the failure report if a value contains a single quote. Otherwise assign `brief_file='<brief-file>'` (and, when a tier/model selection exists, `model='<model>'` and `thinking='<thinking>'`), then require `[[ "$brief_file" =~ ^/[A-Za-z0-9._/-]+$ ]]` and, for model and thinking, `[[ "$model" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]*$ && "$thinking" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]*$ ]]`. Stop with the failure report on any mismatch. These patterns admit no shell syntax.
+   2. Build. Set `launch_options="--model $model --thinking $thinking"` only when a tier/model selection exists, otherwise leave it empty. Then build the command; the quoted substitution passes the brief contents to Pi as one argument:
       ```bash
-      launch_command="pi${launch_options:+ $launch_options} \"\$(cat \"<brief-file>\")\""
+      launch_command="pi${launch_options:+ $launch_options} \"\$(cat \"$brief_file\")\""
       ```
    3. Send once: `ORCA terminal send --terminal <terminal-handle> --text "$launch_command" --enter --wait-submit 10 --json`.
    4. Read the receipt once. `accepted: true` means Orca accepted the input, even if `--wait-submit` later times out; do not resend. Only after an ambiguous transport failure with a reported retry request may you rerun the same send with `--retry-request <id>` and the same handle. On no retry request, a failed replay, a stale handle, or any other unaccepted result, use the failure report and send nothing more.
@@ -49,10 +49,10 @@ Transfer ownership of one task to a new, persistent Pi session that runs in its 
 - Never put secrets in the brief file.
 - Never run `idea-to-pr` in this session: the new session owns it.
 - Never use `orca orchestration` task or dispatch commands: a handoff is not supervised orchestration.
-- Never suppress, close, or create a terminal: this workflow preserves Orca's implicit initial terminal.
+- Never suppress, close, or create a terminal: this workflow preserves Orca's implicit initial terminal. Explicit terminal or agent requests outside this handoff keep their documented launch flows.
 
 ## Output Style
 
-Report the worktree path, branch, reused terminal handle, selected model or the absence of a model selection, brief file path, and whether Orca accepted the launch input. Acceptance proves only that Orca accepted the input, so never claim Pi has started; say the session stays open for the user.
+Report the worktree path, branch, reused terminal handle, selected model or the absence of a model selection, brief file path, and whether Orca accepted the launch input; if it did not, use the failure report. Acceptance proves only that Orca accepted the input, so never claim Pi has started; say the session stays open for the user.
 
 **Failure report:** state that the worktree was created but Pi was not confirmed as started, and why.
