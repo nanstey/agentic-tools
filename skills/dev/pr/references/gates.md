@@ -84,7 +84,7 @@ Before the first edit, rebase, or push that changes an open non-draft PR, conver
 
 Keep category separate from severity and evidence confidence. Verify every candidate against source and baseline/obligations as needed; reject only for a source-verified reason, preserving the reason. An expensive fix or exhausted budget cannot dismiss or downgrade a request. Deduplicate root causes, retain IDs and resolutions, and do not repeat resolved/rejected findings absent new facts.
 
-Propose a narrow fix, split, or revert for large requests. Broad unrelated redesign/cleanup belongs in followup. Product decisions or risky scope/trade-offs stop `blocked`, with the required decision. Convergence requires no unresolved verified requests **and** complete required current evidence. Read-only/comment mode reports `changes_required` for verified requests and `incomplete` for coverage gaps without forcing fixes. Lifecycle/readiness report `blocked` for either unresolved requests or material gaps, reviewer/check failure, unfixable/no-progress work, or exhausted budget.
+Propose a narrow fix, split, or revert for large requests. Broad unrelated redesign/cleanup belongs in followup. Product decisions or risky scope/trade-offs stop `blocked`, with the required decision. Convergence requires no unresolved verified requests **and** complete required current evidence. Report-only and review-publication runs report `changes_required` for verified requests and `incomplete` for coverage gaps without forcing fixes. Lifecycle/readiness report `blocked` for either unresolved requests or material gaps, reviewer/check failure, unfixable/no-progress work, or exhausted budget.
 
 ## Per-invocation five-round review/fix limit
 
