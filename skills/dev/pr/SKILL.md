@@ -1,7 +1,7 @@
 ---
 name: pr
 description: Runs PR creation, maintenance, and stacked-PR workflows from one command. Use when a branch or pull request needs creation, reconciliation, remediation, publication, merge, or stack management.
-argument-hint: "[info|create|push|description|screenshots|rebase|restack|split|stack|ci|review|comments|verification|ready|monitor|merge|automerge] [PR-URL-or-number] [fix|comment] [force]"
+argument-hint: "[info|create|push|description|screenshots|rebase|restack|split|stack|ci|review|comments|verification|ready|monitor|merge|automerge] [PR-URL-or-number] [fix|comment|report] [force]"
 user-invocable: true
 disable-model-invocation: false
 ---
@@ -22,7 +22,7 @@ Subcommands follow the order a PR moves through. Bare `/pr` detects the first un
 | 3 | Describe | Body and screenshots match the head | `/pr description [target]`, `/pr screenshots [target]` | [`description.md`](references/description.md), [`screenshots.md`](references/screenshots.md) |
 | 4 | Sync | Current with base; stack in order | `/pr rebase [target]`, `/pr restack [target]`, `/pr stack [target-or-operation]`, `/pr split [target]` | [`rebase.md`](references/rebase.md), [`restack.md`](references/restack.md), [`stack.md`](references/stack.md), [`split.md`](references/split.md) |
 | 5 | CI | Required checks pass | `/pr ci [target]` | [`ci.md`](references/ci.md) |
-| 6 | Review | Quality and security review, depth scaled to the change | `/pr review [target] [fix\|comment]` | [`review.md`](references/review.md) → `review-code` |
+| 6 | Review | Quality and security review, depth scaled to the change | `/pr review [target] [fix\|comment\|report]` | [`review.md`](references/review.md) → `review-code` |
 | 7 | Threads | Review comments addressed | `/pr comments [target]` | [`comments.md`](references/comments.md) |
 | 8 | Verify | Claims have cited evidence | `/pr verification [target] [report\|fix\|comment]` | [`verification.md`](references/verification.md) |
 | 9 | Ready | Draft becomes ready for review | `/pr ready [target]` | [`ready.md`](references/ready.md) |

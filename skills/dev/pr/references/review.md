@@ -4,14 +4,14 @@
 
 Delegate one PR's code review to `review-code`, then own PR reporting and authorized publication. Load [`gates.md`](gates.md) for packet freshness, categories, gate order, and the per-invocation five-round limit.
 
-Invocation: `/pr review [target] [fix|comment]`. Default tool is `gh`. Follow `CLAUDE.md` / `AGENTS.md` on conflict. Write prose using `terse`. Apply the non-interactive policy in `SKILL.md`.
+Invocation: `/pr review [target] [fix|comment|report]`. Default tool is `gh`. Follow `CLAUDE.md` / `AGENTS.md` on conflict. Write prose using `terse`. Apply the non-interactive policy in `SKILL.md`.
 
 On the viewer's own PR, the default is report-only: no source edits, tests, commits, pushes, comments, thread changes, or review event. On another author's PR, invocation authorizes source-verified same-head review publication under the rules below. `fix` authorizes verified-request remediation only on the viewer's own PR. A standalone clean source packet is not readiness permission.
 
 ## Inputs
 
 1. PR URL/number; otherwise current branch, resolved per `/pr info`.
-2. Optional mode: `fix` or `comment`.
+2. Optional mode: `fix`, `comment`, or `report`.
 3. Viewer: `gh api user --jq .login`.
 4. Acceptance/outcome and validation evidence, trusted policy identity, any matching packet, and retained findings. A `fix` invocation initializes `limit: 5, round: 1`; report-only and other-author publication runs are single-snapshot and consume no budget.
 
@@ -21,7 +21,7 @@ On the viewer's own PR, the default is report-only: no source edits, tests, comm
 
 1. Resolve with `/pr info` semantics, including stack membership and open-state checks. A branch mismatch is informational for source review; stop as `blocked` for no PR, ambiguity, or closed/merged state.
 2. Classify `own` when `author.login` equals the viewer, otherwise `other`.
-3. `fix` requires `own`; `comment` requires `other`. With no mode, use report-only for `own` and publish a review for `other`. Reject unknown words, more than one mode word, or mismatched ownership with the applicable mode in the blocked report.
+3. `fix` requires `own`; `comment` and `report` require `other`. With no mode, use report-only for `own` and publish a review for `other`. `report` performs no publication. Reject unknown words, more than one mode word, or mismatched ownership with the applicable mode in the blocked report.
 4. Capture authoritative `baseRefOid`, `headRefOid`, and trusted policy identity. Recheck both base and head before any mutation or reuse.
 
 ### 2. Obtain source without changing the user's checkout
@@ -38,13 +38,13 @@ The PR comparison is always `git diff <baseRefOid>..<headRefOid>`, never a local
 If the chosen depth is `skip`, do not call `review-code`: record the substitute evidence from `gates.md` and continue to reporting. Call `review-code` only for `light`, `standard`, or `deep`.
 
 1. The main session loads `review-code` and remains its coordinator. It must not delegate the whole command to one leaf reviewer type. It dispatches each required `review-code` row in parallel through `Agent`, plus the separate validator and report-only candidate verifier, with `run_in_background: true` for every dispatch. Only background completion records carry the final model; a foreground row has model `unknown`, a recorded gap. If dispatch is unavailable, return exactly `blocked: needs a coordinator with Agent-tool dispatch`. Choose the review depth (`skip`/`light`/`standard`/`deep`) per `gates.md` Review depth, record it with its reason, and dispatch only the rows that depth requires. Pass the depth, authoritative PR range, trusted policy, scope/exclusions, acceptance criteria and optional scrutiny obligations, changed behavior/impact evidence, validator results, prior packet/findings/threads, and this invocation's round state. Reuse only an exact matching packet/coverage/evidence snapshot under `gates.md`, including correspondence for a diagnostic prepublication packet.
-2. Default maps to `/review-code report`; another author's PR continues to the publication steps below. `comment` uses the same report but forces the `COMMENT` event. Pass the stricter no-tests/no-writes permission in both cases. Its verification stage consumes existing evidence only; missing evidence remains a gap.
+2. Default maps to `/review-code report`; another author's PR continues to the publication steps below unless mode is `report`. `comment` uses the same report but forces the `COMMENT` event. Pass the stricter no-tests/no-writes permission in both cases. Its verification stage consumes existing evidence only; missing evidence remains a gap.
 3. `fix` maps to `/review-code fix` only after the own-PR guards below. `review-code` owns verification, reviewer dispatch/model choice, synthesis, deduplication, separate source verification of candidates, and packet verdict. It returns working-tree fixes and any reserved next-round state; it never commits or pushes.
 4. Each call reviews within this invocation's current/reserved `round_state`; same-snapshot report calls consume nothing. PR owns subsequent calls within this invocation and passes returned state unchanged. Require the `review-code` packet coverage table. A required row that is not done makes its verdict `incomplete`; context-engineering may instead be `skipped-inapplicable` with its recorded reason. Failed prerequisites stop lifecycle/fix gates; report-only and published findings remain diagnostic.
 
 ### 4. Present or perform the selected mode
 
-Report requests first, then optional nits and baseline-proven unchanged existing issues. Severity/impact and confidence remain separate fields. Uncertain baseline is incomplete coverage; new exposure/aggravation is a request. Return the shared `clean`, `changes_required`, or `incomplete` packet and disclose both requests and gaps. An own-PR default stops here without forced fixes; another author's PR continues to publication.
+Report requests first, then optional nits and baseline-proven unchanged existing issues. Severity/impact and confidence remain separate fields. Uncertain baseline is incomplete coverage; new exposure/aggravation is a request. Return the shared `clean`, `changes_required`, or `incomplete` packet and disclose both requests and gaps. An own-PR default or `report` mode stops here without forced fixes; another author's mode-less invocation continues to publication.
 
 ## Own PR: `fix`
 
@@ -61,8 +61,8 @@ Report requests first, then optional nits and baseline-proven unchanged existing
 1. Re-read both base/head; if either changed, do not post stale findings. Return for affected-path reassessment using this invocation's state.
 2. Post only source-verified findings at the reviewed snapshot. Changed head-side hunk lines may be inline (`path`, `line`, `side: RIGHT`); other findings go in the review body. Include finding ID/category/severity, evidence, and a concrete suggestion; disclose coverage gaps. Optional nits/existing issues stay separate and nonblocking; never post low-confidence optional noise or unverified candidates.
 3. Every inline comment and the review body starts with the disclosure block from `comments.md` step 7 (`gh api user --jq '.name // .login'`, first name only for multi-word names), a blank line, then terse text. The body includes the assessment and limitations.
-4. `comment` and `skip` depth select `COMMENT`. Otherwise, select the event only from the current packet and its coverage table: `APPROVE` for a complete `clean` packet, `REQUEST_CHANGES` for a complete `changes_required` packet, and `COMMENT` for an `incomplete` packet. Never approve or request changes when any required coverage row, validator, or candidate verification is incomplete, failed, unknown, mixed, or missing, or when model provenance cannot support the packet's independence claim.
-5. Before posting, inspect the viewer's non-pending, non-dismissed reviews at `<headRefOid>`. Skip publication only when one has the selected event and the same packet identity and finding IDs. Otherwise post one review with `gh api repos/{owner}/{repo}/pulls/{number}/reviews --method POST --input <json>`, `commit_id: <headRefOid>`, the selected `event`, `body`, and `comments`. If GitHub rejects an inline position, recheck the snapshot, move that finding to the body, and retry once. Do not repeat an already-posted finding without new evidence.
+4. Do not publish when the packet is blocked or unavailable. `comment` and `skip` depth select `COMMENT`. Otherwise, select `APPROVE` only for a complete `clean` packet with independent required CI passing at `<headRefOid>`; select `REQUEST_CHANGES` for a complete `changes_required` packet; select `COMMENT` for an `incomplete` packet or any other state. Never approve or request changes when any required coverage row, validator, or candidate verification is incomplete, failed, unknown, mixed, or missing, or when its background model identity is unrecorded or its family is not independent of the actual producer. An agent-published approval is not evidence of required human approval for readiness or merge.
+5. Before posting, inspect the viewer's non-pending, non-dismissed reviews at `<headRefOid>`. Skip publication only when one has the selected event, packet verdict, and finding-ID set. Otherwise post one review with `gh api repos/{owner}/{repo}/pulls/{number}/reviews --method POST --input <json>`, `commit_id: <headRefOid>`, the selected `event`, `body`, and `comments`. If GitHub rejects an inline position, recheck the snapshot, move that finding to the body, and retry once. Do not repeat an already-posted finding without new evidence.
 6. Never test, edit, commit, push, or change others' threads in this publication path. Review publication does not certify readiness. Return review URL or existing review, event, and which IDs were inline/body.
 
 ## Safety Rules
