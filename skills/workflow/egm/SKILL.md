@@ -20,12 +20,12 @@ This skill is planning-only. Requests to build, implement, ship, or edit source 
 
 1. Mode: `brainstorm`, `draft`, `review`, `bootstrap`, or `drift`.
 2. Target idea, concept brief, or design document.
-3. Repository context and a plan folder when an artifact is written.
+3. Repository context and, when an artifact is written, an optional target directory or plan file.
 
 ## Workflow
 
-1. Resolve the artifact location with `plan-dir`; use the `plan-init` folder layout. Never write reports to the repository root or current directory.
-2. Register each artifact in the plan README `## Design` index under its own stage, with status `draft` or `done`: `egm-concept` (brainstorm brief), `egm-design` (design doc), `egm-review` (review record), `egm-bootstrap` (bootstrap record), `egm-drift` (drift report). Set an approved design doc's row to `Approved`. Bootstrap writes README files inside the codebase tree as its product; only its record goes in the plan folder.
+1. Resolve the artifact location using `planning`'s Plan Location rules: use the repository-documented location and policy; otherwise an existing plans directory; otherwise `docs/plans/`. Never write reports to the repository root or current directory.
+2. Write each planning artifact as one file in that location or beside its target document. Mark a design document's own `Status` as `Draft` or `Approved`; retain decisions in its `## Decision record`. Bootstrap writes README files inside the codebase tree as its product; its record is a separate artifact beside the other planning documents.
 3. Follow the selected reference: [brainstorm](references/brainstorm.md), [draft](references/draft.md), [review](references/review.md), [bootstrap](references/bootstrap.md), or [drift](references/drift.md).
 4. Use [design-doc-template.md](references/design-doc-template.md) and the linked standards where applicable.
 
@@ -38,4 +38,4 @@ This skill is planning-only. Requests to build, implement, ship, or edit source 
 
 ## Attribution
 
-Adapted from the Apache-2.0 [google/elephant-goldfish-model](https://github.com/google/elephant-goldfish-model) and Dave Rensin's article, *Elephants, Goldfish, and the New Golden Age of Software Engineering*. This version combines upstream skills, personas, and standards into one tool-agnostic planning skill; uses plan folders and human gates; and removes harness-specific instructions.
+Adapted from the Apache-2.0 [google/elephant-goldfish-model](https://github.com/google/elephant-goldfish-model) and Dave Rensin's article, *Elephants, Goldfish, and the New Golden Age of Software Engineering*. This version combines upstream skills, personas, and standards into one tool-agnostic planning skill with human gates and no harness-specific instructions.

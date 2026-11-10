@@ -13,6 +13,6 @@ Shared by callers of `/review-code fix` (`build`, `idea-to-pr`). Callers link he
 
 ## PR split rule
 
-- Default: one PR across all slices in one repository.
+- Default: one PR for the whole effort in one repository.
 - Split only when the user requests multiple PRs or the change spans multiple repositories. Cross-repository work uses one PR per repository, with dependencies recorded.
-- Use `/pr stack` or `/pr restack` only for user-requested dependent PRs in one repository. Never infer a split from slice count, size, or dependency order.
+- Use `/pr stack` or `/pr restack` only for user-requested dependent PRs in one repository. Never infer a split from size or dependency order.

@@ -72,7 +72,7 @@ Merge returns into ONE packet. Deduplicate root causes; retain IDs/resolutions. 
 
 Return `round_state` and `clean`, `changes_required`, or `incomplete`, with gaps. Any required row, validator, or candidate verifier that is not done makes the verdict `incomplete`, never `clean`. Reviewer failure cannot produce clean. Advisory Jev cannot reduce coverage, dismiss requests, or declare clean/readiness.
 
-**Plan mode:** use only `speclist`'s checklist format, not its file-write/question loop. Cover verified requests only: IDs, narrow fix, files, validation, risk, order. Batch related findings across reviewers into one head. Offer narrow-fix/split/revert for large requests. Open questions become `needs-decision`. Separate optional nits/existing followups. Return inline unless one artifact path is permitted; never edit source or start implementation.
+**Plan mode:** cover verified requests only: IDs, narrow fix, files, validation, risk, and order. Batch related findings across reviewers into one head. Offer narrow-fix/split/revert for large requests. Open questions become `needs-decision`. Separate optional nits/existing followups. Return inline unless one artifact path is permitted; never edit source or start implementation.
 
 ### 5. Fix batch and return (`fix` only)
 

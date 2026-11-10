@@ -1,7 +1,7 @@
 ---
 name: planning
-description: Plans a change end-to-end by sizing it and composing the focused planning skills it needs into one plan folder, from a single proposal up to the full product, architecture, design, slice, and spec chain. Use when a change needs a plan and the right depth of planning is not yet decided.
-argument-hint: "[change request] [--tier small|medium|large]"
+description: Plans a change as one short document. Runs discovery, asks the user the product decisions it cannot settle in one batch, then writes decisions, acceptance criteria, approach, and risks. Use when a change needs a plan before building, from a small feature to a cross-component effort.
+argument-hint: "[change request]"
 user-invocable: true
 disable-model-invocation: false
 ---
@@ -10,61 +10,85 @@ disable-model-invocation: false
 
 ## Core Contract
 
-Size a change, then run only the planning skills that size needs, in order, into one plan folder. This skill owns routing and the single review gate. It owns no design content: each stage's artifact contract stays in its own skill.
+Produce one plan document per effort. The plan states what to build, why, which decisions are settled, how success is observed, and what could go wrong. It does not script the implementation: the builder reads the code and chooses file edits, signatures, and task order.
 
-Planning-only. Implementation imperatives such as "build," "implement," "ship," or "wire up" define planning scope, not execution authority. Never edit source, tests, configuration, or dependencies. Never invoke `build`, `idea-to-pr`, or any implementation workflow. Stop for explicit user review after the plan; approval selects a later, separate phase and never authorizes source edits here. Exception: when the invoking skill states that the user authorized planning transitions (for example an `idea-to-pr` autopilot run), return the plan to that caller instead of waiting for the user. The caller, not this skill, starts any later phase.
+Planning-only. Words such as "build," "implement," or "ship" in the request define scope, not permission to execute. Never edit source, tests, configuration, or dependencies. Never invoke `build`, `idea-to-pr`, or another implementation workflow; name one as an optional next step. Exception: when the invoking skill states that the user authorized planning transitions (for example an `idea-to-pr` autopilot run), return the plan to that caller instead of waiting.
 
-Target-repository `CLAUDE.md` / `AGENTS.md` override this skill on conflict.
+Target-repository `AGENTS.md` / `CLAUDE.md` override this skill on conflict.
 
 ## Required Inputs
 
 1. Change request or problem statement.
-2. Optional tier override (`--tier`), plan folder, and opted-in reviewer.
-
-## Tiers
-
-Pick the smallest tier whose signals fit; one strong signal of a higher tier is enough to move up. Record the tier and the evidence for it.
-
-| Tier | Signals | Stages |
-| --- | --- | --- |
-| small | One component; behaviour clear; no new contract; one to three phases. | `proposal` |
-| medium | Clear intent, but a contract, data flow, or code shape carries risk; two to four slices. | Focused stages chosen per concern (see Selection) → `vertical-slices` |
-| large | Product intent ambiguous, or the change crosses components, services, or stores; many slices. | `product-review` → `system-architecture` → `program-design` → `vertical-slices` |
-
-All tiers end at `speclist` (one spec per slice) unless the user wants the plan only. A small plan with a single phase may skip `speclist`; its `proposal.md` phase is the spec.
-
-### Selection (medium)
-
-Add only the stages whose question is open:
-
-- Who is it for or what counts as success is unclear → `product-review`.
-- Components, contracts, persistence, or rollout are affected → `system-architecture`.
-- Control flow, file placement, or interfaces could go wrong → `program-design`.
-- Always `vertical-slices` when more than one slice results.
-
-Never mix `proposal` with a focused skill for the same concern. If a concern outgrows `proposal.md`, promote it and log the move in the README `## Decision log`.
+2. Optional: plan file path, or a note that no plan file is wanted.
 
 ## Workflow
 
-1. State the planning-only guardrail. Restate the request.
-2. Triage: read the minimum code and docs needed to apply the Tiers table. Do not scan broadly; stage skills do their own discovery.
-3. Resolve open questions that decide the tier or the whole plan. Ask the user only for intent or priorities that evidence cannot settle.
-4. Run `plan-init` once to create or reuse the plan folder and README. Pass the folder to every later stage so none resolves it again.
-5. Run the selected stages in order. Give each stage: the request, the plan folder, the prior artifact paths (not their full text), and this instruction: "This is a `planning` composed run. Write your assigned artifact, upsert your README rows, report material risks, and return control without requesting plan approval."
-6. Between stages, read the returned packet. If a stage shows the tier was wrong (new cross-boundary risk, or the stage proves unneeded), adjust the remaining stages, and log the change in `## Decision log`. Do not rerun finished stages.
-7. After the last stage, check the README: every artifact on disk has a `## Design` row, `## Slices` matches the slice list, and every slice has a `Spec` link when `speclist` ran. Fix drift.
-8. Stop and present the plan for review, or return it to an authorized caller (see Core Contract).
+### 1. Size
+
+Pick the smallest fit and record the evidence.
+
+| Size | Signals | Output |
+| --- | --- | --- |
+| Trivial | One place, behaviour obvious, no product choice. | No plan file. State the intent and acceptance check inline, then stop. |
+| Standard | Default. | The plan document, sections below. |
+| Large | Product intent ambiguous, or the change crosses components, services, or stores. | The same document, with the `Design` section filled out. Never a second document. |
+
+### 2. Discover
+
+Read the code, docs, and prior plans that bear on the request. Run real probes where an assumption could fail: call the API, query the data, run the command, open the file. Record each verified fact with its path or command. Mark each unverified claim as an assumption. Do not summarize files that the builder can read.
+
+### 3. Ask once
+
+List every decision the request leaves open that discovery cannot settle. Ask only when the answer would change user-visible behaviour, data or contract shape, scope, cost, or security or compliance, and reversing it later would be expensive. Never ask about facts the code answers, or about implementation method, stack, or task order; decide those and record them as assumptions.
+
+Rank by impact times uncertainty. Ask the top five to eight in one batch. For each: the question, 2 to 4 options, a recommended option, and one line on why it matters. Add one question on how the user will know the work succeeded, unless it is already clear. Before sending, run a short pre-mortem: assume the effort failed in production and ask what the missing decision was. Use the answer to add questions that discovery would not surface (empty and error states, existing data, who else is affected, what happens to what already exists).
+
+Stop and wait for answers. Run a second round only when an answer opens a new product branch. Write each answer into the plan as a dated decision. Apply every unanswered item's recommended option as an assumption and label it.
+
+### 4. Write the plan
+
+Resolve the plan location with the Plan Location rules, then write one file with these sections, in this order. Omit a section only when it has nothing to say.
+
+- **Outcome**: who benefits and what changes for them, in a few sentences.
+- **Acceptance**: observable checks written as behaviour (Given / When / Then, or a command and its expected result). This is the definition of done for the build and the review.
+- **Decisions**: settled choices, each dated with its reason and the rejected alternative. Include the user's answers. Update a decision in place when it reverses, and note the reversal.
+- **Assumptions**: choices made without asking. The user can veto any of them.
+- **Evidence**: verified facts and probe results, each with a path or command.
+- **Approach**: the shape of the solution in prose. Name only interfaces, data shapes, and contracts that cross a boundary or that others depend on. Large size: add components, data flow, rollout, and migration here. Add a short order of work only when the sequence is not obvious.
+- **Risks and unknowns**: what could fail, how the builder will detect it, and what to do.
+- **Out of scope**: what a reader might assume is included and is not.
+- **Open questions**: anything unresolved. Must be empty, or each item explicitly deferred with an owner, before build starts.
+
+State each fact once. Do not restate a decision in another section. Put shared conventions in one place and reference them. Leave out file paths and line numbers unless one is a verified fact in Evidence. Leave out signatures, DDL, CSS classes, and test names that the builder can derive.
+
+### 5. Gate
+
+Check the plan: every Acceptance item is observable, every decision has a reason, no Open question blocks build, and nothing is stated twice. Stop and present the plan for review, or return it to an authorized caller. The reviewer checks decisions, acceptance, and risks, not wording.
+
+## Plan Location
+
+The repository owns where plans live and whether they are committed.
+
+1. Use the location and policy that `AGENTS.md`, `CLAUDE.md`, or `README` document, and obey any rule about committing, ignoring, or deleting plans.
+2. Otherwise use the directory where this repository already keeps plans (`docs/plans/`, `plans/`, `.plans/`, `.agents/plans/`, or similar).
+3. Otherwise use `docs/plans/` and record that choice as an assumption.
+
+Name the file `<slug>.md` with a short kebab-case slug, prefixed with a date when the directory already uses dates. Put raw evidence that is too large for the Evidence section next to it in a folder with the same slug. Never edit ignore rules or commit the plan unless the repository policy or the user says to. Report the path and whether git tracks it.
+
+## Revising
+
+When the request changes, a decision reverses, or the build disproves a claim, edit the same document: update Decisions with the date and reason, fix the affected sections, and keep one version. Do not create a second plan, a changelog file, or a status index.
 
 ## Safety Rules
 
 - Never edit source, tests, configuration, or dependencies.
-- Never invoke an implementation workflow or follow-on skill after the plan; name `build` or `idea-to-pr` as an optional next step only.
-- Never run a stage the tier does not need; never skip a stage whose question is open.
-- Never duplicate a concern across `proposal.md` and a focused doc.
-- Never let a stage resolve its own plan folder when `plan-init` already ran.
-- Never finalize while a material open question remains unresolved or unlabelled as an assumption.
-- Never assume a reviewer or user approval.
+- Never invoke an implementation workflow.
+- Never ask about facts the code can answer.
+- Never ask more than once for the same decision, or finalize while an Open question blocks the build.
+- Never record an unverified claim as fact.
+- Never create more than one plan document per effort.
+- Never assume the user's approval.
 
 ## Output Style
 
-Lead with the plan folder path. Then report the tier and why, the stages run and skipped, the slice list, how open questions were resolved, any tier change, and the review status. Name one optional next skill, or none. Wait for explicit approval.
+Lead with the plan path and whether it is tracked. Then give the size and why, the decisions asked and how they were answered, the assumptions the user can veto, and the top risks. Name one optional next skill, or none. Wait for explicit approval.

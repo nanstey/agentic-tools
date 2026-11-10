@@ -8,7 +8,7 @@ Ask each Goldfish to return a findings table graded `Blocker`, `Major`, or `Nit`
 
 ## Workflow
 
-1. Confirm the document and referenced-file set. Start a review record beside the document in its plan folder.
+1. Confirm the document and referenced-file set. Start a review record beside the document.
 2. Run stages in order, each with the persona and standard below:
 
    | Stage | Persona | Standard | Purpose |
@@ -25,7 +25,7 @@ Ask each Goldfish to return a findings table graded `Blocker`, `Major`, or `Nit`
 5. Allow at most two rounds per stage. After that, record unresolved items as accepted trade-offs with the human decision and proceed only with approval.
 6. Pause for a human gate after each stage. With `--auto`, run all stages and present one consolidated gate instead.
 7. With `--polish`, run structural and style personas after readiness. Do not run duplicate A/B reviewer sets by default.
-8. Register the review record as `egm-review`, status `done`; set the document row to `Approved` only after human approval.
+8. Set the review record's status to `Done`. Set the reviewed design document's `Status` to `Approved` only after human approval.
 
 ## Independent Diagnosis
 
@@ -35,6 +35,8 @@ For a bug write-up, run one separate Goldfish diagnosis using only the symptom a
 
 ```markdown
 # Review: <document>
+
+- Status: Done
 
 ## Stage: <name>
 | Severity | Scope | Finding | Evidence | Disposition |

@@ -37,14 +37,14 @@ Infer missing inputs where possible (directory from name, stack from the request
 - App scope — never invent features or product intent; this is a product decision, so ask what to build.
 
 If the scope is broad enough to need design decisions, run a planning session
-first (for example, `scrutiny` or `proposal`) rather than guessing.
+first (for example, `scrutiny` or `planning`) rather than guessing.
 
 ## Workflow
 
 1. Gather inputs, restate the plan, and confirm the target directory. Infer
    unknown name, directory, or stack; ask only if app scope is unknown. If the
    request is ambiguous, run a planning session (for example,
-   `scrutiny`/`proposal`) before scaffolding.
+   `scrutiny`/`planning`) before scaffolding.
 2. Preflight. Confirm the target directory is nonexistent or empty. If it
    exists and is non-empty, choose a fresh sibling directory name rather than touching it. Verify `git` and the chosen stack's
    initializer are present and runnable; flag anything missing before relying on
