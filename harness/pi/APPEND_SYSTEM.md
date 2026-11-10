@@ -97,8 +97,9 @@ const result = await models.classify(model, {
 ```
 
 The state is exactly `{ task, context }`: `task` is the task text, and `context` contains `role`,
-`files touched`, `producer family`, `ambiguity`, `stakes`, and `blast radius`. Read the tier by
-question ID at `result.answers.tier`. Check `stopReason`; classification does not throw.
+`files touched`, `producer family`, `ambiguity`, `stakes`, and `blast radius`. Read the tier at
+`result.answers.tier.choice` and its confidence at `result.answers.tier.confidence`. Check
+`stopReason`; classification does not throw.
 
 Use `quick` only for one bounded mechanical task. Otherwise start at `standard`. Use `high` only
 for demonstrated cross-boundary complexity or high blast radius. Use `premium` only for an
