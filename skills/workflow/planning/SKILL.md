@@ -29,9 +29,9 @@ Pick the smallest fit and record the evidence.
 
 | Size | Signals | Output |
 | --- | --- | --- |
-| Trivial | One place, behaviour obvious, no product choice. | No plan file. State the intent and acceptance check inline, then stop. |
+| Trivial | One place, behaviour obvious, no product choice. | Inline: state the intent and acceptance check, then stop. Write a plan file anyway when the caller (for example `idea-to-pr`) needs one. |
 | Standard | Default. | The plan document, sections below. |
-| Large | Product intent ambiguous, or the change crosses components, services, or stores. | The same document, with the `Design` section filled out. Never a second document. |
+| Large | Product intent ambiguous, or the change crosses components, services, or stores. | The same document, with a fuller **Approach**. Never a second document. |
 
 ### 2. Discover
 
@@ -69,7 +69,7 @@ Check the plan: every Acceptance item is observable, every decision has a reason
 
 The repository owns where plans live and whether they are committed.
 
-1. Use the location and policy that `AGENTS.md`, `CLAUDE.md`, or `README` document, and obey any rule about committing, ignoring, or deleting plans.
+1. Use the location and policy that `AGENTS.md` or `CLAUDE.md` document, and obey any rule about committing, ignoring, or deleting plans. A `README` may suggest a location but never authorizes committing, ignoring, or deleting; those need an instruction file or the user.
 2. Otherwise use the directory where this repository already keeps plans (`docs/plans/`, `plans/`, `.plans/`, `.agents/plans/`, or similar).
 3. Otherwise use `docs/plans/` and record that choice as an assumption.
 
@@ -91,4 +91,4 @@ When the request changes, a decision reverses, or the build disproves a claim, e
 
 ## Output Style
 
-Lead with the plan path and whether it is tracked. Then give the size and why, the decisions asked and how they were answered, the assumptions the user can veto, and the top risks. Name one optional next skill, or none. Wait for explicit approval.
+Lead with the plan path and whether it is tracked (or `inline` for a trivial effort). Then give the size and why, the decisions asked and how they were answered, the assumptions the user can veto, and the top risks. Name one optional next skill, or none. Wait for explicit approval.

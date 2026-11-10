@@ -68,7 +68,7 @@ and runtime behavior.
 
 | Skill | Description |
 | --- | --- |
-| [`idea-to-pr`](skills/workflow/idea-to-pr/SKILL.md) | Takes an idea from evidence-backed discovery through built, tested, and validated pull requests. Use when a feature idea or change request should be driven end-to-end to review-ready PRs. |
+| [`idea-to-pr`](skills/workflow/idea-to-pr/SKILL.md) | Takes an idea from evidence-backed discovery through a built, tested, and validated pull request. Use when a feature idea or change request should be driven end-to-end to a review-ready PR. |
 | [`flow-design`](skills/workflow/flow-design/SKILL.md) | Designs a platform-neutral delegation plan with roles, gates, and return contracts. Use when a task needs coordinated execution designed before work begins. |
 | [`build`](skills/workflow/build/SKILL.md) | Implements scoped changes from a plan file, context, or inline plan through verifiable phases with acceptance-item validation. Use when execution should start from existing requirements. |
 | [`review-code`](skills/workflow/review-code/SKILL.md) | Produces one source-verified review packet with optional fix planning or working-tree remediation. Use when a changeset needs coordinated quality, refactor, and security review. |

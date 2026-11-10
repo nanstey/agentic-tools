@@ -79,7 +79,7 @@ Extract acceptance criteria and identify unresolved material questions. Trace im
 
 ### 3. Planning
 
-Run `planning` with the evidence packet rather than full raw findings. It writes one plan file under its Plan Location rules. Retain the plan path plus the decision packet; the run report or handoff packet, not a plan index, tracks pipeline state.
+Run `planning` with the evidence packet rather than full raw findings. Require a plan file even for a trivial effort; it is written under its Plan Location rules. Retain the plan path plus the decision packet; the run report or handoff packet, not a plan index, tracks pipeline state.
 
 In autopilot, state in the handoff: **“This is an `idea-to-pr` autopilot run. The user has authorized ordinary planning transitions.”** `planning` then returns the plan to the coordinator, which proceeds; resolve design questions from evidence and ask only for unresolved product decisions. In `gated` mode, omit that statement so `planning` stops for explicit approval.
 

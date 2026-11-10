@@ -96,9 +96,8 @@ for role, table_label in roles.items():
             if fields.get("tools") != "[read, grep, find, ls, write]":
                 fail(f"planner-{tier} must permit only planning-artifact writes")
             for text in (
-                "plan-folder path",
-                "only your assigned planning artifact",
-                "required rows in that folder's `README.md`",
+                "plan file path",
+                "write or update only that one plan file",
                 "Do not edit application source, tests, configuration, dependencies, or unrelated files.",
             ):
                 if text not in body:
