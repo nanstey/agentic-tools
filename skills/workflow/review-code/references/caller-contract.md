@@ -1,6 +1,6 @@
 # Review-code caller contract
 
-Shared by callers of `/review-code fix` (`build`, `idea-to-pr`). Callers link here instead of restating it.
+Shared by callers of `/review-code fix`. Callers link here instead of restating it.
 
 ## Review loop
 

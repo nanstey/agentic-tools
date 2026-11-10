@@ -12,7 +12,7 @@ disable-model-invocation: false
 
 Produce one plan document per effort. The plan states what to build, why, which decisions are settled, how success is observed, and what could go wrong. It does not script the implementation: the builder reads the code and chooses file edits, signatures, and task order.
 
-Planning-only. Words such as "build," "implement," or "ship" in the request define scope, not permission to execute. Never edit source, tests, configuration, or dependencies. Never invoke `build`, `idea-to-pr`, or another implementation workflow; name one as an optional next step. Exception: when the invoking skill states that the user authorized planning transitions (for example an `idea-to-pr` autopilot run), return the plan to that caller instead of waiting.
+Planning-only. Words such as "build," "implement," or "ship" in the request define scope, not permission to execute. Never edit source, tests, configuration, or dependencies. Never invoke an implementation workflow; name one as an optional next step. Exception: when the invoking skill states that the user authorized planning transitions, return the plan to that caller instead of waiting.
 
 Target-repository `AGENTS.md` / `CLAUDE.md` override this skill on conflict.
 
@@ -29,7 +29,7 @@ Pick the smallest fit and record the evidence.
 
 | Size | Signals | Output |
 | --- | --- | --- |
-| Trivial | One place, behaviour obvious, no product choice. | Inline: state the intent and acceptance check, then stop. Write a plan file anyway when the caller (for example `idea-to-pr`) needs one. |
+| Trivial | One place, behaviour obvious, no product choice. | Inline: state the intent and acceptance check, then stop. Write a plan file anyway when the caller needs one. |
 | Standard | Default. | The plan document, sections below. |
 | Large | Product intent ambiguous, or the change crosses components, services, or stores. | The same document, with a fuller **Approach**. Never a second document. |
 

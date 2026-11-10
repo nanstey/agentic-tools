@@ -11,7 +11,7 @@ disable-model-invocation: false
 
 Turn one task into a concrete execution plan expressed as responsibilities, dependencies, write isolation, validation gates, and return contracts. Let the active environment map that plan to its own agents, tools, models, and coordination mechanism.
 
-Design-only: never execute the plan, edit source, or dispatch work. Running `planning` to obtain a plan is allowed because it writes only plan artifacts. The caller (a user, `idea-to-pr`, or `build`) executes it. A validation-environment preflight is allowed because it verifies a proposed gate rather than executing the task.
+Design-only: never execute the plan, edit source, or dispatch work. The caller executes it. A validation-environment preflight is allowed because it verifies a proposed gate rather than executing the task.
 
 If delegation is unavailable or unnecessary, design an inline sequence instead. Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
@@ -53,7 +53,7 @@ Track timing, cost, token use, or other resource data when the environment provi
 ## Workflow
 
 1. Restate the task, acceptance criteria, and whether it writes to the repo.
-2. If the task has no approved plan and its scope or acceptance criteria are not settled, run `planning` first. Design the flow from the resulting plan's **Approach** and **Acceptance**. Skip this when a plan exists or the task is small and fully specified. `planning` writes one plan file and stops for user review, so wait for approval before designing the flow.
+2. If the task has no plan and its scope or acceptance criteria are not settled, return `blocked: needs a plan` with the missing decisions. Otherwise design the flow from the plan's **Approach** and **Acceptance**, or from the fully specified task.
 3. Choose the least-coordination execution shape.
 4. Assign responsibilities, dependencies, and write-isolation boundaries.
 5. Define validation gates, runtime checks, return contracts, and caller-requested approval points.

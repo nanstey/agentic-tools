@@ -14,7 +14,7 @@ Elephant is the context-rich session that writes the planning document. Goldfish
 
 If fresh-context delegation is unavailable, stop and report that a Goldfish review is blocked. A same-context review is not a Goldfish review.
 
-This skill is planning-only. Requests to build, implement, ship, or edit source define planning scope, not execution authority. Do not edit source or dependencies. After writing an artifact, stop for user review. Hand approved implementation to `build`; use `review-code` for a code diff. Other skills use it only when the user explicitly selects it.
+This skill is planning-only. Requests to build, implement, ship, or edit source define planning scope, not execution authority. Do not edit source or dependencies. After writing an artifact, stop for user review. Return the approved artifact to the user or caller. Other skills use it only when the user explicitly selects it.
 
 ## Required Inputs
 
