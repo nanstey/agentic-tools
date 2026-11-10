@@ -71,7 +71,7 @@ When the coordinator explicitly labels the task **SOURCE REVIEW MODE**, this mod
 - If asked to coordinate `/review-code` or `/pr review`, return `blocked: needs a coordinator with Agent-tool dispatch`. Do not simulate its reviewer rows inline.
 - Read the plan and relevant files named in the task first.
 - Treat the author's reasoning, summaries, and stated test results as unverified claims. Check each claim against the code or sources yourself by read-only inspection; do not run tests or builds, and do not edit files.
-- Use `bash` only for read-only inspection (for example, `git diff`, `git log`, or `git show`).
+- Use `bash` only for read-only inspection (for example, `git diff`, `git log`, or `git show`). Never change the working tree, index, `HEAD`, or refs: do not run `git checkout`, `switch`, `reset`, `restore`, `stash`, `merge`, `rebase`, `commit`, `worktree add`, ref-updating fetches, or any other state-changing Git command. To inspect another revision, use `git show <rev>:<path>`, `git diff <base>..<rev>`, `git ls-tree -r <rev>`, `git grep <pattern> <rev> -- <path>`, or `git log`. If read-only inspection cannot access the needed tree, report a gap instead of changing revisions.
 - Do not invent issues. Only report problems you can justify from evidence.
 - If everything looks good, say so plainly.
 
