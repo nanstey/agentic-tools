@@ -1,0 +1,75 @@
+diff --git a/src/index.ts b/src/index.ts
+index 46bfbf7..26f52bc 100644
+--- a/src/index.ts
++++ b/src/index.ts
+@@ -100,8 +100,6 @@ const MANAGED_AGENT_TYPES = new Set([
+ const MANAGED_SECURITY_SETTINGS: Record<string, unknown> = {
+   fallbackSubagent: false,
+   scopeModels: false,
+-  widgetMode: "off",
+-  fleetView: false,
+   agentMentions: "off",
+   workflowsEnabled: false,
+   schedulingEnabled: false,
+@@ -113,6 +111,12 @@ const MANAGED_SECURITY_SETTINGS: Record<string, unknown> = {
+   rememberAgents: false,
+ };
+ 
++function matchesManagedSecuritySetting(key: string, value: unknown, expected: unknown): boolean {
++  // The settings loader normalizes both spellings to the same disabled fallback.
++  if (key === "fallbackSubagent" && expected === false) return value === false || value === "none";
++  return JSON.stringify(value) === JSON.stringify(expected);
++}
++
+ function isManagedAgentType(type: string): boolean {
+   return MANAGED_AGENT_TYPES.has(type);
+ }
+@@ -135,7 +139,7 @@ function managedProjectSettingsError(cwd: string): string | undefined {
+     return `Project subagent settings at ${path} must be an object.`;
+   }
+   for (const [key, value] of Object.entries(MANAGED_SECURITY_SETTINGS)) {
+-    if (Object.hasOwn(projectSettings, key) && JSON.stringify((projectSettings as Record<string, unknown>)[key]) !== JSON.stringify(value)) {
++    if (Object.hasOwn(projectSettings, key) && !matchesManagedSecuritySetting(key, (projectSettings as Record<string, unknown>)[key], value)) {
+       return `Project subagents.json conflicts with the global managed setting "${key}".`;
+     }
+   }
+diff --git a/src/settings.ts b/src/settings.ts
+index a14804a..9cc8c7c 100644
+--- a/src/settings.ts
++++ b/src/settings.ts
+@@ -1,9 +1,9 @@
+ // Persistence for pi-subagents operational settings.
+ // - Global:  ~/.pi/agent/subagents.json (via getAgentDir()) — manual defaults, never written here
+-// - Project: <cwd>/.pi/subagents.json — written by /agents → Settings; overrides global on load
++// - Project: <cwd>/.pi/subagents.json — manually authored overrides, read-only here
+ 
+-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+-import { dirname, join } from "node:path";
++import { existsSync, readFileSync } from "node:fs";
++import { join } from "node:path";
+ import { getAgentDir } from "@earendil-works/pi-coding-agent";
+ import { NO_FALLBACK } from "./agent-types.js";
+ import type { AgentMentionMode, JoinMode, ViewerMarkdownMode, WidgetMode } from "./types.js";
+@@ -555,18 +555,11 @@ export function loadSettings(cwd: string = process.cwd()): SubagentsSettings {
+ 
+ /**
+  * Write project-local settings. Global is never touched from code.
+- * Returns `true` on success, `false` if the write (or mkdir) failed so the
+- * caller can surface a warning — persistence isn't fatal but isn't silent.
++ * Managed installations keep project policy read-only, so settings changes are
++ * session-only and do not create a project file that changes future dispatch.
+  */
+-export function saveSettings(s: SubagentsSettings, cwd: string = process.cwd()): boolean {
+-  const path = projectPath(cwd);
+-  try {
+-    mkdirSync(dirname(path), { recursive: true });
+-    writeFileSync(path, JSON.stringify(s, null, 2), "utf-8");
+-    return true;
+-  } catch {
+-    return false;
+-  }
++export function saveSettings(_s: SubagentsSettings, _cwd: string = process.cwd()): boolean {
++  return false;
+ }
+ 
+ /** Apply persisted settings to the in-memory state via caller-supplied setters. */
