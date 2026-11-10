@@ -85,11 +85,11 @@ In autopilot, state in the handoff: **“This is an `idea-to-pr` autopilot run. 
 
 ### 4. Build pass
 
-Use the approved plan and current decision packet for one cohesive build pass. The repository's default is one PR for the whole effort. The builder chooses internal phases from the plan's **Approach** and **Acceptance**.
+Use the approved plan and current decision packet for one cohesive build pass. The repository's default is one PR for the whole effort. The builder implements from the plan's **Approach** and is validated once against **Acceptance**.
 
 1. Run a focused environment preflight: detect the package manager/lockfile, run the prospective deterministic gate, and, only for a dependency-shaped failure, make one immutable-install repair (for pnpm, `pnpm install --frozen-lockfile`) and retry the identical gate. Record both attempts and classify persistent failure as baseline code, lockfile/install, access/service, or unknown.
 2. Run `flow-design` when delegation would improve the effort. For simple or non-delegated work, record the equivalent plan inline.
-3. Run `build` steps 1–5 against the plan. Build covers branch/worktree fitness, tooling checks, internally phased implementation, and separate validation. Record validation evidence against each Acceptance item. Separate implementation from acceptance review when an independent context is available; otherwise record the limitation.
+3. Run `build` steps 1–5 against the plan. Build covers branch/worktree fitness, tooling checks, one-pass implementation, and one separate validation. Record validation evidence against each Acceptance item. Separate implementation from acceptance review when an independent context is available; otherwise record the limitation.
 4. For runnable behaviour, use a separate QA step to boot the app and observe every Acceptance item end-to-end. Use `playwright-cli` for browser-facing behaviour or equivalent CLI/API verification otherwise. QA returns per-item evidence; unit tests alone do not prove runtime behaviour. Tick evidence in the plan only when repository policy tracks plans, otherwise record it in the packet.
 5. For user-facing UI, run `visual-capture` only after QA passes. Store evidence outside git and hand its paths to the PR step.
 6. The coordinator is the review caller and owns the round budget. Start review with one `/review-code fix` call on the combined scope per the `review-code` skill's `references/caller-contract.md`. Include QA evidence.
