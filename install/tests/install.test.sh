@@ -11,7 +11,10 @@ if [ "${1:-}" != --isolated ]; then
   for cmd in bash env awk basename cat chmod cmp cp dirname find grep ln mkdir mktemp mv patch python3 readlink rm sed sha256sum sort tr; do
     ln -s "$(command -v "$cmd")" "$SB/bin/$cmd"
   done
-  env -i HOME="$SB/home" PATH="$SB/bin" TMPDIR="$SB/tmp" LC_ALL=C \
+  # Resolve the published package here: the allowlisted PATH below has no npm.
+  source "$REPO/harness/pi/tests/lib/pristine-subagents.sh"
+  PI_SUBAGENTS_PRISTINE_DIR="$(pristine_subagents_dir)"
+  env -i HOME="$SB/home" PATH="$SB/bin" TMPDIR="$SB/tmp" LC_ALL=C PI_SUBAGENTS_PRISTINE_DIR="$PI_SUBAGENTS_PRISTINE_DIR" \
     TOOLS_INTERACTIVE=0 bash "${BASH_SOURCE[0]}" --isolated "$SB" "$REPO"
   exit 0
 fi
@@ -72,10 +75,11 @@ mkdir -p "$FIXTURE/skills/dev/sample" "$FIXTURE/agents" "$FIXTURE/harness/pi/bin
 printf 'name: sample\n' >"$FIXTURE/skills/dev/sample/SKILL.md"
 printf 'name: reviewer\n' >"$FIXTURE/agents/reviewer.md"
 cp "$REPO/harness/pi/patches/pi-subagents-strict-dispatch-0.22.1.patch" "$FIXTURE/harness/pi/patches/"
+candidate_fixture="$PI_SUBAGENTS_PRISTINE_DIR"
 seed_candidate() {
   local agent_dir="$1"
   mkdir -p "$agent_dir/npm/node_modules/@tintinweb/pi-subagents"
-  cp -R "$REPO/harness/pi/tests/fixtures/pi-subagents-0.22.1/." "$agent_dir/npm/node_modules/@tintinweb/pi-subagents/"
+  cp -R "$candidate_fixture/." "$agent_dir/npm/node_modules/@tintinweb/pi-subagents/"
   printf 'node-linker=hoisted\n' > "$agent_dir/npm/.npmrc"
 }
 printf '{"npmCommand":["pnpm"]}\n' >"$FIXTURE/harness/pi/settings.json"

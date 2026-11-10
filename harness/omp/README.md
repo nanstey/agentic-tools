@@ -3,11 +3,11 @@
 `install.sh` links shared skills into `~/.omp/agent` and each existing OMP profile's
 `~/.omp/profiles/*/agent` directory, copies portable OMP config,
 applies the versioned status-line settings, and installs the packages
-below with OMP's native `omp install` command. The delegation agent profiles under `agents/` are Pi-only and are not linked into OMP.
+below with OMP's native `omp install` command. The agent profiles under `agents/` are Pi-only and are not linked into OMP.
 
 | Repository path | Install destination | Purpose |
 | --- | --- | --- |
-| [`harness/omp/APPEND_SYSTEM.md`](APPEND_SYSTEM.md) | `~/.omp/agent/APPEND_SYSTEM.md` | Adds session lifecycle, benefit-based delegation with least-cost configured roles, collision-safe scratch-artifact guidance, and browser-tool routing that defaults to headless `agent-browser` over the user's real browser. |
+| [`harness/omp/APPEND_SYSTEM.md`](APPEND_SYSTEM.md) | `~/.omp/agent/APPEND_SYSTEM.md` | Adds session lifecycle, benefit-based subagent use with least-cost configured roles, collision-safe scratch-artifact guidance, and browser-tool routing that defaults to headless `agent-browser` over the user's real browser. |
 | [`harness/omp/plugins/pi-jev.txt`](plugins/pi-jev.txt) | Not copied; passed to `omp install` | Installs `npm:pi-jev@0.4.0`. OMP loads its legacy `pi.extensions` manifest through the Pi compatibility layer. |
 | [`harness/omp/README.md`](README.md) | Not copied | This document. `install.sh` skips `README.md` when it copies config. |
 | [`harness/omp/status-line/apply.sh`](status-line/apply.sh) | Default and existing profile `config.yml` files (via `omp config`) | Selectively merges the versioned Nerd Font status-line schema. |
@@ -42,7 +42,7 @@ compact context usage such as `39.0%/272K`, Git state, and session name on the
 left, with elapsed time right-aligned. OMP keeps the status on one adaptive row
 and drops trailing segments as width narrows.
 
-To cap subagents at one delegation level, create or edit the machine-local file:
+To cap subagents at one subagent level, create or edit the machine-local file:
 
 ```yaml
 task:

@@ -1,6 +1,6 @@
 ---
-name: delegation-reviewer
-description: Read-only independent source reviewer. Delegate when a diff, plan, or implementation needs evidence-based review.
+name: reviewer
+description: Read-only independent source reviewer. Use when a diff, plan, or implementation needs evidence-based review.
 tools: [read, grep, find, ls, bash, ext:builtin:codemode/codemode]
 extensions: true
 exclude_extensions: [pi-jev, pi-fallback-models]
@@ -77,7 +77,7 @@ When the coordinator explicitly labels the task **SOURCE REVIEW MODE**, this mod
 
 
 ## Completion
-Return a concise final result to the parent. If blocked, state the blocker, evidence, and the exact input that would unblock it. Do not attempt to spawn another agent; delegation is disabled for child agents.
+Return a concise final result to the parent. If blocked, state the blocker, evidence, and the exact input that would unblock it. Do not attempt to spawn another agent; spawning is disabled for child agents.
 
 ## Review output format
 Structure your findings clearly:

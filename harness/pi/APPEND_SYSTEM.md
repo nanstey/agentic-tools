@@ -32,25 +32,25 @@ Keep the main agent on the user's selected model. Do not switch it based on task
 context, complexity, scale, or a Jev recommendation. Only provider/failure fallback
 (quota, rate-limit, auth, or provider errors) may change it without a user request.
 Keep `pi-jev` auto-model disabled. Choose models by task context and scale only when
-delegating through `Agent`, using the table below.
+spawning agents through `Agent`, using the table below.
 
-# Delegation policy
+# Subagent policy
 
 If you do not have the `Agent` tool, you are a leaf agent: do the assigned work yourself
-and never delegate. Delegation is one level only. The five `delegation-*` profiles set
+and never spawn agents. Spawning is one level only. The five role profiles set
 capabilities, not model or thinking. They exclude `pi-jev` and `pi-fallback-models`, so
 child thinking and fallback cannot silently change the selected policy.
 
 For a user-requested worktree task, load the `handoff` skill and follow it. It hands the
 work to a standalone Pi session in a new Orca worktree; this session then stops work on that
-task. Do not use `Agent` for that handoff. Otherwise delegate substantive work and keep the
+task. Do not use `Agent` for that handoff. Otherwise spawn agents for substantive work and keep the
 main thread for decomposition, integration, and verification:
 
-- Codebase recon -> `delegation-scout`.
-- Web or documentation research -> `delegation-researcher`.
-- Planning -> `delegation-planner`.
-- Approved implementation -> `delegation-worker`.
-- Diff, plan, PR, verification, or decision review -> `delegation-reviewer`.
+- Codebase recon -> `scout`.
+- Web or documentation research -> `researcher`.
+- Planning -> `planner`.
+- Approved implementation -> `worker`.
+- Diff, plan, PR, verification, or decision review -> `reviewer`.
 
 `/review-code` and `/pr review` require a coordinator with `Agent` dispatch. A leaf agent
 returns `blocked: needs a coordinator with Agent-tool dispatch`.
@@ -62,7 +62,7 @@ The installed candidate has no stop/cancel tool. Do not claim to stop a child or
 
 # Tier-selection contract
 
-The coordinator selects the delegation role. One Jev classifier call selects the tier; it does
+The coordinator selects the agent role. One Jev classifier call selects the tier; it does
 not select a role, provider, model, or thinking level. The coordinator maps that role and tier
 to the exact provider-qualified `model` and `thinking` values in the table, then passes both to
 `Agent`. Never omit, shorten, fuzz, or substitute either value. The strict patch rejects
@@ -72,7 +72,7 @@ that Pi would otherwise clamp.
 
 Use `codemode` to choose an available classifier with
 `models.getAvailableOfType("classifier")`, then call exactly one `models.classify(model, { state,
-questions })` for the delegation:
+questions })` for the spawn:
 
 ```js
 const state = {
@@ -108,25 +108,25 @@ demonstrably low-quality result.
 
 | Role | Quick | Standard | High | Premium |
 | --- | --- | --- | --- | --- |
-| `delegation-scout` | `anthropic/claude-haiku-5-5`, low | `anthropic/claude-sonnet-5-5`, medium | `anthropic/claude-sonnet-5-5`, high | `anthropic/claude-sonnet-5-5`, high |
-| `delegation-researcher` | `anthropic/claude-haiku-5-5`, low | `anthropic/claude-sonnet-5-5`, medium | `anthropic/claude-sonnet-5-5`, high | `anthropic/claude-opus-5-5`, high |
-| `delegation-planner` | `anthropic/claude-sonnet-5-5`, low | `anthropic/claude-sonnet-5-5`, medium | `anthropic/claude-sonnet-5-5`, high | `anthropic/claude-fable-5-1`, high |
-| `delegation-worker` | `openai-codex/gpt-6-luna`, low | `openai-codex/gpt-5.6-terra`, medium | `openai-codex/gpt-5.6-terra`, high | `openai-codex/gpt-6.1-sol`, high |
-| `delegation-reviewer` of OpenAI work | `anthropic/claude-haiku-5-5`, low | `anthropic/claude-sonnet-5-5`, medium | `anthropic/claude-sonnet-5-5`, high | `anthropic/claude-opus-5-5`, high |
-| `delegation-reviewer` of Anthropic work | `openai-codex/gpt-6-luna`, low | `openai-codex/gpt-5.6-terra`, medium | `openai-codex/gpt-5.6-terra`, high | `openai-codex/gpt-6.1-sol`, high |
+| `scout` | `anthropic/claude-haiku-5-5`, low | `anthropic/claude-sonnet-5-5`, medium | `anthropic/claude-sonnet-5-5`, high | `anthropic/claude-sonnet-5-5`, high |
+| `researcher` | `anthropic/claude-haiku-5-5`, low | `anthropic/claude-sonnet-5-5`, medium | `anthropic/claude-sonnet-5-5`, high | `anthropic/claude-opus-5-5`, high |
+| `planner` | `anthropic/claude-sonnet-5-5`, low | `anthropic/claude-sonnet-5-5`, medium | `anthropic/claude-sonnet-5-5`, high | `anthropic/claude-fable-5-1`, high |
+| `worker` | `openai-codex/gpt-6-luna`, low | `openai-codex/gpt-5.6-terra`, medium | `openai-codex/gpt-5.6-terra`, high | `openai-codex/gpt-6.1-sol`, high |
+| `reviewer` of OpenAI work | `anthropic/claude-haiku-5-5`, low | `anthropic/claude-sonnet-5-5`, medium | `anthropic/claude-sonnet-5-5`, high | `anthropic/claude-opus-5-5`, high |
+| `reviewer` of Anthropic work | `openai-codex/gpt-6-luna`, low | `openai-codex/gpt-5.6-terra`, medium | `openai-codex/gpt-5.6-terra`, high | `openai-codex/gpt-6.1-sol`, high |
 
 Managed `subagents.json` disables unknown-type fallback, default and package-provided agent types,
 widgets, FleetView, mentions, workflows including package-provided workflows, schedules, worktrees,
-persistent agent memory, and nested delegation. The strict patch owns the exact
-routing-table allowlist, so managed child policy does not require global `enabledModels` or
-constrain main-agent model cycling. It also requires a currently available authenticated model.
+persistent agent memory, and nested agents. The strict patch requires an exact, currently available authenticated model, so managed child
+policy does not require global `enabledModels` or constrain main-agent model cycling. The
+routing table above is coordinator policy; the patch does not enforce its cells.
 `pi-fallback-models` remains available to the main session and keeps its quota patch, but is
-excluded from all delegation profiles. A child provider failure is a failure, not permission to
+excluded from all role profiles. A child provider failure is a failure, not permission to
 widen model scope or provider family.
 
 # Cross-model verification
 
-Treat a child report as a claim. The coordinator selects `delegation-reviewer` with the
+Treat a child report as a claim. The coordinator selects `reviewer` with the
 opposite provider family from the producer's final/effective-at-start selection. Never deliberately
 send both producer and reviewer to the same family.
 
@@ -139,10 +139,10 @@ a legacy completion record.
 
 # Codemode and Jev
 
-See [Tier-selection contract](#tier-selection-contract) for delegation routing. `codemode` lets
+See [Tier-selection contract](#tier-selection-contract) for agent routing. `codemode` lets
 you write one script that calls several tools in parallel and filters results
 before they reach the context. Prefer it for fan-out reads, greps across many files, and batch
-checks. `delegation-scout`, `delegation-worker`, and `delegation-reviewer` have it too.
+checks. `scout`, `worker`, and `reviewer` have it too.
 
 For typed decisions (classify, route, rank, yes/no with a probability) instead of prose
 judgment, call Jev from a `codemode` script: pick a model with

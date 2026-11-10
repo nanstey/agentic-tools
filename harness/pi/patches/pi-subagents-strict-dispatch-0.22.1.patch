@@ -10,59 +10,20 @@
  import { isAbsolute, join } from "node:path";
  import { defineTool, type ExtensionAPI, type ExtensionCommandContext, type ExtensionContext, getAgentDir, getSettingsListTheme } from "@earendil-works/pi-coding-agent";
  import { Container, isKeyRelease, Key, matchesKey, type ScrollViewScrollbar, type SettingItem, SettingsList, Spacer, Text } from "@earendil-works/pi-tui";
-@@ -86,6 +87,176 @@
+@@ -86,6 +87,131 @@
    return { content: [{ type: "text" as const, text: msg }], details: details as any };
  }
  
-+/** Exact models permitted by the managed APPEND_SYSTEM.md delegation table. */
-+const MANAGED_DELEGATION_MODELS = new Set([
-+  "anthropic/claude-haiku-5-5",
-+  "anthropic/claude-sonnet-5-5",
-+  "anthropic/claude-opus-5-5",
-+  "anthropic/claude-fable-5-1",
-+  "openai-codex/gpt-6-luna",
-+  "openai-codex/gpt-5.6-terra",
-+  "openai-codex/gpt-6.1-sol",
++/** Role-only profiles that the managed routing policy governs. */
++const MANAGED_AGENT_TYPES = new Set([
++  "scout",
++  "researcher",
++  "planner",
++  "worker",
++  "reviewer",
 +]);
 +
-+/** Exact role/model/thinking combinations from the managed routing table. */
-+const MANAGED_DELEGATION_SELECTIONS: Record<string, ReadonlySet<string>> = {
-+  "delegation-scout": new Set([
-+    "anthropic/claude-haiku-5-5|low",
-+    "anthropic/claude-sonnet-5-5|medium",
-+    "anthropic/claude-sonnet-5-5|high",
-+  ]),
-+  "delegation-researcher": new Set([
-+    "anthropic/claude-haiku-5-5|low",
-+    "anthropic/claude-sonnet-5-5|medium",
-+    "anthropic/claude-sonnet-5-5|high",
-+    "anthropic/claude-opus-5-5|high",
-+  ]),
-+  "delegation-planner": new Set([
-+    "anthropic/claude-sonnet-5-5|low",
-+    "anthropic/claude-sonnet-5-5|medium",
-+    "anthropic/claude-sonnet-5-5|high",
-+    "anthropic/claude-fable-5-1|high",
-+  ]),
-+  "delegation-worker": new Set([
-+    "openai-codex/gpt-6-luna|low",
-+    "openai-codex/gpt-5.6-terra|medium",
-+    "openai-codex/gpt-5.6-terra|high",
-+    "openai-codex/gpt-6.1-sol|high",
-+  ]),
-+  "delegation-reviewer": new Set([
-+    "anthropic/claude-haiku-5-5|low",
-+    "anthropic/claude-sonnet-5-5|medium",
-+    "anthropic/claude-sonnet-5-5|high",
-+    "anthropic/claude-opus-5-5|high",
-+    "openai-codex/gpt-6-luna|low",
-+    "openai-codex/gpt-5.6-terra|medium",
-+    "openai-codex/gpt-5.6-terra|high",
-+    "openai-codex/gpt-6.1-sol|high",
-+  ]),
-+};
-+
-+/** Settings that local projects may not weaken for managed delegation. */
++/** Settings that local projects may not weaken for managed agents. */
 +const MANAGED_SECURITY_SETTINGS: Record<string, unknown> = {
 +  fallbackSubagent: false,
 +  scopeModels: false,
@@ -79,13 +40,13 @@
 +  rememberAgents: false,
 +};
 +
-+function isManagedDelegationType(type: string): boolean {
-+  return Object.hasOwn(MANAGED_DELEGATION_SELECTIONS, type);
++function isManagedAgentType(type: string): boolean {
++  return MANAGED_AGENT_TYPES.has(type);
 +}
 +
 +function freshSpawnTypeError(type: string, resume: unknown): string | undefined {
-+  if (resume || isManagedDelegationType(type)) return undefined;
-+  return `Only managed delegation-* profiles may spawn agents; refused "${type}".`;
++  if (resume || isManagedAgentType(type)) return undefined;
++  return `Only managed role profiles (scout, researcher, planner, worker, reviewer) may spawn agents; refused "${type}".`;
 +}
 +
 +function managedProjectSettingsError(cwd: string): string | undefined {
@@ -95,10 +56,10 @@
 +  try {
 +    projectSettings = JSON.parse(readFileSync(path, "utf8"));
 +  } catch {
-+    return `Cannot verify project delegation settings at ${path}; refusing managed delegation.`;
++    return `Cannot verify project subagent settings at ${path}; refusing managed agent dispatch.`;
 +  }
 +  if (!projectSettings || typeof projectSettings !== "object" || Array.isArray(projectSettings)) {
-+    return `Project delegation settings at ${path} must be an object.`;
++    return `Project subagent settings at ${path} must be an object.`;
 +  }
 +  for (const [key, value] of Object.entries(MANAGED_SECURITY_SETTINGS)) {
 +    if (Object.hasOwn(projectSettings, key) && JSON.stringify((projectSettings as Record<string, unknown>)[key]) !== JSON.stringify(value)) {
@@ -118,26 +79,20 @@
 +  }
 +}
 +
-+function managedDelegationPolicyError(
++function managedAgentPolicyError(
 +  type: string,
 +  params: { model?: unknown; thinking?: unknown },
 +  config: AgentConfig | undefined,
 +  cwd: string,
 +): string | undefined {
 +  if (params.model == null || params.thinking == null) {
-+    return `Managed delegation type "${type}" requires explicit model and thinking.`;
++    return `Managed agent type "${type}" requires explicit model and thinking.`;
 +  }
 +  if (!isManagedGlobalProfile(type, config)) {
-+    return `Managed delegation type "${type}" must originate from the global managed agents directory.`;
++    return `Managed agent type "${type}" must originate from the global managed agents directory.`;
 +  }
-+  if (config?.model != null) return `Managed delegation type "${type}" must not pin a model.`;
-+  if (config?.thinking != null) return `Managed delegation type "${type}" must not pin thinking.`;
-+  if (!MANAGED_DELEGATION_MODELS.has(params.model as string)) {
-+    return `Model is outside the managed delegation policy: "${String(params.model)}".`;
-+  }
-+  if (typeof params.thinking !== "string" || !MANAGED_DELEGATION_SELECTIONS[type].has(`${params.model}|${params.thinking}`)) {
-+    return `Model/thinking selection is outside the managed delegation policy: "${String(params.model)}" / "${String(params.thinking)}".`;
-+  }
++  if (config?.model != null) return `Managed agent type "${type}" must not pin a model.`;
++  if (config?.thinking != null) return `Managed agent type "${type}" must not pin thinking.`;
 +  return managedProjectSettingsError(cwd);
 +}
 +
@@ -148,7 +103,7 @@
 +  }
 +  const getAvailable = registry.getAvailable;
 +  if (typeof getAvailable !== "function") {
-+    return { error: "Cannot verify model availability; refusing delegation dispatch." };
++    return { error: "Cannot verify model availability; refusing agent dispatch." };
 +  }
 +  const [provider, id] = input.split("/");
 +  const available = getAvailable.call(registry) as Array<{ provider: string; id: string }>;
@@ -187,7 +142,7 @@
  export function renderRunningAgentStatus(
    frame: string,
    statsText: string,
-@@ -566,6 +737,7 @@
+@@ -566,6 +692,7 @@
        durationMs,
        tokens,
        usage,
@@ -195,7 +150,7 @@
      };
    }
  
-@@ -591,6 +763,7 @@
+@@ -591,6 +718,7 @@
        id: record.id, type: record.type, description: record.description,
        status: record.status, result: record.result, error: record.error,
        startedAt: record.startedAt, completedAt: record.completedAt,
@@ -203,7 +158,7 @@
      });
  
      // Skip notification if result was already consumed via get_subagent_result
-@@ -673,9 +846,8 @@
+@@ -673,9 +801,8 @@
        description: record.description,
        ...(invocation?.modelId !== undefined ? { model: invocation.modelId } : {}),
        ...(invocation?.thinking !== undefined ? { thinking: invocation.thinking } : {}),
@@ -215,7 +170,7 @@
        ...(invocation?.requestedThinking !== undefined ? { requestedThinking: invocation.requestedThinking } : {}),
        depth: record.depth ?? 1,
        ...(record.parentAgentId !== undefined ? { parentAgentId: record.parentAgentId } : {}),
-@@ -1974,17 +2146,32 @@
+@@ -1974,17 +2101,32 @@
  
        const displayName = getDisplayName(subagentType);
  
@@ -226,9 +181,9 @@
 +
        // Get agent config (if any)
        const customConfig = getAgentConfig(subagentType);
-+      const managedDelegation = !params.resume && isManagedDelegationType(subagentType);
-+      if (managedDelegation) {
-+        const policyError = managedDelegationPolicyError(subagentType, params, customConfig, ctx.cwd);
++      const managedAgent = !params.resume && isManagedAgentType(subagentType);
++      if (managedAgent) {
++        const policyError = managedAgentPolicyError(subagentType, params, customConfig, ctx.cwd);
 +        if (policyError) return textResult(policyError);
 +      }
  
@@ -242,7 +197,7 @@
 +      // agent types retain the package's existing tolerant frontmatter behavior.
        let model = ctx.model;
 -      if (resolvedConfig.modelInput) {
-+      if (managedDelegation) {
++      if (managedAgent) {
 +        const exact = resolveExactAvailableModel(params.model, ctx.modelRegistry);
 +        if (exact.error) return textResult(exact.error);
 +        model = exact.model;
@@ -250,18 +205,18 @@
          const resolved = resolveModel(resolvedConfig.modelInput, ctx.modelRegistry);
          if (typeof resolved === "string") {
            if (resolvedConfig.modelFromParams) return textResult(resolved);
-@@ -2009,6 +2196,10 @@
+@@ -2009,6 +2151,10 @@
        if (scopeVerdict.kind === "warn") ctx.ui.notify(scopeVerdict.message, "warning");
  
        const thinking = resolvedConfig.thinking;
-+      if (managedDelegation) {
++      if (managedAgent) {
 +        const thinkingError = managedThinkingError(model, params.thinking);
 +        if (thinkingError) return textResult(thinkingError);
 +      }
        const inheritContext = resolvedConfig.inheritContext;
        const runInBackground = resolvedConfig.runInBackground;
        const isolated = resolvedConfig.isolated;
-@@ -2031,26 +2222,17 @@
+@@ -2031,26 +2177,17 @@
        // This is the pre-session snapshot — agent-manager overwrites it with the
        // effective values the moment a session reports them.
        const { modelName, modelId } = model ? describeModel(model) : { modelName: undefined, modelId: undefined };
@@ -294,7 +249,7 @@
          // Explicit value only — the default fallback would just add noise.
          // Normalize so `0` (unlimited) doesn't surface as a misleading "max turns: 0".
          maxTurns: normalizeMaxTurns(resolvedConfig.maxTurns),
-@@ -3017,10 +3199,14 @@
+@@ -3017,10 +3154,14 @@
        if (record.compactionCount) statsParts.push(`Compactions: ${record.compactionCount}`);
        statsParts.push(`Duration: ${duration}`);
  

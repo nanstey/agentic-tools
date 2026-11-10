@@ -1,6 +1,6 @@
 ---
-name: delegation-scout
-description: Read-only codebase reconnaissance. Delegate when focused implementation context is needed.
+name: scout
+description: Read-only codebase reconnaissance. Use when focused implementation context is needed.
 tools: [read, grep, find, ls, bash, ext:builtin:codemode/codemode]
 extensions: true
 exclude_extensions: [pi-jev, pi-fallback-models]
@@ -52,4 +52,4 @@ Name the first file another agent should open and why.
 
 
 ## Completion
-Return a concise final result to the parent. If blocked, state the blocker, evidence, and the exact input that would unblock it. Do not attempt to spawn another agent; delegation is disabled for child agents.
+Return a concise final result to the parent. If blocked, state the blocker, evidence, and the exact input that would unblock it. Do not attempt to spawn another agent; spawning is disabled for child agents.

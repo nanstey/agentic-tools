@@ -5,7 +5,7 @@ Reusable tools for real engineering work across machines and projects.
 | Tool Type | Description |
 | --- | --- |
 | **Skills** | Portable `SKILL.md` workflows for reliable end-to-end tasks. |
-| **Agent types** | Pi delegation agent types with role-specific capability boundaries. |
+| **Agent types** | Pi agent types with role-specific capability boundaries. |
 
 ## Quick Start
 
@@ -14,7 +14,7 @@ Clone the repo:
 git clone git@github.com:nanstey/agentic-tools.git
 ```
 
-Install or update skills, Pi-only delegation agent types, and harness configuration, then report external-tool status:
+Install or update skills, Pi-only agent types, and harness configuration, then report external-tool status:
 ```sh
 bash install.sh
 ```
@@ -35,14 +35,14 @@ and runtime behavior.
 <details>
 <summary><code>harness/pi/</code> (Pi)</summary>
 
-`install.sh` copies Pi configuration and delegation agent profiles into `$PI_AGENT_DIR` (default `~/.pi/agent`) and applies required third-party package patches. See [`harness/pi/README.md`](harness/pi/README.md) for the managed-file table, third-party package patches, the self-improvement loop, `pi-secret`, and machine bootstrap.
+`install.sh` copies Pi configuration and agent profiles into `$PI_AGENT_DIR` (default `~/.pi/agent`) and applies required third-party package patches. See [`harness/pi/README.md`](harness/pi/README.md) for the managed-file table, third-party package patches, the self-improvement loop, `pi-secret`, and machine bootstrap.
 
 </details>
 
 <details>
 <summary><code>harness/omp/</code> (OMP)</summary>
 
-`install.sh` links skills into `~/.omp/agent`, copies portable OMP config, applies the status-line settings, and installs OMP packages. The delegation agent profiles are Pi-only. See [`harness/omp/README.md`](harness/omp/README.md) for the managed-file table and behavior.
+`install.sh` links skills into `~/.omp/agent`, copies portable OMP config, applies the status-line settings, and installs OMP packages. The agent profiles are Pi-only. See [`harness/omp/README.md`](harness/omp/README.md) for the managed-file table and behavior.
 
 </details>
 
@@ -147,18 +147,18 @@ Refactor's internal simplification method is vendored and adapted from
 | [`check-skill-name`](.agents/skills/check-skill-name/SKILL.md) | Check skill names for collisions and return CLEAR/CONFLICT/RISKY plus safe alternatives. |
 | [`pi-sync`](.agents/skills/pi-sync/SKILL.md) | Capture portable, non-secret pi config from a live `~/.pi/agent` into `harness/pi/` and commit it, without touching secrets. |
 | [`make-skill`](.agents/skills/make-skill/SKILL.md) | Plan and scaffold a convention-compliant repo skill, including name validation. |
-| [`make-agent`](.agents/skills/make-agent/SKILL.md) | Creates Pi delegation agent types from plan to scaffolded `agents/<name>.md` and catalog alignment. Use when adding a Pi agent type to this repository. |
+| [`make-agent`](.agents/skills/make-agent/SKILL.md) | Creates Pi agent types from plan to scaffolded `agents/<name>.md` and catalog alignment. Use when adding a Pi agent type to this repository. |
 
 ## Agents
 
-Pi-only delegation profiles for focused child work. `install.sh` copies them as regular files only into Pi, not Claude or OMP. The coordinator selects the exact provider-qualified model and thinking level on each `Agent` call. Profiles never pin either value and cannot spawn children. Pi runtime details are under [Pi agent types](harness/pi/README.md#pi-agent-types).
+Pi-only agent profiles for focused child work. `install.sh` copies them as regular files only into Pi, not Claude or OMP. The coordinator selects the exact provider-qualified model and thinking level on each `Agent` call. Profiles never pin either value and cannot spawn children. Pi runtime details are under [Pi agent types](harness/pi/README.md#pi-agent-types).
 
 | Agent | Description |
 | --- | --- |
-| [`delegation-scout`](agents/delegation-scout.md) | Read-only codebase reconnaissance. Delegate when focused implementation context is needed. |
-| [`delegation-researcher`](agents/delegation-researcher.md) | Focused web research. Delegate when sourced external evidence is needed. |
-| [`delegation-planner`](agents/delegation-planner.md) | Planning-artifact author. Delegate when requirements must become an actionable plan. |
-| [`delegation-worker`](agents/delegation-worker.md) | Narrow implementation agent. Delegate when an approved task needs one writer. |
-| [`delegation-reviewer`](agents/delegation-reviewer.md) | Read-only independent source reviewer. Delegate when a diff, plan, or implementation needs evidence-based review. |
+| [`scout`](agents/scout.md) | Read-only codebase reconnaissance. Use when focused implementation context is needed. |
+| [`researcher`](agents/researcher.md) | Focused web research. Use when sourced external evidence is needed. |
+| [`planner`](agents/planner.md) | Planning-artifact author. Use when requirements must become an actionable plan. |
+| [`worker`](agents/worker.md) | Narrow implementation agent. Use when an approved task needs one writer. |
+| [`reviewer`](agents/reviewer.md) | Read-only independent source reviewer. Use when a diff, plan, or implementation needs evidence-based review. |
 
-The strict dispatch patch requires non-null exact model/thinking for `delegation-*`, limits them to its routing-policy allowlist, and rejects unauthenticated, profile-pinned, or unsupported selections before spawn. Child fallback is disabled rather than allowed to widen the routing policy. See [`harness/pi/APPEND_SYSTEM.md`](harness/pi/APPEND_SYSTEM.md) for routing and provenance rules.
+The strict dispatch patch requires non-null exact model/thinking for the managed role profiles and rejects unauthenticated, profile-pinned, or unsupported selections before spawn. Child fallback is disabled rather than allowed to widen the routing policy. See [`harness/pi/APPEND_SYSTEM.md`](harness/pi/APPEND_SYSTEM.md) for routing and provenance rules.

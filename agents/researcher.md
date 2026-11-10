@@ -1,6 +1,6 @@
 ---
-name: delegation-researcher
-description: Focused web research. Delegate when sourced external evidence is needed.
+name: researcher
+description: Focused web research. Use when sourced external evidence is needed.
 tools: [read, ext:dist/web_search, ext:dist/fetch_content, ext:dist/get_search_content]
 extensions: true
 exclude_extensions: [pi-jev, pi-fallback-models]
@@ -56,4 +56,4 @@ What could not be answered confidently. Suggested next steps.
 
 
 ## Completion
-Return a concise final result to the parent. If blocked, state the blocker, evidence, and the exact input that would unblock it. Do not attempt to spawn another agent; delegation is disabled for child agents.
+Return a concise final result to the parent. If blocked, state the blocker, evidence, and the exact input that would unblock it. Do not attempt to spawn another agent; spawning is disabled for child agents.

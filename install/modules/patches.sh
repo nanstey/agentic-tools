@@ -86,12 +86,12 @@ install_jev_self_improve_thinking_patch() {
 
 # @tintinweb/pi-subagents@0.22.1 resolves models fuzzily and lets Pi clamp
 # thinking. The pinned patch requires non-null exact model/thinking for managed
-# delegation, checks its routing allowlist and authenticated availability, rejects
+# agents, checks authenticated availability, rejects
 # profile pins/unsupported thinking before spawn, and records requested/initial/final choices.
 install_tintinweb_subagents_strict_dispatch_patch() {
   local pkg="$1" version
   if [ ! -d "$pkg" ]; then
-    echo "  [patch-tintinweb-subagents-strict-dispatch] $pkg not installed; managed delegation remains disabled until pi installs and this patch applies" >&2
+    echo "  [patch-tintinweb-subagents-strict-dispatch] $pkg not installed; managed agents remain disabled until pi installs and this patch applies" >&2
     return 1
   fi
   if [ ! -f "$pkg/package.json" ] || ! command -v python3 >/dev/null 2>&1; then
