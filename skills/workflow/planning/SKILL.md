@@ -50,7 +50,7 @@ Stop and wait for answers. Run a second round only when an answer opens a new pr
 Resolve the plan location with the Plan Location rules, then write one file with these sections, in this order. Omit a section only when it has nothing to say.
 
 - **Outcome**: who benefits and what changes for them, in a few sentences.
-- **Acceptance**: observable checks written as behaviour (Given / When / Then, or a command and its expected result). This is the definition of done for the build and the review.
+- **Acceptance**: the definition of done for the build and the review. Number each item (A1, A2, ...). See Acceptance Criteria below.
 - **Decisions**: settled choices, each dated with its reason and the rejected alternative. Include the user's answers. Update a decision in place when it reverses, and note the reversal.
 - **Assumptions**: choices made without asking. The user can veto any of them.
 - **Evidence**: verified facts and probe results, each with a path or command.
@@ -63,7 +63,18 @@ State each fact once. Do not restate a decision in another section. Put shared c
 
 ### 5. Gate
 
-Check the plan: every Acceptance item is observable, every decision has a reason, no Open question blocks build, and nothing is stated twice. Stop and present the plan for review, or return it to an authorized caller. The reviewer checks decisions, acceptance, and risks, not wording.
+Check the plan: every Acceptance item meets the Acceptance Criteria rules, every decision has a reason, no Open question blocks build, and nothing is stated twice. Stop and present the plan for review, or return it to an authorized caller. The reviewer checks decisions, acceptance, and risks, not wording.
+
+## Acceptance Criteria
+
+Each item states one observable outcome that two reviewers would mark pass or fail the same way, without asking the author.
+
+- **Form**: one When and one Then (Given / When / Then, or "WHEN ... THE SYSTEM SHALL ..."), with a concrete input, output, or threshold. Use a number for "fast" or "robust". State the observable interface (output, response, file, state), not classes or algorithms, unless a structure is a real requirement.
+- **Check**: name the verification as an exact command and expected result, a test path, or an artifact. Mark it `code`, `judge`, or `human`. Prefer `code`. Use `judge` only for a single binary claim that cites evidence and may answer "unknown". Turn a UI or taste outcome into checkable proxies (a screenshot at a stated viewport, an accessibility assertion, a contrast ratio) and keep any remaining sign-off as a labelled `human` item.
+- **Coverage**: include a regression item (named behaviour and suites that must stay unchanged), and the failure, empty, or boundary case. State an invariant (round-trip, idempotence, ordering) where one exists. A new-behaviour check must fail before the change.
+- **Integrity**: acceptance tests and fixtures are read-only for the builder unless the plan says otherwise. The reviewer reruns the checks and adds at least one check the builder did not see. A report of "done" is not evidence.
+- **Size**: keep the list reviewable. Split must-pass from nice-to-have and cut any item that restates another.
+- **Unverifiable**: an item with no check becomes an Open question or is cut. Keep the global done checklist (build, lint, tests) in repository policy, not in each item.
 
 ## Plan Location
 
