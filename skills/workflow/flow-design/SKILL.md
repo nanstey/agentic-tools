@@ -11,7 +11,7 @@ disable-model-invocation: false
 
 Turn one task into a concrete execution plan expressed as responsibilities, dependencies, write isolation, validation gates, and return contracts. Let the active environment map that plan to its own agents, tools, models, and coordination mechanism.
 
-Design-only: never execute the plan, edit source, or dispatch work. Running `planning` to obtain a plan is allowed because it writes only plan artifacts. The caller (a user, `idea-to-pr`, or `build`) executes it. A validation-environment preflight is allowed because it verifies a proposed gate rather than executing the task.
+Design-only: never execute the plan, edit source, or dispatch work. The caller executes it. A validation-environment preflight is allowed because it verifies a proposed gate rather than executing the task.
 
 If delegation is unavailable or unnecessary, design an inline sequence instead. Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
@@ -21,7 +21,7 @@ If delegation is unavailable or unnecessary, design an inline sequence instead. 
 2. Validation tooling available (test command, linter, typecheck, E2E runner, how to boot the app).
 3. Approval points or delivery constraints.
 4. Whether the task writes to the repo, and whether independent writers are plausible.
-5. An approved plan folder or spec, when one exists.
+5. An approved plan file, when one exists.
 
 ## Design Rules
 
@@ -45,7 +45,7 @@ Use the simplest shape that preserves correctness:
 - Attach a deterministic validation command to every phase that produces code.
 - For runnable behaviour, include a runtime verification step that exercises the acceptance scenarios. Unit tests alone are insufficient.
 - State acceptance criteria and required evidence in each return contract.
-- With a spec checklist, implementation owns `## Implementation` items and QA/review owns `## Test Scenarios`.
+- Implementation and QA/review record distinct evidence for the plan's Acceptance items.
 - Keep concurrent writers out of a shared checkout.
 
 Track timing, cost, token use, or other resource data when the environment provides it. Add explicit limits only when the user requests them or the environment requires them.
@@ -53,7 +53,7 @@ Track timing, cost, token use, or other resource data when the environment provi
 ## Workflow
 
 1. Restate the task, acceptance criteria, and whether it writes to the repo.
-2. If the task has no approved plan folder or spec and its scope, slices, or acceptance criteria are not settled, run `planning` first and design the flow from its slice list and specs. Skip this when a plan exists or the task is small and fully specified. `planning` writes plan artifacts only and stops for user review, so wait for approval before designing the flow.
+2. If the task has no plan and its scope or acceptance criteria are not settled, return `blocked: needs a plan` with the missing decisions. Otherwise design the flow from the plan's **Approach** and **Acceptance**, or from the fully specified task.
 3. Choose the least-coordination execution shape.
 4. Assign responsibilities, dependencies, and write-isolation boundaries.
 5. Define validation gates, runtime checks, return contracts, and caller-requested approval points.

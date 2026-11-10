@@ -64,30 +64,15 @@ and runtime behavior.
 | [`new-repo`](skills/env/new-repo/SKILL.md) | Creates and configures a private GitHub repository for an existing local git project, including protected-main and squash-only policy. Use when a local repository needs a GitHub remote. |
 | [`orca-repo`](skills/env/orca-repo/SKILL.md) | Registers an existing local git repository with the Orca IDE and verifies it is tracked, optionally setting its base ref. Use when a local repository should appear in Orca. |
 
-### Planning
-
-`planning` sizes a change and composes the skills below; they stay usable on their own. Focused planning skills are optional and independently selectable; `proposal` and `speclist` remain separate planning paths. `plan-init` groups a change's artifacts into one plan folder with a README index that later skills and `build` share.
-
-| Skill | Description |
-| --- | --- |
-| [`plan-dir`](skills/planning/plan-dir/SKILL.md) | Resolves the base directory where a repository keeps plans, proposals, and design docs, by investigating the repo rather than assuming a path. Use when a planning skill must decide where to write or find plan folders. |
-| [`plan-init`](skills/planning/plan-init/SKILL.md) | Creates a plan folder with a README index so a change's planning artifacts and per-slice specs live together and stay linked. Use when starting planning that will produce multiple related documents or feed a build. |
-| [`proposal`](skills/planning/proposal/SKILL.md) | Runs discovery and uncertainty resolution for a change, then writes one self-contained plan document covering purpose, behaviour, validation, architecture, and phased vertical slices. Use for a small or trivial change simple enough to plan in a single document rather than decomposed focused artifacts. |
-| [`speclist`](skills/planning/speclist/SKILL.md) | Convert reports into ordered implementation checklists with blockers and validation steps. |
-| [`product-review`](skills/planning/product-review/SKILL.md) | Turns a product request into a concise user-centred review with outcomes, success signals, and scope. Use when an agent misunderstanding the product intent would be expensive. |
-| [`system-architecture`](skills/planning/system-architecture/SKILL.md) | Produces a bounded system architecture artifact covering boundaries, contracts, and data flow. Use when a change crosses components or carries consequential technical design choices. |
-| [`program-design`](skills/planning/program-design/SKILL.md) | Produces a concise code-shape design with call paths, file placement, and key interfaces. Use when an implementation could go wrong despite a settled architecture or local requirement. |
-| [`vertical-slices`](skills/planning/vertical-slices/SKILL.md) | Breaks a change into small observable implementation increments with verification checkpoints. Use when a plan risks becoming a large horizontal batch of layer-by-layer work. |
-
 ### Workflow
 
 | Skill | Description |
 | --- | --- |
-| [`idea-to-pr`](skills/workflow/idea-to-pr/SKILL.md) | Takes an idea from evidence-backed discovery through built, tested, and validated pull requests. Use when a feature idea or change request should be driven end-to-end to review-ready PRs. |
+| [`idea-to-pr`](skills/workflow/idea-to-pr/SKILL.md) | Takes an idea from evidence-backed discovery through a built, tested, and validated pull request. Use when a feature idea or change request should be driven end-to-end to a review-ready PR. |
 | [`flow-design`](skills/workflow/flow-design/SKILL.md) | Designs a platform-neutral delegation plan with roles, gates, and return contracts. Use when a task needs coordinated execution designed before work begins. |
-| [`build`](skills/workflow/build/SKILL.md) | Implements scoped changes from context, plans, or speclists through verifiable phases with up-front success criteria and per-phase validation. Use when execution should start from existing requirements. |
+| [`build`](skills/workflow/build/SKILL.md) | Implements scoped changes from a plan file, context, or inline plan in one pass, then validates against the acceptance items. Use when execution should start from existing requirements. |
 | [`review-code`](skills/workflow/review-code/SKILL.md) | Produces one source-verified review packet with optional fix planning or working-tree remediation. Use when a changeset needs coordinated quality, refactor, and security review. |
-| [`planning`](skills/workflow/planning/SKILL.md) | Plans a change end-to-end by sizing it and composing the focused planning skills it needs into one plan folder, from a single proposal up to the full product, architecture, design, slice, and spec chain. Use when a change needs a plan and the right depth of planning is not yet decided. |
+| [`planning`](skills/workflow/planning/SKILL.md) | Plans a change as one short document. Runs discovery, asks the user the product decisions it cannot settle in one batch, then writes decisions, acceptance criteria, approach, and risks. Use when a change needs a plan before building, from a small feature to a cross-component effort. |
 | [`egm`](skills/workflow/egm/SKILL.md) | Produces and independently stress-tests planning artifacts through context-rich drafting, fresh-context review, and human decisions. Use when a change needs a concept brief, design document, design review, documentation hierarchy, or specification drift check. |
 
 ### Agent
