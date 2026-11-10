@@ -1,0 +1,292 @@
+--- a/src/index.ts
++++ b/src/index.ts
+@@ -10,7 +10,8 @@
+  *   /agents                 — Interactive agent management menu
+  */
+ 
+-import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
++import { existsSync, mkdirSync, readFileSync, realpathSync, unlinkSync, writeFileSync } from "node:fs";
++import { getSupportedThinkingLevels } from "@earendil-works/pi-ai";
+ import { isAbsolute, join } from "node:path";
+ import { defineTool, type ExtensionAPI, type ExtensionCommandContext, type ExtensionContext, getAgentDir, getSettingsListTheme } from "@earendil-works/pi-coding-agent";
+ import { Container, isKeyRelease, Key, matchesKey, type ScrollViewScrollbar, type SettingItem, SettingsList, Spacer, Text } from "@earendil-works/pi-tui";
+@@ -86,6 +87,131 @@
+   return { content: [{ type: "text" as const, text: msg }], details: details as any };
+ }
+ 
++/** Role-only profiles that the managed routing policy governs. */
++const MANAGED_AGENT_TYPES = new Set([
++  "scout",
++  "researcher",
++  "planner",
++  "worker",
++  "reviewer",
++]);
++
++/** Settings that local projects may not weaken for managed agents. */
++const MANAGED_SECURITY_SETTINGS: Record<string, unknown> = {
++  fallbackSubagent: false,
++  scopeModels: false,
++  widgetMode: "off",
++  fleetView: false,
++  agentMentions: "off",
++  workflowsEnabled: false,
++  schedulingEnabled: false,
++  disableDefaultAgents: true,
++  packageAgents: false,
++  packageWorkflows: false,
++  worktreeIsolation: false,
++  maxSubagentDepth: 1,
++  rememberAgents: false,
++};
++
++function isManagedAgentType(type: string): boolean {
++  return MANAGED_AGENT_TYPES.has(type);
++}
++
++function freshSpawnTypeError(type: string, resume: unknown): string | undefined {
++  if (resume || isManagedAgentType(type)) return undefined;
++  return `Only managed role profiles (scout, researcher, planner, worker, reviewer) may spawn agents; refused "${type}".`;
++}
++
++function managedProjectSettingsError(cwd: string): string | undefined {
++  const path = join(cwd, ".pi", "subagents.json");
++  if (!existsSync(path)) return undefined;
++  let projectSettings: unknown;
++  try {
++    projectSettings = JSON.parse(readFileSync(path, "utf8"));
++  } catch {
++    return `Cannot verify project subagent settings at ${path}; refusing managed agent dispatch.`;
++  }
++  if (!projectSettings || typeof projectSettings !== "object" || Array.isArray(projectSettings)) {
++    return `Project subagent settings at ${path} must be an object.`;
++  }
++  for (const [key, value] of Object.entries(MANAGED_SECURITY_SETTINGS)) {
++    if (Object.hasOwn(projectSettings, key) && JSON.stringify((projectSettings as Record<string, unknown>)[key]) !== JSON.stringify(value)) {
++      return `Project subagents.json conflicts with the global managed setting "${key}".`;
++    }
++  }
++  return undefined;
++}
++
++function isManagedGlobalProfile(type: string, config: AgentConfig | undefined): boolean {
++  if (config?.source !== "global" || !config.sourcePath) return false;
++  const expected = join(getAgentDir(), "agents", `${type}.md`);
++  try {
++    return existsSync(expected) && realpathSync(config.sourcePath) === realpathSync(expected);
++  } catch {
++    return false;
++  }
++}
++
++function managedAgentPolicyError(
++  type: string,
++  params: { model?: unknown; thinking?: unknown },
++  config: AgentConfig | undefined,
++  cwd: string,
++): string | undefined {
++  if (params.model == null || params.thinking == null) {
++    return `Managed agent type "${type}" requires explicit model and thinking.`;
++  }
++  if (!isManagedGlobalProfile(type, config)) {
++    return `Managed agent type "${type}" must originate from the global managed agents directory.`;
++  }
++  if (config?.model != null) return `Managed agent type "${type}" must not pin a model.`;
++  if (config?.thinking != null) return `Managed agent type "${type}" must not pin thinking.`;
++  return managedProjectSettingsError(cwd);
++}
++
++/** Resolve a caller-selected model without aliases or unauthenticated fallbacks. */
++function resolveExactAvailableModel(input: unknown, registry: ModelRegistry): { model?: any; error?: string } {
++  if (typeof input !== "string" || !/^[^/\s]+\/[^/\s]+$/.test(input)) {
++    return { error: `Model must be an exact provider/modelId: "${String(input)}".` };
++  }
++  const getAvailable = registry.getAvailable;
++  if (typeof getAvailable !== "function") {
++    return { error: "Cannot verify model availability; refusing agent dispatch." };
++  }
++  const [provider, id] = input.split("/");
++  const available = getAvailable.call(registry) as Array<{ provider: string; id: string }>;
++  if (!available.some((candidate) => candidate.provider === provider && candidate.id === id)) {
++    return { error: `Model is unavailable or unauthenticated: "${input}".` };
++  }
++  const model = registry.find(provider, id);
++  return model ? { model } : { error: `Model is unavailable or unauthenticated: "${input}".` };
++}
++
++function managedThinkingError(model: any, thinking: unknown): string | undefined {
++  if (typeof thinking !== "string" || !model || !getSupportedThinkingLevels(model).includes(thinking as any)) {
++    return `Thinking level "${String(thinking)}" is not supported by "${model ? `${model.provider}/${model.id}` : "the selected model"}".`;
++  }
++  return undefined;
++}
++
++/** Requested, pre-spawn, and effective-at-start selections for coordination evidence. */
++function modelProvenance(invocation: AgentInvocation | undefined) {
++  if (!invocation) return undefined;
++  const selection = (model: string | undefined, thinking: string | undefined) =>
++    model === undefined && thinking === undefined ? undefined : {
++      ...(model !== undefined ? { model } : {}),
++      ...(thinking !== undefined ? { thinking } : {}),
++    };
++  const effectiveAtStart = selection(invocation.modelId, invocation.thinking);
++  return {
++    requested: selection(invocation.requestedModel, invocation.requestedThinking),
++    initial: selection(invocation.initialModelId, invocation.initialThinking),
++    // agent-manager updates this when the session starts. Completion does not
++    // prove it remained unchanged for every later request.
++    final: effectiveAtStart && { ...effectiveAtStart, evidence: "effective-at-start" },
++  };
++}
++
+ export function renderRunningAgentStatus(
+   frame: string,
+   statsText: string,
+@@ -566,6 +692,7 @@
+       durationMs,
+       tokens,
+       usage,
++      provenance: modelProvenance(record.invocation),
+     };
+   }
+ 
+@@ -591,6 +718,7 @@
+       id: record.id, type: record.type, description: record.description,
+       status: record.status, result: record.result, error: record.error,
+       startedAt: record.startedAt, completedAt: record.completedAt,
++      provenance: modelProvenance(record.invocation),
+     });
+ 
+     // Skip notification if result was already consumed via get_subagent_result
+@@ -673,9 +801,8 @@
+       description: record.description,
+       ...(invocation?.modelId !== undefined ? { model: invocation.modelId } : {}),
+       ...(invocation?.thinking !== undefined ? { thinking: invocation.thinking } : {}),
+-      // Set only when the caller did not get the level it asked for (pi
+-      // clamped it to the model, or an agent file outranked it), so a ledger
+-      // can show `low (asked minimal)` instead of silently relabelling.
++      // Literal caller input, when supplied. Keep it even if an ordinary agent
++      // profile later outranks the request, so usage can distinguish intent.
+       ...(invocation?.requestedThinking !== undefined ? { requestedThinking: invocation.requestedThinking } : {}),
+       depth: record.depth ?? 1,
+       ...(record.parentAgentId !== undefined ? { parentAgentId: record.parentAgentId } : {}),
+@@ -1974,17 +2101,32 @@
+ 
+       const displayName = getDisplayName(subagentType);
+ 
++      // Resuming replays a stored session and deliberately retains upstream
++      // semantics. Fresh spawns are only allowed through managed profiles.
++      const typeError = freshSpawnTypeError(subagentType, params.resume);
++      if (typeError) return textResult(typeError);
++
+       // Get agent config (if any)
+       const customConfig = getAgentConfig(subagentType);
++      const managedAgent = !params.resume && isManagedAgentType(subagentType);
++      if (managedAgent) {
++        const policyError = managedAgentPolicyError(subagentType, params, customConfig, ctx.cwd);
++        if (policyError) return textResult(policyError);
++      }
+ 
+       const resolvedConfig = resolveAgentInvocationConfig(customConfig, params, {
+         worktreeAllowed: isWorktreeIsolationEnabled(),
+         defaultRunInBackground: getBackgroundByDefault(),
+       });
+ 
+-      // Resolve model from agent config first; tool-call params only fill gaps.
++      // Managed calls reject aliases and unavailable models before spawn. Other
++      // agent types retain the package's existing tolerant frontmatter behavior.
+       let model = ctx.model;
+-      if (resolvedConfig.modelInput) {
++      if (managedAgent) {
++        const exact = resolveExactAvailableModel(params.model, ctx.modelRegistry);
++        if (exact.error) return textResult(exact.error);
++        model = exact.model;
++      } else if (resolvedConfig.modelInput) {
+         const resolved = resolveModel(resolvedConfig.modelInput, ctx.modelRegistry);
+         if (typeof resolved === "string") {
+           if (resolvedConfig.modelFromParams) return textResult(resolved);
+@@ -2009,6 +2151,10 @@
+       if (scopeVerdict.kind === "warn") ctx.ui.notify(scopeVerdict.message, "warning");
+ 
+       const thinking = resolvedConfig.thinking;
++      if (managedAgent) {
++        const thinkingError = managedThinkingError(model, params.thinking);
++        if (thinkingError) return textResult(thinkingError);
++      }
+       const inheritContext = resolvedConfig.inheritContext;
+       const runInBackground = resolvedConfig.runInBackground;
+       const isolated = resolvedConfig.isolated;
+@@ -2031,26 +2177,17 @@
+       // This is the pre-session snapshot — agent-manager overwrites it with the
+       // effective values the moment a session reports them.
+       const { modelName, modelId } = model ? describeModel(model) : { modelName: undefined, modelId: undefined };
+-      // What the caller SPELLED, kept only if it names a different model than the
+-      // one that won. Model input is fuzzy — `"haiku"` and
+-      // `"anthropic/claude-haiku-4-5"` are the same model — so comparing the two
+-      // strings would disclose an override that never happened. A spelling that
+-      // resolves to nothing is still worth disclosing: it cannot have taken effect.
+-      const askedModel = ((asked: string | undefined) => {
+-        if (!asked) return undefined;
+-        const resolvedAsked = resolveModel(asked, ctx.modelRegistry);
+-        if (typeof resolvedAsked === "string") return asked;
+-        return resolvedAsked.provider === model?.provider && resolvedAsked.id === model?.id ? undefined : asked;
+-      })(resolvedConfig.overridden?.model);
+       const effectiveMaxTurns = normalizeMaxTurns(resolvedConfig.maxTurns ?? getDefaultMaxTurns());
+       const agentInvocation: AgentInvocation = {
+         modelName,
+         modelId,
+         thinking,
+-        // Only set where the agent file outranked the caller, so the surfaces can
+-        // disclose a parameter that was accepted but could not take effect (#182).
+-        requestedThinking: resolvedConfig.overridden?.thinking,
+-        requestedModel: askedModel,
++        // Preserve every explicit request, even where an ordinary agent profile
++        // outranks it, so result provenance distinguishes intent from selection.
++        requestedThinking: params.thinking != null ? params.thinking as any : undefined,
++        requestedModel: params.model != null ? params.model as string : undefined,
++        initialModelId: modelId,
++        initialThinking: thinking,
+         // Explicit value only — the default fallback would just add noise.
+         // Normalize so `0` (unlimited) doesn't surface as a misleading "max turns: 0".
+         maxTurns: normalizeMaxTurns(resolvedConfig.maxTurns),
+@@ -3017,10 +3154,14 @@
+       if (record.compactionCount) statsParts.push(`Compactions: ${record.compactionCount}`);
+       statsParts.push(`Duration: ${duration}`);
+ 
++      const provenance = modelProvenance(record.invocation);
++      const formatSelection = (selection: { model?: string; thinking?: string } | undefined) =>
++        selection ? [selection.model, selection.thinking && `thinking: ${selection.thinking}`].filter(Boolean).join(" | ") : "none";
+       let output =
+         `Agent: ${record.id}\n` +
+         `Type: ${displayName} | Status: ${record.status}${getStatusNote(record.status)} | ${statsParts.join(" | ")}\n` +
+-        `Description: ${record.description}\n\n`;
++        `Description: ${record.description}\n` +
++        `Model provenance: requested=${formatSelection(provenance?.requested)}; initial=${formatSelection(provenance?.initial)}; final/effective-at-start=${formatSelection(provenance?.final)}\n\n`;
+ 
+       if (record.status === "running") {
+         output += "Agent is still running. Use wait: true or check back later.";
+--- a/src/types.ts
++++ b/src/types.ts
+@@ -309,16 +309,14 @@
+   modelId?: string;
+   /** The level actually in effect, once a session exists to report one. */
+   thinking?: EffectiveThinkingLevel;
+-  /**
+-   * What the caller asked for, kept only when they did not get it — pi clamped
+-   * the level to the model's capabilities, or an agent file's frontmatter
+-   * outranked the parameter (#182). The snapshot exists to answer "did the spawn
+-   * honor my instructions?" (#62), which it cannot do if the request is lost, so
+-   * neither `requested*` field is overwritten once set.
+-   */
++  /** Literal explicit caller input, retained even when a profile outranks it. */
+   requestedThinking?: EffectiveThinkingLevel;
+-  /** The caller's `model` parameter, as written, when an agent file's pin won. */
++  /** The caller's explicit `model` parameter, as written. */
+   requestedModel?: string;
++  /** Model selected immediately before session creation. */
++  initialModelId?: string;
++  /** Thinking selected immediately before session creation. */
++  initialThinking?: EffectiveThinkingLevel;
+   maxTurns?: number;
+   isolated?: boolean;
+   inheritContext?: boolean;

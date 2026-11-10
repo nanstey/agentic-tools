@@ -72,6 +72,37 @@ remove_retired_delegation_state() {
   fi
 }
 
+# Remove the Lite implementation. The candidate package uses a different extension
+# name, so leaving Lite in Pi's npm manifest could register duplicate Agent tools
+# on a later package refresh.
+remove_retired_lite_subagents_state() {
+  local agent_dir="$1" npm_dir package_name package_dir removed=0
+  : "${agent_dir:?}"
+  npm_dir="$agent_dir/npm"
+  package_name="pi-subagents-lite"
+  package_dir="$npm_dir/node_modules/$package_name"
+  if [ -f "$npm_dir/package.json" ] && grep -qF "\"$package_name\"" "$npm_dir/package.json"; then
+    if ! command -v pnpm >/dev/null 2>&1; then
+      echo "  [retired-lite-subagents] pnpm not found; cannot remove stale direct dependency" >&2
+      return 1
+    fi
+    if ! pnpm --dir "$npm_dir" remove "$package_name"; then
+      echo "  [retired-lite-subagents] failed to remove stale direct dependency" >&2
+      return 1
+    fi
+    removed=$((removed + 1))
+  fi
+  if [ -e "$package_dir" ] || [ -L "$package_dir" ]; then
+    rm -rf "$package_dir"
+    removed=$((removed + 1))
+  fi
+  if [ "$removed" -eq 0 ]; then
+    echo "  [retired-lite-subagents] -> $agent_dir (ok)"
+  else
+    echo "  [retired-lite-subagents] -> $agent_dir ($removed removed)"
+  fi
+}
+
 # Expose the Pi CLIs to ordinary shells: $PI_AGENT_DIR/bin is only on PATH inside Pi.
 install_pi_cli_links() {
   local cli

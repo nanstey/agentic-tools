@@ -7,11 +7,11 @@ Guidance for AI agents working **on** this repository.
 This repo stores reusable **agentic tools** and portable harness configuration:
 
 - **Skills**: one `SKILL.md` per directory under `skills/` (portable).
-- **Pi Lite agent types** under `agents/`.
+- **Pi agent profiles** under `agents/`.
 - **Harness configuration**: portable files under `harness/<harness>/`.
 
-Skills are installed by **symlink**. Pi Lite agent types are copied as regular
-profile files so Lite discovers them without patching installed packages. Harness
+Skills are installed by **symlink**. Pi agent profiles are copied as regular
+profile files so the subagent extension discovers them without patching installed packages. Harness
 configuration is copied into each harness's runtime directory. `README.md` is
 the catalog; `install.sh` performs the installation.
 
@@ -33,7 +33,7 @@ Scope by location:
 
 ```
 .agents/skills/<skill-name>/SKILL.md      # repo-local authoring skill
-agents/[<group>/]<agent-name>.md          # Lite agent types
+agents/[<group>/]<agent-name>.md          # Pi agent profiles
 skills/<category>/<skill-name>/SKILL.md   # global skill
 harness/pi/settings.json                   # portable pi configuration
 harness/omp/APPEND_SYSTEM.md               # portable omp system-prompt addition

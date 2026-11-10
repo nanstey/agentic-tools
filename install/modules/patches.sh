@@ -84,35 +84,33 @@ install_jev_self_improve_thinking_patch() {
   apply_package_patch "$1" patch-jev-self-improve-thinking "$REPO_ROOT/harness/pi/patches/pi-jev-self-improve-thinking.patch" extensions/index.ts
 }
 
-# Pi profiles are now copied as regular files, so this former discovery patch is
-# obsolete. Reverse it once on existing installs; a pristine or changed upstream
-# source is safe to leave untouched because agent discovery no longer relies on it.
-retire_subagents_lite_symlink_patch() {
-  remove_package_patch "$1" retire-subagents-lite-symlink-patch "$REPO_ROOT/harness/pi/patches/pi-subagents-lite-symlink-discovery.patch" src/agents/agent-discovery.ts
-}
-
-# Reverse a retired patch when present. Unlike apply_package_patch, an unknown
-# upstream source is non-fatal because the retired behavior is no longer needed.
-remove_package_patch() {
-  local pkg="$1" label="$2" patch_file="$3" entry="$4"
-  if [ ! -f "$pkg/$entry" ]; then
-    echo "  [$label] $pkg not installed yet, skipping (re-run install.sh after pi installs packages)"; return 0
+# @tintinweb/pi-subagents@0.22.1 resolves models fuzzily and lets Pi clamp
+# thinking. The pinned patch requires non-null exact model/thinking for managed
+# agents, checks authenticated availability, rejects
+# profile pins/unsupported thinking before spawn, and records requested/initial/final choices.
+install_tintinweb_subagents_strict_dispatch_patch() {
+  local pkg="$1" version
+  if [ ! -d "$pkg" ]; then
+    echo "  [patch-tintinweb-subagents-strict-dispatch] $pkg not installed; managed agents remain disabled until pi installs and this patch applies" >&2
+    return 1
   fi
-  if ! command -v patch >/dev/null 2>&1; then
-    echo "  [$label] patch not found; legacy patch was not removed" >&2; return 1
+  if [ ! -f "$pkg/package.json" ] || ! command -v python3 >/dev/null 2>&1; then
+    echo "  [patch-tintinweb-subagents-strict-dispatch] $pkg cannot verify pinned package version" >&2
+    return 1
   fi
-  if patch -R -p1 -s -f --dry-run -d "$pkg" <"$patch_file" >/dev/null 2>&1; then
-    if patch -R -p1 -s -f -d "$pkg" <"$patch_file" >/dev/null 2>&1; then
-      echo "  [$label] -> $pkg (removed)"
-    else
-      echo "  [$label] failed to remove legacy patch" >&2
-      return 1
-    fi
-  elif patch -p1 -s -f --dry-run -d "$pkg" <"$patch_file" >/dev/null 2>&1; then
-    echo "  [$label] -> $pkg (ok)"
-  else
-    echo "  [$label] -> $pkg (not applicable; left unchanged)"
+  version="$(python3 - "$pkg/package.json" <<'PY'
+import json, sys
+try:
+    print(json.load(open(sys.argv[1])).get("version", ""))
+except Exception:
+    pass
+PY
+)"
+  if [ "$version" != "0.22.1" ]; then
+    echo "  [patch-tintinweb-subagents-strict-dispatch] $pkg is version ${version:-unknown}, expected 0.22.1" >&2
+    return 1
   fi
+  apply_package_patch_exact "$pkg" patch-tintinweb-subagents-strict-dispatch "$REPO_ROOT/harness/pi/patches/pi-subagents-strict-dispatch-0.22.1.patch" src/index.ts
 }
 
 apply_package_patch() {
@@ -129,6 +127,28 @@ apply_package_patch() {
   # Dry-run first: a multi-hunk patch can otherwise fail halfway and leave the package half-patched.
   if patch -p1 -s -f --dry-run -d "$pkg" <"$patch_file" >/dev/null 2>&1 \
     && patch -p1 -s -f -d "$pkg" <"$patch_file" >/dev/null 2>&1; then
+    echo "  [$label] -> $pkg (patched)"
+  else
+    echo "  [$label] upstream code changed; $pkg NOT patched. Update $patch_file or drop it if upstream fixed this." >&2
+    return 1
+  fi
+}
+
+# Candidate policy patches must not apply with fuzzy context: strict dispatch is
+# a security boundary, so a nearby upstream block is not an acceptable match.
+apply_package_patch_exact() {
+  local pkg="$1" label="$2" patch_file="$3" entry="$4"
+  if [ ! -f "$pkg/$entry" ]; then
+    echo "  [$label] $pkg not installed yet, skipping (re-run install.sh after pi installs packages)"; return 0
+  fi
+  if ! command -v patch >/dev/null 2>&1; then
+    echo "  [$label] patch not found; $pkg NOT patched" >&2; return 1
+  fi
+  if patch -R -p1 -s -f --fuzz=0 --dry-run -d "$pkg" <"$patch_file" >/dev/null 2>&1; then
+    echo "  [$label] -> $pkg (ok)"; return 0
+  fi
+  if patch -p1 -s -f --fuzz=0 --dry-run -d "$pkg" <"$patch_file" >/dev/null 2>&1 \
+    && patch -p1 -s -f --fuzz=0 -d "$pkg" <"$patch_file" >/dev/null 2>&1; then
     echo "  [$label] -> $pkg (patched)"
   else
     echo "  [$label] upstream code changed; $pkg NOT patched. Update $patch_file or drop it if upstream fixed this." >&2

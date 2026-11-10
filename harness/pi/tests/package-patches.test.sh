@@ -8,6 +8,7 @@ trap 'rm -rf "$SB"' EXIT
 # Load definitions only, without running the installer or reading local secrets.
 source "$REPO/install/modules/patches.sh"
 source "$REPO/install/modules/pi.sh"
+source "$REPO/harness/pi/tests/lib/pristine-subagents.sh"
 pkg="$SB/package"
 mkdir -p "$pkg/src"
 printf 'first\nsecond\n' > "$pkg/src/test.ts"
@@ -33,97 +34,121 @@ fi
 cmp "$pkg/src/test.ts" "$SB/before"
 echo 'ok: failed multi-hunk dry run leaves file untouched'
 
-# pi-subagents-lite@1.17.1 discovers only regular .md directory entries. Keep
-# its source pristine, then run its exact readdir/isFile filter against the
-# profiles installed into a sandboxed Pi agent directory below.
-subagents_fixture="$SB/subagents-agent-discovery.pristine.ts"
-cat > "$subagents_fixture" <<'TS'
-import * as fs from "node:fs";
-import * as path from "node:path";
-
-type AgentConfigFromMd = { name: string; source: string };
-
-function parseAgentFile(content, source): AgentConfigFromMd {
-  return { name: content.trim(), source };
-}
-
-export async function scanAgentFilesInDir(dirPath, source = "user") {
-  try {
-    await fs.promises.access(dirPath);
-  } catch {
-    return [];
-  }
-
-  const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
-  const mdFiles = entries.filter((e) => e.isFile() && e.name.endsWith(".md"));
-
-  const agents: AgentConfigFromMd[] = [];
-  for (const entry of mdFiles) {
-    const filePath = path.join(dirPath, entry.name);
-    try {
-      const content = await fs.promises.readFile(filePath, "utf-8");
-      const info = parseAgentFile(content, source);
-      if (info.name) {
-        agents.push(info);
-      }
-    } catch {
-      // Skip files that can't be read
-    }
-  }
-  return agents;
-}
-TS
-python3 - "$subagents_fixture" "$SB/subagents-agent-discovery.mjs" <<'PY'
-import sys
-source = open(sys.argv[1]).read()
-source = source.replace('type AgentConfigFromMd = { name: string; source: string };\n\n', '')
-source = source.replace('function parseAgentFile(content, source): AgentConfigFromMd', 'function parseAgentFile(content, source)')
-source = source.replace('const agents: AgentConfigFromMd[] = [];', 'const agents = [];')
-open(sys.argv[2], 'w').write(source)
+# Strict candidate patch is exact, version-pinned, idempotent, and rejects drift.
+candidate_fixture="$(pristine_subagents_dir)"
+candidate="$SB/candidate"
+cp -R "$candidate_fixture" "$candidate"
+REPO_ROOT="$REPO" install_tintinweb_subagents_strict_dispatch_patch "$candidate" | grep -q '(patched)'
+REPO_ROOT="$REPO" install_tintinweb_subagents_strict_dispatch_patch "$candidate" | grep -q '(ok)'
+cp -R "$candidate_fixture" "$SB/candidate-wrong-version"
+python3 - "$SB/candidate-wrong-version/package.json" <<'PY'
+import json, sys
+p = sys.argv[1]
+data = json.load(open(p)); data["version"] = "0.22.2"
+open(p, "w").write(json.dumps(data))
 PY
-check_legacy_pi_agent_symlinks_hidden() {
-  node - "$1" "$SB/subagents-agent-discovery.mjs" <<'JS'
-const assert = require("node:assert/strict");
-const { pathToFileURL } = require("node:url");
-(async () => {
-  const [installedDir, modulePath] = process.argv.slice(2);
-  const { scanAgentFilesInDir } = await import(pathToFileURL(modulePath).href);
-  assert.deepEqual((await scanAgentFilesInDir(installedDir)).map((agent) => agent.name), ["retired"]);
-})().catch((error) => { console.error(error); process.exitCode = 1; });
-JS
-}
-check_installed_pi_agents() {
-  node - "$1" "$2" "$SB/subagents-agent-discovery.mjs" <<'JS'
+if REPO_ROOT="$REPO" install_tintinweb_subagents_strict_dispatch_patch "$SB/candidate-wrong-version" >"$SB/result" 2>&1; then
+  echo 'FAIL: candidate wrong version accepted' >&2; exit 1
+fi
+grep -q 'expected 0.22.1' "$SB/result"
+# Context drift that a permissive applicator could relocate must still fail: this
+# policy patch only applies at its exact upstream context.
+cp -R "$candidate_fixture" "$SB/candidate-near-context-drift"
+python3 - "$SB/candidate-near-context-drift/src/index.ts" <<'PY'
+import sys
+path = sys.argv[1]
+source = open(path).read()
+old = 'import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";'
+assert old in source
+open(path, "w").write(source.replace(old, old + ' // near-context drift'))
+PY
+cp "$SB/candidate-near-context-drift/src/index.ts" "$SB/before-near-context-drift"
+if REPO_ROOT="$REPO" install_tintinweb_subagents_strict_dispatch_patch "$SB/candidate-near-context-drift" >"$SB/result" 2>&1; then
+  echo 'FAIL: strict candidate patch accepted near-context drift' >&2; exit 1
+fi
+cmp "$SB/candidate-near-context-drift/src/index.ts" "$SB/before-near-context-drift"
+grep -q 'upstream code changed' "$SB/result"
+echo 'ok: strict candidate patch is version-pinned, idempotent, and rejects drift with --fuzz=0'
+
+# Evaluate exact-model resolution against a patched fixture. This exercises the
+# fail-closed availability path rather than merely checking patch text.
+node - "$candidate/src/index.ts" "$candidate/src/types.ts" <<'JS'
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
-const path = require("node:path");
-const { pathToFileURL } = require("node:url");
-(async () => {
-  const [installedDir, sourceDir, modulePath] = process.argv.slice(2);
-  const { scanAgentFilesInDir } = await import(pathToFileURL(modulePath).href);
-  const sourceEntries = await fs.promises.readdir(sourceDir, { withFileTypes: true });
-  const expected = sourceEntries
-    .filter((entry) => entry.isFile() && entry.name.endsWith(".md"))
-    .map((entry) => entry.name)
-    .sort();
-  const discovered = await scanAgentFilesInDir(installedDir);
-  assert.equal(discovered.length, expected.length, "Lite's exact isFile scan discovers every profile");
-  for (const name of expected) {
-    const installed = path.join(installedDir, name);
-    assert((await fs.promises.lstat(installed)).isFile(), `${name} is a regular file`);
-    assert.deepEqual(await fs.promises.readFile(installed), await fs.promises.readFile(path.join(sourceDir, name)));
-  }
-  await assert.rejects(fs.promises.lstat(path.join(installedDir, "retired-agent.md")), { code: "ENOENT" });
-  await assert.rejects(fs.promises.lstat(path.join(installedDir, "retired-link.md")), { code: "ENOENT" });
-  assert((await fs.promises.lstat(path.join(installedDir, "user-link.md"))).isSymbolicLink(), "user-owned dangling link preserved");
-})().catch((error) => { console.error(error); process.exitCode = 1; });
+const vm = require("node:vm");
+const { stripTypeScriptTypes } = require("node:module");
+const source = fs.readFileSync(process.argv[2], "utf8");
+// Parse complete patched fixture targets before extracting the behavior seam.
+stripTypeScriptTypes(source, { mode: "transform" });
+stripTypeScriptTypes(fs.readFileSync(process.argv[3], "utf8"), { mode: "transform" });
+const start = source.indexOf("function resolveExactAvailableModel");
+const end = source.indexOf("\n\n/** Requested, pre-spawn", start);
+assert(start >= 0 && end > start, "strict resolver exists");
+const fn = stripTypeScriptTypes(source.slice(start, end), { mode: "transform" });
+const resolve = vm.runInNewContext(`${fn}\nresolveExactAvailableModel`);
+assert.match(resolve("haiku", { getAvailable: () => [], find: () => undefined }).error, /exact provider/);
+assert.match(resolve("anthropic/claude-haiku-5-5", { find: () => undefined }).error, /Cannot verify model availability/);
+const model = { provider: "anthropic", id: "claude-haiku-5-5" };
+assert.equal(resolve("anthropic/claude-haiku-5-5", { getAvailable: () => [model], find: () => model }).model, model);
+assert.match(resolve("anthropic/CLAUDE-haiku-5-5", { getAvailable: () => [model], find: () => model }).error, /unavailable/);
+console.log("ok: strict candidate resolver requires exact authenticated models and fails closed");
 JS
-}
+for required in 'params.model == null || params.thinking == null' 'must not pin a model' 'MANAGED_AGENT_TYPES' 'getSupportedThinkingLevels' 'Only managed role profiles (scout, researcher, planner, worker, reviewer) may spawn agents'; do
+  grep -qF "$required" "$candidate/src/index.ts" || { echo "FAIL: strict candidate behavior missing $required" >&2; exit 1; }
+done
+
+# Exercise the policy seams against hostile local overrides without importing Pi.
+node - "$candidate/src/index.ts" <<'JS'
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const vm = require("node:vm");
+const { stripTypeScriptTypes } = require("node:module");
+const source = fs.readFileSync(process.argv[2], "utf8");
+const start = source.indexOf("/** Role-only profiles that the managed routing policy governs. */");
+const end = source.indexOf("\n\nexport function renderRunningAgentStatus", start);
+assert(start >= 0 && end > start, "strict policy helpers exist");
+const helpers = stripTypeScriptTypes(source.slice(start, end), { mode: "transform" });
+const files = new Set(["/global/agents/worker.md"]);
+const contents = new Map();
+const policy = vm.runInNewContext(`${helpers}\n({ isManagedAgentType, freshSpawnTypeError, managedAgentPolicyError, managedThinkingError, modelProvenance })`, {
+  existsSync: (path) => files.has(path) || contents.has(path),
+  readFileSync: (path) => contents.get(path),
+  realpathSync: (path) => path,
+  join: (...parts) => parts.join("/"),
+  getAgentDir: () => "/global",
+  getSupportedThinkingLevels: () => ["low", "medium"],
+});
+const globalWorker = { source: "global", sourcePath: "/global/agents/worker.md" };
+const accepted = { model: "openai-codex/gpt-5.6-terra", thinking: "medium" };
+assert.equal(policy.managedAgentPolicyError("worker", accepted, globalWorker, "/project"), undefined, "accepted call");
+assert.match(policy.managedAgentPolicyError("worker", { thinking: "medium" }, globalWorker, "/project"), /requires explicit/);
+assert.match(policy.managedAgentPolicyError("worker", { model: accepted.model, thinking: null }, globalWorker, "/project"), /requires explicit/);
+assert.match(policy.managedAgentPolicyError("worker", accepted, { ...globalWorker, model: accepted.model }, "/project"), /must not pin a model/);
+assert.match(policy.managedAgentPolicyError("worker", accepted, { ...globalWorker, thinking: "medium" }, "/project"), /must not pin thinking/);
+assert.match(policy.managedAgentPolicyError("worker", accepted, { source: "project", sourcePath: "/project/.pi/agents/worker.md" }, "/project"), /global managed agents directory/);
+const projectSettings = "/project/.pi/subagents.json";
+contents.set(projectSettings, '{"maxSubagentDepth":2}');
+assert.match(policy.managedAgentPolicyError("worker", accepted, globalWorker, "/project"), /conflicts/);
+contents.set(projectSettings, '{"maxSubagentDepth":1}');
+assert.equal(policy.managedAgentPolicyError("worker", accepted, globalWorker, "/project"), undefined, "matching project setting");
+assert.match(policy.managedThinkingError({ provider: "openai-codex", id: "gpt-5.6-terra" }, "high"), /not supported/);
+assert.equal(policy.managedThinkingError({ provider: "openai-codex", id: "gpt-5.6-terra" }, "medium"), undefined);
+assert.equal(policy.isManagedAgentType("general-purpose"), false, "non-managed spawn is rejected by execute gate");
+assert.match(policy.freshSpawnTypeError("general-purpose", false), /Only managed/);
+assert.equal(policy.freshSpawnTypeError("general-purpose", true), undefined, "resume preserves upstream type behavior");
+assert.deepEqual(JSON.parse(JSON.stringify(policy.modelProvenance({ requestedModel: accepted.model, requestedThinking: "medium", initialModelId: accepted.model, initialThinking: "medium", modelId: accepted.model, thinking: "medium" }))), {
+  requested: { model: accepted.model, thinking: "medium" },
+  initial: { model: accepted.model, thinking: "medium" },
+  final: { model: accepted.model, thinking: "medium", evidence: "effective-at-start" },
+});
+console.log("ok: strict policy behavior rejects hostile overrides and preserves accepted-call provenance");
+JS
 
 # Pristine sources from pi-jev@0.7.0 (MIT, license beside the fixture).
 # Copy only managed local artifacts: no vendor clones, package installs, secrets,
 # real home-directory writes, or model calls occur in this sandbox.
 fixture="$REPO/harness/pi/tests/fixtures/pi-jev-0.7.0"
+candidate_fixture="$(pristine_subagents_dir)"
 sandbox_repo="$SB/repo"
 mkdir -p "$sandbox_repo/harness/pi" "$sandbox_repo/harness/omp/status-line" "$sandbox_repo/install/tools" "$SB/bin"
 cp "$REPO/install.sh" "$sandbox_repo/"
@@ -139,6 +164,8 @@ printf '#!/bin/sh\nexit 0\n' > "$SB/bin/pi"
 cat > "$SB/bin/omp" <<'PY'
 #!/usr/bin/python3
 import json, os, sys
+if sys.argv[1:2] == ["install"]:
+    raise SystemExit(0)
 assert sys.argv[1:2] == ["config"], sys.argv
 filename = os.path.join(os.environ["PI_CODING_AGENT_DIR"], "config.yml")
 with open(filename) as f:
@@ -227,23 +254,20 @@ for state in {0..15}; do
   pkg="$home/.pi/agent/npm/node_modules/pi-jev"
   mkdir -p "$(dirname "$pkg")" "$home/.omp/agent" "$home/.omp/profiles/work/agent"
   cp -R "$fixture" "$pkg"
-  subagents_pkg="$home/.pi/agent/npm/node_modules/pi-subagents-lite"
-  mkdir -p "$subagents_pkg/src/agents"
-  cp "$subagents_fixture" "$subagents_pkg/src/agents/agent-discovery.ts"
-  legacy_patch_status=ok
-  if (( state & 1 )); then
-    patch -p1 -s -f -d "$subagents_pkg" < "$REPO/harness/pi/patches/pi-subagents-lite-symlink-discovery.patch"
-    legacy_patch_status=removed
-  fi
+  candidate_pkg="$home/.pi/agent/npm/node_modules/@tintinweb/pi-subagents"
+  mkdir -p "$candidate_pkg"
+  cp -R "$candidate_fixture/." "$candidate_pkg/"
   agent_profiles="$home/.pi/agent/agents"
   mkdir -p "$agent_profiles"
-  ln -s "$sandbox_repo/agents/worker-standard.md" "$agent_profiles/worker-standard.md"
-  ln -s "$sandbox_repo/agents/reviewer-anthropic-high.md" "$agent_profiles/reviewer-anthropic-high.md"
-  ln -s "$sandbox_repo/agents/retired-link.md" "$agent_profiles/retired-link.md"
-  ln -s "$agent_profiles/missing.md" "$agent_profiles/user-link.md"
-  printf 'retired-agent.md\n' > "$agent_profiles/.agentic-tools-pi-agents"
-  printf 'retired\n' > "$agent_profiles/retired-agent.md"
-  check_legacy_pi_agent_symlinks_hidden "$agent_profiles"
+  printf 'user-owned custom\n' > "$agent_profiles/custom.md"
+  for role in scout researcher planner worker reviewer-openai reviewer-anthropic; do
+    for tier in quick standard high premium; do
+      printf 'retired %s-%s
+' "$role" "$tier" > "$agent_profiles/$role-$tier.md"
+      printf '%s-%s.md
+' "$role" "$tier" >> "$agent_profiles/.agentic-tools-pi-agents"
+    done
+  done
   retired_package="$home/.pi/agent/npm/node_modules/@maplezzk/pi-""interactive""-subagents"
   retired_config="$home/.pi/agent/extensions/pi-""interactive""-subagents"
   mkdir -p "$retired_package" "$retired_config"
@@ -271,15 +295,25 @@ for state in {0..15}; do
       if (( run == 1 && !(state & (1 << i)) )); then expected=patched; fi
       grep -qF "[${labels[$i]}] -> $pkg ($expected)" "$SB/install-$state-$run.log"
     done
-    cmp "$subagents_fixture" "$subagents_pkg/src/agents/agent-discovery.ts"
-    check_installed_pi_agents "$agent_profiles" "$REPO/agents"
-    expected_legacy_patch_status=ok
-    [ "$run" = 1 ] && expected_legacy_patch_status="$legacy_patch_status"
-    grep -qF "[retire-subagents-lite-symlink-patch] -> $subagents_pkg ($expected_legacy_patch_status)" "$SB/install-$state-$run.log"
-    if [ "$run" = 1 ]; then
-      grep -qF "[pi-agents] -> $agent_profiles (0 ok, 24 copied, 2 migrated, 2 removed)" "$SB/install-$state-$run.log"
-    else
-      grep -qF "[pi-agents] -> $agent_profiles (24 ok)" "$SB/install-$state-$run.log"
+    # Candidate lifecycle and profile copying do not depend on the Jev subset; check once.
+    if (( state == 0 )); then
+      expected_candidate=ok
+      [ "$run" = 1 ] && expected_candidate=patched
+      grep -qF "[patch-tintinweb-subagents-strict-dispatch] -> $candidate_pkg ($expected_candidate)" "$SB/install-$state-$run.log"
+      if [ "$run" = 1 ]; then
+        grep -qF "[pi-agents] -> $agent_profiles (0 ok, 5 copied, 24 removed)" "$SB/install-$state-$run.log"
+      else
+        grep -qF "[pi-agents] -> $agent_profiles (5 ok)" "$SB/install-$state-$run.log"
+      fi
+      python3 - "$REPO/agents" "$agent_profiles" <<'PY2'
+from pathlib import Path
+import sys
+src, installed = map(Path, sys.argv[1:])
+expected = sorted(x.name for x in src.glob("*.md"))
+assert expected == sorted(x.name for x in installed.glob("*.md") if x.name != "custom.md")
+assert (installed / "custom.md").read_text() == "user-owned custom\n"
+assert not list(installed.glob("*-standard.md"))
+PY2
     fi
     for config in "$home/.omp/agent/config.yml" "$home/.omp/profiles/work/agent/config.yml"; do
       jq -e '.modelRoles == {"default":"local-standard","slow":"local-premium"} and .composer.shape == "compact" and .statusLine.preset == "custom"' "$config" >/dev/null
@@ -290,8 +324,90 @@ for state in {0..15}; do
   cmp "$REPO/harness/pi/extensions/pi-fallback.json" "$home/.pi/agent/extensions/pi-fallback.json"
   cmp "$REPO/harness/pi/APPEND_SYSTEM.md" "$home/.pi/agent/APPEND_SYSTEM.md"
   cmp "$REPO/harness/omp/APPEND_SYSTEM.md" "$home/.omp/agent/APPEND_SYSTEM.md"
-  echo "ok: legacy Lite patch is removed; pristine Lite skips the old symlink layout; copied Pi profiles and Jev patches are idempotent"
+  echo "ok: Jev patch subsets and the candidate lifecycle are idempotent"
 done
+
+# A first install must not leave managed profiles usable while Pi has not yet
+# installed the candidate. A successful rerun enables them only after patching.
+home="$SB/home-candidate-absent"
+agent_dir="$home/.pi/agent"
+agent_profiles="$agent_dir/agents"
+mkdir -p "$agent_profiles" "$home/.omp/agent"
+printf '%s\n' '{"modelRoles":{"default":"local-standard","slow":"local-premium"},"composer":{"shape":"compact"}}' > "$home/.omp/agent/config.yml"
+printf 'stale managed profile\n' > "$agent_profiles/worker.md"
+printf 'worker.md\n' > "$agent_profiles/.agentic-tools-pi-agents"
+if (
+  cd "$sandbox_repo"
+  HOME="$home" PI_CODING_AGENT_DIR="$agent_dir" PATH="$SB/bin:/usr/bin:/bin" \
+    TYPESAFE_API_KEY= PI_IMPROVE_NO_ORCA=1 DURABLE_SKIP=1 bash install.sh
+) > "$SB/install-candidate-absent.log" 2>&1; then
+  echo 'FAIL: candidate-absent install accepted' >&2; exit 1
+fi
+grep -q 'managed agents remain disabled' "$SB/install-candidate-absent.log"
+grep -q 'strict dispatch patch unavailable' "$SB/install-candidate-absent.log"
+[ ! -e "$agent_profiles/worker.md" ] || { echo 'FAIL: absent candidate left managed profile enabled' >&2; exit 1; }
+[ ! -e "$agent_profiles/.agentic-tools-pi-agents" ] || { echo 'FAIL: absent candidate left managed manifest' >&2; exit 1; }
+candidate_pkg="$agent_dir/npm/node_modules/@tintinweb/pi-subagents"
+mkdir -p "$candidate_pkg"
+cp -R "$candidate_fixture/." "$candidate_pkg/"
+(
+  cd "$sandbox_repo"
+  HOME="$home" PI_CODING_AGENT_DIR="$agent_dir" PATH="$SB/bin:/usr/bin:/bin" \
+    TYPESAFE_API_KEY= PI_IMPROVE_NO_ORCA=1 DURABLE_SKIP=1 bash install.sh
+) > "$SB/install-candidate-enabled.log" 2>&1 || { tail -n 30 "$SB/install-candidate-enabled.log" >&2; exit 1; }
+grep -qF "[patch-tintinweb-subagents-strict-dispatch] -> $candidate_pkg (patched)" "$SB/install-candidate-enabled.log"
+[ -f "$agent_profiles/worker.md" ] || { echo 'FAIL: patched candidate did not enable managed profiles' >&2; exit 1; }
+echo 'ok: first install fails closed and patched reinstall enables managed profiles'
+
+# Lite retirement must preserve package state when pnpm fails, and remove only Lite on success.
+for outcome in success failure; do
+  agent_dir="$SB/lite-$outcome"
+  lite_pkg="$agent_dir/npm/node_modules/pi-subagents-lite"
+  candidate_pkg="$agent_dir/npm/node_modules/@tintinweb/pi-subagents"
+  mkdir -p "$lite_pkg" "$candidate_pkg"
+  printf '{"dependencies":{"pi-subagents-lite":"1.17.1"}}\n' > "$agent_dir/npm/package.json"
+  status=0
+  if [ "$outcome" = success ]; then
+    PATH="$SB/bin:$PATH" PNPM_LOG="$SB/lite-$outcome.log" remove_retired_lite_subagents_state "$agent_dir" || status=$?
+    [ "$status" -eq 0 ] || { echo 'FAIL: Lite removal success failed' >&2; exit 1; }
+    [ ! -e "$lite_pkg" ] && [ -d "$candidate_pkg" ] || { echo 'FAIL: Lite success altered wrong package state' >&2; exit 1; }
+  else
+    PATH="$SB/bin:$PATH" PNPM_LOG="$SB/lite-$outcome.log" PNPM_STATUS=9 remove_retired_lite_subagents_state "$agent_dir" || status=$?
+    [ "$status" -eq 1 ] || { echo 'FAIL: Lite pnpm failure accepted' >&2; exit 1; }
+    [ -d "$lite_pkg" ] && [ -d "$candidate_pkg" ] || { echo 'FAIL: Lite pnpm failure changed package state' >&2; exit 1; }
+  fi
+done
+echo 'ok: Lite retirement preserves state on pnpm failure and preserves the candidate'
+
+# Candidate patch failure must aggregate after independent Jev patch attempts.
+home="$SB/home-candidate-failure"
+pkg="$home/.pi/agent/npm/node_modules/pi-jev"
+candidate_pkg="$home/.pi/agent/npm/node_modules/@tintinweb/pi-subagents"
+mkdir -p "$(dirname "$pkg")" "$candidate_pkg" "$home/.omp/agent" "$home/.omp/profiles/work/agent"
+cp -R "$fixture" "$pkg"
+cp -R "$candidate_fixture/." "$candidate_pkg/"
+agent_profiles="$home/.pi/agent/agents"
+mkdir -p "$agent_profiles"
+printf 'managed profile\n' > "$agent_profiles/worker.md"
+printf 'worker.md\n' > "$agent_profiles/.agentic-tools-pi-agents"
+printf 'node-linker=hoisted\n' > "$home/.pi/agent/npm/.npmrc"
+printf 'changed upstream\n' > "$candidate_pkg/src/index.ts"
+for config in "$home/.omp/agent/config.yml" "$home/.omp/profiles/work/agent/config.yml"; do
+  printf '%s\n' '{"modelRoles":{"default":"local-standard","slow":"local-premium"},"composer":{"shape":"compact"}}' > "$config"
+done
+if (
+  cd "$sandbox_repo"
+  HOME="$home" PI_CODING_AGENT_DIR="$home/.pi/agent" PATH="$SB/bin:/usr/bin:/bin" \
+    TYPESAFE_API_KEY= PI_IMPROVE_NO_ORCA=1 DURABLE_SKIP=1 bash install.sh
+) > "$SB/install-candidate-failure.log" 2>&1; then
+  echo 'FAIL: changed candidate source accepted' >&2; exit 1
+fi
+grep -qF '[patch-tintinweb-subagents-strict-dispatch] upstream code changed' "$SB/install-candidate-failure.log"
+[ ! -e "$agent_profiles/worker.md" ] || { echo 'FAIL: failed patch left managed profile enabled' >&2; exit 1; }
+grep -qF "[patch-jev-client] -> $pkg (patched)" "$SB/install-candidate-failure.log"
+grep -qF 'install.sh: a required patch failed' "$SB/install-candidate-failure.log"
+echo 'ok: candidate strict-patch failure aggregates after independent patches'
+
 # A failed patch remains an installer failure, but the modular loop still runs
 # the unrelated Jev patches before install_main reports PATCH_FAILED.
 home="$SB/home-failed-thinking"
@@ -328,7 +444,15 @@ grep -qF 'install.sh: a required patch failed' "$SB/install-failed-thinking.log"
 }
 echo 'ok: failed self-improve thinking patch aggregates after unrelated patches run'
 
-pkg="$SB/home-15/.pi/agent/npm/node_modules/pi-jev"
+home="$SB/home-ok"
+pkg="$home/.pi/agent/npm/node_modules/pi-jev"
+mkdir -p "$(dirname "$pkg")"
+cp -R "$fixture" "$pkg"
+for patch_file in "${patches[@]}"; do
+  patch -p1 -s -f -d "$pkg" < "$REPO/harness/pi/patches/$patch_file"
+done
+
+pkg="$SB/home-ok/.pi/agent/npm/node_modules/pi-jev"
 # Evaluate the installed fixture's real flag default, construction, and conservative router.
 # Stub only model capability helpers; no Pi SDK or third-party modules are needed.
 node - "$pkg" "$REPO/harness/pi/tests/fixtures/pi-jev-skill-wrapped-prompt.txt" <<'JS'

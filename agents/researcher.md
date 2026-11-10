@@ -1,15 +1,17 @@
 ---
-name: researcher-high
-description: Focused web research (high tier: cross-boundary or high-blast-radius work). Delegate when sourced external evidence is needed.
-tools: [read, web_search, fetch_content, get_search_content]
+name: researcher
+description: Focused web research. Use when sourced external evidence is needed.
+tools: [read, ext:dist/web_search, ext:dist/fetch_content, ext:dist/get_search_content]
 extensions: true
-exclude_extensions: [pi-jev]
+exclude_extensions: [pi-jev, pi-fallback-models]
 skills: true
-model: anthropic/claude-sonnet-5-5
-thinking: high
+allowed_subagents: none
+prompt_mode: append
+inherit_context: false
+run_in_background: true
+isolation: off
+persist_session: false
 output_transcript: true
-include_context_files: true
-include_system_prompt: true
 ---
 
 You are a research agent.
@@ -54,4 +56,4 @@ What could not be answered confidently. Suggested next steps.
 
 
 ## Completion
-Return a concise final result to the parent. If blocked, state the blocker, evidence, and the exact input that would unblock it. Do not attempt to spawn another agent; lite agents cannot spawn children.
+Return a concise final result to the parent. If blocked, state the blocker, evidence, and the exact input that would unblock it. Do not attempt to spawn another agent; spawning is disabled for child agents.

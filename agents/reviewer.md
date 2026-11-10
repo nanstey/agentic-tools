@@ -1,15 +1,17 @@
 ---
-name: reviewer-anthropic-premium
-description: Independent OpenAI review of Anthropic-produced work (premium tier: explicitly requested or indivisible irreversible or security-critical work). Delegate when Anthropic work needs review.
-tools: [read, grep, find, ls, bash, codemode]
+name: reviewer
+description: Read-only independent source reviewer. Use when a diff, plan, or implementation needs evidence-based review.
+tools: [read, grep, find, ls, bash, ext:builtin:codemode/codemode]
 extensions: true
-exclude_extensions: [pi-jev]
+exclude_extensions: [pi-jev, pi-fallback-models]
 skills: true
-model: openai-codex/gpt-6.1-sol
-thinking: high
+allowed_subagents: none
+prompt_mode: append
+inherit_context: false
+run_in_background: true
+isolation: off
+persist_session: false
 output_transcript: true
-include_context_files: true
-include_system_prompt: true
 ---
 
 You are a disciplined review agent. Your job is to inspect, evaluate, and report findings with evidence. You do not guess; you verify from the code, tests, docs, or requirements.
@@ -75,7 +77,7 @@ When the coordinator explicitly labels the task **SOURCE REVIEW MODE**, this mod
 
 
 ## Completion
-Return a concise final result to the parent. If blocked, state the blocker, evidence, and the exact input that would unblock it. Do not attempt to spawn another agent; lite agents cannot spawn children.
+Return a concise final result to the parent. If blocked, state the blocker, evidence, and the exact input that would unblock it. Do not attempt to spawn another agent; spawning is disabled for child agents.
 
 ## Review output format
 Structure your findings clearly:

@@ -20,7 +20,8 @@ call. Give each child a complete, self-contained task.
 
 For delegated work, use the least costly configured role that can complete the task.
 Escalate only after evidence of a failed or weak result, an explicit user request, or an
-indivisible high-risk task. Keep profile-local `modelRoles` unchanged.
+indivisible high-risk task. Keep profile-local `modelRoles` unchanged. Pi-specific delegation
+profiles and routing remain unavailable in OMP.
 
 A configured `task.maxRecursionDepth` enforces the delegation depth cap. Otherwise,
 the parent must prevent nested delegation. Subagents must not spawn further subagents.

@@ -11,7 +11,10 @@ if [ "${1:-}" != --isolated ]; then
   for cmd in bash env awk basename cat chmod cmp cp dirname find grep ln mkdir mktemp mv patch python3 readlink rm sed sha256sum sort tr; do
     ln -s "$(command -v "$cmd")" "$SB/bin/$cmd"
   done
-  env -i HOME="$SB/home" PATH="$SB/bin" TMPDIR="$SB/tmp" LC_ALL=C \
+  # Resolve the published package here: the allowlisted PATH below has no npm.
+  source "$REPO/harness/pi/tests/lib/pristine-subagents.sh"
+  PI_SUBAGENTS_PRISTINE_DIR="$(pristine_subagents_dir)"
+  env -i HOME="$SB/home" PATH="$SB/bin" TMPDIR="$SB/tmp" LC_ALL=C PI_SUBAGENTS_PRISTINE_DIR="$PI_SUBAGENTS_PRISTINE_DIR" \
     TOOLS_INTERACTIVE=0 bash "${BASH_SOURCE[0]}" --isolated "$SB" "$REPO"
   exit 0
 fi
@@ -68,9 +71,17 @@ printf '%s\n' '#!/usr/bin/env bash' 'echo "unexpected bun invocation" >&2; exit 
 chmod +x "$SB/bin/git" "$SB/capabilities/omp" "$SB/capabilities/npx" "$SB/bun-bin/bun"
 
 mkdir -p "$FIXTURE/skills/dev/sample" "$FIXTURE/agents" "$FIXTURE/harness/pi/bin" \
-  "$FIXTURE/harness/pi/ignored" "$FIXTURE/harness/omp/plugins" "$FIXTURE/harness/omp/status-line"
+  "$FIXTURE/harness/pi/ignored" "$FIXTURE/harness/pi/patches" "$FIXTURE/harness/omp/plugins" "$FIXTURE/harness/omp/status-line"
 printf 'name: sample\n' >"$FIXTURE/skills/dev/sample/SKILL.md"
 printf 'name: reviewer\n' >"$FIXTURE/agents/reviewer.md"
+cp "$REPO/harness/pi/patches/pi-subagents-strict-dispatch-0.22.1.patch" "$FIXTURE/harness/pi/patches/"
+candidate_fixture="$PI_SUBAGENTS_PRISTINE_DIR"
+seed_candidate() {
+  local agent_dir="$1"
+  mkdir -p "$agent_dir/npm/node_modules/@tintinweb/pi-subagents"
+  cp -R "$candidate_fixture/." "$agent_dir/npm/node_modules/@tintinweb/pi-subagents/"
+  printf 'node-linker=hoisted\n' > "$agent_dir/npm/.npmrc"
+}
 printf '{"npmCommand":["pnpm"]}\n' >"$FIXTURE/harness/pi/settings.json"
 printf 'PI_JEV_AUTO=1\n' >"$FIXTURE/harness/pi/pi-jev-auto.conf"
 printf 'excluded\n' >"$FIXTURE/harness/pi/README.md"
@@ -137,6 +148,7 @@ run imports 0 bash -euc '
 [ ! -e "$HOME/env-loaded" ] && [ ! -e "$HOME/custom-agent" ] || fail 'imports installed or loaded .env'
 echo 'ok: all definition modules import without installation, env, umask or trap changes'
 
+seed_candidate "$HOME/custom-agent"
 mkdir -p "$HOME/.claude/skills/sample" "$HOME/.claude/agents" "$HOME/.codex" \
   "$HOME/.omp/agent" "$HOME/.omp/profiles/alpha/agent/skills" "$HOME/.omp/profiles/alpha/agent/agents"
 ln -s /dev/null "$HOME/.claude/agents/reviewer.md"
@@ -168,6 +180,7 @@ echo 'ok: fresh/rerun artifacts, configs, profiles, secret permissions and npx c
 
 # An inherited key prevents even executing the fixture .env; registry uses the override.
 rm "$HOME/env-loaded"
+seed_candidate "$HOME/override"
 run inherited 0 env TYPESAFE_API_KEY=inherited PI_CODING_AGENT_DIR="$HOME/override" bash "$FIXTURE/install.sh"
 [ ! -e "$HOME/env-loaded" ] || fail 'inherited key still sourced .env'
 [ "$(cat "$HOME/override/secrets/typesafe_api_key")" = inherited ] || fail 'inherited key/override'
@@ -336,6 +349,7 @@ echo 'ok: master validation/help/errors, root-directed adapter help, literal nam
 cp "$DISPATCH/"*.sh "$FIXTURE/install/tools/"
 rm "$FIXTURE/harness/pi/vendor/bad.txt"
 export HOME="$SB/root-cli-home" TYPESAFE_API_KEY=fixture EXPECT_REPO=1 ADAPTER_STDERR=1
+seed_candidate "$HOME/.pi/agent"
 mkdir -p "$HOME/.claude" "$HOME/.codex"
 ALL_TOOLS='gh gh-stack playwright-cli chrome-devtools-cli agent-browser orca lizard'
 expect_root_log() {

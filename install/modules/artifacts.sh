@@ -27,10 +27,34 @@ collect_agents() {
   done
 }
 
-# Pi Lite's discovery recognizes directory entries only when isFile() is true,
-# so its managed agent profiles must be regular files rather than symlinks. A
-# small manifest lets future installs retire only files that this installer owns,
-# leaving user-created profiles alone.
+# Remove this installer's managed Pi profiles before an unavailable or failed
+# strict-dispatch patch can leave an upstream Agent tool with usable profiles.
+# Only manifest-listed files are removed, so a user-owned scout.md or worker.md
+# is never touched.
+disable_managed_pi_agents() {
+  local dir="$1" manifest="$1/.agentic-tools-pi-agents" name target removed=0
+  [ -d "$dir" ] || return 0
+  while IFS= read -r name; do
+    case "$name" in
+      *.md) ;;
+      *) continue ;;
+    esac
+    case "$name" in .*|*/*) continue ;; esac
+    target="$dir/$name"
+    if [ -e "$target" ] || [ -L "$target" ]; then
+      rm -rf "$target"
+      removed=$((removed + 1))
+    fi
+  done < <({
+    [ -f "$manifest" ] && cat "$manifest"
+  } | sort -u)
+  rm -f "$manifest"
+  echo "  [pi-agents] -> $dir ($removed disabled; strict dispatch patch unavailable)" >&2
+}
+
+# Managed Pi profiles are copied as regular files. The candidate discovers that
+# form, and keeping it avoids a discovery patch while the manifest lets future
+# installs retire only files this installer owns, leaving user-created profiles alone.
 install_pi_agents() {
   local dir="$1" manifest next_manifest entry target linkname src stale
   local ok=0 copied=0 migrated=0 replaced=0 removed=0

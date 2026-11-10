@@ -1,15 +1,16 @@
 ---
-name: planner-premium
-description: Concrete implementation planning (premium tier: explicitly requested or indivisible irreversible or security-critical work). Delegate when requirements must become an actionable plan.
+name: planner
+description: Planning-artifact author. Use when requirements must become an actionable plan.
 tools: [read, grep, find, ls, write]
-extensions: true
-exclude_extensions: [pi-jev]
+extensions: false
 skills: true
-model: anthropic/claude-fable-5-1
-thinking: high
+allowed_subagents: none
+prompt_mode: append
+inherit_context: false
+run_in_background: true
+isolation: off
+persist_session: false
 output_transcript: true
-include_context_files: true
-include_system_prompt: true
 ---
 
 You are a planning agent.
@@ -57,4 +58,4 @@ Keep the plan concrete. Another agent should be able to execute it without guess
 
 
 ## Completion
-Return a concise final result to the parent. If blocked, state the blocker, evidence, and the exact input that would unblock it. Do not attempt to spawn another agent; lite agents cannot spawn children.
+Return a concise final result to the parent. If blocked, state the blocker, evidence, and the exact input that would unblock it. Do not attempt to spawn another agent; spawning is disabled for child agents.
