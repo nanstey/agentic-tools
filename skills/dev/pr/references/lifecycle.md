@@ -29,7 +29,7 @@ Each phase has an entry test. Run a phase only when its test shows it is unmet o
 | 3 | Describe | Body is a placeholder, lacks `## Summary`/`## Changes`/`## Testing`, or is stale for this head; UI changed with no current screenshots | `/pr description` (owns `/pr screenshots`) |
 | 4 | Sync | Behind base, conflicting, or a stack layer out of order | Stack member: `/pr stack`. Otherwise `/pr rebase`. After a parent merges: `/pr restack`. `/pr split` only when invoked explicitly. |
 | 5 | CI | Outcome unobserved, or an expected required check failed, is missing, or is still pending | `/pr ci`: fix and publish. Pending independent checks are waited on (poll as monitor does) until terminal before phase 6; `force` proceeds without waiting. |
-| 6 | Review | No exact-match complete packet or `clean` docs-only entry for this head | Own PR: `/pr review <PR> fix`. Other author's PR: `/pr review <PR>` report-only. Depth follows `gates.md` review depth. |
+| 6 | Review | No exact-match complete packet or `clean` docs-only entry for this head | Own PR: `/pr review <PR> fix`. Other author's PR: `/pr review <PR> report` report-only. Review publication requires a mode-less explicit `/pr review` invocation. Depth follows `gates.md` review depth. |
 | 7 | Threads | Unresolved review threads | `/pr comments` |
 | 8 | Verify | Claims lack cited evidence in the body | `/pr verification fix` (own PR) |
 | 9 | Ready | PR is draft and phases 1–8 pass | `/pr ready` |
@@ -61,7 +61,7 @@ Setup finishing or green CI alone is never completion. Never end `changes_requir
 ## Safety Rules
 
 - Never continue uncommitted work on `main` or `develop` without first branching and committing.
-- Never post review comments or approve from the lifecycle. Automatic remediation is `fix` mode on your own PR, after ownership, branch, clean-tree, and current-head checks.
+- Never post review comments or approve from the lifecycle. Review publication requires a mode-less explicit `/pr review` invocation on another author's PR. Automatic remediation is `fix` mode on your own PR, after ownership, branch, clean-tree, and current-head checks.
 - Never reset or nest a review loop within an invocation, or skip fix-head review.
 - Never create a PR with raw `gh pr create` or reuse a commit message as the body.
 - Never merge without `automerge` or an explicit `/pr merge`.

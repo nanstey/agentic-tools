@@ -4,7 +4,7 @@
 
 Address unresolved PR review threads end-to-end on the current branch.
 Default tool is `gh`.
-Scope: threads on your own branch's PR. To review a PR (own or others') or post review comments on someone else's PR, use [`review.md`](review.md). Load [`gates.md`](gates.md) for categories, source verification, freshness, and the invoking action's per-invocation five-round state. Follow `CLAUDE.md` / `AGENTS.md` on conflict.
+Scope: threads on your own branch's PR. To review a PR (own or others') or publish a review on someone else's PR, use [`review.md`](review.md). Load [`gates.md`](gates.md) for categories, source verification, freshness, and the invoking action's per-invocation five-round state. Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 ## Required Inputs
 
