@@ -10,7 +10,7 @@ Turn an uncertain idea into a concepts brief without writing code.
 2. Ask the human to confirm that the hypothesis is ready for challenge.
 3. Send the anchored hypothesis to three or four fresh Goldfish lenses in parallel. Give each only the hypothesis and any explicitly referenced files. Use divergent lenses: simplicity and reuse, architecture and risk, usability and scope, and operations or migration.
 4. Reconcile the findings with the human. Do not silently select a product or architecture direction.
-5. Write a concepts brief in the location resolved under `planning`'s Plan Location rules. Include the hypothesis, alternatives, decisions, unresolved risks, and a clear gap list.
+5. Write a concepts brief in the location resolved as in `SKILL.md`. Include the hypothesis, alternatives, decisions, unresolved risks, and a clear gap list.
 6. Set its `Status` to `Draft`, then stop for review.
 
 ## Lens Prompts

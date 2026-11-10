@@ -6,7 +6,7 @@ Inspect only design documents whose own `Status` is `Approved`, or whose `## Dec
 
 ## Workflow
 
-1. Use the directory or target document the user names. Otherwise resolve the base with `planning`'s Plan Location rules: use the repository-documented location and policy; otherwise an existing plans directory; otherwise `docs/plans/`. Scan plan files there and identify approved design documents by their `Status` or `## Decision record`.
+1. Use the directory or target document the user names. Otherwise resolve the base as in `SKILL.md`. Scan plan files there and identify approved design documents by their `Status` or `## Decision record`.
 2. For each approved document, read the document and only the source files or symbols it explicitly references. Compare intended behavior with current code using [re-implementation](standards/re-implementation.md).
 3. Report differences only: missing behavior, incomplete models, changed interfaces, logic shortcuts, incompatible configuration, or architectural divergence. Do not report matching work.
 4. Write one dated drift report beside the approved document, not the repository root or current directory. Group findings by document and include document evidence, code evidence, impact, and an open resolution choice: update code, update specification, or accept divergence.
