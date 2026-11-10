@@ -1,0 +1,2 @@
+# Unified patch context represents blank source lines with a leading space.
+harness/pi/patches/*.patch whitespace=-blank-at-eol
