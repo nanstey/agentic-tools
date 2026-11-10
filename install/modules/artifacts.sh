@@ -27,10 +27,9 @@ collect_agents() {
   done
 }
 
-# Pi Lite's discovery recognizes directory entries only when isFile() is true,
-# so its managed agent profiles must be regular files rather than symlinks. A
-# small manifest lets future installs retire only files that this installer owns,
-# leaving user-created profiles alone.
+# Managed Pi profiles are copied as regular files. The candidate discovers that
+# form, and keeping it avoids a discovery patch while the manifest lets future
+# installs retire only files this installer owns, leaving user-created profiles alone.
 install_pi_agents() {
   local dir="$1" manifest next_manifest entry target linkname src stale
   local ok=0 copied=0 migrated=0 replaced=0 removed=0

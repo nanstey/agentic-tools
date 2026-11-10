@@ -12,9 +12,9 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-# Runs the offline test scripts that need no installed harness. The two
-# harness/pi/tests/*.test.mjs files are excluded: they need an installed Pi SDK
-# and Pi packages, which a clean runner does not have.
+# Runs offline test scripts that need no installed harness. The package-extension
+# smoke test is excluded because it needs an installed Pi SDK and Pi packages,
+# which a clean runner does not have.
 jobs:
   test:
     name: ${{ matrix.name }}

@@ -73,7 +73,7 @@ install_main() {
   # every existing match, so a single pair can fan out to many destinations.
   HARNESSES=(
     "claude|$HOME/.claude|claude|skills:$HOME/.claude/skills;prune-dangling:$HOME/.claude/agents"
-    "pi|$PI_AGENT_DIR|pi|skills:$PI_AGENT_DIR/skills;pi-agents:$PI_AGENT_DIR/agents;config:$PI_AGENT_DIR::$REPO_ROOT/harness/pi;config:$PI_AGENT_DIR/extensions::$REPO_ROOT/harness/pi/extensions;config:$PI_AGENT_DIR/bin::$REPO_ROOT/harness/pi/bin;config:$PI_AGENT_DIR/prompts::$REPO_ROOT/harness/pi/prompts;config:$PI_AGENT_DIR/extensions/pi-extensions-i18n::$REPO_ROOT/harness/pi/extensions/pi-extensions-i18n;config:$PI_AGENT_DIR/intercom::$REPO_ROOT/harness/pi/extensions/pi-intercom;hoist:$PI_AGENT_DIR/npm::$REPO_ROOT/harness/pi/settings.json;remove-retired-delegation:$PI_AGENT_DIR;retire-subagents-lite-symlink-patch:$PI_AGENT_DIR/npm/node_modules/pi-subagents-lite;vendor-git:$PI_AGENT_DIR/vendor::$REPO_ROOT/harness/pi/vendor;patch-diff-sdk:$PI_AGENT_DIR/npm/node_modules/@heyhuynhgiabuu/pi-diff;patch-fallback:$PI_AGENT_DIR/npm/node_modules/pi-fallback-models/src/extension.ts;patch-jev-client:$PI_AGENT_DIR/npm/node_modules/pi-jev;patch-jev-prompt-guard:$PI_AGENT_DIR/npm/node_modules/pi-jev;patch-jev-conservative-thinking:$PI_AGENT_DIR/npm/node_modules/pi-jev;patch-jev-self-improve-thinking:$PI_AGENT_DIR/npm/node_modules/pi-jev"
+    "pi|$PI_AGENT_DIR|pi|skills:$PI_AGENT_DIR/skills;pi-agents:$PI_AGENT_DIR/agents;config:$PI_AGENT_DIR::$REPO_ROOT/harness/pi;config:$PI_AGENT_DIR/extensions::$REPO_ROOT/harness/pi/extensions;config:$PI_AGENT_DIR/bin::$REPO_ROOT/harness/pi/bin;config:$PI_AGENT_DIR/prompts::$REPO_ROOT/harness/pi/prompts;config:$PI_AGENT_DIR/extensions/pi-extensions-i18n::$REPO_ROOT/harness/pi/extensions/pi-extensions-i18n;config:$PI_AGENT_DIR/intercom::$REPO_ROOT/harness/pi/extensions/pi-intercom;hoist:$PI_AGENT_DIR/npm::$REPO_ROOT/harness/pi/settings.json;remove-retired-delegation:$PI_AGENT_DIR;remove-retired-lite-subagents:$PI_AGENT_DIR;vendor-git:$PI_AGENT_DIR/vendor::$REPO_ROOT/harness/pi/vendor;patch-tintinweb-subagents-strict-dispatch:$PI_AGENT_DIR/npm/node_modules/@tintinweb/pi-subagents;patch-diff-sdk:$PI_AGENT_DIR/npm/node_modules/@heyhuynhgiabuu/pi-diff;patch-fallback:$PI_AGENT_DIR/npm/node_modules/pi-fallback-models/src/extension.ts;patch-jev-client:$PI_AGENT_DIR/npm/node_modules/pi-jev;patch-jev-prompt-guard:$PI_AGENT_DIR/npm/node_modules/pi-jev;patch-jev-conservative-thinking:$PI_AGENT_DIR/npm/node_modules/pi-jev;patch-jev-self-improve-thinking:$PI_AGENT_DIR/npm/node_modules/pi-jev"
     "omp|$HOME/.omp/agent|omp|skills:$HOME/.omp/agent/skills;skills:$HOME/.omp/profiles/*/agent/skills;prune-dangling:$HOME/.omp/agent/agents;prune-dangling:$HOME/.omp/profiles/*/agent/agents;config:$HOME/.omp/agent::$REPO_ROOT/harness/omp;config:$PI_AGENT_DIR/intercom::$REPO_ROOT/harness/pi/extensions/pi-intercom;omp-plugin-manifest:$REPO_ROOT/harness/omp/plugins/pi-intercom.txt;omp-plugin-manifest:$REPO_ROOT/harness/omp/plugins/pi-jev.txt;omp-status-line:$REPO_ROOT/harness/omp/status-line/apply.sh"
     "codex|$HOME/.codex|codex|skills:$HOME/.codex/skills"
   )
@@ -151,8 +151,12 @@ install_main() {
         remove_retired_delegation_state "$pattern" || PATCH_FAILED=1
         continue
       fi
-      if [ "$type" = "retire-subagents-lite-symlink-patch" ]; then
-        retire_subagents_lite_symlink_patch "$pattern" || PATCH_FAILED=1
+      if [ "$type" = "remove-retired-lite-subagents" ]; then
+        remove_retired_lite_subagents_state "$pattern" || PATCH_FAILED=1
+        continue
+      fi
+      if [ "$type" = "patch-tintinweb-subagents-strict-dispatch" ]; then
+        install_tintinweb_subagents_strict_dispatch_patch "$pattern" || PATCH_FAILED=1
         continue
       fi
       if [ "$type" = "pi-agents" ]; then

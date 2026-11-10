@@ -34,126 +34,79 @@ context, complexity, scale, or a Jev recommendation. Only provider/failure fallb
 Keep `pi-jev` auto-model disabled. Choose models by task context and scale only when
 delegating through `Agent`, using the table below.
 
-# Delegation bias
+# Delegation policy
 
 If you do not have the `Agent` tool, you are a leaf agent: do the assigned work yourself
-and never try to delegate. Lite agents cannot spawn children.
+and never delegate. Delegation is one level only. The five `delegation-*` profiles set
+capabilities, not model or thinking. They exclude `pi-jev` and `pi-fallback-models`, so
+child thinking and fallback cannot silently change the selected policy.
 
-For a user-requested worktree task, load the `handoff` skill and follow it. It hands the
-work to a standalone Pi session in a new Orca worktree, and this session then stops work
-on the task. Do not use `Agent` for it. Choose its model and thinking level by the
-task-scale rules below. Do not launch Orca-hosted agents.
+For a user-requested worktree task, load the `handoff` skill. Otherwise delegate
+substantive work and keep the main thread for decomposition, integration, and verification:
 
-Otherwise, default to delegating substantive work with `Agent`. Reserve the main thread
-for decomposition, dispatch, integration, and final verification. Do trivial one-shot
-reads/edits yourself; delegate anything multi-step, exploratory, or parallelizable.
+- Codebase recon -> `delegation-scout`.
+- Web or documentation research -> `delegation-researcher`.
+- Planning -> `delegation-planner`.
+- Approved implementation -> `delegation-worker`.
+- Diff, plan, PR, verification, or decision review -> `delegation-reviewer`.
 
-Delegate by default:
+`/review-code` and `/pr review` require a coordinator with `Agent` dispatch. A leaf agent
+returns `blocked: needs a coordinator with Agent-tool dispatch`.
 
-- Codebase recon, or reading more than a few files to answer a question -> `scout-<tier>`.
-- Web or documentation research -> `researcher-<tier>`.
-- Planning a non-trivial change -> `planner-<tier>`.
-- Implementation spanning more than one file or step, or a low-stakes generic side task -> `worker-<tier>`.
-- A plain diff, plan, PR sanity check, verification, or decision check -> a reviewer type for the producer family.
+Spawn independent slices in one turn. Give each child a self-contained task with goal,
+paths, constraints, and expected return format. Background children notify on completion.
+Use `steer_subagent` for a running child and `get_subagent_result` for status or results.
+The installed candidate has no stop/cancel tool. Do not claim to stop a child or poll it.
 
-`/review-code` and `/pr review` are coordinator jobs for the main session, never one leaf
-reviewer. The main session loads their complete skill and references, then dispatches every
-required source-review row in parallel, the separate validator, and the separate read-only
-candidate verifier. A leaf agent must return `blocked: needs a coordinator with Agent-tool
-dispatch` instead of simulating this workflow.
+# Subagent model policy
 
-Spawn independent slices in parallel in a single turn. Give each agent a complete,
-self-contained task: goal, relevant paths, constraints, and expected return format. Agent
-results return inline for foreground runs and by notification for background runs. Name any
-output file path explicitly in the task; profiles do not create `context.md`, `plan.md`, or
-`research.md` automatically.
+For every delegation, select the role and tier with one Jev classifier call, then pass the
+corresponding exact provider-qualified `model` and `thinking` values to `Agent`. Never omit,
+shorten, fuzz, or substitute either value. The candidate patch rejects malformed, fuzzy,
+unauthenticated, out-of-scope, profile-overridden, or unsupported explicit selections before
+spawn. It also rejects thinking that Pi would otherwise clamp.
 
-A foreground `Agent` call stays open until completion. A background call returns immediately;
-work on independent slices or end the turn. Do not poll, sleep, or tail logs. Use
-`MessageAgent` to steer a running or settled agent and `StopAgent` to stop it; use
-`AgentStatus` only when needed, never as a polling loop. A blank result or `error` status is
-a failure, not completion. Inspect its result, error, and recorded model before deciding to retry.
-
-# Subagent model by task scale
-
-For delegated tasks only, pick the role, then the tier from Jev. Run one `codemode` call:
-`models.getAvailableOfType("classifier")`, then `models.classify(model, { state, questions })`
-with `state = { task, context }`. Put the task text in `task`; in `context` put `role`, files
-touched, producer family, ambiguity, stakes, and blast radius. Ask one `choice` question:
-
-- `tier`: `quick` (one bounded, mechanical task), `standard` (ordinary work), `high`
-  (demonstrated cross-boundary complexity or high blast radius), `premium` (explicit user
-  request, or an indivisible irreversible or security-critical task).
-
-Use `quick` only for one bounded mechanical task. Otherwise start at `standard`. Use `high`
-only for demonstrated cross-boundary complexity or high blast radius. Use `premium` only after
-an explicit user request, or for an indivisible irreversible or security-critical task. Record
-the reason. If confidence is below 0.6, retain the returned tier. Increase one level only when
-direct task evidence shows high blast radius. Never increase above high solely because confidence
-is low or Jev is unavailable. If Jev fails, choose standard. Start with the least costly valid
-selection and retry once at a stronger tier only after a failed, incomplete, or demonstrably
-low-quality result.
-
-Use the matching `<role>-<tier>` type in the table. Its frontmatter, not the dispatch call,
-pins model and thinking: quick is low, standard medium, high and premium high. `xhigh` and
-off-tier thinking are unavailable to tool dispatch; only a user override in `/agents` can change
-them. Fixed-tier types exclude `pi-jev`, so its auto-thinking router cannot override the pinned
-level. Do not pass model or thinking fields to `Agent`.
-
-| Role | quick | standard | high | premium |
+| Role | Quick | Standard | High | Premium |
 | --- | --- | --- | --- | --- |
-| `scout` | haiku-5-5 -> gpt-6-luna | sonnet-5-5 -> gpt-5.6-terra | sonnet-5-5 -> gpt-6.1-sol | sonnet-5-5 -> gpt-6.1-sol |
-| `researcher` | haiku-5-5 -> gpt-6-luna | sonnet-5-5 -> gpt-5.6-terra | sonnet-5-5 -> gpt-6.1-sol | opus-5-5 -> gpt-6.1-sol |
-| `planner` | sonnet-5-5 -> gpt-5.6-terra | sonnet-5-5 -> gpt-5.6-terra | sonnet-5-5 -> gpt-6.1-sol | fable-5-1 -> gpt-6.1-sol |
-| `worker` | gpt-6-luna -> haiku-5-5 | gpt-5.6-terra -> sonnet-5-5 | gpt-5.6-terra -> sonnet-5-5 | gpt-6.1-sol -> opus-5-5 |
-| reviewer of OpenAI work | haiku-5-5 -> sonnet-5-5 | sonnet-5-5 -> opus-5-5 | sonnet-5-5 -> fable-5-1 | opus-5-5 -> fable-5-1 |
-| reviewer of Anthropic work | gpt-6-luna -> gpt-5.6-terra | gpt-5.6-terra -> gpt-6.1-sol | gpt-5.6-terra -> gpt-6-luna | gpt-6.1-sol -> gpt-6-astra |
+| `delegation-scout` | `anthropic/claude-haiku-5-5`, low | `anthropic/claude-sonnet-5-5`, medium | `anthropic/claude-sonnet-5-5`, high | `anthropic/claude-sonnet-5-5`, high |
+| `delegation-researcher` | `anthropic/claude-haiku-5-5`, low | `anthropic/claude-sonnet-5-5`, medium | `anthropic/claude-sonnet-5-5`, high | `anthropic/claude-opus-5-5`, high |
+| `delegation-planner` | `anthropic/claude-sonnet-5-5`, low | `anthropic/claude-sonnet-5-5`, medium | `anthropic/claude-sonnet-5-5`, high | `anthropic/claude-fable-5-1`, high |
+| `delegation-worker` | `openai-codex/gpt-6-luna`, low | `openai-codex/gpt-5.6-terra`, medium | `openai-codex/gpt-5.6-terra`, high | `openai-codex/gpt-6.1-sol`, high |
+| `delegation-reviewer` of OpenAI work | `anthropic/claude-haiku-5-5`, low | `anthropic/claude-sonnet-5-5`, medium | `anthropic/claude-sonnet-5-5`, high | `anthropic/claude-opus-5-5`, high |
+| `delegation-reviewer` of Anthropic work | `openai-codex/gpt-6-luna`, low | `openai-codex/gpt-5.6-terra`, medium | `openai-codex/gpt-5.6-terra`, high | `openai-codex/gpt-6.1-sol`, high |
 
-Names starting `haiku`, `sonnet`, `opus`, or `fable` are `anthropic/claude-*`; names starting
-`gpt` are `openai-codex/*`.
+Use `quick` only for one bounded mechanical task. Otherwise start at standard. Use high only
+for demonstrated cross-boundary complexity or high blast radius. Use premium only for an
+explicit request or indivisible irreversible or security-critical work. Record the reason.
+If Jev is unavailable, use standard. Do not escalate solely for low confidence.
 
-Fallback rules:
-
-- Each agent type loads normal child extensions (`extensions: true`) but excludes `pi-jev` to
-  preserve its fixed thinking tier. This does not remove `codemode` classifier access. Lite's
-  source creates each child session in memory.
-- On a quota, rate-limit, auth, or provider error, retry the same role/tier once. The installed
-  fallback extension may switch to its configured fallback chain. It cannot select the table's
-  per-cell arrow, because the `Agent` tool accepts no model override and this repository does
-  not create fallback-only types. Record the limitation and actual final model.
-- On `Unknown agent type: <role>-<tier>`, do not retry blindly. Check
-  `ls "${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/agents"` and the `agent` values in the tool
-  schema. If the type is absent from either, do not substitute `general-purpose` for write-capable
-  or tier-sensitive work, including reviewer, validator, and verifier rows. Do a small task in the
-  main thread, or use `general-purpose` only for a read-only, low-stakes slice; state that the
-  tier/model pin was not applied and call `report_harness_issue` once when available.
-- If the provider remains unavailable, report the failure. Do not claim a fallback row was used
-  merely because it is shown in the table.
+Managed `subagents.json` disables unknown-type fallback, default and package-provided agent types,
+widgets, FleetView, mentions, workflows including package-provided workflows, schedules, worktrees,
+persistent agent memory, and nested delegation. The strict patch owns the exact
+routing-table allowlist, so managed child policy does not require global `enabledModels` or
+constrain main-agent model cycling. It also requires a currently available authenticated model.
+`pi-fallback-models` remains available to the main session and keeps its quota patch, but is
+excluded from all delegation profiles. A child provider failure is a failure, not permission to
+widen model scope or provider family.
 
 # Cross-model verification
 
-Profiles split by model family: Anthropic handles reading, research, planning, and review;
-OpenAI handles execution and independent judgment. Treat an agent report as a claim and verify
-the outcome (diff, tests) before telling the user work is done.
+Treat a child report as a claim. The coordinator selects `delegation-reviewer` with the
+opposite provider family from the producer's final/effective-at-start selection. Never deliberately
+send both producer and reviewer to the same family.
 
-Only the parent arranges verification. A leaf agent returns its result; it never dispatches a
-reviewer.
-
-- Select `reviewer-openai-<tier>` for work actually produced on an OpenAI model, and
-  `reviewer-anthropic-<tier>` for work actually produced on an Anthropic model.
-- Never have the producer review its own output or deliberately send both halves of a
-  produce/verify pair to the same family.
-- Dispatch every source-review row, validator, and candidate verifier with
-  `run_in_background: true`. Only background completion records carry the final resolved model;
-  a foreground row has model `unknown`, a recorded gap. Inspect the parent session's completed
-  `subagent-result` message for `.details.modelId` or `.details.modelName`; unknown or potentially
-  mixed provenance remains a gap.
+The strict patch records provider-qualified requested, initial, and final model/thinking
+selections in lifecycle provenance and in `get_subagent_result`. `final` is only the selection
+effective-at-start, not proof that every later request or completion used it. Retrieve the
+completed result before claiming cross-family independence. If provenance is absent, incomplete,
+or differs from the policy selection, record a gap. Do not infer provenance from a profile name or
+a legacy completion record.
 
 # Codemode and Jev
 
 `codemode` lets you write one script that calls several tools in parallel and filters results
 before they reach the context. Prefer it for fan-out reads, greps across many files, and batch
-checks. `scout`, `worker` and reviewer types have it too.
+checks. `delegation-scout`, `delegation-worker`, and `delegation-reviewer` have it too.
 
 For typed decisions (classify, route, rank, yes/no with a probability) instead of prose
 judgment, call Jev from a `codemode` script: pick a model with

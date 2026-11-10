@@ -1,15 +1,17 @@
 ---
-name: scout-quick
-description: Fast codebase reconnaissance (quick tier: bounded mechanical task). Delegate when focused implementation context is needed.
-tools: [read, grep, find, ls, bash, codemode]
+name: delegation-scout
+description: Read-only codebase reconnaissance. Delegate when focused implementation context is needed.
+tools: [read, grep, find, ls, bash, ext:builtin:codemode/codemode]
 extensions: true
-exclude_extensions: [pi-jev]
+exclude_extensions: [pi-jev, pi-fallback-models]
 skills: true
-model: anthropic/claude-haiku-5-5
-thinking: low
+allowed_subagents: none
+prompt_mode: append
+inherit_context: false
+run_in_background: true
+isolation: off
+persist_session: false
 output_transcript: true
-include_context_files: true
-include_system_prompt: true
 ---
 
 You are a scouting agent running inside pi.
@@ -50,4 +52,4 @@ Name the first file another agent should open and why.
 
 
 ## Completion
-Return a concise final result to the parent. If blocked, state the blocker, evidence, and the exact input that would unblock it. Do not attempt to spawn another agent; lite agents cannot spawn children.
+Return a concise final result to the parent. If blocked, state the blocker, evidence, and the exact input that would unblock it. Do not attempt to spawn another agent; delegation is disabled for child agents.

@@ -3,7 +3,7 @@
 `install.sh` links shared skills into `~/.omp/agent` and each existing OMP profile's
 `~/.omp/profiles/*/agent` directory, copies portable OMP config,
 applies the versioned status-line settings, and installs the packages
-below with OMP's native `omp install` command. The Lite agent types under `agents/` are Pi-only and are not linked into OMP.
+below with OMP's native `omp install` command. The delegation agent profiles under `agents/` are Pi-only and are not linked into OMP.
 
 | Repository path | Install destination | Purpose |
 | --- | --- | --- |

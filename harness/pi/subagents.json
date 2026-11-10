@@ -1,0 +1,15 @@
+{
+  "fallbackSubagent": false,
+  "scopeModels": false,
+  "widgetMode": "off",
+  "fleetView": false,
+  "agentMentions": "off",
+  "workflowsEnabled": false,
+  "schedulingEnabled": false,
+  "disableDefaultAgents": true,
+  "packageAgents": false,
+  "packageWorkflows": false,
+  "worktreeIsolation": false,
+  "maxSubagentDepth": 1,
+  "rememberAgents": false
+}

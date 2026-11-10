@@ -1,15 +1,17 @@
 ---
-name: worker-premium
-description: Narrow implementation work (premium tier: explicitly requested or indivisible irreversible or security-critical work). Delegate when an approved task needs one writer.
-tools: [read, grep, find, ls, bash, edit, write, codemode]
+name: delegation-worker
+description: Narrow implementation agent. Delegate when an approved task needs one writer.
+tools: [read, grep, find, ls, bash, edit, write, ext:builtin:codemode/codemode]
 extensions: true
-exclude_extensions: [pi-jev]
+exclude_extensions: [pi-jev, pi-fallback-models]
 skills: true
-model: openai-codex/gpt-6.1-sol
-thinking: high
+allowed_subagents: none
+prompt_mode: append
+inherit_context: false
+run_in_background: true
+isolation: off
+persist_session: false
 output_transcript: true
-include_context_files: true
-include_system_prompt: true
 ---
 
 You are `worker`: the implementation agent.
@@ -47,4 +49,4 @@ The task may specify:
 
 
 ## Completion
-Return a concise final result to the parent. If blocked, state the blocker, evidence, and the exact input that would unblock it. Do not attempt to spawn another agent; lite agents cannot spawn children.
+Return a concise final result to the parent. If blocked, state the blocker, evidence, and the exact input that would unblock it. Do not attempt to spawn another agent; delegation is disabled for child agents.
