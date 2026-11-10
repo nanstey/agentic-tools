@@ -110,7 +110,53 @@ PY
     echo "  [patch-tintinweb-subagents-strict-dispatch] $pkg is version ${version:-unknown}, expected 0.22.1" >&2
     return 1
   fi
+  # The following project-settings patch changes this file's strict-patch
+  # context. Its marker proves the dependent patch applied after this one, but
+  # only alongside independent strict-dispatch seams.
+  if grep -qF 'function matchesManagedSecuritySetting(' "$pkg/src/index.ts"; then
+    for marker in 'const MANAGED_AGENT_TYPES' 'function managedProjectSettingsError(' \
+      'function resolveExactAvailableModel(' 'function managedThinkingError('; do
+      if ! grep -qF "$marker" "$pkg/src/index.ts"; then
+        echo "  [patch-tintinweb-subagents-strict-dispatch] strict dispatch markers are incomplete; $pkg NOT patched" >&2
+        return 1
+      fi
+    done
+    echo "  [patch-tintinweb-subagents-strict-dispatch] -> $pkg (ok)"
+    return 0
+  fi
   apply_package_patch_exact "$pkg" patch-tintinweb-subagents-strict-dispatch "$REPO_ROOT/harness/pi/patches/pi-subagents-strict-dispatch-0.22.1.patch" src/index.ts
+}
+
+# The extension otherwise saves complete UI snapshots to .pi/subagents.json.
+# Apply after strict dispatch: it keeps project settings session-only and accepts
+# its legacy disabled fallback spelling while retaining security-setting checks.
+install_tintinweb_subagents_project_settings_patch() {
+  local pkg="$1" version
+  if [ ! -d "$pkg" ]; then
+    echo "  [patch-tintinweb-subagents-project-settings] $pkg not installed; managed agents remain disabled until pi installs and this patch applies" >&2
+    return 1
+  fi
+  if [ ! -f "$pkg/package.json" ] || ! command -v python3 >/dev/null 2>&1; then
+    echo "  [patch-tintinweb-subagents-project-settings] $pkg cannot verify pinned package version" >&2
+    return 1
+  fi
+  if [ ! -f "$pkg/src/settings.ts" ]; then
+    echo "  [patch-tintinweb-subagents-project-settings] $pkg is missing src/settings.ts" >&2
+    return 1
+  fi
+  version="$(python3 - "$pkg/package.json" <<'PY'
+import json, sys
+try:
+    print(json.load(open(sys.argv[1])).get("version", ""))
+except Exception:
+    pass
+PY
+)"
+  if [ "$version" != "0.22.1" ]; then
+    echo "  [patch-tintinweb-subagents-project-settings] $pkg is version ${version:-unknown}, expected 0.22.1" >&2
+    return 1
+  fi
+  apply_package_patch_exact "$pkg" patch-tintinweb-subagents-project-settings "$REPO_ROOT/harness/pi/patches/pi-subagents-project-settings-0.22.1.patch" src/index.ts
 }
 
 apply_package_patch() {

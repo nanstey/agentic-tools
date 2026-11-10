@@ -40,6 +40,31 @@ candidate="$SB/candidate"
 cp -R "$candidate_fixture" "$candidate"
 REPO_ROOT="$REPO" install_tintinweb_subagents_strict_dispatch_patch "$candidate" | grep -q '(patched)'
 REPO_ROOT="$REPO" install_tintinweb_subagents_strict_dispatch_patch "$candidate" | grep -q '(ok)'
+REPO_ROOT="$REPO" install_tintinweb_subagents_project_settings_patch "$candidate" | grep -q '(patched)'
+REPO_ROOT="$REPO" install_tintinweb_subagents_project_settings_patch "$candidate" | grep -q '(ok)'
+grep -qF 'export function saveSettings(_s: SubagentsSettings, _cwd: string = process.cwd()): boolean {' "$candidate/src/settings.ts"
+grep -qF 'return false;' "$candidate/src/settings.ts"
+! grep -qF 'writeFileSync' "$candidate/src/settings.ts"
+node - "$candidate/src/settings.ts" <<'JS'
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
+const vm = require("node:vm");
+const { stripTypeScriptTypes } = require("node:module");
+const source = fs.readFileSync(process.argv[2], "utf8");
+const start = source.indexOf("export function saveSettings");
+const end = source.indexOf("\n\n/** Apply persisted settings", start);
+assert(start >= 0 && end > start, "saveSettings exists");
+const implementation = stripTypeScriptTypes(source.slice(start, end), { mode: "transform" }).replace(/^export /, "");
+const saveSettings = vm.runInNewContext(`${implementation}\nsaveSettings`, { process });
+const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-settings-"));
+assert.equal(saveSettings({}, cwd), false);
+assert.equal(fs.existsSync(path.join(cwd, ".pi", "subagents.json")), false);
+fs.rmSync(cwd, { recursive: true, force: true });
+console.log("ok: project settings save is session-only and creates no file");
+JS
+echo 'ok: project settings patch prevents generated project snapshots'
 cp -R "$candidate_fixture" "$SB/candidate-wrong-version"
 python3 - "$SB/candidate-wrong-version/package.json" <<'PY'
 import json, sys
@@ -51,6 +76,13 @@ if REPO_ROOT="$REPO" install_tintinweb_subagents_strict_dispatch_patch "$SB/cand
   echo 'FAIL: candidate wrong version accepted' >&2; exit 1
 fi
 grep -q 'expected 0.22.1' "$SB/result"
+cp -R "$candidate_fixture" "$SB/candidate-missing-settings"
+REPO_ROOT="$REPO" install_tintinweb_subagents_strict_dispatch_patch "$SB/candidate-missing-settings" >/dev/null
+rm "$SB/candidate-missing-settings/src/settings.ts"
+if REPO_ROOT="$REPO" install_tintinweb_subagents_project_settings_patch "$SB/candidate-missing-settings" >"$SB/result" 2>&1; then
+  echo 'FAIL: project settings patch accepted missing settings source' >&2; exit 1
+fi
+grep -q 'missing src/settings.ts' "$SB/result"
 # Context drift that a permissive applicator could relocate must still fail: this
 # policy patch only applies at its exact upstream context.
 cp -R "$candidate_fixture" "$SB/candidate-near-context-drift"
@@ -131,6 +163,10 @@ contents.set(projectSettings, '{"maxSubagentDepth":2}');
 assert.match(policy.managedAgentPolicyError("worker", accepted, globalWorker, "/project"), /conflicts/);
 contents.set(projectSettings, '{"maxSubagentDepth":1}');
 assert.equal(policy.managedAgentPolicyError("worker", accepted, globalWorker, "/project"), undefined, "matching project setting");
+contents.set(projectSettings, '{"fallbackSubagent":"none","widgetMode":"all","fleetView":true,"outputTranscript":true,"reportUsage":false}');
+assert.equal(policy.managedAgentPolicyError("worker", accepted, globalWorker, "/project"), undefined, "extension default snapshot");
+contents.set(projectSettings, '{"workflowsEnabled":true}');
+assert.match(policy.managedAgentPolicyError("worker", accepted, globalWorker, "/project"), /conflicts/);
 assert.match(policy.managedThinkingError({ provider: "openai-codex", id: "gpt-5.6-terra" }, "high"), /not supported/);
 assert.equal(policy.managedThinkingError({ provider: "openai-codex", id: "gpt-5.6-terra" }, "medium"), undefined);
 assert.equal(policy.isManagedAgentType("general-purpose"), false, "non-managed spawn is rejected by execute gate");
@@ -300,6 +336,7 @@ for state in {0..15}; do
       expected_candidate=ok
       [ "$run" = 1 ] && expected_candidate=patched
       grep -qF "[patch-tintinweb-subagents-strict-dispatch] -> $candidate_pkg ($expected_candidate)" "$SB/install-$state-$run.log"
+      grep -qF "[patch-tintinweb-subagents-project-settings] -> $candidate_pkg ($expected_candidate)" "$SB/install-$state-$run.log"
       if [ "$run" = 1 ]; then
         grep -qF "[pi-agents] -> $agent_profiles (0 ok, 5 copied, 24 removed)" "$SB/install-$state-$run.log"
       else
@@ -356,6 +393,7 @@ cp -R "$candidate_fixture/." "$candidate_pkg/"
     TYPESAFE_API_KEY= PI_IMPROVE_NO_ORCA=1 DURABLE_SKIP=1 bash install.sh
 ) > "$SB/install-candidate-enabled.log" 2>&1 || { tail -n 30 "$SB/install-candidate-enabled.log" >&2; exit 1; }
 grep -qF "[patch-tintinweb-subagents-strict-dispatch] -> $candidate_pkg (patched)" "$SB/install-candidate-enabled.log"
+grep -qF "[patch-tintinweb-subagents-project-settings] -> $candidate_pkg (patched)" "$SB/install-candidate-enabled.log"
 [ -f "$agent_profiles/worker.md" ] || { echo 'FAIL: patched candidate did not enable managed profiles' >&2; exit 1; }
 echo 'ok: first install fails closed and patched reinstall enables managed profiles'
 

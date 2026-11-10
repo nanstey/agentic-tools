@@ -74,7 +74,9 @@ mkdir -p "$FIXTURE/skills/dev/sample" "$FIXTURE/agents" "$FIXTURE/harness/pi/bin
   "$FIXTURE/harness/pi/ignored" "$FIXTURE/harness/pi/patches" "$FIXTURE/harness/omp/plugins" "$FIXTURE/harness/omp/status-line"
 printf 'name: sample\n' >"$FIXTURE/skills/dev/sample/SKILL.md"
 printf 'name: reviewer\n' >"$FIXTURE/agents/reviewer.md"
-cp "$REPO/harness/pi/patches/pi-subagents-strict-dispatch-0.22.1.patch" "$FIXTURE/harness/pi/patches/"
+cp "$REPO/harness/pi/patches/pi-subagents-strict-dispatch-0.22.1.patch" \
+  "$REPO/harness/pi/patches/pi-subagents-project-settings-0.22.1.patch" \
+  "$FIXTURE/harness/pi/patches/"
 candidate_fixture="$PI_SUBAGENTS_PRISTINE_DIR"
 seed_candidate() {
   local agent_dir="$1"

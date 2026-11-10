@@ -12,6 +12,7 @@ rather than symlinked because Pi may rewrite them locally.
 | `harness/pi/subagents.json` | `$PI_AGENT_DIR/subagents.json` | Candidate configuration: strict unknown-type rejection (`fallbackSubagent: "none"`); FleetView and schedules on; widgets, mentions, workflows including package workflows, default and package agents, worktrees, persistent agent memory, and nesting off. Model policy is patch-owned, not `enabledModels`. |
 | `agents/*.md` | `$PI_AGENT_DIR/agents/*.md` | Copied as regular files only after the strict dispatch patch succeeds. The installer removes its managed profiles when the package is absent or the patch fails, migrates old managed symlinks, preserves unrelated user profiles, and records managed names so the retired 24 tier files are removed. |
 | `harness/pi/patches/pi-subagents-strict-dispatch-0.22.1.patch` | applied to `$PI_AGENT_DIR/npm/node_modules/@tintinweb/pi-subagents/` (`src/index.ts`, `src/types.ts`) | Version-pinned strict dispatch and provenance patch. It permits fresh spawns only through the five global managed role profiles, preserves resume behavior, rejects local shadow profiles and conflicting project security settings, requires non-null exact table-approved model/thinking pairs with authenticated supported thinking, and records requested, initial, and final/effective-at-start selections. |
+| `harness/pi/patches/pi-subagents-project-settings-0.22.1.patch` | applied after the strict-dispatch patch to `$PI_AGENT_DIR/npm/node_modules/@tintinweb/pi-subagents/` (`src/index.ts`, `src/settings.ts`) | Version-pinned project-settings patch. It prevents UI settings from creating project `.pi/subagents.json` snapshots, accepts the legacy disabled fallback spelling, and continues to reject settings that weaken managed dispatch policy. |
 | `harness/pi/patches/pi-diff-sdk-imports.patch` | applied to `$PI_AGENT_DIR/npm/node_modules/@heyhuynhgiabuu/pi-diff/dist/index.js` | Uses static SDK/TUI imports so Pi's extension loader supplies the host modules. Hoisting alone cannot resolve native dynamic imports of uninstalled host peers. Not copied. |
 | `harness/pi/patches/pi-jev.patch` | applied to `$PI_AGENT_DIR/npm/node_modules/pi-jev/src/jev.ts` | Unified diff that `install.sh` applies to `pi-jev`: rebuilds its SDK client on credential changes and adds `PI_JEV_API_KEY`. Not copied. |
 | `harness/pi/patches/pi-jev-prompt-guard.patch` | applied to `$PI_AGENT_DIR/npm/node_modules/pi-jev/` (`src/thinking.ts`, `extensions/index.ts`) | Unified diff that `install.sh` applies to `pi-jev`: tolerates a missing `event.prompt` (runs started by `sendCustomMessage`, such as agent completion messages) instead of throwing `Cannot read properties of undefined (reading 'trim')`. Not copied. |
@@ -146,12 +147,13 @@ installs and then exits 1.
   its global chain cannot preserve a child model scope, provider-family separation, or exact
   provenance. A child provider failure remains a failure rather than widening policy.
 - **`@tintinweb/pi-subagents`:** 0.22.1 accepts per-call `model` and `thinking`, but resolves
-  models fuzzily and permits Pi to clamp thinking. The version-pinned patch changes only
+  models fuzzily and permits Pi to clamp thinking. The version-pinned strict-dispatch patch changes only
   `src/index.ts` and `src/types.ts`: managed role calls must provide non-null exact values, the model must be available/authenticated and support the
   exact thinking level, and profile pins are rejected before spawn. Lifecycle and result
-  provenance records requested, initial, and final selections. Final means effective at session
-  start, not completion proof. The patch fails safely for a changed source or any version other
-  than 0.22.1.
+  provenance records requested, initial, and final selections. The following project-settings patch
+  changes `src/index.ts` and `src/settings.ts`: it keeps UI settings session-only, accepts the
+  equivalent `fallbackSubagent: "none"` spelling, and still rejects a project file that weakens
+  managed dispatch policy. Both patches fail safely for a changed source or any version other than 0.22.1.
 - **`pi-subagents-lite`:** The old direct dependency and package directory are removed. It is never installed as a subagent runtime.
 - **`pi-jev`:** 0.7.0 builds its SDK client once, so a profile switch keeps the first profile's
   key and endpoint. `harness/pi/patches/pi-jev.patch` (a unified diff applied with `patch`)
@@ -201,8 +203,9 @@ and final model/thinking in `get_subagent_result`; final is effective-at-start, 
 proof. Missing provenance is a review gap. `steer_subagent` is available for active children. The
 candidate exposes no stop/cancel tool.
 
-Project-local `.pi/subagents.json` cannot weaken managed agents: conflicting values for the
-security-relevant settings are rejected. A project-local `.pi/agents/<name>.md` cannot shadow a
+Project-local `.pi/subagents.json` cannot weaken managed agent dispatch: conflicting values for
+security-relevant settings are rejected. Widget and FleetView are display preferences, not dispatch
+policy, so legacy snapshots may differ from the managed global display defaults. A project-local `.pi/agents/<name>.md` cannot shadow a
 managed profile because the strict patch requires the matching profile to originate in the global
 managed agents directory. Fresh spawns through any non-managed type are rejected. Resume
 continues to replay its stored session without these fresh-spawn checks.
