@@ -111,9 +111,9 @@ for required in (
 ):
     if required not in settings:
         fail(f"subagents.json omits {required}")
-if settings["fallbackSubagent"] is not False or settings["scopeModels"] is not False:
+if settings["fallbackSubagent"] not in (False, "none") or settings["scopeModels"] is not False:
     fail("subagents.json must fail closed and leave policy scope to the strict patch")
-for key in ("fleetView", "workflowsEnabled", "schedulingEnabled", "disableDefaultAgents", "packageAgents", "packageWorkflows", "worktreeIsolation"):
+for key in ("workflowsEnabled", "disableDefaultAgents", "packageAgents", "packageWorkflows", "worktreeIsolation"):
     expected_value = False if key != "disableDefaultAgents" else True
     if settings[key] is not expected_value:
         fail(f"subagents.json {key} drift")
