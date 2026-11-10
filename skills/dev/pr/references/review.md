@@ -44,7 +44,7 @@ If the chosen depth is `skip`, do not call `review-code`: record the substitute 
 
 ### 4. Present or perform the selected mode
 
-Report requests first, then optional nits and baseline-proven unchanged existing issues. Severity/impact and confidence remain separate fields. Uncertain baseline is incomplete coverage; new exposure/aggravation is a request. Return the shared `clean`, `changes_required`, or `incomplete` packet and disclose both requests and gaps. `skip` depth is always report-only because it has no source-review packet. An own-PR default or `report` mode stops here without forced fixes; another author's mode-less invocation continues to publication.
+Report requests first, then optional nits and baseline-proven unchanged existing issues. Severity/impact and confidence remain separate fields. Uncertain baseline is incomplete coverage; new exposure/aggravation is a request. Return the shared `clean`, `changes_required`, or `incomplete` packet and disclose both requests and gaps. `skip` depth is always report-only because it has no source-review packet. An own-PR default, `report` mode, or `skip` depth stops here without forced fixes; another author's mode-less non-`skip` invocation continues to publication.
 
 ## Own PR: `fix`
 
