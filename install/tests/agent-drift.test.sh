@@ -15,20 +15,24 @@ readme = (repo / "README.md").read_text()
 settings = json.loads((repo / "harness/pi/subagents.json").read_text())
 expected = {
     "delegation-scout": "[read, grep, find, ls, bash, ext:builtin:codemode/codemode]",
-    "delegation-researcher": "[ext:dist/web_search, ext:dist/fetch_content, ext:dist/get_search_content]",
+    "delegation-researcher": "[read, ext:dist/web_search, ext:dist/fetch_content, ext:dist/get_search_content]",
     "delegation-planner": "[read, grep, find, ls, write]",
     "delegation-worker": "[read, grep, find, ls, bash, edit, write, ext:builtin:codemode/codemode]",
     "delegation-reviewer": "[read, grep, find, ls, bash, ext:builtin:codemode/codemode]",
 }
-expected_models = {
-    "anthropic/claude-haiku-5-5",
-    "anthropic/claude-sonnet-5-5",
-    "anthropic/claude-opus-5-5",
-    "anthropic/claude-fable-5-1",
-    "openai-codex/gpt-6-luna",
-    "openai-codex/gpt-5.6-terra",
-    "openai-codex/gpt-6.1-sol",
-}
+# The APPEND_SYSTEM table is the source of truth for exact role/model/thinking
+# selections. Keep the patch's runtime allowlist in lock-step with every cell.
+expected_selections = {}
+for line in append.splitlines():
+    if not line.startswith("| `delegation-"):
+        continue
+    role = re.match(r"\| `(delegation-[^`]+)`", line).group(1)
+    selections = set(re.findall(r"`([^`]+)`, (low|medium|high)", line))
+    if not selections:
+        fail(f"routing table row for {role} has no model/thinking selections")
+    expected_selections.setdefault(role, set()).update(f"{model}|{thinking}" for model, thinking in selections)
+expected_models = {selection.rsplit("|", 1)[0] for selections in expected_selections.values() for selection in selections}
+expected_thinking = {selection.rsplit("|", 1)[1] for selections in expected_selections.values() for selection in selections}
 
 def fail(message):
     raise SystemExit(f"FAIL: {message}")
@@ -64,7 +68,10 @@ for path in files:
         fail(f"{name} tools drift")
     if "model" in fields or "thinking" in fields:
         fail(f"{name} must not pin model or thinking")
-    if fields.get("exclude_extensions") != "[pi-jev, pi-fallback-models]":
+    if name == "delegation-planner":
+        if "exclude_extensions" in fields:
+            fail("delegation-planner must not set exclude_extensions when extensions are false")
+    elif fields.get("exclude_extensions") != "[pi-jev, pi-fallback-models]":
         fail(f"{name} must exclude pi-jev and pi-fallback-models")
     extensions = fields.get("extensions")
     if extensions != "false" and "ext:" not in fields.get("tools", ""):
@@ -128,6 +135,10 @@ for text in (
     "delegation-scout", "delegation-researcher", "delegation-planner", "delegation-worker", "delegation-reviewer",
     "exact provider-qualified `model` and `thinking`", "get_subagent_result", "no stop/cancel tool",
     "effective-at-start", "package-provided agent types", "package-provided workflows",
+    "The coordinator selects the delegation role", "state is exactly `{ task, context }`",
+    "`role`", "`files touched`", "`producer family`", "`ambiguity`", "`stakes`", "`blast radius`",
+    "confidence is below 0.6, retain the returned tier", "retry once at a stronger tier",
+    "standalone Pi session in a new Orca worktree",
 ):
     if text not in append:
         fail(f"APPEND_SYSTEM.md missing routing policy: {text!r}")
@@ -143,12 +154,25 @@ if not match:
     fail("strict dispatch patch omits managed model allowlist")
 actual_models = set(re.findall(r'"([^"\n]+)"', match.group(1)))
 if actual_models != expected_models:
-    fail(f"strict dispatch allowlist drift: {sorted(actual_models)}")
+    fail(f"strict dispatch model allowlist drift: {sorted(actual_models)}")
+selection_matches = re.findall(r'"(delegation-[^"]+)": new Set\(\[([\s\S]*?)\]\),', patch)
+actual_selections = {
+    role: set(re.findall(r'"([^"\n]+\|(?:low|medium|high))"', body))
+    for role, body in selection_matches
+}
+if actual_selections != expected_selections:
+    fail(f"strict dispatch table selection allowlist drift: expected {expected_selections}, found {actual_selections}")
+actual_thinking = {selection.rsplit("|", 1)[1] for selections in actual_selections.values() for selection in selections}
+if actual_thinking != expected_thinking:
+    fail(f"strict dispatch thinking allowlist drift: {sorted(actual_thinking)}")
 for text in (
     "params.model == null || params.thinking == null",
     "registry.getAvailable",
     "Cannot verify model availability; refusing delegation dispatch.",
     "final/effective-at-start",
+    "Only managed delegation-* profiles may spawn agents",
+    "must originate from the global managed agents directory",
+    "Project subagents.json conflicts with the global managed setting",
 ):
     if text not in patch:
         fail(f"strict dispatch patch omits {text!r}")

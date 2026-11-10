@@ -1,7 +1,7 @@
 ---
 name: delegation-researcher
 description: Focused web research. Delegate when sourced external evidence is needed.
-tools: [ext:dist/web_search, ext:dist/fetch_content, ext:dist/get_search_content]
+tools: [read, ext:dist/web_search, ext:dist/fetch_content, ext:dist/get_search_content]
 extensions: true
 exclude_extensions: [pi-jev, pi-fallback-models]
 skills: true

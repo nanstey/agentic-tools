@@ -10,8 +10,8 @@ rather than symlinked because Pi may rewrite them locally.
 | `harness/pi/pi-jev-auto.conf` | `~/.config/environment.d/91-pi-jev-auto.conf` | Enables Jev auto routing/skills, thinking, and tool guard; disables auto-model (`PI_JEV_AUTO_MODEL=0`), agent dispatch (`PI_JEV_AGENTS=0`), and compaction (`PI_JEV_COMPACT=0`, pi-jev 0.7.0 drops context) for Linux/systemd user sessions. `install.sh` copies this config when Pi is installed. The variables are user-wide, so OMP's pinned `pi-jev` also reads `PI_JEV_AUTO=1` and routes its prompts through Jev. |
 | `harness/pi/APPEND_SYSTEM.md` | `$PI_AGENT_DIR/APPEND_SYSTEM.md` | Appends concise communication, exact dispatch routing, lifecycle limits, cross-family provenance, and main-agent model preservation rules. |
 | `harness/pi/subagents.json` | `$PI_AGENT_DIR/subagents.json` | Candidate configuration: strict unknown-type rejection; widgets, FleetView, mentions, workflows including package workflows, schedules, default and package agents, worktrees, persistent agent memory, and nesting off. Model policy is patch-owned, not `enabledModels`. |
-| `agents/*.md` | `$PI_AGENT_DIR/agents/*.md` | Copied as regular files. The installer migrates old managed symlinks, preserves user profiles, and records managed names so the retired 24 tier files are removed. |
-| `harness/pi/patches/pi-subagents-strict-dispatch-0.22.1.patch` | applied to `$PI_AGENT_DIR/npm/node_modules/@tintinweb/pi-subagents/` (`src/index.ts`, `src/types.ts`) | Version-pinned strict dispatch and provenance patch. For `delegation-*`, it requires non-null exact model/thinking, rejects profile pins, fuzzy, unauthenticated, out-of-policy, or unsupported selections before spawn, and records requested, initial, and final/effective-at-start selections. |
+| `agents/*.md` | `$PI_AGENT_DIR/agents/*.md` | Copied as regular files only after the strict dispatch patch succeeds. The installer removes its managed profiles when the package is absent or the patch fails, migrates old managed symlinks, preserves unrelated user profiles, and records managed names so the retired 24 tier files are removed. |
+| `harness/pi/patches/pi-subagents-strict-dispatch-0.22.1.patch` | applied to `$PI_AGENT_DIR/npm/node_modules/@tintinweb/pi-subagents/` (`src/index.ts`, `src/types.ts`) | Version-pinned strict dispatch and provenance patch. It permits fresh spawns only through the five global managed `delegation-*` profiles, preserves resume behavior, rejects local shadow profiles and conflicting project security settings, requires non-null exact table-approved model/thinking pairs with authenticated supported thinking, and records requested, initial, and final/effective-at-start selections. |
 | `harness/pi/patches/pi-diff-sdk-imports.patch` | applied to `$PI_AGENT_DIR/npm/node_modules/@heyhuynhgiabuu/pi-diff/dist/index.js` | Uses static SDK/TUI imports so Pi's extension loader supplies the host modules. Hoisting alone cannot resolve native dynamic imports of uninstalled host peers. Not copied. |
 | `harness/pi/patches/pi-jev.patch` | applied to `$PI_AGENT_DIR/npm/node_modules/pi-jev/src/jev.ts` | Unified diff that `install.sh` applies to `pi-jev`: rebuilds its SDK client on credential changes and adds `PI_JEV_API_KEY`. Not copied. |
 | `harness/pi/patches/pi-jev-prompt-guard.patch` | applied to `$PI_AGENT_DIR/npm/node_modules/pi-jev/` (`src/thinking.ts`, `extensions/index.ts`) | Unified diff that `install.sh` applies to `pi-jev`: tolerates a missing `event.prompt` (runs started by `sendCustomMessage`, such as agent completion messages) instead of throwing `Cannot read properties of undefined (reading 'trim')`. Not copied. |
@@ -19,7 +19,7 @@ rather than symlinked because Pi may rewrite them locally.
 | `harness/pi/patches/pi-jev-self-improve-thinking.patch` | applied to `$PI_AGENT_DIR/npm/node_modules/pi-jev/extensions/index.ts` | Disables auto-thinking for `PI_SELF_IMPROVE_CHILD` workers and reflections at router construction. Managed delegation profiles instead exclude the `pi-jev` extension in their frontmatter. The modular `patch-*` installer loop applies it with the other Jev patches. Not copied. |
 | `harness/pi/tests/package-patches.test.sh` | Not installed | Offline regression tests for patch idempotency, strict candidate dispatch behavior, upstream mismatch safety, Lite retirement failure preservation, profile migration, Jev patch ordering/failure behavior, and twice-run sandboxed installation. Run with `bash`. |
 | `install/tests/agent-drift.test.sh` | Not installed | Offline check that the five role-only profiles, capability boundaries, strict settings, and README catalog stay synchronized. Run with `bash`. |
-| `harness/pi/tests/fixtures/pi-subagents-0.22.1/` | Not installed | Pristine published candidate metadata and the two source files covered by the version-pinned strict-dispatch patch. |
+| `harness/pi/tests/fixtures/pi-subagents-0.22.1/` | Not installed | Pristine published candidate metadata, source files, and upstream MIT LICENSE covered by the version-pinned strict-dispatch patch. |
 | `harness/pi/tests/fixtures/pi-jev-0.7.0/` | Not installed | Pristine upstream Jev sources for all 16 Jev patch-order subsets and thinking-policy regression tests. |
 | `harness/pi/tests/fixtures/pi-jev-skill-wrapped-prompt.txt` | Not installed | Representative `before_agent_start` skill wrapper plus a plain user request for conservative thinking-policy regression tests. |
 | `harness/pi/tests/package-extensions.test.mjs` | Not installed | Offline smoke test for pi-diff registration. Run with `node`, passing the installed Pi SDK package directory and Pi agent directory. |
@@ -45,14 +45,12 @@ rather than symlinked because Pi may rewrite them locally.
 | Durable Pi-directory contract | Durable-derived per-agent Pi directories symlink `auth-profiles/`, `secrets/`, `profile-meta/`, `extensions/`, `skills/`, `agents/`, and `prompts/` from `$PI_AGENT_DIR`. | `durable profile` creates and owns `profile-meta/<name>.json`. Rename one of these directories only after durable has merged and verified the compatible migration (the durable-first sequence). |
 
 The main agent stays on the user's selected model unless a provider/failure fallback is
-needed. Context- and scale-based selection applies only to delegated children. A `codemode`
-`models.classify()` recommendation selects quick, standard, high, or premium. The coordinator
-then passes the routing-table's exact provider-qualified model and thinking values to one
-role-only `delegation-*` profile. Ordinary work starts at standard/medium. Low confidence does
-not cause escalation. High requires demonstrated cross-boundary complexity or high blast
-radius. Premium requires an explicit request or an indivisible irreversible or
-security-critical task, plus a recorded reason. Reviewers use the opposite producer family at
-the selected tier. See `APPEND_SYSTEM.md` for strict dispatch and provenance rules.
+needed. Context- and scale-based selection applies only to delegated children. The coordinator
+selects the role, and one `codemode` `models.classify()` call recommends quick, standard, high,
+or premium. The coordinator then passes the routing-table's exact provider-qualified model and
+thinking values to one role-only `delegation-*` profile. See the
+[tier-selection contract](APPEND_SYSTEM.md#tier-selection-contract) for the exact classifier
+state, criteria, confidence handling, retry rule, strict dispatch, and provenance requirements.
 
 After installation, start Pi from a new login session so `environment.d` applies,
 or export `PI_JEV_AUTO_MODEL=0` in the
@@ -190,10 +188,12 @@ Profiles define tools and durable boundaries. They omit `model` and `thinking`, 
 `allowed_subagents: none`, and exclude `pi-jev` and `pi-fallback-models`. Their `tools:` lists use
 canonical selectors: `ext:builtin:codemode/codemode` for codemode and
 `ext:dist/{web_search,fetch_content,get_search_content}` for research, so no other extension
-tools surface. Planner disables extensions because it needs only built-in planning-artifact tools. They
-use candidate frontmatter for append-mode parent policy, background execution, no worktree
-isolation, no persistent session, and output transcripts. Scout and reviewer are read-only, planner
-can write only assigned planning artifacts, researcher is web-only, and worker is write-capable.
+tools surface. Researcher also has built-in `read` to inspect fetched local artifacts. Planner
+disables extensions because it needs only built-in planning-artifact tools. They use candidate
+frontmatter for append-mode parent policy, background execution, no worktree isolation, no
+persistent session, and output transcripts. Scout and reviewer are read-only, planner can write
+only assigned planning artifacts, researcher can read plus use its scoped web tools, and worker is
+write-capable.
 
 The coordinator must pass exact model and thinking on every `delegation-*` `Agent` call. The
 candidate patch rejects missing/null, non-exact, unauthenticated, routing-policy-outside,
@@ -202,20 +202,22 @@ and final model/thinking in `get_subagent_result`; final is effective-at-start, 
 proof. Missing provenance is a review gap. `steer_subagent` is available for active children. The
 candidate exposes no stop/cancel tool.
 
-Project-local `.pi/settings.json` and `.pi/agents/<name>.md` can override global settings and a
-profile with the same name. The strict patch rejects a local `delegation-*` profile that pins model
-or thinking, but project files can otherwise change the candidate's behavior. Treat trusted-project
-configuration as part of the delegation boundary.
+Project-local `.pi/subagents.json` cannot weaken managed delegation: conflicting values for the
+security-relevant settings are rejected. A project-local `.pi/agents/<name>.md` cannot shadow a
+managed profile because the strict patch requires the matching profile to originate in the global
+managed agents directory. Fresh spawns through any non-`delegation-*` type are rejected. Resume
+continues to replay its stored session without these fresh-spawn checks.
 
-A first `install.sh` run can copy settings and profiles before Pi has installed the candidate, so
-it reports the strict patch as skipped. Start Pi to install packages, then rerun `install.sh` before
-using delegation. Until that second run the upstream candidate is unpatched and does not enforce
-this repository's strict dispatch policy.
+`install.sh` patches the candidate before it copies managed profiles. If the package is absent or
+the version-pinned patch fails, it removes the installer-managed profiles and exits nonzero. On a
+new machine, run `install.sh`, start Pi once so it installs packages, then rerun `install.sh`; only
+the successful second run enables delegation.
 
 ## New machine bootstrap
 ```sh
 git clone git@github.com:nanstey/agentic-tools.git ~/Code/skills
-cd ~/Code/skills && bash install.sh   # links tools, copies harness config
+cd ~/Code/skills && bash install.sh   # links tools and copies harness config; delegation remains disabled
 pi                                     # installs packages from settings.json
+bash install.sh                        # applies strict patch and copies managed delegation profiles
 /login anthropic                       # re-auth (secrets are never synced)
 ```

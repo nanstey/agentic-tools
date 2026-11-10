@@ -27,6 +27,32 @@ collect_agents() {
   done
 }
 
+# Remove this installer's managed Pi profiles before an unavailable or failed
+# strict-dispatch patch can leave an upstream Agent tool with usable profiles.
+# The manifest covers prior managed names, including the retired tier profiles;
+# known current names cover a partially completed or legacy install without one.
+disable_managed_pi_agents() {
+  local dir="$1" manifest="$1/.agentic-tools-pi-agents" name target removed=0
+  [ -d "$dir" ] || return 0
+  while IFS= read -r name; do
+    case "$name" in
+      delegation-scout.md|delegation-researcher.md|delegation-planner.md|delegation-worker.md|delegation-reviewer.md|*.md) ;;
+      *) continue ;;
+    esac
+    case "$name" in .*|*/*) continue ;; esac
+    target="$dir/$name"
+    if [ -e "$target" ] || [ -L "$target" ]; then
+      rm -rf "$target"
+      removed=$((removed + 1))
+    fi
+  done < <({
+    printf '%s\n' delegation-scout.md delegation-researcher.md delegation-planner.md delegation-worker.md delegation-reviewer.md
+    [ -f "$manifest" ] && cat "$manifest"
+  } | sort -u)
+  rm -f "$manifest"
+  echo "  [pi-agents] -> $dir ($removed disabled; strict dispatch patch unavailable)" >&2
+}
+
 # Managed Pi profiles are copied as regular files. The candidate discovers that
 # form, and keeping it avoids a discovery patch while the manifest lets future
 # installs retire only files this installer owns, leaving user-created profiles alone.

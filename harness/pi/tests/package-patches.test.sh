@@ -56,7 +56,24 @@ if REPO_ROOT="$REPO" install_tintinweb_subagents_strict_dispatch_patch "$SB/cand
   echo 'FAIL: candidate drift accepted' >&2; exit 1
 fi
 grep -q 'upstream code changed' "$SB/result"
-echo 'ok: strict candidate patch is version-pinned, idempotent, and rejects drift'
+# Context drift that a permissive applicator could relocate must still fail: this
+# policy patch only applies at its exact upstream context.
+cp -R "$candidate_fixture" "$SB/candidate-near-context-drift"
+python3 - "$SB/candidate-near-context-drift/src/index.ts" <<'PY'
+import sys
+path = sys.argv[1]
+source = open(path).read()
+old = 'import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";'
+assert old in source
+open(path, "w").write(source.replace(old, old + ' // near-context drift'))
+PY
+cp "$SB/candidate-near-context-drift/src/index.ts" "$SB/before-near-context-drift"
+if REPO_ROOT="$REPO" install_tintinweb_subagents_strict_dispatch_patch "$SB/candidate-near-context-drift" >"$SB/result" 2>&1; then
+  echo 'FAIL: strict candidate patch accepted near-context drift' >&2; exit 1
+fi
+cmp "$SB/candidate-near-context-drift/src/index.ts" "$SB/before-near-context-drift"
+grep -q 'upstream code changed' "$SB/result"
+echo 'ok: strict candidate patch is version-pinned, idempotent, and rejects drift with --fuzz=0'
 
 # Evaluate exact-model resolution against a patched fixture. This exercises the
 # fail-closed availability path rather than merely checking patch text.
@@ -81,9 +98,60 @@ assert.equal(resolve("anthropic/claude-haiku-5-5", { getAvailable: () => [model]
 assert.match(resolve("anthropic/CLAUDE-haiku-5-5", { getAvailable: () => [model], find: () => model }).error, /unavailable/);
 console.log("ok: strict candidate resolver requires exact authenticated models and fails closed");
 JS
-for required in 'params.model == null || params.thinking == null' 'must not pin a model' 'MANAGED_DELEGATION_MODELS.has' 'getSupportedThinkingLevels'; do
+for required in 'params.model == null || params.thinking == null' 'must not pin a model' 'MANAGED_DELEGATION_MODELS.has' 'MANAGED_DELEGATION_SELECTIONS' 'getSupportedThinkingLevels' 'Only managed delegation-* profiles may spawn agents'; do
   grep -qF "$required" "$candidate/src/index.ts" || { echo "FAIL: strict candidate behavior missing $required" >&2; exit 1; }
 done
+
+# Exercise the policy seams against hostile local overrides without importing Pi.
+node - "$candidate/src/index.ts" <<'JS'
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const vm = require("node:vm");
+const { stripTypeScriptTypes } = require("node:module");
+const source = fs.readFileSync(process.argv[2], "utf8");
+const start = source.indexOf("/** Exact models permitted by the managed APPEND_SYSTEM.md delegation table. */");
+const end = source.indexOf("\n\nexport function renderRunningAgentStatus", start);
+assert(start >= 0 && end > start, "strict policy helpers exist");
+const helpers = stripTypeScriptTypes(source.slice(start, end), { mode: "transform" });
+const files = new Set(["/global/agents/delegation-worker.md"]);
+const contents = new Map();
+const policy = vm.runInNewContext(`${helpers}\n({ isManagedDelegationType, freshSpawnTypeError, managedDelegationPolicyError, managedThinkingError, modelProvenance })`, {
+  existsSync: (path) => files.has(path) || contents.has(path),
+  readFileSync: (path) => contents.get(path),
+  realpathSync: (path) => path,
+  join: (...parts) => parts.join("/"),
+  getAgentDir: () => "/global",
+  getSupportedThinkingLevels: () => ["low", "medium"],
+});
+const globalWorker = { source: "global", sourcePath: "/global/agents/delegation-worker.md" };
+const accepted = { model: "openai-codex/gpt-5.6-terra", thinking: "medium" };
+assert.equal(policy.managedDelegationPolicyError("delegation-worker", accepted, globalWorker, "/project"), undefined, "accepted call");
+assert.match(policy.managedDelegationPolicyError("delegation-worker", { thinking: "medium" }, globalWorker, "/project"), /requires explicit/);
+assert.match(policy.managedDelegationPolicyError("delegation-worker", { model: accepted.model, thinking: null }, globalWorker, "/project"), /requires explicit/);
+assert.match(policy.managedDelegationPolicyError("delegation-worker", accepted, { ...globalWorker, model: accepted.model }, "/project"), /must not pin a model/);
+assert.match(policy.managedDelegationPolicyError("delegation-worker", accepted, { ...globalWorker, thinking: "medium" }, "/project"), /must not pin thinking/);
+assert.match(policy.managedDelegationPolicyError("delegation-worker", { model: "anthropic/claude-sonnet-5-5", thinking: "medium" }, globalWorker, "/project"), /outside/);
+assert.match(policy.managedDelegationPolicyError("delegation-worker", { model: accepted.model, thinking: "low" }, globalWorker, "/project"), /Model\/thinking selection/);
+assert.match(policy.managedDelegationPolicyError("delegation-worker", accepted, { source: "project", sourcePath: "/project/.pi/agents/delegation-worker.md" }, "/project"), /global managed agents directory/);
+const projectSettings = "/project/.pi/subagents.json";
+contents.set(projectSettings, '{"maxSubagentDepth":2}');
+assert.match(policy.managedDelegationPolicyError("delegation-worker", accepted, globalWorker, "/project"), /conflicts/);
+contents.set(projectSettings, '{"maxSubagentDepth":1}');
+assert.equal(policy.managedDelegationPolicyError("delegation-worker", accepted, globalWorker, "/project"), undefined, "matching project setting");
+assert.match(policy.managedThinkingError({ provider: "openai-codex", id: "gpt-5.6-terra" }, "high"), /not supported/);
+assert.equal(policy.managedThinkingError({ provider: "openai-codex", id: "gpt-5.6-terra" }, "medium"), undefined);
+assert.equal(policy.isManagedDelegationType("general-purpose"), false, "non-delegation spawn is rejected by execute gate");
+assert.match(policy.freshSpawnTypeError("general-purpose", false), /Only managed/);
+assert.equal(policy.freshSpawnTypeError("general-purpose", true), undefined, "resume preserves upstream type behavior");
+assert.deepEqual(JSON.parse(JSON.stringify(policy.modelProvenance({ requestedModel: accepted.model, requestedThinking: "medium", initialModelId: accepted.model, initialThinking: "medium", modelId: accepted.model, thinking: "medium" }))), {
+  requested: { model: accepted.model, thinking: "medium" },
+  initial: { model: accepted.model, thinking: "medium" },
+  final: { model: accepted.model, thinking: "medium", evidence: "effective-at-start" },
+});
+console.log("ok: strict policy behavior rejects hostile overrides and preserves accepted-call provenance");
+JS
+[ -f "$candidate_fixture/LICENSE" ] && grep -q 'MIT License' "$candidate_fixture/LICENSE"
+echo 'ok: candidate fixture includes upstream MIT LICENSE'
 
 # Pristine sources from pi-jev@0.7.0 (MIT, license beside the fixture).
 # Copy only managed local artifacts: no vendor clones, package installs, secrets,
@@ -265,6 +333,39 @@ PY2
   cmp "$REPO/harness/omp/APPEND_SYSTEM.md" "$home/.omp/agent/APPEND_SYSTEM.md"
   echo "ok: candidate strict patch, copied role profiles, and Jev patches are idempotent"
 done
+
+# A first install must not leave managed profiles usable while Pi has not yet
+# installed the candidate. A successful rerun enables them only after patching.
+home="$SB/home-candidate-absent"
+agent_dir="$home/.pi/agent"
+agent_profiles="$agent_dir/agents"
+mkdir -p "$agent_profiles" "$home/.omp/agent"
+printf '%s\n' '{"modelRoles":{"default":"local-standard","slow":"local-premium"},"composer":{"shape":"compact"}}' > "$home/.omp/agent/config.yml"
+printf 'stale managed profile\n' > "$agent_profiles/delegation-worker.md"
+printf 'delegation-worker.md\n' > "$agent_profiles/.agentic-tools-pi-agents"
+if (
+  cd "$sandbox_repo"
+  HOME="$home" PI_CODING_AGENT_DIR="$agent_dir" PATH="$SB/bin:/usr/bin:/bin" \
+    TYPESAFE_API_KEY= PI_IMPROVE_NO_ORCA=1 DURABLE_SKIP=1 bash install.sh
+) > "$SB/install-candidate-absent.log" 2>&1; then
+  echo 'FAIL: candidate-absent install accepted' >&2; exit 1
+fi
+grep -q 'managed delegation remains disabled' "$SB/install-candidate-absent.log"
+grep -q 'strict dispatch patch unavailable' "$SB/install-candidate-absent.log"
+[ ! -e "$agent_profiles/delegation-worker.md" ] || { echo 'FAIL: absent candidate left managed profile enabled' >&2; exit 1; }
+[ ! -e "$agent_profiles/.agentic-tools-pi-agents" ] || { echo 'FAIL: absent candidate left managed manifest' >&2; exit 1; }
+candidate_pkg="$agent_dir/npm/node_modules/@tintinweb/pi-subagents"
+mkdir -p "$candidate_pkg"
+cp -R "$candidate_fixture/." "$candidate_pkg/"
+(
+  cd "$sandbox_repo"
+  HOME="$home" PI_CODING_AGENT_DIR="$agent_dir" PATH="$SB/bin:/usr/bin:/bin" \
+    TYPESAFE_API_KEY= PI_IMPROVE_NO_ORCA=1 DURABLE_SKIP=1 bash install.sh
+) > "$SB/install-candidate-enabled.log" 2>&1 || { tail -n 30 "$SB/install-candidate-enabled.log" >&2; exit 1; }
+grep -qF "[patch-tintinweb-subagents-strict-dispatch] -> $candidate_pkg (patched)" "$SB/install-candidate-enabled.log"
+[ -f "$agent_profiles/delegation-worker.md" ] || { echo 'FAIL: patched candidate did not enable managed profiles' >&2; exit 1; }
+echo 'ok: first install fails closed and patched reinstall enables managed profiles'
+
 # Lite retirement must preserve package state when pnpm fails, and remove only Lite on success.
 for outcome in success failure; do
   agent_dir="$SB/lite-$outcome"
@@ -292,6 +393,10 @@ candidate_pkg="$home/.pi/agent/npm/node_modules/@tintinweb/pi-subagents"
 mkdir -p "$(dirname "$pkg")" "$candidate_pkg" "$home/.omp/agent" "$home/.omp/profiles/work/agent"
 cp -R "$fixture" "$pkg"
 cp -R "$candidate_fixture/." "$candidate_pkg/"
+agent_profiles="$home/.pi/agent/agents"
+mkdir -p "$agent_profiles"
+printf 'managed profile\n' > "$agent_profiles/delegation-worker.md"
+printf 'delegation-worker.md\n' > "$agent_profiles/.agentic-tools-pi-agents"
 printf 'node-linker=hoisted\n' > "$home/.pi/agent/npm/.npmrc"
 printf 'changed upstream\n' > "$candidate_pkg/src/index.ts"
 for config in "$home/.omp/agent/config.yml" "$home/.omp/profiles/work/agent/config.yml"; do
@@ -305,6 +410,7 @@ if (
   echo 'FAIL: changed candidate source accepted' >&2; exit 1
 fi
 grep -qF '[patch-tintinweb-subagents-strict-dispatch] upstream code changed' "$SB/install-candidate-failure.log"
+[ ! -e "$agent_profiles/delegation-worker.md" ] || { echo 'FAIL: failed patch left managed profile enabled' >&2; exit 1; }
 grep -qF "[patch-jev-client] -> $pkg (patched)" "$SB/install-candidate-failure.log"
 grep -qF 'install.sh: a required patch failed' "$SB/install-candidate-failure.log"
 echo 'ok: candidate strict-patch failure aggregates after independent patches'

@@ -3,7 +3,6 @@ name: delegation-planner
 description: Planning-artifact author. Delegate when requirements must become an actionable plan.
 tools: [read, grep, find, ls, write]
 extensions: false
-exclude_extensions: [pi-jev, pi-fallback-models]
 skills: true
 allowed_subagents: none
 prompt_mode: append

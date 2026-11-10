@@ -40,7 +40,7 @@ allowed_subagents: none
 - `description`: required; third person; ends with `Delegate when ...`.
 - `tools` or `disallowed_tools`: optional and mutually exclusive. Use an allowlist for least privilege; read-only types must omit `edit` and `write`. Extension tools must use `ext:<canonical-extension>/<tool>` selectors. `builtin:codemode` is the built-in extension name. Installed package extensions use the canonical installed extension ID, for example `ext:dist/web_search` for pi-web-access.
 - `extensions`: `true`, `false`, or a named allowlist. It controls loading. `tools` controls what reaches the model, so any `ext:` selector makes extension tools an explicit allowlist.
-- `exclude_extensions`: optional blacklist. Managed delegation profiles must exclude `pi-jev` and `pi-fallback-models`, so their per-call exact thinking and provider scope remain intact.
+- `exclude_extensions`: optional blacklist. Managed delegation profiles with `extensions: true` must exclude `pi-jev` and `pi-fallback-models`, so their per-call exact thinking and provider scope remain intact. Omit it when `extensions: false`.
 - `skills`: `true`, `false`, or a named allowlist.
 - `model` and `thinking`: omit these from managed `delegation-*` profiles. The coordinator supplies exact provider-qualified model and supported thinking per `Agent` call. Other local agent types may pin them only when their policy explicitly requires it.
 - `output_transcript: true` writes a JSONL `.output` transcript under `<tmpdir>/pi-subagents-<uid>/<encoded-cwd>/<session-id>/tasks/<agent-id>.output`.

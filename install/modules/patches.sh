@@ -91,8 +91,8 @@ install_jev_self_improve_thinking_patch() {
 install_tintinweb_subagents_strict_dispatch_patch() {
   local pkg="$1" version
   if [ ! -d "$pkg" ]; then
-    echo "  [patch-tintinweb-subagents-strict-dispatch] $pkg not installed yet, skipping (re-run install.sh after pi installs packages)"
-    return 0
+    echo "  [patch-tintinweb-subagents-strict-dispatch] $pkg not installed; managed delegation remains disabled until pi installs and this patch applies" >&2
+    return 1
   fi
   if [ ! -f "$pkg/package.json" ] || ! command -v python3 >/dev/null 2>&1; then
     echo "  [patch-tintinweb-subagents-strict-dispatch] $pkg cannot verify pinned package version" >&2

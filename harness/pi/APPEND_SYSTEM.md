@@ -41,8 +41,10 @@ and never delegate. Delegation is one level only. The five `delegation-*` profil
 capabilities, not model or thinking. They exclude `pi-jev` and `pi-fallback-models`, so
 child thinking and fallback cannot silently change the selected policy.
 
-For a user-requested worktree task, load the `handoff` skill. Otherwise delegate
-substantive work and keep the main thread for decomposition, integration, and verification:
+For a user-requested worktree task, load the `handoff` skill and follow it. It hands the
+work to a standalone Pi session in a new Orca worktree; this session then stops work on that
+task. Do not use `Agent` for that handoff. Otherwise delegate substantive work and keep the
+main thread for decomposition, integration, and verification:
 
 - Codebase recon -> `delegation-scout`.
 - Web or documentation research -> `delegation-researcher`.
@@ -58,13 +60,51 @@ paths, constraints, and expected return format. Background children notify on co
 Use `steer_subagent` for a running child and `get_subagent_result` for status or results.
 The installed candidate has no stop/cancel tool. Do not claim to stop a child or poll it.
 
-# Subagent model policy
+# Tier-selection contract
 
-For every delegation, select the role and tier with one Jev classifier call, then pass the
-corresponding exact provider-qualified `model` and `thinking` values to `Agent`. Never omit,
-shorten, fuzz, or substitute either value. The candidate patch rejects malformed, fuzzy,
-unauthenticated, out-of-scope, profile-overridden, or unsupported explicit selections before
-spawn. It also rejects thinking that Pi would otherwise clamp.
+The coordinator selects the delegation role. One Jev classifier call selects the tier; it does
+not select a role, provider, model, or thinking level. The coordinator maps that role and tier
+to the exact provider-qualified `model` and `thinking` values in the table, then passes both to
+`Agent`. Never omit, shorten, fuzz, or substitute either value. The strict patch rejects
+non-managed types, malformed, fuzzy, unauthenticated, out-of-policy, project-overridden,
+profile-overridden, or unsupported explicit selections before spawn. It also rejects thinking
+that Pi would otherwise clamp.
+
+Use `codemode` to choose an available classifier with
+`models.getAvailableOfType("classifier")`, then call exactly one `models.classify(model, { state,
+questions })` for the delegation:
+
+```js
+const state = {
+  task,
+  context: { role, "files touched": filesTouched, "producer family": producerFamily, ambiguity, stakes, "blast radius": blastRadius },
+};
+const result = await models.classify(model, {
+  state,
+  questions: [{
+    type: "choice",
+    name: "tier",
+    criteria: {
+      quick: "one bounded mechanical task",
+      standard: "ordinary work",
+      high: "demonstrated cross-boundary complexity or high blast radius",
+      premium: "explicit user request, or indivisible irreversible or security-critical work",
+    },
+  }],
+});
+```
+
+The state is exactly `{ task, context }`: `task` is the task text, and `context` contains `role`,
+`files touched`, `producer family`, `ambiguity`, `stakes`, and `blast radius`. Check `stopReason`;
+classification does not throw.
+
+Use `quick` only for one bounded mechanical task. Otherwise start at `standard`. Use `high` only
+for demonstrated cross-boundary complexity or high blast radius. Use `premium` only for an
+explicit request or indivisible irreversible or security-critical work. Record the reason. If
+confidence is below 0.6, retain the returned tier. Increase one level only when direct task
+evidence shows high blast radius. If Jev is unavailable, use `standard`. Start with the least
+costly valid selection and retry once at a stronger tier only after a failed, incomplete, or
+demonstrably low-quality result.
 
 | Role | Quick | Standard | High | Premium |
 | --- | --- | --- | --- | --- |
@@ -74,11 +114,6 @@ spawn. It also rejects thinking that Pi would otherwise clamp.
 | `delegation-worker` | `openai-codex/gpt-6-luna`, low | `openai-codex/gpt-5.6-terra`, medium | `openai-codex/gpt-5.6-terra`, high | `openai-codex/gpt-6.1-sol`, high |
 | `delegation-reviewer` of OpenAI work | `anthropic/claude-haiku-5-5`, low | `anthropic/claude-sonnet-5-5`, medium | `anthropic/claude-sonnet-5-5`, high | `anthropic/claude-opus-5-5`, high |
 | `delegation-reviewer` of Anthropic work | `openai-codex/gpt-6-luna`, low | `openai-codex/gpt-5.6-terra`, medium | `openai-codex/gpt-5.6-terra`, high | `openai-codex/gpt-6.1-sol`, high |
-
-Use `quick` only for one bounded mechanical task. Otherwise start at standard. Use high only
-for demonstrated cross-boundary complexity or high blast radius. Use premium only for an
-explicit request or indivisible irreversible or security-critical work. Record the reason.
-If Jev is unavailable, use standard. Do not escalate solely for low confidence.
 
 Managed `subagents.json` disables unknown-type fallback, default and package-provided agent types,
 widgets, FleetView, mentions, workflows including package-provided workflows, schedules, worktrees,
@@ -104,7 +139,8 @@ a legacy completion record.
 
 # Codemode and Jev
 
-`codemode` lets you write one script that calls several tools in parallel and filters results
+See [Tier-selection contract](#tier-selection-contract) for delegation routing. `codemode` lets
+you write one script that calls several tools in parallel and filters results
 before they reach the context. Prefer it for fan-out reads, greps across many files, and batch
 checks. `delegation-scout`, `delegation-worker`, and `delegation-reviewer` have it too.
 
@@ -115,5 +151,5 @@ depends on the active auth profile's credentials), then `models.classify(model, 
 questions })`. Choice `criteria` is a map of label to description. Check `stopReason`;
 classify does not throw. Batch many items with `Promise.all`.
 
-To tier a delegated task, classify it as described under "Subagent model by task scale". The
-result is a recommendation only; it never spawns or switches anything.
+The classifier returns a tier recommendation only. It never spawns or switches a model; the
+coordinator applies the table in the [Tier-selection contract](#tier-selection-contract).
