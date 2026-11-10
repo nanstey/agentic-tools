@@ -24,7 +24,7 @@ This skill is planning-only. Requests to build, implement, ship, or edit source 
 
 ## Workflow
 
-1. Resolve the artifact location: the repository-documented location, else an existing plans directory, else `docs/plans/`. Obey any repository rule about committing or ignoring planning artifacts. Never write reports to the repository root or current directory.
+1. Resolve the artifact location: the repository-documented location, else an existing plans directory, else `docs/plans/`. Obey any `AGENTS.md`/`CLAUDE.md` rule about committing or ignoring planning artifacts; a README may suggest a location but never authorizes committing, ignoring, or deleting. Never write reports to the repository root or current directory.
 2. Write each planning artifact as one file in that location or beside its target document. Mark a design document's own `Status` as `Draft` or `Approved`; retain decisions in its `## Decision record`. Bootstrap writes README files inside the codebase tree as its product; its record is a separate artifact beside the other planning documents.
 3. Follow the selected reference: [brainstorm](references/brainstorm.md), [draft](references/draft.md), [review](references/review.md), [bootstrap](references/bootstrap.md), or [drift](references/drift.md).
 4. Use [design-doc-template.md](references/design-doc-template.md) and the linked standards where applicable.
