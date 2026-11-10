@@ -91,6 +91,19 @@ for role, table_label in roles.items():
     if any(body != bodies[0] for body in bodies[1:]):
         fail(f"{role} tier bodies drift")
     for index, tier in enumerate(tiers):
+        if role == "planner":
+            fields, body = agents[f"{role}-{tier}"]
+            if fields.get("tools") != "[read, grep, find, ls, write]":
+                fail(f"planner-{tier} must permit only planning-artifact writes")
+            for text in (
+                "plan-folder path",
+                "only your assigned planning artifact",
+                "required rows in that folder's `README.md`",
+                "Do not edit application source, tests, configuration, dependencies, or unrelated files.",
+            ):
+                if text not in body:
+                    fail(f"planner-{tier} lacks planning-artifact write boundary: {text!r}")
+
         fields, _ = agents[f"{role}-{tier}"]
         expected_model = provider_model(table[table_label][index])
         if fields.get("model") != expected_model:
