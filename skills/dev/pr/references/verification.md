@@ -46,7 +46,7 @@ Reject unknown mode words, more than one mode word, or a mode that does not matc
 ### `comment` (another author's PR)
 
 1. Recheck base/head. If either changed, do not post stale results.
-2. Post one review using `review.md` disclosure requirements in step 3 and the POST mechanics after its deduplication rule in step 5: `event: "COMMENT"`, `commit_id: <headRefOid>`. Do not use the review-packet marker, deduplication, or event-selection rule for `/pr review`.
+2. Post one review using only the disclosure block in `review.md` step 3 and its step-7 POST command mechanics: `event: "COMMENT"`, `commit_id: <headRefOid>`. Verification comment bodies do not use the review-packet marker, review deduplication, event selection, or the publication-content restrictions intended for `/pr review`.
 3. Body lists the verdict, each non-`verified` claim with its gap, missing or stale description evidence, and the commands to reproduce. Never post secrets or unverified assertions. Never approve or request changes.
 
 ## Safety Rules

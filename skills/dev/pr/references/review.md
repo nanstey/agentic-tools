@@ -196,13 +196,14 @@ invocation continues to publication.
      finding references a specific line, function, section, or file, prefer an inline comment
      anchored to the closest applicable changed head-side hunk.
    - Use the review body only when no such anchor exists.
-   - Inline comments and the review body may contain only the disclosure, hidden review marker,
-     verdict, findings (ID/category/severity/location/evidence/concrete suggestion), code-evidence
-     gaps (for example, gateway CORS was not verified), and neutral PR decision statements.
+   - Inline comments may contain only the disclosure, a neutral code-facing assessment, findings
+     (ID/category/severity/location/evidence/concrete suggestion), code-evidence gaps (for example,
+     gateway CORS was not verified), and neutral PR decision statements. The review body may also
+     contain the hidden review marker.
    - Do not include skills, commands, modes, review depth/rows, validators/verifiers,
-     models/providers, auth/tool/dispatch failures, sandbox/isolation, coverage status, the reason for
-     `COMMENT`, or invoker-facing reports/directives such as `Decision for <name>`, `for you`, or
-     `the decision stays with <invoker>`.
+     models/providers, auth/tool/dispatch failures, sandbox/isolation, coverage status, the packet
+     verdict word `incomplete`, the reason for `COMMENT`, review-process gaps, or invoker-facing
+     reports/directives such as `Decision for <name>`, `for you`, or `the decision stays with <invoker>`.
    - Decisions must be neutral. For example: `The PR asks for a decision on X; ...`.
    - Who must decide, invoker next steps, and why no approval belongs only in the caller report.
    - Never post secrets or more than minimal evidence snippets.
@@ -214,15 +215,22 @@ invocation continues to publication.
      first name only for multi-word names).
    - Add a blank line, then terse permitted content from step 2.
    - Limitations mean limits of code evidence only.
-   - The body includes the verdict and code-evidence gaps.
-   - If an incomplete packet downgrades `APPROVE` to `COMMENT`, state only the verdict and code
-     findings, not the reason.
-   - Add a hidden deduplication marker after the disclosure block. The marker prevents the system
+   - The published verdict is a neutral code-facing assessment. The body includes that assessment
+     and code-evidence gaps. A code-evidence gap describes missing evidence about the code. It is not
+     a review-process gap.
+   - When `COMMENT` results from an incomplete packet, do not publish `incomplete`, the cause of
+     `COMMENT`, or any review-process gap. Publish only the neutral assessment, code findings, and
+     code-evidence gaps.
+   - After selecting the event in step 4, add a hidden deduplication marker after the disclosure block,
+     in the review body only. Never put the marker in an inline comment. The marker prevents the system
      from posting the same review more than once.
-   - The marker must identify the full reviewed head, review event, and lexicographically sorted
-     stable finding IDs. Include an integrity value that detects a malformed or altered marker.
-   - Use the host integration's non-rendered metadata format. Do not expose the marker's schema,
-     serialization, or hash algorithm in reviewer-facing instructions.
+   - Emit exactly `<!-- pr-review: v2 head=<full-head-oid> event=<EVENT> findings=<comma-joined-stable-ids> sha256=<digest> -->`.
+     `head` is the full `headRefOid`; `event` is the selected `APPROVE`, `REQUEST_CHANGES`, or
+     `COMMENT` event; and `findings` is the lexicographically sorted stable finding IDs joined with
+     commas, or empty when there are none. `digest` is the lowercase hexadecimal SHA-256 of the UTF-8
+     bytes of the RFC 8785 canonical JSON serialization of an object with exactly `head`, `event`,
+     and `findings` members, using those two strings and that sorted ID array. This v2 hash input
+     contains only those three fields.
    - Do not encode models, coverage rows, scope, policy, or other packet/process data.
 
 4. **Select the review event.** Select whether and how to publish.
@@ -238,28 +246,35 @@ invocation continues to publication.
    - An agent-published approval is not evidence of required human approval for readiness or merge.
 
 5. **Check publication preconditions.** Check the snapshot, policy, and existing reviews before publication.
-   - Immediately before deduplication and again immediately before POST, re-read `/pr info` and
-     recompute trusted policy identity. Require unchanged base, head, and policy. Otherwise return
-     for affected-path reassessment.
-   - Before POST, reread the body and inline comments. Remove process information and every
-     invoker-facing report or directive, including who must decide, invoker next steps, and why no
-     approval was given. PR content remains for the author and other reviewers.
+   - Immediately before review retrieval and deduplication, re-read `/pr info` and recompute trusted
+     policy identity. Require unchanged base, head, and policy. Otherwise return for affected-path
+     reassessment.
    - Fetch every page of reviews with
      `gh api --paginate 'repos/{owner}/{repo}/pulls/{number}/reviews?per_page=100'`.
    - Filter the viewer's non-pending, non-dismissed reviews at `<headRefOid>`. Pagination or
      retrieval failure is `blocked`.
 
 6. **Deduplicate existing reviews.** Check the hidden review markers on retained reviews.
-   - Use the host integration to validate each marker's structure and integrity value.
-   - A valid marker identifies a full head, permitted review event, and lexicographically sorted
-     stable finding IDs.
-   - At the current head, skip publication when a valid marker has the proposed event and finding
-     IDs.
+   - Validate v2 only when it has the exact step-3 HTML comment syntax, a full current head OID, a
+     permitted review event, comma-joined lexicographically sorted stable IDs (or an empty `findings`
+     value), and a lowercase hexadecimal SHA-256 that matches the specified RFC 8785 UTF-8 hash input.
+   - Validate legacy v1 only when it exactly has `<!-- pr-review: v1=<base64url-payload>; sha256=<digest> -->`,
+     where `v1` is an unpadded RFC 4648 base64url encoding of RFC 8785 canonical JSON UTF-8 bytes and
+     its `sha256` is the lowercase hexadecimal SHA-256 of those bytes. Its decoded payload must have
+     a full string `head`, string `event`, and lexicographically sorted string-array `findings`.
+   - At the current head, skip publication when a valid v2 marker's full `head`, `event`, and sorted
+     findings equal the proposed values, or when a valid v1 marker's decoded full `head`, `event`, and
+     sorted findings equal those values.
    - Treat invalid or unreadable markers as non-matches. They do not deduplicate a review.
    - A changed event or finding IDs may supersede an earlier review. Deduplication applies only at
      the current head.
 
 7. **Post and verify.** Post and verify the review.
+   - Immediately before POST, re-read `/pr info` and recompute trusted policy identity. Require
+     unchanged base, head, and policy. Otherwise return for affected-path reassessment. Then reread
+     the body and inline comments. Remove process information and every invoker-facing report or
+     directive, including who must decide, invoker next steps, and why no approval was given. PR
+     content remains for the author and other reviewers.
    - Post one review with
      `gh api repos/{owner}/{repo}/pulls/{number}/reviews --method POST --input <json>`,
      `commit_id: <headRefOid>`, the selected `event`, `body`, and `comments`.
