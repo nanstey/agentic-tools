@@ -72,7 +72,7 @@ that Pi would otherwise clamp.
 
 Use `codemode` to choose an available classifier with
 `models.getAvailableOfType("classifier")`, then call exactly one `models.classify(model, { state,
-questions })` for the spawn:
+questions })` for the spawn. `questions` is a map from question ID to question configuration:
 
 ```js
 const state = {
@@ -81,22 +81,25 @@ const state = {
 };
 const result = await models.classify(model, {
   state,
-  questions: [{
-    type: "choice",
-    name: "tier",
-    criteria: {
-      quick: "one bounded mechanical task",
-      standard: "ordinary work",
-      high: "demonstrated cross-boundary complexity or high blast radius",
-      premium: "explicit user request, or indivisible irreversible or security-critical work",
+  questions: {
+    tier: {
+      type: "choice",
+      instructions: "Select the work tier for this spawn.",
+      criteria: {
+        quick: "one bounded mechanical task",
+        standard: "ordinary work",
+        high: "demonstrated cross-boundary complexity or high blast radius",
+        premium: "explicit user request, or indivisible irreversible or security-critical work",
+      },
     },
-  }],
+  },
 });
 ```
 
 The state is exactly `{ task, context }`: `task` is the task text, and `context` contains `role`,
-`files touched`, `producer family`, `ambiguity`, `stakes`, and `blast radius`. Check `stopReason`;
-classification does not throw.
+`files touched`, `producer family`, `ambiguity`, `stakes`, and `blast radius`. Read the tier at
+`result.answers.tier.choice` and its confidence at `result.answers.tier.confidence`. Check
+`stopReason`; classification does not throw.
 
 Use `quick` only for one bounded mechanical task. Otherwise start at `standard`. Use `high` only
 for demonstrated cross-boundary complexity or high blast radius. Use `premium` only for an
