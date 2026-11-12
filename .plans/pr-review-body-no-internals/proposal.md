@@ -13,6 +13,7 @@ A review published on another author's PR contains code-facing findings and verd
 - **A3**: When the caller needs review depth, models, validator results, or process gaps, then `Output Style` names the caller report as the sole destination. Check: static read-through of `review.md`. (`code`)
 - **A4**: When a body is ready to post, then step 5 requires rereading it and removing process sentences without changing deduplication. Check: static read-through of step 5. (`code`)
 - **A5**: When the repository checks run, then installer and skill-link regressions pass. Check: `bash install/tests/skill-links.test.sh`, `bash install/tests/agent-drift.test.sh`, and `bash install/tests/install.test.sh`. (`code`)
+- **A6**: When a finding references a specific line, function, section, or file, then prefer a comment anchored to the closest applicable changed head-side hunk; use the body only when no such anchor exists. Check: static read-through of other-author publication step 2. (`code`)
 
 ## Decisions
 
