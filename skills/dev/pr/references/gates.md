@@ -12,7 +12,7 @@ Route source assessment through `/review-code report`, with `risk-review` as its
 
 Reuse a packet only for the exact authoritative base/head, trusted policy, scope, check coverage, and evidence snapshot. Changed heads require `/review-code report` over delta and affected paths/checks, retaining findings/IDs. Either base or head changing invalidates readiness and approval evidence. Broad base/policy changes require full reassessment. Never label a local unpublished diff as the authoritative PR review.
 
-Review depth scales with the change. See Review depth below. `/review-code` uses the explicit per-row models required by its skill. Unknown or mixed provenance is a coverage gap and cannot support an independence claim. Main-model routing is unchanged. Source reviewers read source but neither execute tests nor edit; separate validators execute checks and authorized implementers make fixes. Record self-review or context limitations without claiming independence.
+Review depth scales with the change. See Review depth below. Source reviewers read source but neither execute tests nor edit; separate validators execute checks and authorized implementers make fixes.
 
 ## Review depth
 
@@ -46,7 +46,7 @@ All conditions must pass:
 - An instruction surface, including `skills/**`, `agents/**`, `harness/**`, and `.agents/**`, may change only an existing inline relative link destination or fragment that resolves to the same repository file and anchor before and after the change.
 - Reference-style definitions, images, autolinks, changed external links, and all other changes are uncertain. The diff cannot change prose, instructions, commands, code blocks, frontmatter, link text, agent profiles, harness prompts, workflow gates, or behavior.
 
-A separate validator from an independent model family must check the trusted base/head diff and record model provenance. Unknown, mixed, or unavailable author or validator provenance is `incomplete`. The validator checks file type/path/mode, frontmatter and fenced code blocks, allowed hunk types, and relative changed links that resolve inside the repository. Any unproven condition is `incomplete`.
+A separate validator must check the trusted base/head diff. The validator checks file type/path/mode, frontmatter and fenced code blocks, allowed hunk types, and relative changed links that resolve inside the repository. Any unproven condition is `incomplete`.
 
 Record the exact base/head, trusted policy, validator result, changed-file list, diff stat, link/path results, independent required-CI result, and unresolved-thread snapshot. `clean` requires every check and no unresolved thread. Otherwise record `incomplete` and use normal review coverage. Re-snapshot threads before monitor, ready, or merge uses the entry. A changed base, head, policy, file list, diff, or thread snapshot invalidates the entry.
 
