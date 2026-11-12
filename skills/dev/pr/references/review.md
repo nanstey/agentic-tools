@@ -83,16 +83,16 @@ If the chosen depth is `skip`, do not call `review-code`. Record the substitute 
 
 1. **Coordinate the review.** The main session loads `review-code` and stays the coordinator. Do not assign the full command to one leaf reviewer.
    - Choose `skip`, `light`, `standard`, or `deep` as specified in `gates.md` Review depth. Record the depth and its reason. Dispatch only the rows that the selected depth requires.
-   - Dispatch all required `review-code` rows in parallel through `Agent`. Also dispatch the validator and the report-only candidate verifier. Set `run_in_background: true` for each dispatch.
-   - After a background child completes, call `get_subagent_result`. Record its requested, initial, and final provenance. Final identifies the model effective at start. It does not prove which model completed the work.
-   - If a foreground row has no result, record its model provenance as `unknown` and record a gap. If dispatch is unavailable, return exactly `blocked: needs a coordinator with Agent-tool dispatch`.
+   - Run all required `review-code` rows in parallel as separate child reviewers, using whatever delegation mechanism the harness provides. Also run the validator and the report-only candidate verifier. Run them in the background or concurrently when the harness supports it.
+   - Collect each child's result when it completes. Record the model and reasoning settings that the harness reports for it, when available. Model choice is informational: do not require a different model or provider family for any reviewer.
+   - Missing model information is not a gap and never blocks the review. If the harness cannot run child reviewers, return `blocked: needs a coordinator that can run parallel child reviewers`.
 
-2. **Pass evidence and constraints.** Give each dispatch the following information:
+2. **Pass evidence and constraints.** Give each child reviewer the following information:
    - Review depth and authoritative PR range.
    - Trusted policy, scope and exclusions, acceptance criteria, and optional scrutiny obligations.
    - Changed behavior and impact evidence, validator results, and previous packets, findings, and threads.
    - This invocation's round state.
-   - Give each dispatch the authoritative SHA or range. Follow the `review-code` source-review snapshot protocol. After validation, label source reviewers and the candidate verifier `SOURCE REVIEW MODE`.
+   - Give each child reviewer the authoritative SHA or range. Follow the `review-code` source-review snapshot protocol. After validation, label source reviewers and the candidate verifier `SOURCE REVIEW MODE`.
    - Do not allow checkout. Run the post-review branch, `HEAD`, and status check. Use guarded recovery if that check fails.
    - Reuse a packet only when its packet, coverage, and evidence snapshots exactly match `gates.md`. A diagnostic prepublication packet must also have matching correspondence.
 
@@ -228,8 +228,7 @@ invocation continues to publication.
    - Select `REQUEST_CHANGES` for a complete `changes_required` packet.
    - Select `COMMENT` for an `incomplete` packet or any other state.
    - Never approve or request changes when any required coverage row, validator, or candidate
-     verification is incomplete, failed, unknown, mixed, or missing, or when its background model
-     identity is unrecorded or its family is not independent of the actual producer.
+     verification is incomplete, failed, unknown, mixed, or missing.
    - An agent-published approval is not evidence of required human approval for readiness or merge.
 
 5. **Check publication preconditions.** Check the snapshot, policy, and existing reviews before publication.
