@@ -80,12 +80,15 @@ git merge-base --is-ancestor <lower-head> <survivor-head> || echo "ABORT: <lower
 
 Stop as blocked if any check fails (diverged/non-linear stack).
 
+Use the shared [agent comment disclosure](disclosure.md) for each fold-in comment.
+
 **T1 (gh stack CLI):**
 
 ```
 gh stack unstack <n>                                   # dissolve the stack on GitHub
 gh pr edit <survivor> --base <trunk>                   # re-point survivor to trunk
-gh pr close <lower> --comment "Folded into #<survivor>"  # per lower PR; branch left intact
+# Set fold_comment per disclosure.md, with "Folded into #<survivor>" as its body.
+gh pr close <lower> --comment "$fold_comment"          # per lower PR; branch left intact
 gh pr edit <survivor> --title "<full changeset>" --body "<full changeset>"
 ```
 
@@ -95,7 +98,8 @@ gh pr edit <survivor> --title "<full changeset>" --body "<full changeset>"
 gh api -X POST  repos/{o}/{r}/stacks/{n}/unstack
 gh api -X PATCH repos/{o}/{r}/pulls/{survivor} -f base=<trunk>
 # per lower PR:
-gh api -X POST  repos/{o}/{r}/issues/{lower}/comments -f body="Folded into #<survivor>"
+# Set fold_comment per disclosure.md, with "Folded into #<survivor>" as its body.
+gh api -X POST  repos/{o}/{r}/issues/{lower}/comments -f body="$fold_comment"
 gh api -X PATCH repos/{o}/{r}/pulls/{lower} -f state=closed
 # refresh survivor title/body:
 gh api -X PATCH repos/{o}/{r}/pulls/{survivor} -f title="<full changeset>" -f body="<full changeset>"

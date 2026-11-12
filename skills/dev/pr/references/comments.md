@@ -24,15 +24,7 @@ Scope: threads on your own branch's PR. To review a PR (own or others') or publi
 7. Reply in-thread and resolve only after publication is confirmed and affected validation/review gates pass at the same authoritative base/head. Recheck before finalizing; keep requests or gaps unresolved:
    - Use GraphQL `addPullRequestReviewThreadReply` or `gh pr review --comment --body-file` targeting the thread.
    - Never use `gh pr comment` for thread-specific explanations; reserve that for general PR-wide status.
-   - Every reply (thread or PR-wide) starts with the agent disclosure block, then a blank line, then the reply text:
-
-     ```markdown
-     > [!NOTE]
-     > 🤖 Written by <owner>'s Agent
-     ```
-
-     `<owner>` is the authenticated GitHub user's display name, falling back to login:
-     `gh api user --jq '.name // .login'`. Use the first name only when the display name has several words.
+   - Every reply (thread or PR-wide) follows the shared [agent comment disclosure](disclosure.md), then adds the reply text.
    - Write reply text using `terse` (outcome-first, no redundancy).
    - Reply text should appear nested under the original review comment in the thread.
    - Then resolve the thread via GraphQL `resolveReviewThread` if appropriate.

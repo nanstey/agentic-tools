@@ -198,8 +198,7 @@ invocation continues to publication.
      noise or unverified candidates.
 
 3. **Format review content.** Format each inline comment and the review body.
-   - Start with the disclosure block from `comments.md` step 7 (`gh api user --jq '.name // .login'`,
-     first name only for multi-word names).
+   - Start with the shared [agent comment disclosure](disclosure.md).
    - Add a blank line, then terse permitted content from step 2.
    - Limitations mean limits of code evidence only.
    - The published verdict is a neutral code-facing assessment. The body includes that assessment
