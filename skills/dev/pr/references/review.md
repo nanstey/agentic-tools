@@ -82,44 +82,31 @@ If the chosen depth is `skip`, do not call `review-code`. Record the substitute 
 `gates.md` and continue to reporting. Call `review-code` only for `light`, `standard`, or `deep`.
 
 1. **Coordinate the review.** The main session loads `review-code` and stays the coordinator. Do not assign the full command to one leaf reviewer.
-
-   Choose `skip`, `light`, `standard`, or `deep` as specified in `gates.md` Review depth. Record the depth and its reason. Dispatch only the rows that the selected depth requires.
-
-   Dispatch all required `review-code` rows in parallel through `Agent`. Also dispatch the validator and the report-only candidate verifier. Set `run_in_background: true` for each dispatch.
-
-   After a background child completes, call `get_subagent_result`. Record its requested, initial, and final provenance. Final identifies the model effective at start. It does not prove which model completed the work.
-
-   If a foreground row has no result, record its model provenance as `unknown` and record a gap. If dispatch is unavailable, return exactly `blocked: needs a coordinator with Agent-tool dispatch`.
+   - Choose `skip`, `light`, `standard`, or `deep` as specified in `gates.md` Review depth. Record the depth and its reason. Dispatch only the rows that the selected depth requires.
+   - Dispatch all required `review-code` rows in parallel through `Agent`. Also dispatch the validator and the report-only candidate verifier. Set `run_in_background: true` for each dispatch.
+   - After a background child completes, call `get_subagent_result`. Record its requested, initial, and final provenance. Final identifies the model effective at start. It does not prove which model completed the work.
+   - If a foreground row has no result, record its model provenance as `unknown` and record a gap. If dispatch is unavailable, return exactly `blocked: needs a coordinator with Agent-tool dispatch`.
 
 2. **Pass evidence and constraints.** Give each dispatch the following information:
    - Review depth and authoritative PR range.
    - Trusted policy, scope and exclusions, acceptance criteria, and optional scrutiny obligations.
    - Changed behavior and impact evidence, validator results, and previous packets, findings, and threads.
    - This invocation's round state.
-
-   Give each dispatch the authoritative SHA or range. Follow the `review-code` source-review snapshot protocol. After validation, label source reviewers and the candidate verifier `SOURCE REVIEW MODE`.
-
-   Do not allow checkout. Run the post-review branch, `HEAD`, and status check. Use guarded recovery if that check fails.
-
-   Reuse a packet only when its packet, coverage, and evidence snapshots exactly match `gates.md`. A diagnostic prepublication packet must also have matching correspondence.
+   - Give each dispatch the authoritative SHA or range. Follow the `review-code` source-review snapshot protocol. After validation, label source reviewers and the candidate verifier `SOURCE REVIEW MODE`.
+   - Do not allow checkout. Run the post-review branch, `HEAD`, and status check. Use guarded recovery if that check fails.
+   - Reuse a packet only when its packet, coverage, and evidence snapshots exactly match `gates.md`. A diagnostic prepublication packet must also have matching correspondence.
 
 3. **Select report behavior.** The default mode maps to `/review-code report`. A PR from another author continues to the publication steps below unless the mode is `report`.
-
-   The `comment` mode uses the same report and forces the `COMMENT` event. Pass the stricter no-tests and no-writes permission for both modes.
-
-   The verification stage uses existing evidence only. Record missing evidence as a gap.
+   - The `comment` mode uses the same report and forces the `COMMENT` event. Pass the stricter no-tests and no-writes permission for both modes.
+   - The verification stage uses existing evidence only. Record missing evidence as a gap.
 
 4. **Map `fix` mode.** Map `fix` to `/review-code fix` only after the own-PR guards below pass.
-
-   `review-code` performs verification, selects and dispatches reviewers, synthesizes and deduplicates findings, verifies candidates from source, and sets the packet verdict. It returns working-tree fixes and any reserved next-round state. It does not commit or push.
+   - `review-code` performs verification, selects and dispatches reviewers, synthesizes and deduplicates findings, verifies candidates from source, and sets the packet verdict. It returns working-tree fixes and any reserved next-round state. It does not commit or push.
 
 5. **Track review state.** Each call reviews within this invocation's current or reserved `round_state`. A report call on the same snapshot does not consume state.
-
-   PR owns later calls in this invocation. It passes the returned state without change. Require the `review-code` packet coverage table.
-
-   A required row that is not done makes the verdict `incomplete`. Context engineering can instead be `skipped-inapplicable` when the packet records its reason.
-
-   Failed prerequisites stop lifecycle and fix gates. Report-only and published findings remain diagnostic.
+   - PR owns later calls in this invocation. It passes the returned state without change. Require the `review-code` packet coverage table.
+   - A required row that is not done makes the verdict `incomplete`. Context engineering can instead be `skipped-inapplicable` when the packet records its reason.
+   - Failed prerequisites stop lifecycle and fix gates. Report-only and published findings remain diagnostic.
 
 ### 4. Present or perform the selected mode
 
