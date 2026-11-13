@@ -6,7 +6,13 @@ import { join } from "node:path";
 import test from "node:test";
 import readinessExtension, { checkSubagentsReadiness, subagentsReadinessWarning } from "../extensions/subagents-readiness.ts";
 
-const MARKERS = "const MANAGED_AGENT_TYPES\nfunction matchesManagedSecuritySetting(\n";
+const MARKERS = [
+	"const MANAGED_AGENT_TYPES",
+	"function managedProjectSettingsError(",
+	"function resolveExactAvailableModel(",
+	"function managedThinkingError(",
+	"function matchesManagedSecuritySetting(",
+].join("\n");
 const PROFILES = ["scout.md", "researcher.md", "planner.md", "worker.md", "reviewer.md"];
 
 function sandbox(t) {
@@ -71,6 +77,14 @@ test("unpatched package and absent manifest warn with the installer remedy", asy
 		assert.match(first.message.content, /Do not copy profiles by hand/);
 		assert.match(second.message.content, /Unknown or disabled agent type/);
 	});
+});
+
+test("a partially patched package is not ready", (t) => {
+	const agentDir = sandbox(t);
+	const packageDir = join(agentDir, "npm", "node_modules", "@tintinweb", "pi-subagents", "src");
+	mkdirSync(packageDir, { recursive: true });
+	writeFileSync(join(packageDir, "index.ts"), "const MANAGED_AGENT_TYPES\nfunction matchesManagedSecuritySetting(\n");
+	assert.deepEqual(checkSubagentsReadiness(agentDir), { ready: false, reason: "the strict-dispatch patch is missing" });
 });
 
 test("patched markers and every managed profile are ready and remain silent", async (t) => {

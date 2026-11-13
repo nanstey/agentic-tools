@@ -11,7 +11,13 @@ import { homedir } from "node:os";
 import { isAbsolute, join } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
-const PATCH_MARKERS = ["const MANAGED_AGENT_TYPES", "function matchesManagedSecuritySetting("];
+const PATCH_MARKERS = [
+	"const MANAGED_AGENT_TYPES",
+	"function managedProjectSettingsError(",
+	"function resolveExactAvailableModel(",
+	"function managedThinkingError(",
+	"function matchesManagedSecuritySetting(",
+];
 const REQUIRED_PROFILES = ["scout.md", "researcher.md", "planner.md", "worker.md", "reviewer.md"];
 
 type ReadinessFailure = { ready: false; reason: string };
