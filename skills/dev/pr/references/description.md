@@ -3,7 +3,7 @@
 ## Core Contract
 
 Sync PR title and body with the current branch diff.
-Write BLUF (Bottom Line Up Front, see the `bluf` skill): lead with the main point, then follow with context. State the conclusion before the material that justifies it, so a time-constrained reviewer grasps what changed and what is needed of them from the first line.
+Invoke the `bluf` skill to structure the text and the `ste` skill to rewrite it into unambiguous Simplified Technical English. Write BLUF (Bottom Line Up Front): lead with the main point, then follow with context. State the conclusion before the material that justifies it, so a time-constrained reviewer grasps what changed and what is needed of them from the first line.
 Default tool is `gh`. Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 Default behavior is to update the PR directly once rewritten.
 
@@ -22,7 +22,7 @@ Default behavior is to update the PR directly once rewritten.
 6. Analyze the exact PR changes over `/pr info`'s authoritative comparison: `git diff <baseRefOid>..<headRefOid>`, `git diff --stat <baseRefOid>..<headRefOid>`, and `git log <baseRefOid>..<headRefOid>` for the commit list.
 7. Identify drift: stale title, missing changes, stale bullets, stale/complete checklist items.
 8. If the branch changes user-facing UI, run `/pr screenshots` to ensure the PR's visual evidence is current before finalizing the body. `/pr screenshots` performs the attachment-bearing body edit; preserve its refreshed attachments when syncing description text. Skip for non-UI changesets.
-9. Draft the body using selected repository guidance and template. Use the default `Template` only to fill gaps that repository guidance does not cover.
+9. Draft the body using selected repository guidance and template. Use the default `Template` only to fill gaps that repository guidance does not cover. Invoke `bluf` on the draft so each section leads with its bottom line, then invoke `ste` on the prose (title, summary, bullets, notes). Keep code, identifiers, paths, commands, and required template fields verbatim.
 10. Self-review the draft once against the checks below, revise, then move on. One pass — not a loop.
    - **Repository guidance**: follow the selected guidance and template. Preserve every required field and any template comment that must remain.
    - **Length**: under the ceiling for the change size (see `Length`); cut, do not pad. No sentence or bullet over ~25 words — split any that run long.
