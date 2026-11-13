@@ -65,8 +65,8 @@ Setup finishing or green CI alone is never completion. Never end `changes_requir
 - Never reset or nest a review loop within an invocation, or skip fix-head review.
 - Never create a PR with raw `gh pr create` or reuse a commit message as the body.
 - Never merge without `automerge` or an explicit `/pr merge`.
-- After `automerge` merges, phase 11 removes the current linked Orca-managed worktree automatically, with no confirmation, under the conditions in `merge.md` (skipped silently outside Orca; the primary checkout is synced instead). Ending the session is intended.
+- After `automerge` merges, phase 11 removes the current linked Orca-managed worktree automatically, with no confirmation, under the conditions in `merge.md`. Before ending, report `skipped (Orca unavailable)` or `skipped (outside Orca)` when applicable, and report every other cleanup failure. The primary checkout is synced instead. Ending the session is intended.
 
 ## Output Style
 
-Report base/head/policy, branch and commit outcomes, PR, phases run and skipped, review depth chosen with reason, packet verdict and head, findings by ID, rounds used, monitor result, overridden gates, merge result (`automerge` only), and what remains to reach merge.
+Report base/head/policy, branch and commit outcomes, PR, phases run and skipped, review depth chosen with reason, packet verdict and head, findings by ID, rounds used, monitor result, overridden gates, merge result (`automerge` only), post-merge path (`primary synced/new session sent`, `worktree removal started (id)`, `skipped (Orca unavailable)`, `skipped (outside Orca)`, or `cleanup failed: <concrete reason>`), and what remains to reach merge.
