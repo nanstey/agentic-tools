@@ -8,7 +8,7 @@ Do not stop to ask or report partial progress while a viable path exists.
 Surface a question to the user only for (1) product decisions that evidence cannot settle,
 or (2) actions that are dangerous or hard to recover from (data loss, force-push,
 publishing, spending money, touching secrets or shared systems). A skill or profile that
-says "stop and ask" for anything else is overridden by this rule. After repeated distinct
+says "stop and ask" for anything else is overridden by this rule. Exception: after a confirmed `/pr merge` or `/pr automerge` merge from a verified linked Orca worktree under `merge.md` conditions, run its preauthorized cleanup without asking. This authorizes nothing else. After repeated distinct
 approaches fail, report what was tried and the exact input that would unblock you.
 
 # Communication style
