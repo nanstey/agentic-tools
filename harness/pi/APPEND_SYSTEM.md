@@ -70,36 +70,49 @@ non-managed types, malformed, fuzzy, unauthenticated, out-of-policy, project-ove
 profile-overridden, or unsupported explicit selections before spawn. It also rejects thinking
 that Pi would otherwise clamp.
 
-Use `codemode` to choose an available classifier with
-`models.getAvailableOfType("classifier")`, then call exactly one `models.classify(model, { state,
-questions })` for the spawn. `questions` is a map from question ID to question configuration:
+Use `codemode` to get the available classifier array with
+`const classifiers = await models.getAvailableOfType("classifier")`. Call classifiers in order and
+keep the first result whose `stopReason` is not `"error"`, yielding one usable classification for
+the spawn. `questions` is a map from question ID to question configuration:
 
 ```js
 const state = {
   task,
   context: { role, "files touched": filesTouched, "producer family": producerFamily, ambiguity, stakes, "blast radius": blastRadius },
 };
-const result = await models.classify(model, {
-  state,
-  questions: {
-    tier: {
-      type: "choice",
-      instructions: "Select the work tier for this spawn.",
-      criteria: {
-        quick: "one bounded mechanical task",
-        standard: "ordinary work",
-        high: "demonstrated cross-boundary complexity or high blast radius",
-        premium: "explicit user request, or indivisible irreversible or security-critical work",
+const classifiers = await models.getAvailableOfType("classifier");
+let result;
+for (const model of classifiers) {
+  const attempt = await models.classify(model, {
+    state,
+    questions: {
+      tier: {
+        type: "choice",
+        instructions: "Select the work tier for this spawn.",
+        criteria: {
+          quick: "one bounded mechanical task",
+          standard: "ordinary work",
+          high: "demonstrated cross-boundary complexity or high blast radius",
+          premium: "explicit user request, or indivisible irreversible or security-critical work",
+        },
       },
     },
-  },
-});
+  });
+  if (attempt.stopReason !== "error") {
+    result = attempt;
+    break;
+  }
+}
+if (result) {
+  const tier = result.answers.tier.choice;
+  const confidence = result.answers.tier.confidence;
+}
 ```
 
 The state is exactly `{ task, context }`: `task` is the task text, and `context` contains `role`,
-`files touched`, `producer family`, `ambiguity`, `stakes`, and `blast radius`. Read the tier at
-`result.answers.tier.choice` and its confidence at `result.answers.tier.confidence`. Check
-`stopReason`; classification does not throw.
+`files touched`, `producer family`, `ambiguity`, `stakes`, and `blast radius`. Skip error results;
+if every classifier errors or the list is empty, Jev is unavailable, so use the existing `standard`
+fallback below. Check `stopReason`; classification does not throw.
 
 Use `quick` only for one bounded mechanical task. Otherwise start at `standard`. Use `high` only
 for demonstrated cross-boundary complexity or high blast radius. Use `premium` only for an
@@ -148,11 +161,11 @@ before they reach the context. Prefer it for fan-out reads, greps across many fi
 checks. `scout`, `worker`, and `reviewer` have it too.
 
 For typed decisions (classify, route, rank, yes/no with a probability) instead of prose
-judgment, call Jev from a `codemode` script: pick a model with
-`models.getAvailableOfType("classifier")` (never hardcode a provider; the available set
-depends on the active auth profile's credentials), then `models.classify(model, { state,
-questions })`. Choice `criteria` is a map of label to description. Check `stopReason`;
-classify does not throw. Batch many items with `Promise.all`.
+judgment, call Jev from a `codemode` script: await
+`models.getAvailableOfType("classifier")` for the available model array (never hardcode a
+provider; the available set depends on the active auth profile's credentials), then call models in
+order and skip any result whose `stopReason` is `"error"`. Choice `criteria` is a map of label to
+description. Check `stopReason`; classify does not throw. Batch many items with `Promise.all`.
 
 The classifier returns a tier recommendation only. It never spawns or switches a model; the
 coordinator applies the table in the [Tier-selection contract](#tier-selection-contract).
