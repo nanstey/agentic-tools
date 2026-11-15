@@ -30,7 +30,7 @@ Avoid binary contrasts ("Not X. Y."), negative listings ("Not a X. Not a Y. A Z.
 
 Cut telltale words and moves: magic adverbs, "serves as," fake ranges, inflated stakes, and invented labels.
 
-Always replace these high-frequency vocabulary tells, even when they read as natural: "delve," "canonical" (use: standard, reference, definitive), "tapestry," "nuanced," "robust," "leverage," "landscape" (when it means "field"). Scan the text against [references/phrases.md](references/phrases.md) on every pass; do not skip it.
+Always replace these high-frequency vocabulary tells, even when they read as natural: "delve," "canonical" (use: standard, reference, definitive), "tapestry," "nuanced," "robust," "leverage," "landscape" (when it means "field").
 
 ### 4. Prefer active voice and real actors
 

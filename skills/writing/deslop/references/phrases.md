@@ -100,7 +100,7 @@ AI replaces simple "is" or "are" with pompous alternatives. Use the simple verb.
 
 ## Adverbs
 
-Kill all adverbs. No -ly words. No softeners, no intensifiers, no hedges.
+Kill all adverbs. No -ly words. No softeners, no intensifiers, no filler hedges. Keep a hedge only when it states real uncertainty the source has.
 
 Specific offenders:
 
