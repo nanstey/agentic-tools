@@ -15,7 +15,7 @@ disable-model-invocation: false
 
 # Scrutiny
 
-> Vendored from [m4vic/socratic](https://github.com/m4vic/socratic) ([MIT](LICENSE), Copyright (c) 2026 m4vic). Changes: skill renamed `socratic` → `scrutiny` (identity and `$scrutiny` triggers), frontmatter adapted to this repo's conventions (outcome-first `description`, `user-invocable`/`disable-model-invocation`). The question bank, packs, grades, and references are unchanged. Re-sync from upstream rather than editing the body; `questions/`, `packs/`, `grades/`, and `references/` resolve relative to this file.
+> Vendored from [m4vic/socratic](https://github.com/m4vic/socratic) ([MIT](LICENSE), Copyright (c) 2026 m4vic). Changes: skill renamed `socratic` → `scrutiny` (identity and `$scrutiny` triggers), frontmatter adapted to this repo's conventions (outcome-first `description`, `user-invocable`/`disable-model-invocation`). Body, `packs/agent-design/core.md`, and `packs/registry.md`: "subagent" reworded to "delegated agent". The question bank, grades, and references are otherwise upstream text. Re-sync from upstream rather than editing the body; `questions/`, `packs/`, `grades/`, and `references/` resolve relative to this file.
 
 Question yourself till you're left with only answers.
 
@@ -55,7 +55,7 @@ Do not stop at the first match. A connector, for example, normally pulls in API,
 
 ### 2. Load the smallest sufficient base question depth
 
-Keep the user-facing behavior unchanged while controlling context use:
+Choose the depth that controls context use; the output contract is the same at every depth:
 
 - **Core (default):** For routine, prototype, internal, or moderately scoped work, read the matching files under `questions/core/`. Always include `questions/core/00-requirements.md` and `questions/core/07-testing.md`.
 - **Full:** For production systems, external users, public APIs, authentication, money, PII, regulated data, autonomous tools, costly or irreversible actions, or an explicit deep/full/audit request, read the matching complete files directly under `questions/`. Always include the complete Requirements and Testing files.
@@ -71,7 +71,7 @@ Base domain files stay primary. Packs are optional overlays, not replacements.
 
 - Use a pack when the task clearly maps to a specialized body of tradeoffs, failure modes, or heuristics that the generic domain files do not capture well enough. First consult `packs/registry.md` after selecting the base domains.
 - Load `packs/<pack>/core.md` after the base domain files. A pack may also provide `full.md`; load it only when the core pack proves insufficient for the decision at hand. Most packs ship core only.
-- Prefer zero to two packs per task. Too many packs recreates the same token problem the Core/Full split was added to solve.
+- Prefer zero to two packs per task. Each pack adds context cost, so load one only when it changes a decision.
 - Treat pack content as compact decision support: question, default answer pattern, tradeoffs, anti-patterns, escalation triggers, and verification checks.
 - Select a pack by the capability it adds, not by recognising a book title. Its source material is provenance, not the routing rule.
 - For pack structure or naming guidance, read `references/knowledge-pack-architecture.md`.
