@@ -3,7 +3,7 @@
 ## Core Contract
 
 Drive GitHub's native stacked-PR tooling for one repository: create, grow, publish, sync, link, inspect, and dissolve stacks.
-Stacked PRs are not widely enabled; always probe capability first and state the active tier before acting.
+Always probe stacked-PR capability first and state the active tier before acting.
 Run every operation non-interactively; interactive TUIs are blocked.
 Delegate conflict resolution to `/git conflicts`, single-branch rebase mechanics to `/git rebase`, and manual stack restacking to `/pr restack`.
 Follow `CLAUDE.md` / `AGENTS.md` on conflict.
@@ -52,7 +52,7 @@ A custom SSH remote host alias (e.g. `github.com-work`) breaks `gh stack`/`gh` r
    - **Collapse (T1/T2)**: fold the whole stack into a single PR. Run only when the invocation names collapsing, using the defaults in the 5-step recipe below (survivor = top PR, leave lower branches intact, preserve commits) unless the invocation overrides them. **T1**: prefer `gh stack unstack <n>` to dissolve, then re-point the survivor base and close lower PRs via CLI/API. **T2 / host-alias fallback**: `POST /repos/{o}/{r}/stacks/{n}/unstack`, `PATCH /repos/{o}/{r}/pulls/{survivor}` with `base=<trunk>`, then per lower PR `PATCH /repos/{o}/{r}/pulls/{lower}` with `state=closed` plus a fold-in comment referencing the survivor. See [`stack-workflows.md`](stack-workflows.md) for the exact sequences.
      Default collapse policy:
      1. **Survivor = top PR** — it already contains every commit in the stack, so re-pointing it to trunk is lossless. Verify with `git merge-base --is-ancestor <lower-head> <survivor-head>` for each lower head before acting; stop as blocked if any lower branch is not an ancestor (diverged/non-linear stack).
-     2. **Preserve commits** — do not squash by default (keeps authored history); offer squash only on explicit request.
+     2. **Preserve commits** — do not squash by default (keeps authored history); squash only on explicit request.
      3. **Re-point** the survivor's base to trunk (`--base`, default the stack's trunk).
      4. **Close lower PRs** with a fold-in comment referencing the survivor; leave their branches intact (non-destructive).
      5. **Refresh** the survivor's title/body to describe the full changeset, since the top PR's title usually covers only its own layer.
