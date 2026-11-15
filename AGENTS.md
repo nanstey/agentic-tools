@@ -119,7 +119,7 @@ machines. Commit every Pi change here and let `install.sh` apply it:
 - Putting `SKILL.md` at `skills/` root.
 - Mixing artifact types (agents in skill dirs or skills in `agents/`).
 - Letting `name:` drift from file/directory name.
-- Copying tools into harness dirs (installer symlinks instead).
+- Copying skills into harness dirs (the installer symlinks them; only `install.sh` copies Pi agent profiles).
 - Editing the local Pi install (`~/.pi/agent/`) without committing the change here.
 - Committing harness secrets, machine-local state, or absolute paths.
 - Creating new top-level docs unless requested.
