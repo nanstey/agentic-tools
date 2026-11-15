@@ -32,7 +32,6 @@ On a protected branch, create a new branch first. Leave unexpected changes uncom
 - Never commit secrets, credentials, or large build artifacts; scan the diff first.
 - Never blind-stage everything without reviewing what is included.
 - Never amend or rewrite already-pushed commits unless the user asks.
-- Confirm before committing on `main`, `develop`, or another protected base.
 - Do not bypass failing hooks with `--no-verify` unless explicitly told.
 - Push to `origin` by default; skip push only if the user asks.
 - If unexpected or unrelated changes appear, exclude them from the commit and mention them in the report.
