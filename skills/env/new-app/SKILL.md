@@ -41,7 +41,7 @@ first (for example, `scrutiny` or `planning`) rather than guessing.
 
 ## Workflow
 
-1. Gather inputs, restate the plan, and confirm the target directory. Infer
+1. Gather inputs and restate the plan. Infer
    unknown name, directory, or stack; ask only if app scope is unknown. If the
    request is ambiguous, run a planning session (for example,
    `scrutiny`/`planning`) before scaffolding.
