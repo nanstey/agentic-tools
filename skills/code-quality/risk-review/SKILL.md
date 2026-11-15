@@ -65,7 +65,7 @@ Standalone source review remains useful without full readiness prerequisites. Di
 - Never turn optional nits or unchanged existing issues into compulsory fixes or review rounds.
 - Never infer containment from diff size, directory boundaries, search absence, a flag, or a model answer alone.
 - Never claim independence from a separate context or unknown model provenance. Optional model diversity does not block review.
-- Never let Jev reduce required coverage, dismiss/downgrade requests, declare clean/ready, or authorize mutations during the advisory pilot.
+- Never let Jev reduce required coverage, dismiss/downgrade requests, declare clean/ready, or authorize mutations.
 - Never repeat resolved/dismissed findings without new evidence. Preserve still-applicable findings and IDs on changed heads.
 
 ## Output Style
