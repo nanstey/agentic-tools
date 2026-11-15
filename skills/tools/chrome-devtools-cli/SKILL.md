@@ -5,8 +5,6 @@ user-invocable: true
 disable-model-invocation: false
 ---
 
-> Vendored from [ChromeDevTools/chrome-devtools-mcp](https://github.com/ChromeDevTools/chrome-devtools-mcp/blob/3626ce53fb4b6f340d30babbed96cf9b05e9a6e9/skills/chrome-devtools-cli/SKILL.md) at commit `3626ce53fb4b6f340d30babbed96cf9b05e9a6e9` ([Apache-2.0](https://github.com/ChromeDevTools/chrome-devtools-mcp/blob/3626ce53fb4b6f340d30babbed96cf9b05e9a6e9/LICENSE)). Changes: frontmatter adapted to this repo's conventions (`user-invocable`/`disable-model-invocation` added, description expanded); `references/installation.md` points at this repo's installer; rest of body and `references/` unchanged. Re-sync from upstream rather than editing the body, then reapply the installation change.
-
 The `chrome-devtools-mcp` CLI lets you interact with the browser from your terminal.
 
 ## Setup
