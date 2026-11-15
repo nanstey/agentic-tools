@@ -65,8 +65,7 @@ Use the matching authoring skill instead of copying conventions from here:
   `skills/dev/pr/SKILL.md`.
 - **Repo-local authoring skill:** add `.agents/skills/<name>/SKILL.md`; mirror
   `.agents/skills/make-skill/SKILL.md` or `.agents/skills/make-agent/SKILL.md`.
-- **Agent:** add `agents/<name>.md`; follow `.agents/skills/make-agent/SKILL.md` and use
-  `.agents/skills/make-agent/SKILL.md`.
+- **Agent:** add `agents/<name>.md`; follow `.agents/skills/make-agent/SKILL.md`.
 
 For supported types, installer changes are not needed. Re-run `install.sh` to
 refresh their installed form. When renaming a tool, rename both path and `name:`,
