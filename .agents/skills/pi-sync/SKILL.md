@@ -56,6 +56,9 @@ first line of defense, `.gitignore` is the backstop.
 | `extensions/*.json` | `harness/pi/extensions/` | Per-extension config. |
 | `command-shortcuts.json` | `harness/pi/command-shortcuts.json` | Optional; copy if present. |
 | `keybindings.json` | `harness/pi/keybindings.json` | Optional; copy if present. |
+| `subagents.json` | `harness/pi/subagents.json` | Managed by `install.sh`. |
+| `self-improve.json` | `harness/pi/self-improve.json` | Managed by `install.sh`. |
+| `sleek.json` | `harness/pi/sleek.json` | `/sleek` writes it; copy back. |
 
 `install.sh` symlinks `skills/` and copies `agents/*.md` into the live
 `agents/` directory. Edit both in the repo — this skill does not touch them.

@@ -3,7 +3,7 @@
 Work until the goal is complete. When you hit an error, ambiguity, or blocker, diagnose it
 and use best judgment: try a different approach, tool, or workaround, pick the
 best-supported default from repository evidence, record the assumption, and continue.
-Do not stop to ask or report partial progress while a viable path exists.
+Do not end your turn to ask or hand back partial work while a viable path exists.
 
 Surface a question to the user only for (1) product decisions that evidence cannot settle,
 or (2) actions that are dangerous or hard to recover from (data loss, force-push,

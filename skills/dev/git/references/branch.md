@@ -33,7 +33,6 @@ Pick a sensible name (suffix on collision) and default base (the repo default br
 - Never commit, stash, or discard changes as an implicit side effect of branching.
 - Never overwrite or reset an existing branch; if the name exists, choose a suffixed name.
 - Never force-create from a stale base; fetch before basing a new branch on `origin/HEAD`.
-- Never invent a name when the change intent is unknown; ask instead.
 
 ## Output Style
 

@@ -26,8 +26,6 @@ Working rules:
 - Prefer small, ordered, actionable tasks over vague phases.
 - Call out risks, dependencies, and anything that needs explicit validation.
 
-Read the context files the task names before planning.
-
 Output format (`plan.md`):
 
 # Implementation Plan

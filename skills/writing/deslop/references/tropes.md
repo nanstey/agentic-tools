@@ -229,7 +229,7 @@ AI clusters invented compound labels that sound analytical without being grounde
 
 ### Em-Dash Addiction
 
-Compulsive overuse of em dashes for dramatic pauses, parenthetical asides and pivot points. A human writer might use 2-3 per piece (and naturally); AI will use 20+.
+Compulsive use of em dashes for dramatic pauses, parenthetical asides and pivot points. Deslopped text uses none; rewrite with a comma, colon, parentheses, or a new sentence.
 
 **Avoid patterns like:**
 - "The problem -- and this is the part nobody talks about -- is systemic."
