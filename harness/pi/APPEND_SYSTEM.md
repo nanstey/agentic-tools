@@ -132,8 +132,8 @@ demonstrably low-quality result.
 | `reviewer` of Anthropic work | `openai-codex/gpt-6-luna`, low | `openai-codex/gpt-5.6-terra`, medium | `openai-codex/gpt-5.6-terra`, high | `openai-codex/gpt-6.1-sol`, high |
 
 Managed `subagents.json` disables unknown-type fallback, default and package-provided agent types,
-widgets, FleetView, mentions, workflows including package-provided workflows, schedules, worktrees,
-persistent agent memory, and nested agents. The strict patch requires an exact, currently available authenticated model, so managed child
+widgets, mentions, workflows including package-provided workflows, worktrees, persistent agent
+memory, and nested agents. FleetView and schedules stay enabled. The strict patch requires an exact, currently available authenticated model, so managed child
 policy does not require global `enabledModels` or constrain main-agent model cycling. The
 routing table above is coordinator policy; the patch does not enforce its cells.
 `pi-fallback-models` remains available to the main session and keeps its quota patch, but is
