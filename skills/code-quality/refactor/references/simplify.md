@@ -1,4 +1,4 @@
-# Ponytail
+# Simplify
 
 Remove needless code and complexity without changing behavior. Favor deletion and existing facilities over new machinery; line count never outranks correctness or maintainability.
 
@@ -45,8 +45,7 @@ named path leaves every sibling caller broken.
 
 ## Internal depth
 
-There is no public depth selector. Legacy lite/full/ultra mechanics do not set scope or mutation authority: lite denotes reporting, full denotes supported implementation, and ultra's unused-requirement challenges remain proposals that need explicit approval. Never delete requirements because they have no observed caller.
-Bare exhaustive review and selected simplify use the required full-scope depth, in either fix or report mode. Do not force a lite-first gate.
+Bare exhaustive review and selected simplify use full-scope depth in either fix or report mode. Never delete requirements because they have no observed caller; a challenge to one is a proposal that needs explicit approval.
 
 ## Safety Rules
 

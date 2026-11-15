@@ -7,7 +7,7 @@ technique ranking, extraction placement, duplication/responsibility review, orde
 principles review, strict structural review, and simplification/audit guidance.
 
 All `./` dataset paths in this document resolve against this file's directory
-(`refactor/`), not the target repository or a former specialist directory.
+(`refactor/`), not the target repository.
 Method links and code paths resolve against each method file unless stated otherwise.
 Every index `path` value resolves against the directory containing that index.
 References mirror the goals. Each goal has one method file. Dataset directories hold data only.
@@ -18,8 +18,6 @@ References mirror the goals. Each goal has one method file. Dataset directories 
 | `extract` | `references/extract.md` (extraction placement, DRY and SRP procedures) | none |
 | `principles` | `references/principles.md` (ranked review, quality summary) | `references/principles/` |
 | `smells` | `references/smells.md` (diagnosis, technique selection, planning) | `references/smells/`, `references/techniques/`, `references/technique-map/` |
-
-No dataset directory remains at the skill root.
 
 The [technique-selection stage](references/smells.md#select-techniques) chooses which technique fits each smell.
 The [planning stage](references/smells.md#plan) aggregates actionable recommendations for the caller's fix or report mode.
@@ -62,7 +60,7 @@ tradeoffs and implementation guidance; metadata alone reduces confidence.
 - `meta`: `generated_at`, `generator`, `source_root`, `source_pages`, `maintenance_mode`.
 - `families[]`: `id`, `name`, `url`, `description`, `technique_ids[]`.
 - `techniques[]`: `id`, `name`, `url`, `family_id`.
-- `smells[]`: `id`, `name` (the preserved graph has no smell nodes; the smell index supplies the smell-to-technique shortlist).
+- `smells[]`: `id`, `name` (the graph has no smell nodes; the smell index supplies the smell-to-technique shortlist).
 - `edges[]`: `from`, `to`, `type`, `source_url`. Types are `belongs_to_family`,
   `anti_refactoring`, `similar_refactoring`, `helps_refactoring`, `eliminates_smell`.
 
@@ -81,7 +79,7 @@ for relationships/sequencing and technique details for final ranking.
 The 17 ranked cards use `./references/principles/<group>/<NN>-<principle-id>.md`.
 `NN` is the unique two-digit `priority_level`, from 01 through 17 without ties.
 The three groups are `1-high` (ranks 1–4), `2-med` (5–13), and `3-low` (14–17).
-Index categories and card category metadata use these groups. No topical grouping remains.
+Index categories and card category metadata use these groups.
 Cards contain meaning, application guidance, good/bad examples, conflicts/tradeoffs, and references.
 Evaluate the full `principles[]` array in its stored rank order.
 The [quality summary](references/principles.md#quality-summary) retains Clean Code guidance as an unranked aggregate of completed findings.

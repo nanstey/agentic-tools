@@ -89,7 +89,7 @@ class RefactorSurfaceTests(unittest.TestCase):
 
     def test_unknown_flags_and_legacy_selectors_cannot_fall_through(self) -> None:
         text = self.text()
-        rejection = text.split("Unknown options and old selectors", 1)[1].split("\n", 1)[0]
+        rejection = text.split("Unknown options and reserved words", 1)[1].split("\n", 1)[0]
         for selector in ("inspect", "plan", "dry", "srp", "deep-review", "lite", "full", "ultra", "audit"):
             self.assertIn(f"`{selector}`", rejection)
         self.assertIn("including depth tokens after `simplify`", rejection)
