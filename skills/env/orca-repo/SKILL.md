@@ -27,7 +27,7 @@ command guide; `ORCA` below is the resolved executable, never a literal.
 
 1. Resolve the Orca executable per the `orca-cli` skill (`ORCA_CLI_COMMAND`,
    else `orca-dev`/`orca-ide`/`orca`; never bare `orca` on Linux outside an
-   Orca-managed terminal). If it cannot run, try an alternative invocation, and report the exact error only if all fail.
+   Orca-managed terminal). If it cannot run, try the next executable in that order, and report the exact error only if all fail.
 2. Confirm the app is up and the path is a git repository:
    ```sh
    ORCA status --json
