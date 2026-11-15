@@ -29,6 +29,7 @@ A drafting order, not a visible template: the seams must never show in shipped p
 - Never open with background, motivation, or a chronology that builds toward the point.
 - Never label the parts (`Bottom line:` / `Context:`) in shipped prose; the ordering carries it.
 - Cut context that does not change what the reader does; BLUF is bottom-line-first, not bottom-line-only.
+- In a terminal chat reply the reader sees the end first, so also close with the bottom line or the ask (`concise`).
 
 ## Output Style
 
