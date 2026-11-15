@@ -1,6 +1,8 @@
 ---
 name: check-skill-name
 description: Checks proposed skill names for collisions with reserved or existing names. Use when validating a skill or command name before creation.
+user-invocable: true
+disable-model-invocation: false
 ---
 
 # Check Skill Name
