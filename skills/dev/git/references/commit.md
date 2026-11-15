@@ -17,7 +17,7 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 ## Workflow
 
 1. Use `/git changes` output (or equivalent diff review) to define commit groups.
-2. Confirm plan before staging when grouping/scope is ambiguous.
+2. When grouping or scope is ambiguous, choose the narrowest grouping that matches branch intent and record it in the report.
 3. Re-check `git status --porcelain` and diffs right before staging.
 4. Stage only intended hunks/files; avoid blind adds.
 5. Write concise messages matching repo style.
