@@ -17,7 +17,7 @@ Transfer ownership of one task to a new, persistent Pi session that runs in its 
 1. The task, from the invocation or the conversation.
 2. Worktree name: derive a short kebab-case name from the task.
 3. Optional `idea-to-pr` mode: `autopilot` (default) or `gated`.
-4. Optional model and thinking level. Otherwise choose the tier under the task-scale rules, use the `worker` row of the model table, and pass its `provider/model-id` plus the tier's thinking level.
+4. Optional model and thinking level. Otherwise choose the tier under the Pi tier-selection contract, use the `worker` row of its routing table, and pass its `provider/model-id` plus the tier's thinking level.
 5. Target repository: the repository whose code the task changes. If the task names no other repository, file, or project, use the current repository and report that default.
 
 ## Workflow
