@@ -12,10 +12,7 @@ user-invocable: true
 disable-model-invocation: false
 ---
 
-
 # Scrutiny
-
-> Vendored from [m4vic/socratic](https://github.com/m4vic/socratic) ([MIT](LICENSE), Copyright (c) 2026 m4vic). Changes: skill renamed `socratic` → `scrutiny` (identity and `$scrutiny` triggers), frontmatter adapted to this repo's conventions (outcome-first `description`, `user-invocable`/`disable-model-invocation`). Body, `packs/agent-design/core.md`, and `packs/registry.md`: "subagent" reworded to "delegated agent". The question bank, grades, and references are otherwise upstream text. Re-sync from upstream rather than editing the body; `questions/`, `packs/`, `grades/`, and `references/` resolve relative to this file.
 
 Question yourself till you're left with only answers.
 
