@@ -65,8 +65,7 @@ Use the matching authoring skill instead of copying conventions from here:
   `skills/dev/pr/SKILL.md`.
 - **Repo-local authoring skill:** add `.agents/skills/<name>/SKILL.md`; mirror
   `.agents/skills/make-skill/SKILL.md` or `.agents/skills/make-agent/SKILL.md`.
-- **Agent:** add `agents/<name>.md`; follow `.agents/skills/make-agent/SKILL.md` and use
-  `.agents/skills/make-agent/SKILL.md`.
+- **Agent:** add `agents/<name>.md`; follow `.agents/skills/make-agent/SKILL.md`.
 
 For supported types, installer changes are not needed. Re-run `install.sh` to
 refresh their installed form. When renaming a tool, rename both path and `name:`,
@@ -119,7 +118,7 @@ machines. Commit every Pi change here and let `install.sh` apply it:
 - Putting `SKILL.md` at `skills/` root.
 - Mixing artifact types (agents in skill dirs or skills in `agents/`).
 - Letting `name:` drift from file/directory name.
-- Copying tools into harness dirs (installer symlinks instead).
+- Copying skills into harness dirs (the installer symlinks them; only `install.sh` copies Pi agent profiles).
 - Editing the local Pi install (`~/.pi/agent/`) without committing the change here.
 - Committing harness secrets, machine-local state, or absolute paths.
 - Creating new top-level docs unless requested.

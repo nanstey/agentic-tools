@@ -41,7 +41,7 @@ first (for example, `scrutiny` or `planning`) rather than guessing.
 
 ## Workflow
 
-1. Gather inputs, restate the plan, and confirm the target directory. Infer
+1. Gather inputs and restate the plan. Infer
    unknown name, directory, or stack; ask only if app scope is unknown. If the
    request is ambiguous, run a planning session (for example,
    `scrutiny`/`planning`) before scaffolding.
@@ -88,8 +88,8 @@ Concrete commands (adapt to the chosen stack):
 
 ## Safety Rules
 
-- Never scaffold into an existing non-empty directory without explicit
-  confirmation.
+- Never scaffold into an existing non-empty directory; use a fresh sibling
+  directory instead.
 - Never overwrite files produced by the stack initializer; run the initializer
   first, then add or merge the remaining files.
 - Never assume tooling exists; verify `git` and the stack init tool, and flag

@@ -25,7 +25,7 @@ Stop as blocked if there is no PR, multiple matches, a branch mismatch, or the P
 
 `baseRefOid`/`headRefOid` define the PR's true comparison; this skill owns that resolution for every `/pr *` consumer.
 
-- Diff the PR with `git diff <baseRefOid>..<headRefOid>` (`git log`/`git diff --stat` likewise). Never substitute a local `develop`/`origin/develop` ref — those can be stale or unrelated to the PR base.
+- Diff the PR with `git diff <baseRefOid>..<headRefOid>` (`git log`/`git diff --stat` likewise). Never substitute a local base-branch ref — those can be stale or unrelated to the PR base.
 - Verify local `HEAD` equals `headRefOid` before diffing against `HEAD`; if they differ, report the checkout as stale/unpushed rather than presenting a local diff as the PR diff.
 - Keep committed PR changes separate from working-tree changes (`git diff`, `git diff --staged`, untracked).
 

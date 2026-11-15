@@ -12,7 +12,7 @@ disable-model-invocation: false
 
 Decide whether a changeset achieved its stated goal, using evidence, not assertion. A claim is supported only by an observed result: a test run, command output, API response, log, or screenshot captured from the changed code. Read-only on source: never edit, commit, or push. Follow `CLAUDE.md` / `AGENTS.md` on conflict. Write prose using `terse`.
 
-This skill checks claims. It is not a code review. Use `risk-review` for defect hunting.
+This skill checks claims. It is not a code review. Use `bugs` to hunt defects and `risk-review` for a full change review.
 
 ## Required Inputs
 

@@ -45,9 +45,10 @@ This rule applies to scratch artifacts, not the placement of an Orca-managed
 checkout. Use Orca's worktree workflow for managed checkouts, including disposable ones.
 
 For each operation that needs temporary artifacts, atomically create a new private workspace
-(for example, with `mktemp -d`) and use only paths beneath it. NEVER construct,
+(for example, with `mktemp -d`) and use only paths beneath it. Never construct,
 discover, or reuse a workspace from a branch, PR, task, PID, timestamp, or other
-guessable identifier, and NEVER use fixed paths in a global temporary directory.
+guessable identifier, and never use fixed paths in a global temporary directory,
+because concurrent sessions can collide on them.
 Register cleanup immediately and remove the workspace on exit.
 
 # Browser automation: choosing a tool
@@ -56,7 +57,7 @@ Register cleanup immediately and remove the workspace on exit.
 applies. This supersedes the Verify rule's reference to `browser.open` — for checking a
 web UI, the CLI is the tool, and its screenshots are the visual confirmation.
 
-NEVER open the relay (`app: { relay: true }`) as a first move, and NEVER reach for it just
+Do not open the relay (`app: { relay: true }`) as a first move, or reach for it just
 because a page is JavaScript-heavy, slow, or awkward — headless Chrome renders all of it.
 
 Escalate away from the default only for a stated reason:
@@ -78,7 +79,7 @@ Two different layers; do not confuse them.
 - **Deciders** (Jev — jev-for-chrome, jev-ultrafast, `judge()` over a snapshot) choose
   *which* control advances a goal. Probabilistic; they route around obstacles by design.
 
-**NEVER put a decider in a verification loop.** A decider's purpose is to get past a
+**Keep deciders out of verification loops.** A decider's purpose is to get past a
 broken control; a test's purpose is to fail on it. A Jev-driven run against a page whose
 pay button had been removed picked the next-best button at confidence 1.0 and reported
 success — the regression a deterministic `is visible` check caught immediately. Deciders
@@ -110,7 +111,7 @@ only when authentication is the blocker — a site that needs their login, their
 or a session you cannot legitimately recreate headlessly.
 
 Treat it as acting **as the user**: sites attribute every action to them, and side effects
-(posts, purchases, messages) are real. Open a dedicated tab or name a `target`; NEVER
+(posts, purchases, messages) are real. Open a dedicated tab or name a `target`; do not
 navigate the visible tab without authorization. Prefer read-only observation, and confirm
 before anything that writes.
 
@@ -138,86 +139,12 @@ Chrome** — not for automated verification, where `agent-browser` is the defaul
 - Interacting with JavaScript-heavy sites
 - Any task that needs your browser's actual sessions and extensions
 
-## Setup
+## Running it
 
-1. **Load the extension:**
-   - Go to `chrome://extensions`
-   - Enable "Developer mode" (top-right toggle)
-   - Click "Load unpacked"
-   - Select `/tmp/jev-for-chrome/dist` (or wherever you built it)
-
-2. **Configure API key:**
-   - Click the jev-for-chrome icon
-   - Click "Options" (gear icon)
-   - Choose "TypeSafe.ai" provider
-   - Endpoint: `https://api.typesafe.ai/v1/systemone`
-   - API Key: from `~/.pi/agent/secrets/typesafe_api_key`
-   - Click "Test" to verify
-
-3. **Optional: Add text helper**
-   - For form fills, configure a text model
-   - OpenRouter works (same key as above if you have one)
-   - DeepSeek direct: `https://api.deepseek.com`
-
-## How it works
-
-When you click jev-for-chrome's icon, it reads the visible page:
-- Every clickable/typeable element gets an indexed badge
-- Jev gets the element table + your goal
-- Jev picks one action per step: which element, which operation (click/type/select/scroll/done)
-- The text model (if configured) writes actual text for form fields
-- You see step-by-step decisions with confidences and timing
-
-**Cost:** Near-zero compared to vision-based agents. ~$0.001–0.05 per task for most workflows.
-
-**Speed:** Sub-second decisions; 15–30 steps in 10–30 seconds typical.
-
-## Usage
-
-### Run automatically
-```
-1. Go to target website
-2. Click jev-for-chrome icon
-3. Type your goal: "Find the cheapest item under $50 and add to cart"
-4. Click "Run"
-5. Watch it execute, click "Stop" to abort
-```
-
-### Step through manually
-```
-1. Same as above, but click "Step" instead of "Run"
-2. Each click executes exactly one decision
-3. See what Jev sees (numbered badges on page)
-4. Check confidence and timing in the status bar
-5. Copy trace when done (for debugging/sharing)
-```
-
-## When Jev stops
-
-- **DONE**: Task appears complete (but verify manually—Jev's guess, not proof)
-- **BLOCKED**: Jev thinks it's stuck (form field can't fill, loop detected)
-- **Step budget exhausted**: Ran out of steps (adjust in Options)
-- **Provider error**: API key invalid or rate limited
-
-A DONE or BLOCKED with <50% confidence is asked again; Jev wants to be sure.
-
-## Tips
-
-- **Low confidence:** If Jev seems unsure, click "Step" to watch its reasoning
-- **Elements not visible:** Scroll the page first, then click the icon
-- **Password fields:** Never filled or read by Jev. Use manual entry or pre-login
-- **New tabs:** If a click opens a new tab, Jev follows it and returns when you close the tab
-- **Complex workflows:** Break into smaller tasks rather than one giant goal
-
-## Troubleshooting
-
-| Issue | Fix |
-|---|---|
-| Extension won't load | Check manifest.json in the dist/ folder; rebuild if needed: `npm run build` |
-| "Test failed" in Options | Verify API key is correct; check endpoint URL matches your provider |
-| Elements not clickable | Some elements (inside shadow DOM, iframes, canvas) aren't supported; see ROADMAP |
-| Runs are too slow | Jev is making decisions; this is normal. Can't be faster than the model. |
-| Form fields won't fill | Text model not configured, or field is a password (which is never filled) |
+The user loads and configures the extension; setup and troubleshooting live in the
+repository's `harness/omp/README.md`. A run ends in DONE, BLOCKED, an exhausted step
+budget, or a provider error. DONE is Jev's guess, not proof: verify the outcome yourself.
+Jev never fills or reads password fields, so pre-login or enter those manually.
 
 ## Comparison
 

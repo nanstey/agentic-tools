@@ -49,7 +49,6 @@ allowed_subagents: none
 Body contract:
 
 - Imperative, single-role, and self-contained instructions.
-- Include the override rule: target repo `CLAUDE.md`/`AGENTS.md` wins on conflict.
 - Agent profiles must set `allowed_subagents: none` and return their final result directly to the parent; do not require a completion tool, environment variables, or session-log path.
 
 ## Required Inputs
@@ -67,9 +66,8 @@ Body contract:
 3. Ask only high-impact clarifying questions.
 4. Normalize/derive agent name and validate repo uniqueness.
 5. Create `agents/<name>.md` with compliant Pi frontmatter and prompt body.
-6. Ensure prompt includes the override rule.
-7. Add a concise `README.md` catalog entry under the Agents section.
-8. Verify naming alignment (`name`, filename, and references) and catalog sync.
+6. Add a concise `README.md` catalog entry under the Agents section.
+7. Verify naming alignment (`name`, filename, and references) and catalog sync.
 
 Split multi-agent requests and choose a non-conflicting name.
 

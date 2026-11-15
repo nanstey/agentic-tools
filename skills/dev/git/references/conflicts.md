@@ -34,4 +34,4 @@ If no operation is active, report and stop. If a resolution is ambiguous, pick t
 
 ## Output Style
 
-Report operation type, resolved files and decisions, any user-decided ambiguity, validation run, and final operation state.
+Report operation type, resolved files and decisions, each recorded ambiguity choice, validation run, and final operation state.

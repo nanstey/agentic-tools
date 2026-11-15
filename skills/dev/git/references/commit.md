@@ -17,7 +17,7 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 ## Workflow
 
 1. Use `/git changes` output (or equivalent diff review) to define commit groups.
-2. Confirm plan before staging when grouping/scope is ambiguous.
+2. When grouping or scope is ambiguous, choose the narrowest grouping that matches branch intent and record it in the report.
 3. Re-check `git status --porcelain` and diffs right before staging.
 4. Stage only intended hunks/files; avoid blind adds.
 5. Write concise messages matching repo style.
@@ -32,7 +32,6 @@ On a protected branch, create a new branch first. Leave unexpected changes uncom
 - Never commit secrets, credentials, or large build artifacts; scan the diff first.
 - Never blind-stage everything without reviewing what is included.
 - Never amend or rewrite already-pushed commits unless the user asks.
-- Confirm before committing on `main`, `develop`, or another protected base.
 - Do not bypass failing hooks with `--no-verify` unless explicitly told.
 - Push to `origin` by default; skip push only if the user asks.
 - If unexpected or unrelated changes appear, exclude them from the commit and mention them in the report.

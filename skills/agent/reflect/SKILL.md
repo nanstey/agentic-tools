@@ -10,7 +10,7 @@ disable-model-invocation: false
 ## Core Contract
 
 Examine the current session, extract the friction points and how they were overcome, then map each one to a concrete improvement in this repo's skills, scripts, or docs so the friction does not recur.
-Read-only investigation by default; propose changes and only implement them after explicit user approval.
+Investigate read-only. Apply low-risk, single-skill edits directly; apply every other proposal only after explicit user approval.
 Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 ## Required Inputs
@@ -28,11 +28,11 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 5. For each, classify the gap: missing tool, incomplete workflow step, unclear instruction, missing safety rule, or absent script/automation.
 6. Propose the smallest durable change per gap (edit a skill step, add a safety rule, add a script, clarify a doc), citing the file path.
 7. Present the ranked proposals; apply low-risk, single-skill edits directly.
-8. On approval, apply changes following existing repo conventions, keeping README and other reference docs in sync.
+8. On approval of the rest, apply changes following existing repo conventions, keeping README and other reference docs in sync.
 
 ## Safety Rules
 
-- Never implement repo changes before presenting ranked proposals and getting approval.
+- Never apply a change beyond a low-risk, single-skill edit before presenting ranked proposals and getting approval.
 - Never invent hiccups that did not occur in the session; every finding traces to observed evidence.
 - Never bundle unrelated fixes into one change; keep each improvement scoped to its gap.
 - Never edit a skill or agent without updating `README.md` when adding, renaming, or removing tools.

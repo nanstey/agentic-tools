@@ -34,6 +34,7 @@ Secrets or machine-local state:
 | --- | --- |
 | `auth.json` | Provider credentials/tokens (mode 600). |
 | `auth-profiles/` | Stored auth profiles (mode 700). |
+| `secrets/` | Per-profile `pi-secret` env files and the shared TypeSafe key. |
 | `web-search.json` | Search provider API keys. |
 | `trust.json` | Machine-local trusted paths. |
 | `sessions/` | Local session transcripts. |
@@ -55,9 +56,12 @@ first line of defense, `.gitignore` is the backstop.
 | `extensions/*.json` | `harness/pi/extensions/` | Per-extension config. |
 | `command-shortcuts.json` | `harness/pi/command-shortcuts.json` | Optional; copy if present. |
 | `keybindings.json` | `harness/pi/keybindings.json` | Optional; copy if present. |
+| `subagents.json` | `harness/pi/subagents.json` | Managed by `install.sh`. |
+| `self-improve.json` | `harness/pi/self-improve.json` | Managed by `install.sh`. |
+| `sleek.json` | `harness/pi/sleek.json` | `/sleek` writes it; copy back. |
 
-`skills/` and `agents/` are **symlinked** by `install.sh`, so edits there
-already live in the repo — this skill does not touch them.
+`install.sh` symlinks `skills/` and copies `agents/*.md` into the live
+`agents/` directory. Edit both in the repo — this skill does not touch them.
 
 ## Workflow
 
@@ -100,7 +104,7 @@ git status --short harness/pi/
 git diff -- harness/pi/
 
 git status --porcelain harness/pi/ | grep -E \
-  'auth\.json|auth-profiles/|web-search\.json|trust\.json|sessions/|run-history|observability/|node_modules/' \
+  'auth\.json|auth-profiles/|secrets/|web-search\.json|trust\.json|sessions/|run-history|observability/|node_modules/' \
   && { echo 'ABORT: secret/state file staged'; exit 1; } || echo 'clean: no secrets staged'
 ```
 

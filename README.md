@@ -52,7 +52,7 @@ and runtime behavior.
 
 | Skill | Description |
 | --- | --- |
-| [`git`](skills/dev/git/SKILL.md) | Runs everyday git workflows from one command — branching, worktrees, change review, commits, rebasing and conflict resolution. Use when work needs a branch or worktree, changes need grouping or committing, a branch needs rebasing, or a stopped merge/rebase has conflicts. |
+| [`git`](skills/dev/git/SKILL.md) | Runs everyday git workflows from one command — branching, worktrees, change review, commits, rebasing, and conflict resolution. Use when work needs a branch or worktree, changes need grouping or committing, a branch needs rebasing, or a stopped merge/rebase has conflicts. |
 | [`pr`](skills/dev/pr/SKILL.md) | Runs PR creation, maintenance, and stacked-PR workflows from one command. Use when a branch or pull request needs creation, reconciliation, remediation, publication, merge, or stack management. |
 
 ### Env
@@ -79,9 +79,9 @@ and runtime behavior.
 
 | Skill | Description |
 | --- | --- |
-| [`context-engineering`](skills/agent/context-engineering/SKILL.md) | Audit a scope (skill, system prompt, tool set, CLAUDE.md, project) against context engineering best practices and apply improvements. |
-| [`scope`](skills/agent/scope/SKILL.md) | Confirm and normalize analysis scope, then return clear scope assumptions before scanning files. |
-| [`reflect`](skills/agent/reflect/SKILL.md) | Review the current session for problems and their fixes, then propose durable improvements to repo skills, scripts, or docs that prevent recurrence. |
+| [`context-engineering`](skills/agent/context-engineering/SKILL.md) | Audits a given scope (skill, system prompt, tool set, CLAUDE.md, or project) against context engineering best practices and applies improvements. Evaluates signal-to-noise ratio, system prompt altitude, tool design, retrieval strategy, and long-horizon technique selection. |
+| [`scope`](skills/agent/scope/SKILL.md) | Confirms and normalizes analysis scope, then returns clear scope assumptions. Use when work needs explicit boundaries before scanning files. |
+| [`reflect`](skills/agent/reflect/SKILL.md) | Reviews the current session for problems and their eventual fixes, then proposes durable improvements to repo skills, scripts, or docs that prevent recurrence. Use when a session hit avoidable friction worth turning into a lasting fix. |
 | [`handoff`](skills/agent/handoff/SKILL.md) | Hands a task off to a new standalone Pi session in a fresh Orca worktree that drives it to review-ready PRs with idea-to-pr, then stops work on it. Use when the user asks to run, continue, or give a task in a new worktree or to another agent. |
 | [`durable`](skills/agent/durable/SKILL.md) | Operates the Durable local agent engine through its CLI. Use when checking, attaching to, chatting with, queueing, stopping, or approving Durable work. |
 
@@ -89,40 +89,40 @@ and runtime behavior.
 
 | Skill | Description |
 | --- | --- |
-| [`terse`](skills/writing/terse/SKILL.md) | Keep responses concise, outcome-first, and high signal. |
+| [`terse`](skills/writing/terse/SKILL.md) | Keeps responses concise and outcome-first by removing redundancy and non-essential detail. Use when writing docs, skills, comments, and chat responses. |
 | [`concise`](skills/writing/concise/SKILL.md) | Sets clear, concise, actionable communication patterns, reference codes, and scope boundaries. Use when responses should be plain and tightly scoped. |
-| [`write-docs`](skills/writing/write-docs/SKILL.md) | Write clear, precise project documentation that describes behaviour and relationships in plain language. |
-| [`deslop`](skills/writing/deslop/SKILL.md) | Remove AI writing patterns, tells, and formulaic slop from prose. |
-| [`bluf`](skills/writing/bluf/SKILL.md) | Structure a message bottom-line-first, stating the main point or request before its supporting context. |
-| [`prep`](skills/writing/prep/SKILL.md) | Structure a persuasive case as Point, Reason, Example, Point so a recommendation lands with evidence. |
-| [`grow`](skills/writing/grow/SKILL.md) | Structure current-to-future planning as Goal, Reality, Options, Will to bridge a current state to a target. |
-| [`observation-impact-question`](skills/writing/observation-impact-question/SKILL.md) | Structure lightweight feedback as Observation, Impact, Question to stay specific and non-accusatory. |
-| [`before-after-bridge`](skills/writing/before-after-bridge/SKILL.md) | Structure a results story as Before, After, Bridge so a demo or outcome leads with impact. |
-| [`ste`](skills/writing/ste/SKILL.md) | Rewrite dense or ambiguous English into ASD-STE100 Simplified Technical English so a machine or non-native reader cannot misparse it. |
+| [`write-docs`](skills/writing/write-docs/SKILL.md) | Writes clear, precise project documentation that describes behaviour and relationships in plain language. Use when authoring or revising docs such as READMEs, guides, references, or architecture notes. |
+| [`deslop`](skills/writing/deslop/SKILL.md) | Remove AI writing patterns from prose. Use this skill when writing, drafting, editing, reviewing, or revising any text to eliminate predictable AI tells, slop, and formulaic patterns. |
+| [`bluf`](skills/writing/bluf/SKILL.md) | Structures a message bottom-line-first, stating the main point or request before the context that supports it. Use when a reader must grasp the outcome, decision, or ask before any supporting detail. |
+| [`prep`](skills/writing/prep/SKILL.md) | Structures a persuasive case as Point, Reason, Example, Point so a recommendation lands with evidence and reinforcement. Use when arguing for a decision and the reader must be convinced, not merely informed. |
+| [`grow`](skills/writing/grow/SKILL.md) | Structures current-to-future planning as Goal, Reality, Options, Will so a plan moves from where things are to a chosen outcome. Use when framing a plan, strategy, or coaching that must bridge a current state to a target. |
+| [`observation-impact-question`](skills/writing/observation-impact-question/SKILL.md) | Structures lightweight feedback as Observation, Impact, Question so on-the-spot input stays specific and non-accusatory. Use when giving casual feedback or review comments without a heavy performance-review frame. |
+| [`before-after-bridge`](skills/writing/before-after-bridge/SKILL.md) | Structures a results story as Before, After, Bridge so a demo or outcome hooks the audience before explaining the how. Use when presenting results, demos, or change narratives that should lead with impact. |
+| [`ste`](skills/writing/ste/SKILL.md) | Rewrites dense or ambiguous English into ASD-STE100 Simplified Technical English so a machine or non-native reader cannot misparse it. Use when text must be parsed without a human to resolve ambiguity — tool descriptions, error messages, inter-agent instructions, system prompts, status reports — or when asked to disambiguate, apply STE100, or do a plain-language rewrite; not for creative or marketing copy. |
 | [`ask-a-pro`](skills/writing/ask-a-pro/SKILL.md) | Rewrites a user's prompt into a deeper version of the same task, shaped by what a top professional in the field would do. Use when a prompt should get more depth rather than more scope, or when asked to "ask a pro" or pressure-test a prompt before running it. |
 
 ### Visual
 
 | Skill | Description |
 | --- | --- |
-| [`visual-capture`](skills/visual/visual-capture/SKILL.md) | Capture screenshots and videos of a running site (before/after PR evidence, component crops, multi-page or scroll tours) by driving the `playwright-cli` tool. |
-| [`prototype`](skills/visual/prototype/SKILL.md) | Build a throwaway prototype (interactive logic TUI or switchable UI variants) to answer a design question, then capture the answer and delete it. |
+| [`visual-capture`](skills/visual/visual-capture/SKILL.md) | Capture screenshots and videos of a running site to document UI work — before/after PR evidence, component crops, and multi-page or scroll tours — by driving the playwright-cli tool. Use when the user wants to show what a UI change looks like, capture before/after evidence for a PR, record a walkthrough, or crop a component. |
+| [`prototype`](skills/visual/prototype/SKILL.md) | Build a throwaway prototype to answer a design question. Use when the user wants to sanity-check whether a state model or logic feels right, or explore what a UI should look like. |
 
 ### Tools
 
 | Skill | Description |
 | --- | --- |
-| [`playwright-cli`](skills/tools/playwright-cli/SKILL.md) | Drive a browser from the CLI — navigate, interact, snapshot, screenshot, record video, mock network, and run/generate Playwright tests. Vendored from `microsoft/playwright-cli` (Apache-2.0). |
-| [`chrome-devtools-cli`](skills/tools/chrome-devtools-cli/SKILL.md) | Automate browser tasks and use Chrome DevTools from the CLI. Vendored from `ChromeDevTools/chrome-devtools-mcp` (Apache-2.0). |
-| [`typesafe-ai`](skills/tools/typesafe-ai/SKILL.md) | Build AI-powered software with TypeSafe System One models (Jev): typed judgments and probabilities from natural language and app state that code composes for routing, ranking, extraction, and verification. Vendored from `typesafe-ai/skills` (MIT). |
+| [`playwright-cli`](skills/tools/playwright-cli/SKILL.md) | Automate a browser from the CLI — navigate, interact, snapshot, screenshot, record video, mock network, and run or generate Playwright tests. Use when a task needs real browser actions such as capturing UI, testing web pages, or scripted interactions via the playwright-cli tool. Vendored from `microsoft/playwright-cli` (Apache-2.0). |
+| [`chrome-devtools-cli`](skills/tools/chrome-devtools-cli/SKILL.md) | Automate browser tasks and use Chrome DevTools from the CLI. Use when a task needs browser automation or Chrome DevTools access through the chrome-devtools CLI. Vendored from `ChromeDevTools/chrome-devtools-mcp` (Apache-2.0). |
+| [`typesafe-ai`](skills/tools/typesafe-ai/SKILL.md) | Builds AI-powered software with TypeSafe System One models (Jev) by turning natural language and application state into typed judgments and probabilities that code composes. Use when a feature needs programmable common sense, when brainstorming what AI could make possible in an app, or when an LLM prompt-and-parse step could become a structured decision such as routing, ranking, extraction, or verification. Vendored from `typesafe-ai/skills` (MIT). |
 | [`jev-ultrafast`](skills/tools/jev-ultrafast/SKILL.md) | Runs Jev Ultrafast through its pinned browser agent and verifies the requested page outcome. Use when a Chrome task benefits from its dynamic indexed action space. Upstream: `browser-use/jev-ultrafast` 0.1.0 at `1231850a0bf1a0c0341fe408ef1668dbbfdfac46` (MIT). |
-| [`agent-browser`](skills/tools/agent-browser/SKILL.md) | Fast headless browser testing and screenshots — a native Rust CLI and persistent daemon driving Chrome over CDP, with accessibility-tree snapshots addressed by compact `@eN` refs and snapshot/screenshot diffing. Upstream: `vercel-labs/agent-browser` (Apache-2.0). |
+| [`agent-browser`](skills/tools/agent-browser/SKILL.md) | Fast headless browser testing and screenshots from the CLI — navigate, interact via accessibility-tree refs, assert page state, and diff snapshots or screenshots against a baseline. Use when a task needs quick headless browser checks, UI screenshots, or visual regression comparison via the `agent-browser` tool. Upstream: `vercel-labs/agent-browser` (Apache-2.0). |
 
 ### Issues
 
 | Skill | Description |
 | --- | --- |
-| [`issue-create`](skills/issues/issue-create/SKILL.md) | Create a GitHub issue from context and optional metadata. |
+| [`issue-create`](skills/issues/issue-create/SKILL.md) | Creates GitHub issues with normalized fields, optional metadata, and verification. Use when opening an issue, including optional parent linking. |
 
 ### Code quality
 
@@ -131,10 +131,10 @@ and runtime behavior.
 | [`bugs`](skills/code-quality/bugs/SKILL.md) | Hunts functional defects in code, a diff, or a repository by tracing real execution paths, challenging each suspect, and reporting only bugs with a concrete trigger, evidence, and suggested fix. Use when asked to find bugs, hunt defects, audit logic or runtime correctness, or check changed code for errors that tests may miss. |
 | [`risk-review`](skills/code-quality/risk-review/SKILL.md) | Produces an evidence-led, read-only change review with impact paths, required checks, and verified findings. Use when reviewing a change or supplying a shared quality or security review packet. |
 | [`verification`](skills/code-quality/verification/SKILL.md) | Verifies the basic claims of a changeset by seeking executed evidence that the change achieved its stated goal. Use when a change, branch, or diff claims an outcome and that claim needs proof before it is trusted. |
-| [`refactor`](skills/code-quality/refactor/SKILL.md) | Reviews and fixes code smells, duplication (DRY), responsibilities (SRP), design principles, structural maintainability, over-engineering, and technique selection. Use when exhaustive review, simplification, extraction, deep review, or refactor planning should lead to behavior-preserving fixes, or diagnosis only with --report. |
+| [`refactor`](skills/code-quality/refactor/SKILL.md) | Reviews and fixes code smells, design principles, maintainability, over-engineering. Use when exhaustive review, simplification, extraction, or refactor planning should lead to behavior-preserving fixes. Diagnosis only with --report. |
 | [`complexity`](skills/code-quality/complexity/SKILL.md) | Measures cyclomatic complexity, function length, and parameter count on code with Lizard, then judges whether code needs refactoring. Use when self-assessing code you wrote or changed, deciding if a refactor is warranted, or finding the most complex functions in a scope. |
 | [`security`](skills/code-quality/security/SKILL.md) | Reviews code, a diff, or a repository for exploitable security flaws by tracing attacker-controlled input to dangerous sinks, then reports verified findings with severity, confidence, and suggested fixes. Use when asked to security-review, audit, or check code for vulnerabilities, secrets, unsafe dependencies, or weak auth, or after changes to auth, input handling, secrets, or trust boundaries. |
-| [`scrutiny`](skills/code-quality/scrutiny/SKILL.md) | Silently interrogates a build/design across the relevant engineering domains, self-answering what the codebase and defaults allow and escalating only authority decisions, then builds and verifies. Vendored and adapted from [m4vic/socratic](https://github.com/m4vic/socratic) (MIT). |
+| [`scrutiny`](skills/code-quality/scrutiny/SKILL.md) | Interrogates a build or design silently across the relevant engineering domains, resolving what the codebase and sensible defaults can answer and surfacing only the decisions that need the user's authority, then builds and verifies. Use when the user asks to build, design, scaffold, architect, or plan any system, feature, service, app, agent, pipeline, connector, or tool — especially when the request is short or underspecified — or asks to "review this architecture", "what am I missing", "ask me the right questions", or "poke holes in this" before implementation. Vendored and adapted from [m4vic/socratic](https://github.com/m4vic/socratic) (MIT). |
 
 Refactor's internal simplification method is vendored and adapted from
 [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail)
@@ -144,9 +144,9 @@ Refactor's internal simplification method is vendored and adapted from
 
 | Skill | Description |
 | --- | --- |
-| [`check-skill-name`](.agents/skills/check-skill-name/SKILL.md) | Check skill names for collisions and return CLEAR/CONFLICT/RISKY plus safe alternatives. |
-| [`pi-sync`](.agents/skills/pi-sync/SKILL.md) | Capture portable, non-secret pi config from a live `~/.pi/agent` into `harness/pi/` and commit it, without touching secrets. |
-| [`make-skill`](.agents/skills/make-skill/SKILL.md) | Plan and scaffold a convention-compliant repo skill, including name validation. |
+| [`check-skill-name`](.agents/skills/check-skill-name/SKILL.md) | Checks proposed skill names for collisions with reserved or existing names. Use when validating a skill or command name before creation. |
+| [`pi-sync`](.agents/skills/pi-sync/SKILL.md) | Captures the portable, non-secret pi config from a live ~/.pi/agent into this repo's harness/pi/ directory and commits it, without reading or copying secrets. Use when live pi config or extensions have drifted from the repo and need to be synced back. |
+| [`make-skill`](.agents/skills/make-skill/SKILL.md) | Creates new repo-native skills from plan to scaffolded `SKILL.md` and catalog entry. Use when adding a skill to this repository. |
 | [`make-agent`](.agents/skills/make-agent/SKILL.md) | Creates Pi agent types from plan to scaffolded `agents/<name>.md` and catalog alignment. Use when adding a Pi agent type to this repository. |
 
 ## Agents

@@ -3,7 +3,7 @@
 Work until the goal is complete. When you hit an error, ambiguity, or blocker, diagnose it
 and use best judgment: try a different approach, tool, or workaround, pick the
 best-supported default from repository evidence, record the assumption, and continue.
-Do not stop to ask or report partial progress while a viable path exists.
+Do not end your turn to ask or hand back partial work while a viable path exists.
 
 Surface a question to the user only for (1) product decisions that evidence cannot settle,
 or (2) actions that are dangerous or hard to recover from (data loss, force-push,
@@ -132,8 +132,8 @@ demonstrably low-quality result.
 | `reviewer` of Anthropic work | `openai-codex/gpt-6-luna`, low | `openai-codex/gpt-5.6-terra`, medium | `openai-codex/gpt-5.6-terra`, high | `openai-codex/gpt-6.1-sol`, high |
 
 Managed `subagents.json` disables unknown-type fallback, default and package-provided agent types,
-widgets, FleetView, mentions, workflows including package-provided workflows, schedules, worktrees,
-persistent agent memory, and nested agents. The strict patch requires an exact, currently available authenticated model, so managed child
+widgets, mentions, workflows including package-provided workflows, worktrees, persistent agent
+memory, and nested agents. FleetView and schedules stay enabled. The strict patch requires an exact, currently available authenticated model, so managed child
 policy does not require global `enabledModels` or constrain main-agent model cycling. The
 routing table above is coordinator policy; the patch does not enforce its cells.
 `pi-fallback-models` remains available to the main session and keeps its quota patch, but is

@@ -38,8 +38,6 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 - Never claim parent linkage succeeded without API-level verification.
 - Never silently downgrade to a text-only parent reference when real linkage fails.
 - Never invent labels, assignees, milestones, or parent IDs; validate each explicitly.
-- Never violate fallback parent ordering in matching fallback mode.
-- Never use a best-branch fallback parent that has no child issues.
 
 ## Output Style
 

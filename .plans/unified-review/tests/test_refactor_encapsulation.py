@@ -217,9 +217,9 @@ class RefactorEncapsulationTests(unittest.TestCase):
         self.assertIn("applies supported behavior-preserving fixes within scope", text)
         self.assertNotIn("Bare `/refactor` requests selection only", text)
         method = (self.refactor / "references/simplify.md").read_text()
-        self.assertIn("Do not force a lite-first gate", method)
+        self.assertIn("use full-scope depth in either fix or report mode", method)
         self.assertIn("A failing cut is reverted", method)
-        self.assertIn("There is no public depth selector", method)
+        self.assertNotIn("lite-first", method)
         for mode in ("full", "ultra", "audit"):
             self.assertNotIn(f"refactor simplify {mode}", method)
         audit = method.split("## Repository audit\n", 1)[1].split("\n## ", 1)[0]
@@ -272,7 +272,7 @@ class RefactorEncapsulationTests(unittest.TestCase):
                 self.assertNotIn(step, text)  # Delegate rather than copy the procedure.
             procedures.add(owner)
         self.assertEqual(1, len(procedures))  # both procedures live in extract.md
-        self.assertIn("always assess the full `principles[]` list", text)
+        self.assertIn("Evaluate every principle in hierarchy order", text)
         self.assertIn("[default precedence rule](../REFERENCE.md#default-precedence)", text)
         details = text.split("3. Details\n", 1)[1]
         self.assertIn("Reference stable finding IDs", details)

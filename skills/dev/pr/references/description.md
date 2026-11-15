@@ -25,7 +25,7 @@ Default behavior is to update the PR directly once rewritten.
 9. Draft the body using selected repository guidance and template. Use the default `Template` only to fill gaps that repository guidance does not cover. Invoke `bluf` on the draft so each section leads with its bottom line, then invoke `ste` on the prose (title, summary, bullets, notes). Keep code, identifiers, paths, commands, and required template fields verbatim.
 10. Self-review the draft once against the checks below, revise, then move on. One pass — not a loop.
    - **Repository guidance**: follow the selected guidance and template. Preserve every required field and any template comment that must remain.
-   - **Length**: under the ceiling for the change size (see `Length`); cut, do not pad. No sentence or bullet over ~25 words — split any that run long.
+   - **Length**: scaled to the change size (see `Length`); cut, do not pad. No sentence or bullet over ~25 words — split any that run long.
    - **No rationale**: `Summary` and `Changes` state what changed, not why; drop justification and design narration unless a reviewer cannot trust or understand the change without it, and then in one clause.
    - **Structure**: use repository-required sections and order; where guidance leaves gaps, split `Summary` when intent shifts (content vs. context), organize `Changes` into work groups derived from first principles (never line/file/commit/slice-based) with one-clause bullets, keep `Testing` present and specific, and include `Notes` only when there is something to flag.
 11. If the title no longer summarizes the changeset, rewrite it (concise, imperative, matching repo convention such as Conventional Commits when in use).
@@ -59,12 +59,7 @@ Use this default section set only when selected repository guidance and its temp
 
 ## Length
 
-Be terse (see the `terse` skill). Treat the word counts as ceilings, not targets, and come in under them; the shortest description that lets a reviewer understand the diff wins.
-
-- Trivial fix / typo: up to ~50 words. `Summary` + `Testing` often suffice.
-- Single feature or refactor: up to ~150 words.
-- Multi-component change: up to ~300 words.
-- Breaking change or migration: up to ~400 words plus a migration/impact note in `Notes`.
+Be terse (see the `terse` skill). Scale length to the change: a trivial fix often needs only `Summary` and `Testing`; a breaking change or migration adds a migration/impact note in `Notes`. The shortest description that lets a reviewer understand the diff wins.
 
 ## Guidelines
 

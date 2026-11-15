@@ -11,8 +11,9 @@ disable-model-invocation: false
 
 Create one GitHub repository for an existing local git repository, set its
 `origin`, and apply the agreed repository and `main` branch policy. Default
-visibility is **private**. Never create a repository, push its first branch, or
-replace an existing remote without the required confirmation.
+visibility is **private**. Never push to a repository this workflow did not
+just create, and never replace an existing remote without explicit user
+direction.
 
 This skill owns GitHub repository creation, first push, merge policy, and branch
 protection. It does not scaffold an application; invoke `new-app` first when a
@@ -21,16 +22,16 @@ local application needs to be created.
 ## Required Inputs
 
 1. The existing local repository path.
-2. The explicit GitHub owner — a user account or organization. Never infer it
-   from the authenticated account.
-3. The explicit repository name.
+2. The GitHub owner — a user account or organization. Defaults to the
+   authenticated account.
+3. The repository name. Defaults to the local directory name.
 4. Visibility, if not private.
 5. When more than one GitHub account is authenticated, the account that must
    perform the operation.
 6. Optional: project architecture/stack context (services, env files, local
    ports) — feeds the final `worktree-env` step when provided.
 
-If the owner or repository name is absent, default to the authenticated account and the local directory name. The repository is created private; the first push of `main` proceeds without confirmation.
+The first push of `main` to the newly created repository proceeds without confirmation.
 
 ## Workflow
 
@@ -57,10 +58,10 @@ If the owner or repository name is absent, default to the authenticated account 
    ```
    Confirm the displayed account is the requested account. For another signed-in
    account, use `gh auth switch --hostname github.com --user <login>` only with
-   the user's direction, then repeat the identity check. Confirm the explicit
-   owner is accessible to that account; do not substitute the authenticated user
-   for an owner organization.
-3. Confirm the planned `<owner>/<repo>`, private visibility (unless explicitly
+   the user's direction, then repeat the identity check. Check that the owner is
+   accessible to that account; when the user named an owner, do not substitute
+   the authenticated user for it.
+3. Check the planned `<owner>/<repo>`, private visibility (unless explicitly
    changed), and that `origin` is absent. Create the remote and set `origin`
    without pushing:
    ```sh
@@ -167,10 +168,10 @@ what requires pull requests and prevents direct pushes under this policy.
 
 ## Safety Rules
 
-- Never create a repository without an explicit owner and repository name.
 - Never create a public repository or change visibility without explicit user
   direction; default to private.
-- Never use `gh repo create --push`; never push before explicit confirmation.
+- Never use `gh repo create --push`; push only to the repository this workflow
+  just created.
 - Never overwrite, remove, or repoint an existing `origin` without explicit user
   direction.
 - Never claim branch protection is configured after a failed `gh api` call,
@@ -183,7 +184,7 @@ what requires pull requests and prevents direct pushes under this policy.
 ## Output Style
 
 Report the local repository path, GitHub owner/name, selected account,
-visibility, remote URL, first-push confirmation, merge-policy verification,
+visibility, remote URL, first-push result, merge-policy verification,
 branch-protection verification, the Orca registration outcome (`repoId`,
 already registered, skipped with reason, or failed), and the `worktree-env`
 outcome (invoked, skipped, or its reported result). On any failure, identify the completed steps, the exact failed command

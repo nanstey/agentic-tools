@@ -19,11 +19,10 @@ Load [the principles index](principles/index.json), then only the cards needed f
 1. Use the caller-resolved scope; if unresolved, resolve it from repository guidance and evidence before checks. Do not repeat scope selection or narrow full scope to a diff.
 2. Define review objective: what should succeed, and what failure mode matters most.
 3. Load `principles/index.json`; use `principles[]` order as hierarchy.
-   - Follow the approved unique ranks 1–17. Index order, group membership, filename prefix, and card priority must agree.
+   - Follow the unique ranks 1–17. Index order, group membership, filename prefix, and card priority must agree.
 4. Evaluate every principle in hierarchy order. Apply the [shared finding reuse rule](../REFERENCE.md#finding-reuse).
    Use the method mapping below for applicable DRY/SRP checks. Reuse matching findings before inspecting uncovered material.
    - Check foundational principles before advanced ones.
-   - Do not stop early: always assess the full `principles[]` list.
    - Keep all material findings. Make remedies conditional only when an evidenced design conflict requires it.
 5. For each examined principle, classify outcome (`pass`, `warning`, `fail`) with direct evidence. Mark unexamined or unsupported checks as `not assessed` coverage gaps, never passes; all 17 entries remain visible.
 6. Resolve conflicts with the [default precedence rule](../REFERENCE.md#default-precedence). Lower numbers win design trade-offs by default, not correctness, security, compatibility, or product obligations.
