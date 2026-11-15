@@ -24,12 +24,14 @@ rather than symlinked because Pi may rewrite them locally.
 | `harness/pi/tests/fixtures/pi-jev-0.7.0/` | Not installed | Pristine upstream Jev sources for all 16 Jev patch-order subsets and thinking-policy regression tests. |
 | `harness/pi/tests/fixtures/pi-jev-skill-wrapped-prompt.txt` | Not installed | Representative `before_agent_start` skill wrapper plus a plain user request for conservative thinking-policy regression tests. |
 | `harness/pi/tests/package-extensions.test.mjs` | Not installed | Offline smoke test for pi-diff registration. Run with `node`, passing the installed Pi SDK package directory and Pi agent directory. |
+| `harness/pi/tests/subagents-readiness.test.mjs` | Not installed | Offline test of managed-subagent readiness states and recovery guidance. Run with `node --test`. |
 | `harness/pi/README.md` | Not installed | This document. `install.sh` skips `README.md` when it copies config. |
 | `harness/pi/extensions/*.json` | `$PI_AGENT_DIR/extensions/` | Per-extension config. |
 | `harness/pi/extensions/profile-secrets.ts` | `$PI_AGENT_DIR/extensions/profile-secrets.ts` | Exports the `NAME=value` secrets in `secrets/<profile>.env` into the environment while that `@nanstey/pi-auth-profiles` profile is active; unset names revert to the inherited value. |
 | `harness/pi/bin/pi-secret` | `$PI_AGENT_DIR/bin/pi-secret` | CLI to set, unset, and list per-profile secrets (`pi-secret -p work set TYPESAFE_API_KEY`). Prompts without echo; files are mode 600. `install.sh` also symlinks it to `~/.local/bin/pi-secret` so ordinary shells find it. Run `set` from a normal terminal, not inside Pi. |
 | `harness/pi/self-improve.json` | `$PI_AGENT_DIR/self-improve.json` | Policy defaults for the [self-improvement loop](#self-improvement-loop): reflection and worker caps, Terra/medium workers, and Sonnet/medium or Terra/medium independent reviewers. Reflection model and thinking inherit Pi defaults. Environment variables override it. |
 | `harness/pi/extensions/self-improve.ts` | `$PI_AGENT_DIR/extensions/self-improve.ts` | Starts the [self-improvement loop](#self-improvement-loop): registers the `report_harness_issue` tool (agents call it on harness-caused procedural problems) and the `/self-improve` command (`status`, `now [note]`, `on`, `off`). Queued reports spawn a background reflection when the run settles. Not loaded in loop-started sessions (`PI_SELF_IMPROVE_CHILD`). |
+| `harness/pi/extensions/subagents-readiness.ts` | `$PI_AGENT_DIR/extensions/subagents-readiness.ts` | On startup, read-only checks that the strict-dispatch patch markers and copied managed profiles are present. An incomplete bootstrap produces one recovery warning and coordinator-only guidance; loop children and leaf subagents stay silent. |
 | `harness/pi/bin/pi-improve` | `$PI_AGENT_DIR/bin/pi-improve` | Loop plumbing: `reflect` (detached headless `/reflect` session), `start` (worktree plus one `/improve` session, in an Orca terminal when Orca is reachable), `digest` (compact session-log view), `status`, `repo`. An interactive worker can start a human-requested follow-up only with `--user-requested "instruction"`. Also symlinked to `~/.local/bin/pi-improve`. Caps and the kill switch live here. |
 | `harness/pi/prompts/reflect.md` | `$PI_AGENT_DIR/prompts/reflect.md` | `/reflect [report.json \| session.jsonl] [guidance...]`: runs the [`reflect`](../../skills/agent/reflect/SKILL.md) skill unattended on an optional report or session log, limited to harness-caused problems. Without a source, it uses the most recent session while applying any guidance. Dedupes against open PRs and branches, then starts one `pi-improve start` run per real improvement (max 3) in place of the skill's approval step. Never edits files itself. |
 | `harness/pi/prompts/improve.md` | `$PI_AGENT_DIR/prompts/improve.md` | `/improve <brief.md>`: end-to-end worker for one improvement in its own worktree: scope, implement, test, cross-family review, verify, and open the PR for human review. |
@@ -213,7 +215,8 @@ continues to replay its stored session without these fresh-spawn checks.
 `install.sh` patches the candidate before it copies managed profiles. If the package is absent or
 the version-pinned patch fails, it removes the installer-managed profiles and exits nonzero. On a
 new machine, run `install.sh`, start Pi once so it installs packages, then rerun `install.sh`; only
-the successful second run enables managed agents.
+the successful second run enables managed agents. If Pi starts with a managed-subagents readiness
+warning, rerun `bash install.sh` from the recorded agentic-tools checkout, then restart Pi.
 
 ## New machine bootstrap
 ```sh
