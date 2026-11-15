@@ -88,8 +88,8 @@ Concrete commands (adapt to the chosen stack):
 
 ## Safety Rules
 
-- Never scaffold into an existing non-empty directory without explicit
-  confirmation.
+- Never scaffold into an existing non-empty directory; use a fresh sibling
+  directory instead.
 - Never overwrite files produced by the stack initializer; run the initializer
   first, then add or merge the remaining files.
 - Never assume tooling exists; verify `git` and the stack init tool, and flag
