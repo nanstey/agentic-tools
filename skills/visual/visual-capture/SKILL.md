@@ -26,7 +26,7 @@ Follow the target repo's `CLAUDE.md` / `AGENTS.md` on conflict.
 ## Prerequisites
 
 - The companion `playwright-cli` skill and the `playwright-cli` tool it drives. Install the tool per that skill's Installation section; the Preflight below is a fast gate.
-- For PR-embeddable video: `ffmpeg`, to transcode the recorded `.webm` to `.mp4`. GitHub plays `.mp4`/`.mov` inline reliably; `.webm` rendering is inconsistent (codec-dependent), so the `.mp4` is the artifact you attach to a PR. The Preflight gates on `ffmpeg`. Install if missing: `brew install ffmpeg`, `apt install ffmpeg`, etc.
+- For PR-embeddable video: `ffmpeg`, to transcode the recorded `.webm` to `.mp4`. GitHub plays `.mp4`/`.mov` inline reliably; `.webm` rendering is inconsistent (codec-dependent), so the `.mp4` is the artifact you attach to a PR. The Preflight checks for `ffmpeg`. Without it, capture is `.webm`-only. Install if missing: `brew install ffmpeg`, `apt install ffmpeg`, etc.
 
 ## Preflight — resolve the tool
 
@@ -34,7 +34,7 @@ Run the bundled `scripts/resolve-tool.sh` (path relative to this skill's directo
 
 ```bash
 PW="$(bash scripts/resolve-tool.sh)" || { echo "playwright-cli not found"; exit 1; }
-command -v ffmpeg >/dev/null || { echo "ffmpeg not found (needed for PR-embeddable mp4)"; exit 1; }
+command -v ffmpeg >/dev/null || echo "ffmpeg not found: capturing .webm only (no PR-embeddable mp4)"
 ```
 
 - `resolve-tool.sh` prints the command → use it as `$PW` for every playwright-cli call. On non-zero exit, run `./install.sh --tool playwright-cli` from the tools repository root, then repeat Preflight.
