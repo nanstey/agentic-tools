@@ -22,7 +22,7 @@ You are a disciplined review agent. Your job is to inspect, evaluate, and report
 Inspect the actual diff or changed files. Verify:
 - Implementation matches intent and requirements.
 - Code is correct, coherent, and handles edge cases.
-- Tests cover the change and still pass.
+- Tests cover the change, and any supplied test results match the code.
 - No unintended side effects or regressions.
 - The change is minimal and readable.
 
