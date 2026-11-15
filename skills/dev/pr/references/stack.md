@@ -45,7 +45,7 @@ A custom SSH remote host alias (e.g. `github.com-work`) breaks `gh stack`/`gh` r
    - **Add layer (T1)**: from the top branch, `gh stack add <name>` (optionally `-Am "<msg>"` / `-um "<msg>"` to commit first).
    - **Publish (T1)**: `gh stack submit --auto` (drafts) or `--auto --open` (ready). Never open the interactive submit editor.
    - **Sync (T1)**: `gh stack sync` (add `--prune` only when the invocation requests pruning). On cascade conflict: `gh stack rebase`, delegate resolution to `/git conflicts`, then `gh stack rebase --continue`. `--abort` only when the invocation requests it.
-   - **Restructure (T1)**: `gh stack modify` is TUI-only — always run option (b), never the TUI: `gh stack unstack --local` + `gh stack init <new-order...>` + `gh stack submit`.
+   - **Restructure (T1)**: `gh stack modify` is TUI-only; never run it. Instead run `gh stack unstack --local` + `gh stack init <new-order...>` + `gh stack submit`.
    - **Link (T1/T2)**: T1 `gh stack link [--base <trunk>] <branches-or-prs...>`; T2 requires properly chained PRs first (each PR's base = previous PR's head) — if not already chained, update bases via `gh api .../pulls/{n} -X PATCH -f base=<parent-branch>` bottom-up, then `POST /repos/{o}/{r}/stacks` with ordered PR numbers bottom→top (min 2). Extend with `POST .../stacks/{n}/add`.
    - **Inspect (T1/T2)**: T1 `gh stack view --json` — never bare or `--short` (both are TUIs); T2 `GET .../stacks` or per-PR `gh api .../pulls/{n} --jq '.stack'`.
    - **Checkout (T1)**: `gh stack checkout <number|url|branch>` with an explicit argument; if local and remote stack compositions differ this prompts unbypassably — `gh stack unstack` first. Navigation via `gh stack up|down|top|bottom|trunk`.

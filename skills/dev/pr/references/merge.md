@@ -24,7 +24,7 @@ Default tool is `gh`. After a confirmed merge, a linked Orca-managed worktree is
 7. Confirm the PR is merged and report the merge result. A successful command that only queues or schedules a merge is not confirmation.
 8. As the final step, classify the current checkout and run exactly one post-merge path. Never run either path after a failed, dry-run, or skipped merge, including a PR that was already merged when this workflow started.
    - **Primary checkout** (`git rev-parse --path-format=absolute --git-dir` equals `git rev-parse --path-format=absolute --git-common-dir`): follow the primary checkout notes below. Never remove it. An Orca `isMainWorktree` value of `true` takes this path only when this Git classification is also primary.
-   - **Linked worktree**: automatically detect and remove the current Orca-managed worktree using the Orca cleanup notes below. Invoking `pr-merge` preauthorizes this removal once its conditions pass: do not ask for confirmation, offer cleanup, or defer it because it is destructive or ends the session. Report `skipped (Orca unavailable)` or `skipped (outside Orca)` before ending when applicable; report every other cleanup failure concretely.
+   - **Linked worktree**: automatically detect and remove the current Orca-managed worktree using the Orca cleanup notes below. Invoking `/pr merge` or `/pr automerge` preauthorizes this removal once its conditions pass: do not ask for confirmation, offer cleanup, or defer it because it is destructive or ends the session. Report `skipped (Orca unavailable)` or `skipped (outside Orca)` before ending when applicable; report every other cleanup failure concretely.
 
 Stop as blocked when work for a gate cannot proceed without `force`, GitHub rejects the merge with no permitted override, or the PR head moves during the workflow (re-run the affected phases once, then merge).
 
@@ -51,7 +51,7 @@ Only enter this step after this workflow's merge succeeded and was confirmed abo
 
 ## Orca Cleanup Notes
 
-Only enter this step after this workflow's merge succeeded and was confirmed above. A `pr-merge` invocation authorizes the required removal; do not request further permission or defer it because it terminates the session.
+Only enter this step after this workflow's merge succeeded and was confirmed above. A `/pr merge` or `/pr automerge` invocation authorizes the required removal; do not request further permission or defer it because it terminates the session.
 
 1. Resolve the executable once, following the `orca-cli` skill stub: use `ORCA_CLI_COMMAND` when set; otherwise `orca-dev` when the session exposes `ORCA_DEV_REPO_ROOT`; otherwise `orca-ide` on Linux outside an Orca-managed terminal; otherwise `orca`. On Linux without a reliable managed-terminal hint, use `orca-ide` to avoid launching the GNOME screen reader. Below, `ORCA` is a placeholder for this executable, not a literal command or a shell variable; substitute the resolved executable, quoting its path if needed.
 2. Check that the selected executable resolves (for example, `command -v` in a POSIX shell). If unavailable, report `skipped (Orca unavailable)` before ending. Do not fall through to a different executable. Load its version-matched guide with `ORCA skills get orca-cli` before running Orca commands.

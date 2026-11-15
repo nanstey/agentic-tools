@@ -85,7 +85,7 @@ If the chosen depth is `skip`, do not call `review-code`. Record the substitute 
    - Choose `skip`, `light`, `standard`, or `deep` as specified in `gates.md` Review depth. Record the depth and its reason. Dispatch only the rows that the selected depth requires.
    - Run all required `review-code` rows in parallel as separate child reviewers, using whatever delegation mechanism the harness provides. Also run the validator and the report-only candidate verifier. Run them in the background or concurrently when the harness supports it.
    - Collect each child's result when it completes. Record the model and reasoning settings that the harness reports for it, when available. Model choice is informational: do not require a different model or provider family for any reviewer.
-   - Missing model information is not a gap and never blocks the review. If the harness cannot run child reviewers, return `blocked: needs a coordinator that can run parallel child reviewers`.
+   - Missing model information is not a gap and never blocks the review. If the harness cannot run child reviewers, return exactly `blocked: needs a coordinator with Agent-tool dispatch`.
 
 2. **Pass evidence and constraints.** Give each child reviewer the following information:
    - Review depth and authoritative PR range.

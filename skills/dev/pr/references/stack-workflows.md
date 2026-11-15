@@ -50,7 +50,7 @@ gh stack top                     # return to where you were
 
 ```
 gh stack checkout <branch>       # branch the reviewer commented on
-git add . && git commit -m "Address review feedback"
+git add <files> && git commit -m "Address review feedback"
 gh stack rebase                  # cascade fixes upward
 gh stack push                    # force-with-lease, atomic
 ```

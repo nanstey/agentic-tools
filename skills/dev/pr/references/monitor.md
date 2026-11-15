@@ -2,7 +2,7 @@
 
 ## Core Contract
 
-`pr-monitor` is the sole PR reconciliation engine. It accepts `mode: monitor` (default) or `mode: once`; both execute the same cycle for one verified open PR. Load [`gates.md`](gates.md), inherit packet/findings or docs-only evidence entry, initialize monitor's own `limit: 5, round: 1` on its first cycle for remediation, reuse it on later polling cycles, and bind outcome, review, and expected-CI evidence to authoritative base/head and trusted policy. Monitor owns health/CI/threads, requests only missing/invalidated source coverage, and never duplicates full reviews or recurses into `/pr`. The lifecycle reports its returned result under the lifecycle completion gate.
+`/pr monitor` is the sole PR reconciliation engine. It accepts `mode: monitor` (default) or `mode: once`; both execute the same cycle for one verified open PR. Load [`gates.md`](gates.md), inherit packet/findings or docs-only evidence entry, initialize monitor's own `limit: 5, round: 1` on its first cycle for remediation, reuse it on later polling cycles, and bind outcome, review, and expected-CI evidence to authoritative base/head and trusted policy. Monitor owns health/CI/threads, requests only missing/invalidated source coverage, and never duplicates full reviews or recurses into `/pr`. The lifecycle reports its returned result under the lifecycle completion gate.
 
 The engine returns one of:
 

@@ -63,7 +63,7 @@ Blocking gates: `gh` older than 2.99.0, missing GitHub authentication or push ac
 
 Use one native attachment-bearing body edit. It uploads the assets and rewrites their local Markdown references to hosted URLs without adding body or media files to the branch.
 
-**Preflight.** Run every gate before generating an attachment edit. Any failure takes the pending-handoff path in **Attachment Paths**; never submit a partial `--attach` attempt.
+**Preflight.** Run every gate before generating an attachment edit. Any failure takes the pending-handoff path in **Artifact Handling**; never submit a partial `--attach` attempt.
 
 | Gate | Check | Failure outcome |
 | --- | --- | --- |
