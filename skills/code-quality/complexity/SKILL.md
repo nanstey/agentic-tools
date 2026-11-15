@@ -3,7 +3,7 @@ name: complexity
 description: Measures cyclomatic complexity, function length, and parameter count on code with Lizard, then judges whether code needs refactoring. Use when self-assessing code you wrote or changed, deciding if a refactor is warranted, or finding the most complex functions in a scope.
 user-invocable: true
 disable-model-invocation: false
-argument-hint: "[--base REF] [--full] [--ccn N] [--nloc N] [--args N] [PATH...]"
+argument-hint: "[--base REF] [--full] [--all] [--ccn N] [--nloc N] [--args N] [PATH...]"
 ---
 
 # Complexity
