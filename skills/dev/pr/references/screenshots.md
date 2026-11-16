@@ -71,7 +71,7 @@ Use one native attachment-bearing body edit. It uploads the assets and rewrites 
 | GitHub authentication | `gh auth status` exits successfully | Emit paths and paste-ready Markdown; mark attach pending. |
 | Push access | `gh repo view --json viewerPermission -q .viewerPermission` reports `ADMIN`, `MAINTAIN`, or `WRITE` | Emit paths and paste-ready Markdown; mark attach pending. |
 | Public GitHub host | `gh repo view --json url -q .url` resolves to `https://github.com/...` | Emit paths and paste-ready Markdown; mark attach pending. GHES is unsupported. |
-| Attachment inventory and count | The final body has been inventoried for every local image/video path; each remaining local path is passed exactly once with `--attach`, and there are at most 50 | Emit paths and paste-ready Markdown; mark attach pending. |
+| Attachment inventory and count | After body preparation, the final body has an inventory of every local image/video path. Each inventory entry is a regular, non-symlinked file under the repository's `captures/` directory. Pass each entry exactly once with `--attach`, with at most 50 entries. | Emit paths and paste-ready Markdown; mark attach pending. |
 
 **Prepare the body and assets.**
 
@@ -83,7 +83,8 @@ Use one native attachment-bearing body edit. It uploads the assets and rewrites 
    gh pr view <number> --json body | jq -j '.body' > "$BODY_FILE"
    ```
 2. Use a structured body-file editor to insert or refresh only the managed `## Screenshots` evidence section in `"$BODY_FILE"`. It must preserve every byte outside that section's exact byte range; when the section is absent, it must insert the new section without rewriting existing body bytes. Build the section from the local capture paths, with descriptive Markdown alt text. Do not read the body into a shell variable or rewrite it with shell substitution.
-3. For every asset, check its MIME type and size before upload. Use GitHub-supported image/video types only (`image/png`, `image/jpeg`, `image/gif`, `image/webp`, `image/svg+xml`, `video/mp4`, `video/quicktime`, or `video/webm`), and reject a file larger than the conservative 10 MiB inline limit:
+3. Inspect the complete final `"$BODY_FILE"`, not only the refreshed `## Screenshots` section or newly captured files. Inventory every local image/video path it references, while preserving already-hosted URLs. Resolve each relative path against the repository root. Each inventory entry must resolve to a regular, non-symlinked file under the repository's `captures/` directory. A local path outside that directory, or one that cannot be resolved safely, fails preflight. Do not attach it. Enforce the one-reference-per-asset invariant and the 50-file maximum across the complete inventory. A later attachment invocation rewrites only paths included in that invocation, so a partial list leaves older local references in the submitted body. Unreferenced attachments are appended by `gh`; duplicate references produce duplicate embeds. The Markdown alt text survives the hosted-URL rewrite.
+4. For every inventory entry, check its MIME type and size before upload. Use GitHub-supported image/video types only (`image/png`, `image/jpeg`, `image/gif`, `image/webp`, `image/svg+xml`, `video/mp4`, `video/quicktime`, or `video/webm`), and reject a file larger than the conservative 10 MiB inline limit:
    ```bash
    mime="$(file --brief --mime-type "$asset")"
    bytes="$(wc -c < "$asset")"
@@ -91,7 +92,7 @@ Use one native attachment-bearing body edit. It uploads the assets and rewrites 
    test "$bytes" -le 10485760
    ```
    Re-encode or shrink an oversized or unsupported asset using `visual-capture` guidance. If it cannot be made uploadable, stop and report it; never submit an asset expected to fail.
-4. Inspect the complete final `"$BODY_FILE"`, not only the refreshed `## Screenshots` section or newly captured files. Inventory every local image/video path it references, while preserving already-hosted URLs. Enforce the one-reference-per-asset invariant and the 50-file maximum across that complete inventory: pass every remaining local path exactly once with `--attach`, with no more than 50 absolute paths. A later attachment invocation rewrites only paths included in that invocation, so a partial list leaves older local references in the submitted body. Unreferenced attachments are appended by `gh`; duplicate references produce duplicate embeds. The Markdown alt text survives the hosted-URL rewrite.
+5. Pass every inventory entry exactly once with `--attach`, using no more than 50 absolute paths.
 
 **Attach and verify.** Run exactly one attachment-bearing edit, with one repeatable `--attach` flag for every local path in the final-body inventory:
 
@@ -126,7 +127,7 @@ Inventory the hosted attachment URLs and every local image/video path still pres
 - Never vary viewport/theme/device between before and after (enforced by `visual-capture`).
 - Never bypass `visual-capture`/`playwright-cli` with ad-hoc Puppeteer, `@playwright/test`, or MCP.
 - Never commit artifacts or force-push a throwaway image commit to host attachments; use native `gh pr edit --attach` or the pending handoff, never branch history.
-- Never pass `--attach` for an asset that the generated body does not reference exactly once, or pass more than 50 attachment files.
+- Never pass `--attach` for a path outside the repository's `captures/` directory, a symlink, an asset that the generated body does not reference exactly once, or more than 50 attachment files.
 - Never run the attachment edit when any native preflight gate fails.
 - Never blindly retry an attachment command after a nonzero exit; re-read the body and report any partial upload state first.
 - Never overwrite unrelated PR body content while inserting screenshot references.
