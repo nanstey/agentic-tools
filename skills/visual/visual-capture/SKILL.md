@@ -20,7 +20,7 @@ Follow the target repo's `CLAUDE.md` / `AGENTS.md` on conflict.
 2. What changed, so the medium and framing fit the change.
 3. Before/after scope: which git refs or states to compare (skip for a plain capture).
    For a PR feature walkthrough, prefer a final-state capture from `HEAD` over a commit delta (see `/pr screenshots` Evidence Model).
-4. Output/publish target (always the helper's off-tree, per-repository/per-branch temporary capture dir).
+4. Output/publish target (always the helper's private off-tree, per-repository/per-branch temporary capture dir).
 5. Viewport/theme/device preferences (defaults: desktop `1280x800`, project default theme).
 
 ## Prerequisites
@@ -47,7 +47,7 @@ Deterministic helpers so the agent reads a result instead of choosing (paths rel
 | Script | Purpose |
 | --- | --- |
 | `scripts/resolve-tool.sh` | Print the playwright-cli invocation (`playwright-cli` or `npx playwright cli`); non-zero exit when absent. |
-| `scripts/capture-dir.sh` | Print the canonical off-tree capture dir for this repository and branch. It reuses the deterministic directory below OS temp storage. |
+| `scripts/capture-dir.sh` | Print the canonical, private off-tree capture dir for the current repository and branch. Invoke it by absolute installed-skill path while the shell cwd is the target repository. |
 | `scripts/scroll-capture.sh <url> <out.webm> [w] [h] [px_per_sec]` | Record a smooth, correctly-sized full-page scroll (no gray margins) at a constant, relaxed speed via a `run-code` hero script. |
 | `scripts/encode-mp4.sh <in> <out.mp4> [crf] [width]` | Transcode a recording to a GitHub-playable H.264 mp4 at native resolution; pass a smaller width/higher crf to shrink for a PR. |
 
@@ -68,7 +68,7 @@ Load the companion `playwright-cli` skill before capturing — it documents ever
 1. Preflight (above): load the companion `playwright-cli` skill, resolve its tool via `scripts/resolve-tool.sh`, and confirm `ffmpeg` is present (for the mp4 transcode); if the playwright tool is missing, install it as above; a missing `ffmpeg` downgrades to `.webm`-only.
 2. Pick the medium from the table above; state the choice and why.
 3. Confirm the site is reachable at the base URL/port; if not, try to start the app from its documented dev command; never capture an error page. If the walkthrough **mutates data** (creates/edits records), require an idempotent, uniquely named demo entity and a cleanup path before recording — prefer application/API cleanup, and scope any direct database cleanup to the generated identifier.
-4. Resolve the off-tree, per-repository/per-branch capture dir by running the bundled `scripts/capture-dir.sh` and reading its printed absolute path into `$CAP`. It reuses the deterministic directory below OS temp storage. Do not supply or choose an output root. Then open a named session and fix capture settings (viewport, theme, device). Reuse the same session across pages.
+4. Set `VISUAL_CAPTURE_SKILL_DIR` to the absolute path of the installed `visual-capture` skill. From the target repository cwd, run `bash "$VISUAL_CAPTURE_SKILL_DIR/scripts/capture-dir.sh"` and read its printed absolute path into `$CAP`. Do not run the helper from the skill directory or supply an output root. It reuses the deterministic private directory below OS temp storage. Then open a named session and fix capture settings (viewport, theme, device). Reuse the same session across pages.
 5. Capture:
    - Screenshots — full page and/or component crops.
    - Videos — record the interaction to `.webm`, then transcode to `.mp4` for PR embedding.
@@ -81,10 +81,12 @@ Resolve these yourself: tool absent (install), site unreachable (start it), ambi
 
 ## playwright-cli Recipes
 
-These use the companion `playwright-cli` skill's commands; see it for full semantics. Recipes write `playwright-cli` for brevity — if Preflight resolved the npx form, substitute `npx playwright cli` (`$PW`). All commands share one named session (`-s=capture`) so state and viewport persist across pages, and write into the off-tree capture dir `$CAP`. Resolve `$CAP` only by running the bundled `scripts/capture-dir.sh` (path relative to this skill's directory). It prints an absolute, deterministic directory for this repository and branch below the canonical OS temporary capture root; it accepts no output-root argument:
+These use the companion `playwright-cli` skill's commands; see it for full semantics. Recipes write `playwright-cli` for brevity — if Preflight resolved the npx form, substitute `npx playwright cli` (`$PW`). All commands share one named session (`-s=capture`) so state and viewport persist across pages, and write into the off-tree capture dir `$CAP`. Set `VISUAL_CAPTURE_SKILL_DIR` to the absolute installed-skill path, then invoke the helper while cwd is the target repository, never from the skill directory. It accepts no output-root argument:
 
 ```bash
-CAP="$(bash scripts/capture-dir.sh)"   # e.g. /tmp/visual-capture/my-repo-123456789/feat-visual-capture-987654321
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+VISUAL_CAPTURE_SKILL_DIR="/absolute/path/to/installed/visual-capture"
+CAP="$(cd "$REPO_ROOT" && bash "$VISUAL_CAPTURE_SKILL_DIR/scripts/capture-dir.sh")"
 mkdir -p "$CAP/components"
 ```
 
@@ -148,12 +150,12 @@ Responsive/mobile: `playwright-cli -s=capture open "$BASE_URL" --device="iPhone 
 
 ## Output Layout
 
-Captures are scoped per canonical repository root and branch so runs never mix. `scripts/capture-dir.sh` is the single source of truth: it slugifies the repository and branch and adds stable checksums to prevent slug collisions. It creates and reuses one directory below `${TMPDIR:-/tmp}/visual-capture` after canonicalizing it. It rejects a temporary or caller-controlled path that resolves inside the repository.
+Captures are scoped per canonical repository root and branch so runs never mix. `capture-dir.sh` is the single source of truth: it slugifies the repository and branch and adds stable checksums to prevent slug collisions. It creates and reuses a per-user `0700` directory below `${TMPDIR:-/tmp}`. It rejects a temporary path inside the repository, unsafe path characters for literal GitHub/Markdown attachment paths, and any existing capture, repository, or branch directory that is a symlink, not owned by the current user, or not mode `0700`.
 
 ```
-<canonical OS temp>/visual-capture/
+<canonical OS temp>/visual-capture-<uid>/
 └── <repo-slug>-<repo-checksum>/
-    └── <branch-slug>-<branch-checksum>/  # reused on re-run; always outside the worktree
+    └── <branch-slug>-<branch-checksum>/  # reused on re-run; private and outside the worktree
         ├── before/                       # before/after pairs
         ├── after/
         ├── <route>.png                   # full-page screenshots
@@ -186,7 +188,7 @@ Captures are scoped per canonical repository root and branch so runs never mix. 
 
 ## Safety Rules
 
-- Never write captured artifacts anywhere in the target repository checkout, including a gitignored directory or tracked asset directory. Write only under `$CAP` returned by `capture-dir.sh`; it accepts no caller-supplied output root.
+- Never write captured artifacts anywhere in the target repository checkout, including a gitignored directory or tracked asset directory. Write only under `$CAP` returned by `capture-dir.sh` when invoked from the target repository via its absolute installed-skill path; it accepts no caller-supplied output root.
 - Never leave an orphaned browser; close the session at the end and on error.
 - Never vary viewport, theme, or device between before and after — mismatched settings invalidate the comparison.
 - Never fabricate a state; capture the actual before and after.
