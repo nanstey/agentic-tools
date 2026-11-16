@@ -71,7 +71,7 @@ Use one native attachment-bearing body edit. It uploads the assets and rewrites 
 | GitHub authentication | `gh auth status` exits successfully | Emit paths and paste-ready Markdown; mark attach pending. |
 | Push access | `gh repo view --json viewerPermission -q .viewerPermission` reports `ADMIN`, `MAINTAIN`, or `WRITE` | Emit paths and paste-ready Markdown; mark attach pending. |
 | Public GitHub host | `gh repo view --json url -q .url` resolves to `https://github.com/...` | Emit paths and paste-ready Markdown; mark attach pending. GHES is unsupported. |
-| Attachment count | At most 50 files will be passed with `--attach`, and the body references each one | Emit paths and paste-ready Markdown; mark attach pending. |
+| Attachment inventory and count | The final body has been inventoried for every local image/video path; each remaining local path is passed exactly once with `--attach`, and there are at most 50 | Emit paths and paste-ready Markdown; mark attach pending. |
 
 **Prepare the body and assets.**
 
@@ -91,9 +91,9 @@ Use one native attachment-bearing body edit. It uploads the assets and rewrites 
    test "$bytes" -le 10485760
    ```
    Re-encode or shrink an oversized or unsupported asset using `visual-capture` guidance. If it cannot be made uploadable, stop and report it; never submit an asset expected to fail.
-4. Enforce the one-reference-per-asset invariant and the 50-file maximum. Pass no more than 50 absolute local paths to `--attach`; each path appears exactly once in the generated Markdown evidence section, for example `![Edit widget](/absolute/path/captures/widget.png)`. Unreferenced attachments are appended by `gh`; duplicate references produce duplicate embeds. The Markdown alt text survives the hosted-URL rewrite.
+4. Inspect the complete final `"$BODY_FILE"`, not only the refreshed `## Screenshots` section or newly captured files. Inventory every local image/video path it references, while preserving already-hosted URLs. Enforce the one-reference-per-asset invariant and the 50-file maximum across that complete inventory: pass every remaining local path exactly once with `--attach`, with no more than 50 absolute paths. A later attachment invocation rewrites only paths included in that invocation, so a partial list leaves older local references in the submitted body. Unreferenced attachments are appended by `gh`; duplicate references produce duplicate embeds. The Markdown alt text survives the hosted-URL rewrite.
 
-**Attach and verify.** Run exactly one attachment-bearing edit, with one repeatable `--attach` flag for each referenced asset:
+**Attach and verify.** Run exactly one attachment-bearing edit, with one repeatable `--attach` flag for every local path in the final-body inventory:
 
 Always re-read the body after the command returns, including after a nonzero exit. Capture the status without changing the caller's shell options:
 
@@ -109,7 +109,7 @@ fi
 gh pr view <number> --json body -q .body
 ```
 
-Inventory the hosted attachment URLs and the local capture paths still present in the re-read body. A zero exit requires every local path to have been rewritten to a hosted URL with none remaining. A nonzero exit can mean successful files already updated the PR while other local paths remain. Report the exit status and that exact partial state, then stop; never blindly retry the attachment command because it can duplicate successful uploads. An anonymous 404/403 for an attachment URL on a private repository is expected because the URL inherits repository visibility.
+Inventory the hosted attachment URLs and every local image/video path still present in the re-read body. A zero exit requires every inventoried local path to have been rewritten to a hosted URL with none remaining. A nonzero exit can mean successful files already updated the PR while other local paths remain. Report the exit status and that exact partial state, then stop; never blindly retry the attachment command because it can duplicate successful uploads. An anonymous 404/403 for an attachment URL on a private repository is expected because the URL inherits repository visibility.
 
 ## Composition
 
