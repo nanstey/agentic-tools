@@ -12,7 +12,7 @@ Default tool for PR reads/writes is `gh`. Follow the target repo's `CLAUDE.md` /
 1. PR URL if provided, else current branch (resolve via `/pr info`).
 2. The branch changeset (`/pr info`'s authoritative comparison) to judge whether UI changed.
 3. A runnable site/dev server for the branch (base URL/port) when capture is needed.
-4. Artifact publish outcome: a completed native `gh pr edit --body-file <temp> --attach <path>` edit, or a pending handoff with artifact paths and paste-ready local Markdown (never the repo root).
+4. Artifact publish outcome: a completed native `gh pr edit --body-file <temp> --attach <path>` edit, or a pending handoff with validated literal off-tree capture paths and paste-ready local Markdown.
 
 ## Evidence Model
 
@@ -52,12 +52,11 @@ Blocking gates: `gh` older than 2.99.0, missing GitHub authentication or push ac
 
 ## Artifact Handling
 
-- Do **not** add screenshots or videos to the repository. They live in the gitignored `captures/` dir that `visual-capture` produces, and reach the PR as GitHub attachments hosted off-tree.
+- Do **not** add screenshots or videos to the repository. They live only in the canonical OS temporary capture root that `visual-capture` produces, and reach the PR as GitHub attachments hosted off-tree.
 - Attachment paths, best first:
-  1. **Native `gh pr edit --attach`** (preferred, programmatic). It uploads each local capture while rewriting the PR body in one operation. See **Native Attach Recipe**.
+  1. **Native `gh pr edit --attach`** (preferred, programmatic). It uploads each validated literal off-tree capture while rewriting the PR body in one operation. See **Native Attach Recipe**.
   2. **Handoff when a non-safety preflight fails.** Emit validated artifact paths plus a paste-ready `## Screenshots` block containing each validated local path and its alt text. Mark the attach as pending. The user may manually drag and drop those files into the PR body as the fallback step; do not run any `--attach` flags. An unsafe path stops without a handoff.
-- The only exception is a project that already keeps UI assets in a tracked asset dir (e.g. `docs/assets/`) and explicitly wants them committed — otherwise attach, never commit.
-- Reference attachments in the PR body only; the branch diff must not gain image/video files.
+- There is no tracked-asset exception. Reference attachments in the PR body only; the branch diff must not gain image/video files.
 
 ## Native Attach Recipe
 
@@ -71,7 +70,7 @@ Use one native attachment-bearing body edit. It uploads the assets and rewrites 
 | GitHub authentication | `gh auth status` exits successfully | Emit paths and paste-ready Markdown; mark attach pending. |
 | Push access | `gh repo view --json viewerPermission -q .viewerPermission` reports `ADMIN`, `MAINTAIN`, or `WRITE` | Emit paths and paste-ready Markdown; mark attach pending. |
 | Public GitHub host | `gh repo view --json url -q .url` resolves to `https://github.com/...` | Emit paths and paste-ready Markdown; mark attach pending. GHES is unsupported. |
-| Attachment inventory and count | After body preparation, the final body has an inventory of every local image/video path. Each entry matches `^captures/[A-Za-z0-9._/-]+$`, is a regular file, and has no symlinked parent. The `captures/` tree has no tracked files. Pass each entry exactly once with `--attach`, with at most 50 entries. | For an unsafe path, stop and report it without including it in a handoff. Otherwise emit only validated paths and paste-ready Markdown; mark attach pending. |
+| Attachment inventory and count | After body preparation, the final body has an inventory of every local image/video path. Each entry is a literal absolute path below the canonical temporary capture root, has no `.` or `..` component, is a regular non-symlink file, has no symlinked parent, is outside the canonical repository root, and is not tracked by Git. Pass each entry exactly once with `--attach`, with at most 50 entries. | For an unsafe path, stop and report it without including it in a handoff. Otherwise emit only validated paths and paste-ready Markdown; mark attach pending. |
 
 **Prepare the body and assets.**
 
@@ -83,7 +82,25 @@ Use one native attachment-bearing body edit. It uploads the assets and rewrites 
    gh pr view <number> --json body | jq -j '.body' > "$BODY_FILE"
    ```
 2. Use a structured body-file editor to insert or refresh only the managed `## Screenshots` evidence section in `"$BODY_FILE"`. It must preserve every byte outside that section's exact byte range; when the section is absent, it must insert the new section without rewriting existing body bytes. Build the section from the local capture paths, with descriptive Markdown alt text. Do not read the body into a shell variable or rewrite it with shell substitution.
-3. Inspect the complete final `"$BODY_FILE"`, not only the refreshed `## Screenshots` section or newly captured files. Inventory every local image/video path it references, while preserving already-hosted URLs. Only accept a literal relative path that matches `^captures/[A-Za-z0-9._/-]+$` as an inventory entry; reject absolute paths and paths containing `.` or `..` components. Run `gh pr edit` from the repository root and retain this exact literal string for its `--attach` flag, so the body reference matches the flag. Before attachment, confirm that `captures/` has no tracked files, the entry is a regular file, and neither it nor any parent directory up to the repository root is a symlink. Canonicalize the entry and `captures/` with `realpath -e --`; require the canonical entry to be contained within the canonical `captures/` directory on a whole path-component boundary. Any path that fails these checks is unsafe: stop and report the unsafe reference without adding it to a manual-upload handoff. Enforce the one-reference-per-asset invariant and the 50-file maximum across the complete inventory. A later attachment invocation rewrites only paths included in that invocation, so a partial list leaves older local references in the submitted body. Unreferenced attachments are appended by `gh`; duplicate references produce duplicate embeds. The Markdown alt text survives the hosted-URL rewrite.
+3. Inspect the complete final `"$BODY_FILE"`, not only the refreshed `## Screenshots` section or newly captured files. Inventory every local image/video path it references, while preserving already-hosted URLs. Only accept a literal absolute path below the canonical temporary capture root. Do not expand `~`, environment variables, globs, URLs, or relative paths. Reject `.` or `..` components. Run `gh pr edit` from the repository root and retain the exact literal body string for its `--attach` flag, so the body reference matches the flag.
+
+   Establish the roots before evaluating any entry. `visual-capture` uses this same root; require its canonical path to be below the canonical OS temporary directory on a component boundary and outside the canonical repository root:
+   ```bash
+   is_within() {
+     [ "$1" = "$2" ] && return 0
+     [ "$2" = "/" ] && return 0
+     case "$1" in "$2"/*) return 0 ;; esac
+     return 1
+   }
+   repo_root="$(realpath -e -- "$(git rev-parse --show-toplevel)")"
+   temp_root="$(realpath -e -- "${TMPDIR:-/tmp}")"
+   is_within "$temp_root" "$repo_root" && exit 1
+   mkdir -p "$temp_root/visual-capture"
+   capture_root="$(realpath -e -- "$temp_root/visual-capture")"
+   is_within "$capture_root" "$temp_root" || exit 1
+   is_within "$capture_root" "$repo_root" && exit 1
+   ```
+   For every literal `$asset`, require the raw string to begin with `"$capture_root"/` on a path-component boundary and to contain no empty, `.` or `..` component. Require `[ -f "$asset" ] && [ ! -L "$asset" ]`. Walk its literal parent paths back to, but not above, `$capture_root` and reject any symlink. Set `canonical_asset="$(realpath -e -- "$asset")"`; require the canonical file to be below the canonical `$capture_root` on a whole path-component boundary and outside the canonical `$repo_root` on that boundary. Reject it if `git -C "$repo_root" ls-files --error-unmatch -- "$canonical_asset"` succeeds. Any path that fails these checks is unsafe: stop and report the unsafe reference without adding it to a manual-upload handoff. Enforce the one-reference-per-asset invariant and the 50-file maximum across the complete inventory. A later attachment invocation rewrites only paths included in that invocation, so a partial list leaves older local references in the submitted body. Unreferenced attachments are appended by `gh`; duplicate references produce duplicate embeds. The Markdown alt text survives the hosted-URL rewrite.
 4. For every inventory entry, check its MIME type and size before upload. Use GitHub-supported image/video types only (`image/png`, `image/jpeg`, `image/gif`, `image/webp`, `image/svg+xml`, `video/mp4`, `video/quicktime`, or `video/webm`), and reject a file larger than the conservative 10 MiB inline limit:
    ```bash
    mime="$(file --brief --mime-type "$asset")"
@@ -92,7 +109,7 @@ Use one native attachment-bearing body edit. It uploads the assets and rewrites 
    test "$bytes" -le 10485760
    ```
    Re-encode or shrink an oversized or unsupported asset using `visual-capture` guidance. If an asset changes, update its reference only in the managed section, then repeat steps 3–4 before attaching. If its reference is outside that section, or it cannot be made uploadable, stop and report it; never submit an asset expected to fail.
-5. From the repository root, pass every inventory entry exactly once with `--attach`, using the unchanged literal path from the body and no more than 50 entries.
+5. From the repository root, pass every inventory entry exactly once with `--attach`, using the unchanged validated literal off-tree path from the body and no more than 50 entries.
 
 **Attach and verify.** Run exactly one attachment-bearing edit, with one repeatable `--attach` flag for every local path in the final-body inventory:
 
@@ -101,8 +118,8 @@ Always re-read the body after the command returns, including after a nonzero exi
 ```bash
 # Run from the repository root. Each --attach value exactly matches its body reference.
 if gh pr edit <number> --body-file "$BODY_FILE" \
-  --attach "captures/<run>/widget.png" \
-  --attach "captures/<run>/tour.mp4"
+  --attach "/tmp/visual-capture/<repo>/<branch>/widget.png" \
+  --attach "/tmp/visual-capture/<repo>/<branch>/tour.mp4"
 then
   attach_status=0
 else
@@ -128,7 +145,7 @@ Inventory the hosted attachment URLs and every local image/video path still pres
 - Never vary viewport/theme/device between before and after (enforced by `visual-capture`).
 - Never bypass `visual-capture`/`playwright-cli` with ad-hoc Puppeteer, `@playwright/test`, or MCP.
 - Never commit artifacts or force-push a throwaway image commit to host attachments; use native `gh pr edit --attach` or the pending handoff, never branch history.
-- Never pass `--attach` for a body path that does not match `^captures/[A-Za-z0-9._/-]+$`, a tracked file, a symlink or symlinked parent, an asset that the generated body does not reference exactly once, or more than 50 attachment files.
+- Never pass `--attach` for a body path that is not an unchanged literal absolute path below the canonical temporary capture root, contains an empty, `.` or `..` component, resolves inside the canonical repository root, is tracked by Git, is not a regular non-symlink file, has a symlinked parent, is not referenced exactly once by the generated body, or exceeds 50 attachment files.
 - Never include an unsafe body path in the manual-upload handoff.
 - Never run the attachment edit when any native preflight gate fails.
 - Never blindly retry an attachment command after a nonzero exit; re-read the body and report any partial upload state first.
