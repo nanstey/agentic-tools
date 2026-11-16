@@ -2,7 +2,7 @@
 
 ## Core Contract
 
-Sync PR title and body with the current branch diff.
+Sync PR title and body with the current branch diff. PR bodies never contain the agent author disclosure.
 Invoke the `bluf` skill to structure the text and the `ste` skill to rewrite it into unambiguous Simplified Technical English. Write BLUF (Bottom Line Up Front): lead with the main point, then follow with context. State the conclusion before the material that justifies it, so a time-constrained reviewer grasps what changed and what is needed of them from the first line.
 Default tool is `gh`. Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 Default behavior is to update the PR directly once rewritten.
@@ -27,6 +27,7 @@ Default behavior is to update the PR directly once rewritten.
    - **Repository guidance**: follow the selected guidance and template. Preserve every required field and any template comment that must remain.
    - **Length**: scaled to the change size (see `Length`); cut, do not pad. No sentence or bullet over ~25 words — split any that run long.
    - **No rationale**: `Summary` and `Changes` state what changed, not why; drop justification and design narration unless a reviewer cannot trust or understand the change without it, and then in one clause.
+   - **Disclosure**: remove any existing agent author disclosure; it never belongs in a PR body.
    - **Structure**: use repository-required sections and order; where guidance leaves gaps, split `Summary` when intent shifts (content vs. context), organize `Changes` into work groups derived from first principles (never line/file/commit/slice-based) with one-clause bullets, keep `Testing` present and specific, and include `Notes` only when there is something to flag.
 11. If the title no longer summarizes the changeset, rewrite it (concise, imperative, matching repo convention such as Conventional Commits when in use).
 12. Preserve still-relevant links/issues/related PR refs, including current screenshot/clip attachments.
@@ -77,7 +78,7 @@ Be terse (see the `terse` skill). Scale length to the change: a trivial fix ofte
 - Surface tradeoffs, risks, breaking changes, and known limitations in `Notes` rather than burying them mid-body; omit `Notes` when there is nothing to flag, unless repository guidance requires it.
 - `Testing` is required unless repository guidance uses a different required verification field. Be specific about what was verified (tests, manual steps, env, edge cases); avoid bare "tested locally" and avoid verbosity.
 - Do not write from commit messages alone; use the diff.
-- Do not credit agents (Claude Code, Codex, etc.) for writing the description.
+- Do not credit agents (Claude Code, Codex, etc.) for writing the description or include the agent author disclosure.
 - Do not reference filepaths in the summary.
 - Do not reference uncommitted plan files.
 - Screenshots/clips belong as PR attachments, never committed to the repo; delegate their capture and refresh to `/pr screenshots`, which owns the attachment-bearing body edit.

@@ -39,7 +39,7 @@ Reject unknown mode words, more than one mode word, or a mode that does not matc
 
 1. Require unchanged base/head and write access. Fix edits only the PR body, so the working tree is not touched.
 2. Where UI changed and screenshots are `missing` or `stale`, run `/pr screenshots`. Preserve its attachments in any later body edit.
-3. Add or repair an `## Evidence` section (or the repository template's equivalent) in the body. For each verified claim, give the claim, the command or CI run, the result, and any screenshot. Preserve unrelated content and template fields. Do not claim evidence you did not observe.
+3. Add or repair an `## Evidence` section (or the repository template's equivalent) in the body. Remove any agent author disclosure. For each verified claim, give the claim, the command or CI run, the result, and any screenshot. Preserve unrelated content and template fields. Do not claim evidence you did not observe.
 4. Apply with `gh pr edit --body-file <temp>`, then re-read the PR and confirm the section is present.
 5. A `contradicted` or `unsupported` claim is never fixed by rewording. Report it as `blocked` with the source change needed. Do not edit source.
 
