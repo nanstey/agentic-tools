@@ -28,7 +28,7 @@ collect_agents() {
 }
 
 # Remove this installer's managed Pi profiles before an unavailable or failed
-# strict-dispatch patch can leave an upstream Agent tool with usable profiles.
+# managed policy patch can leave an upstream Agent tool with usable profiles.
 # Only manifest-listed files are removed, so a user-owned scout.md or worker.md
 # is never touched.
 disable_managed_pi_agents() {
@@ -49,7 +49,7 @@ disable_managed_pi_agents() {
     [ -f "$manifest" ] && cat "$manifest"
   } | sort -u)
   rm -f "$manifest"
-  echo "  [pi-agents] -> $dir ($removed disabled; strict dispatch patch unavailable)" >&2
+  echo "  [pi-agents] -> $dir ($removed disabled; managed policy patch unavailable)" >&2
 }
 
 # Managed Pi profiles are copied as regular files. The candidate discovers that

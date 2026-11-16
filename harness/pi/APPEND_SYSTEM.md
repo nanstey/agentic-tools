@@ -55,10 +55,10 @@ main thread for decomposition, integration, and verification:
 `/review-code` and `/pr review` require a coordinator with `Agent` dispatch. A leaf agent
 returns `blocked: needs a coordinator with Agent-tool dispatch`.
 
-Spawn independent slices in one turn. Give each child a self-contained task with goal,
-paths, constraints, and expected return format. Background children notify on completion.
-Use `steer_subagent` for a running child and `get_subagent_result` for status or results.
-The installed candidate has no stop/cancel tool. Do not claim to stop a child or poll it.
+Dispatch each child as a foreground call with a self-contained task, goal, paths,
+constraints, and expected return format. Wait for its completion before continuing.
+Do not request background execution or scheduling, and do not poll or steer children.
+The installed candidate has no stop/cancel tool.
 
 # Tier-selection contract
 
@@ -133,9 +133,10 @@ demonstrably low-quality result.
 
 Managed `subagents.json` disables unknown-type fallback, default and package-provided agent types,
 widgets, mentions, workflows including package-provided workflows, worktrees, persistent agent
-memory, and nested agents. FleetView and schedules stay enabled. The strict patch requires an exact, currently available authenticated model, so managed child
-policy does not require global `enabledModels` or constrain main-agent model cycling. The
-routing table above is coordinator policy; the patch does not enforce its cells.
+memory, nested agents, and scheduling. Foreground execution is the only managed mode. The
+strict patch requires an exact, currently available authenticated model, so managed child policy
+does not require global `enabledModels` or constrain main-agent model cycling. The routing table
+above is coordinator policy; the patch does not enforce its cells.
 `pi-fallback-models` remains available to the main session and keeps its quota patch, but is
 excluded from all role profiles. A child provider failure is a failure, not permission to
 widen model scope or provider family.
@@ -147,8 +148,8 @@ opposite provider family from the producer's final/effective-at-start selection.
 send both producer and reviewer to the same family.
 
 The strict patch records provider-qualified requested, initial, and final model/thinking
-selections in lifecycle provenance and in `get_subagent_result`. `final` is only the selection
-effective-at-start, not proof that every later request or completion used it. Retrieve the
+selections in the foreground call's completion details. `final` is only the selection
+effective-at-start, not proof that every later request or completion used it. Evaluate the
 completed result before claiming cross-family independence. If provenance is absent, incomplete,
 or differs from the policy selection, record a gap. Do not infer provenance from a profile name or
 a legacy completion record.

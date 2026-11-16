@@ -28,7 +28,7 @@ If the idea is vague, derive acceptance criteria from the best reading and recor
 
 ### Delegation
 
-Give delegated work a clear purpose, relevant context, and expected result. Run independent work concurrently only when the environment can keep writers isolated. Let the environment choose its native agents, tools, and coordination pattern.
+Give delegated work a clear purpose, relevant context, and expected result. Dispatch foreground subagents one at a time and collect each result before the next. Let the environment choose its native agents, tools, and coordination pattern.
 
 Track timing, cost, or resource usage when the environment reports it. Do not require resource budgets or controls unless the user requests them or the environment requires them. The per-invocation review/fix limit in the `pr` skill's `references/gates.md` is a workflow safety constraint, not a resource-budget requirement.
 
@@ -73,7 +73,7 @@ Extract acceptance criteria and identify unresolved material questions. Trace im
 ### 2. Discovery
 
 - **Narrow idea (one clear component):** use one focused reconnaissance task for the affected behaviour, files, tests, validation commands, and risks.
-- **Broad idea (cross-boundary or product-ambiguous):** split distinct read-only scopes across product/request evidence, code patterns and boundaries, and validation/runtime risks when parallel execution is available. Follow with one synthesis step that emits a single evidence packet.
+- **Broad idea (cross-boundary or product-ambiguous):** split distinct read-only scopes across product/request evidence, code patterns and boundaries, and validation/runtime risks; dispatch and collect each foreground scope before the next. Follow with one synthesis step that emits a single evidence packet.
 - Give every scope concrete paths and an evidence-bearing return contract. Do not fan out overlapping questions.
 - For underspecified ideas, run `scrutiny` Mode A's pre-build contract before fixing criteria. Only user-confirmed items become obligations; retain assumptions and unresolved decisions as evidence.
 
@@ -88,7 +88,7 @@ In autopilot, state in the handoff: **“This is an `idea-to-pr` autopilot run. 
 Use the approved plan and current decision packet for one cohesive build pass. The repository's default is one PR for the whole effort. The builder implements from the plan's **Approach** and is validated once against **Acceptance**.
 
 1. Run a focused environment preflight: detect the package manager/lockfile, run the prospective deterministic gate, and, only for a dependency-shaped failure, make one immutable-install repair (for pnpm, `pnpm install --frozen-lockfile`) and retry the identical gate. Record both attempts and classify persistent failure as baseline code, lockfile/install, access/service, or unknown.
-2. Run `flow-design` when the plan's **Approach** has independent streams, and pass its design to `build` so it dispatches them in parallel. For simple or non-delegated work, record the equivalent plan inline.
+2. Run `flow-design` when the plan's **Approach** has independent streams, and pass its design to `build` so it dispatches foreground streams one at a time. For simple or non-delegated work, record the equivalent plan inline.
 3. Run `build` against the plan, passing the `flow-design` design. Build covers branch/worktree fitness, tooling checks, one-pass implementation, and one separate validation. Do not commit yet. Record validation evidence against each Acceptance item. Separate implementation from acceptance review when an independent context is available; otherwise record the limitation.
 4. For runnable behaviour, use a separate QA step to boot the app and observe every Acceptance item end-to-end. Use `playwright-cli` for browser-facing behaviour or equivalent CLI/API verification otherwise. QA returns per-item evidence; unit tests alone do not prove runtime behaviour. Tick evidence in the plan only when repository policy tracks plans, otherwise record it in the packet.
 5. For user-facing UI, run `visual-capture` only after QA passes. Store evidence outside git and hand its paths to the PR step.

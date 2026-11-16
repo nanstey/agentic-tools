@@ -31,7 +31,7 @@ Use the simplest shape that preserves correctness:
 
 - Complete small cohesive work inline.
 - Give one focused responsibility to one delegated task.
-- Run independent read-only scopes concurrently when useful.
+- Run independent read-only scopes sequentially in the foreground when useful.
 - Separate implementation from acceptance review for consequential changes.
 - Sequence dependent phases and approval points.
 - Isolate concurrent writers; otherwise serialize them.

@@ -12,6 +12,9 @@ const MARKERS = [
 	"function resolveExactAvailableModel(",
 	"function managedThinkingError(",
 	"function matchesManagedSecuritySetting(",
+	"function foregroundOnlyAgentRequestError(",
+	"const runInBackground = false;",
+	"provenance: modelProvenance(record.invocation),",
 ].join("\n");
 const PROFILES = ["scout.md", "researcher.md", "planner.md", "worker.md", "reviewer.md"];
 
@@ -60,7 +63,7 @@ test("unpatched package and absent manifest warn with the installer remedy", asy
 	writeFileSync(join(agentDir, "npm", "node_modules", "@tintinweb", "pi-subagents", "src", "index.ts"), "upstream source\n");
 
 	const readiness = checkSubagentsReadiness(agentDir);
-	assert.deepEqual(readiness, { ready: false, reason: "the strict-dispatch patch is missing" });
+	assert.deepEqual(readiness, { ready: false, reason: "a managed subagent policy patch is missing" });
 	assert.match(subagentsReadinessWarning(agentDir, readiness), /Run `bash install\.sh` from the agentic-tools checkout, then restart Pi\./);
 
 	await withAgentDir(agentDir, async () => {
@@ -79,12 +82,12 @@ test("unpatched package and absent manifest warn with the installer remedy", asy
 	});
 });
 
-test("a partially patched package is not ready", (t) => {
+test("a package missing foreground-only markers is not ready", (t) => {
 	const agentDir = sandbox(t);
 	const packageDir = join(agentDir, "npm", "node_modules", "@tintinweb", "pi-subagents", "src");
 	mkdirSync(packageDir, { recursive: true });
-	writeFileSync(join(packageDir, "index.ts"), "const MANAGED_AGENT_TYPES\nfunction matchesManagedSecuritySetting(\n");
-	assert.deepEqual(checkSubagentsReadiness(agentDir), { ready: false, reason: "the strict-dispatch patch is missing" });
+	writeFileSync(join(packageDir, "index.ts"), "const MANAGED_AGENT_TYPES\nfunction matchesManagedSecuritySetting(\nfunction foregroundOnlyAgentRequestError(\n");
+	assert.deepEqual(checkSubagentsReadiness(agentDir), { ready: false, reason: "a managed subagent policy patch is missing" });
 });
 
 test("patched markers and every managed profile are ready and remain silent", async (t) => {
@@ -116,7 +119,7 @@ test("a manifest entry without its profile is not ready", (t) => {
 test("missing directories do not throw or write", (t) => {
 	const agentDir = sandbox(t);
 	assert.doesNotThrow(() => checkSubagentsReadiness(agentDir));
-	assert.deepEqual(checkSubagentsReadiness(agentDir), { ready: false, reason: "the strict-dispatch patch is missing" });
+	assert.deepEqual(checkSubagentsReadiness(agentDir), { ready: false, reason: "a managed subagent policy patch is missing" });
 	assert.equal(existsSync(join(agentDir, "agents")), false);
 });
 

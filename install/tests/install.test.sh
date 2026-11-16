@@ -76,6 +76,7 @@ printf 'name: sample\n' >"$FIXTURE/skills/dev/sample/SKILL.md"
 printf 'name: reviewer\n' >"$FIXTURE/agents/reviewer.md"
 cp "$REPO/harness/pi/patches/pi-subagents-strict-dispatch-0.22.1.patch" \
   "$REPO/harness/pi/patches/pi-subagents-project-settings-0.22.1.patch" \
+  "$REPO/harness/pi/patches/pi-subagents-foreground-only-0.22.1.patch" \
   "$FIXTURE/harness/pi/patches/"
 candidate_fixture="$PI_SUBAGENTS_PRISTINE_DIR"
 seed_candidate() {

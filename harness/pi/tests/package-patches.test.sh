@@ -42,6 +42,8 @@ REPO_ROOT="$REPO" install_tintinweb_subagents_strict_dispatch_patch "$candidate"
 REPO_ROOT="$REPO" install_tintinweb_subagents_strict_dispatch_patch "$candidate" | grep -q '(ok)'
 REPO_ROOT="$REPO" install_tintinweb_subagents_project_settings_patch "$candidate" | grep -q '(patched)'
 REPO_ROOT="$REPO" install_tintinweb_subagents_project_settings_patch "$candidate" | grep -q '(ok)'
+REPO_ROOT="$REPO" install_tintinweb_subagents_foreground_only_patch "$candidate" | grep -q '(patched)'
+REPO_ROOT="$REPO" install_tintinweb_subagents_foreground_only_patch "$candidate" | grep -q '(ok)'
 grep -qF 'export function saveSettings(_s: SubagentsSettings, _cwd: string = process.cwd()): boolean {' "$candidate/src/settings.ts"
 grep -qF 'return false;' "$candidate/src/settings.ts"
 ! grep -qF 'writeFileSync' "$candidate/src/settings.ts"
@@ -65,6 +67,40 @@ fs.rmSync(cwd, { recursive: true, force: true });
 console.log("ok: project settings save is session-only and creates no file");
 JS
 echo 'ok: project settings patch prevents generated project snapshots'
+
+# Foreground-only policy must reject detached fresh and resume calls and every
+# schedule request before invocation, then pin the resolved invocation foreground.
+node - "$candidate/src/index.ts" <<'JS'
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const vm = require("node:vm");
+const { stripTypeScriptTypes } = require("node:module");
+const source = fs.readFileSync(process.argv[2], "utf8");
+const start = source.indexOf("function foregroundOnlyAgentRequestError");
+const end = source.indexOf("\n\n/** Role-only profiles", start);
+assert(start >= 0 && end > start, "foreground-only request guard exists");
+const guard = vm.runInNewContext(`${stripTypeScriptTypes(source.slice(start, end), { mode: "transform" })}\nforegroundOnlyAgentRequestError`);
+assert.match(guard({ run_in_background: true }), /foreground execution/);
+assert.match(guard({ resume: "agent-1", run_in_background: true }), /foreground execution/);
+assert.match(guard({ schedule: "+1m" }), /does not allow `schedule`/);
+assert.match(guard({ resume: "agent-1", schedule: "+1m" }), /does not allow `schedule`/);
+assert.equal(guard({ run_in_background: false }), undefined);
+const execute = source.indexOf("execute: async (toolCallId, params, signal, onUpdate, ctx) => {");
+const dispatch = source.indexOf("const dispatch = resolveSpawnType(rawType);", execute);
+const guardCall = source.indexOf("const foregroundOnlyError = foregroundOnlyAgentRequestError(params);", execute);
+assert(execute >= 0 && dispatch > execute, "Agent execute handler reaches spawn dispatch");
+assert(guardCall > execute && guardCall < dispatch, "Agent execute handler invokes the foreground guard before dispatch");
+assert.match(source.slice(guardCall, dispatch), /if \(foregroundOnlyError\) return textResult\(foregroundOnlyError\);/);
+assert.match(source, /const runInBackground = false;/);
+const foregroundDetails = source.slice(source.indexOf("const details = {", execute), source.indexOf("if (record.status === \"error\")", source.indexOf("const details = {", execute)));
+assert.match(foregroundDetails, /agentId: record\.id,/);
+assert.match(foregroundDetails, /provenance: modelProvenance\(record\.invocation\),/);
+const resumeDetails = source.slice(source.indexOf("const completionDetails = {", execute), source.indexOf("if (record.status === \"error\")", source.indexOf("const completionDetails = {", execute)));
+assert.match(resumeDetails, /agentId: record\.id,/);
+assert.match(resumeDetails, /provenance: modelProvenance\(record\.invocation\),/);
+assert.equal([...source.matchAll(/Agent ID: \$\{record\.id\}\\nModel provenance: \$\{JSON\.stringify\(modelProvenance\(record\.invocation\)\)\}/g)].length, 2, "foreground and resumed completions expose ID and provenance text");
+console.log("ok: Agent execute guards fresh/resume background and schedules before dispatch, pins invocation foreground, and returns foreground completion ID/provenance");
+JS
 cp -R "$candidate_fixture" "$SB/candidate-wrong-version"
 python3 - "$SB/candidate-wrong-version/package.json" <<'PY'
 import json, sys
@@ -337,6 +373,7 @@ for state in {0..15}; do
       [ "$run" = 1 ] && expected_candidate=patched
       grep -qF "[patch-tintinweb-subagents-strict-dispatch] -> $candidate_pkg ($expected_candidate)" "$SB/install-$state-$run.log"
       grep -qF "[patch-tintinweb-subagents-project-settings] -> $candidate_pkg ($expected_candidate)" "$SB/install-$state-$run.log"
+      grep -qF "[patch-tintinweb-subagents-foreground-only] -> $candidate_pkg ($expected_candidate)" "$SB/install-$state-$run.log"
       if [ "$run" = 1 ]; then
         grep -qF "[pi-agents] -> $agent_profiles (0 ok, 5 copied, 24 removed)" "$SB/install-$state-$run.log"
       else
@@ -381,7 +418,7 @@ if (
   echo 'FAIL: candidate-absent install accepted' >&2; exit 1
 fi
 grep -q 'managed agents remain disabled' "$SB/install-candidate-absent.log"
-grep -q 'strict dispatch patch unavailable' "$SB/install-candidate-absent.log"
+grep -q 'managed policy patch unavailable' "$SB/install-candidate-absent.log"
 [ ! -e "$agent_profiles/worker.md" ] || { echo 'FAIL: absent candidate left managed profile enabled' >&2; exit 1; }
 [ ! -e "$agent_profiles/.agentic-tools-pi-agents" ] || { echo 'FAIL: absent candidate left managed manifest' >&2; exit 1; }
 candidate_pkg="$agent_dir/npm/node_modules/@tintinweb/pi-subagents"
@@ -394,6 +431,7 @@ cp -R "$candidate_fixture/." "$candidate_pkg/"
 ) > "$SB/install-candidate-enabled.log" 2>&1 || { tail -n 30 "$SB/install-candidate-enabled.log" >&2; exit 1; }
 grep -qF "[patch-tintinweb-subagents-strict-dispatch] -> $candidate_pkg (patched)" "$SB/install-candidate-enabled.log"
 grep -qF "[patch-tintinweb-subagents-project-settings] -> $candidate_pkg (patched)" "$SB/install-candidate-enabled.log"
+grep -qF "[patch-tintinweb-subagents-foreground-only] -> $candidate_pkg (patched)" "$SB/install-candidate-enabled.log"
 [ -f "$agent_profiles/worker.md" ] || { echo 'FAIL: patched candidate did not enable managed profiles' >&2; exit 1; }
 echo 'ok: first install fails closed and patched reinstall enables managed profiles'
 

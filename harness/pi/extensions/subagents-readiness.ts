@@ -1,7 +1,7 @@
 /**
  * subagents-readiness — report incomplete managed-subagent installation early.
  *
- * The strict-dispatch patch and copied managed profiles arrive on different
+ * The managed policy patches and copied profiles arrive on different
  * sides of Pi's two-run package bootstrap. Read only the install-state markers
  * so an incomplete bootstrap gives the coordinator a safe recovery path before
  * it tries Agent.
@@ -17,6 +17,9 @@ const PATCH_MARKERS = [
 	"function resolveExactAvailableModel(",
 	"function managedThinkingError(",
 	"function matchesManagedSecuritySetting(",
+	"function foregroundOnlyAgentRequestError(",
+	"const runInBackground = false;",
+	"provenance: modelProvenance(record.invocation),",
 ];
 const REQUIRED_PROFILES = ["scout.md", "researcher.md", "planner.md", "worker.md", "reviewer.md"];
 
@@ -50,7 +53,7 @@ function isSafeProfileName(name: string): boolean {
 export function checkSubagentsReadiness(agentDir: string): SubagentsReadiness {
 	const packageSource = readText(join(agentDir, "npm", "node_modules", "@tintinweb", "pi-subagents", "src", "index.ts"));
 	if (!packageSource || !PATCH_MARKERS.every((marker) => packageSource.includes(marker))) {
-		return { ready: false, reason: "the strict-dispatch patch is missing" };
+		return { ready: false, reason: "a managed subagent policy patch is missing" };
 	}
 
 	const agentsDir = join(agentDir, "agents");
