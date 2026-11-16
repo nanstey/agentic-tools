@@ -46,16 +46,16 @@ If not applicable, report "no UI change — screenshots not required" and stop w
 5. For missing/stale evidence, confirm the branch's site is reachable at the base URL/port; if not, stop as blocked (never capture an error page).
 6. Build the **evidence matrix** (see **Evidence Model**), then delegate capture to `visual-capture`: pick the medium (static → screenshot, interaction/scroll/flow → video) and capture each matrix row from final `HEAD`. Capture a before/after pair (via a base-ref `worktree`) only when the PR's review question is an explicit visual replacement/regression, and label the exact refs.
 7. Build the complete intended body and attach the artifacts with the single native edit in **Native Attach Recipe**. The body preserves unrelated content and references every local capture path once with alt text. Do not fabricate attachment URLs.
-8. After every attempted native attach command, re-read the body and inventory hosted attachment URLs and remaining local capture paths. A nonzero exit may have updated the PR with successful uploads; report that partial state and do not blindly retry, because a retry can duplicate uploads. If preflight failed, instead confirm the pending handoff includes artifact paths and a paste-ready block. On a private repo, an anonymous fetch returning 404/403 for a hosted attachment URL is expected, not a failure.
+8. After every attempted native attach command, re-read the body and inventory hosted attachment URLs and remaining local capture paths. A nonzero exit may have updated the PR with successful uploads; report that partial state and do not blindly retry, because a retry can duplicate uploads. If a non-safety preflight failed, instead confirm the pending handoff includes validated artifact paths and a paste-ready block. An unsafe path stops without a handoff. On a private repo, an anonymous fetch returning 404/403 for a hosted attachment URL is expected, not a failure.
 
-Blocking gates: `gh` older than 2.99.0, missing GitHub authentication or push access, a non-`github.com` host (GHES is unsupported), more than 50 attachment files, an unsafe attachment path, site unreachable, ambiguous before/after refs, capture tooling unavailable (per `visual-capture` preflight), or an artifact landing in the repo. A failed native-attach preflight takes the handoff path; never make a partial attach attempt.
+Blocking gates: `gh` older than 2.99.0, missing GitHub authentication or push access, a non-`github.com` host (GHES is unsupported), more than 50 attachment files, an unsafe attachment path, site unreachable, ambiguous before/after refs, capture tooling unavailable (per `visual-capture` preflight), or an artifact landing in the repo. A failed native-attach preflight takes the handoff path, except an unsafe path stops without a handoff; never make a partial attach attempt.
 
 ## Artifact Handling
 
 - Do **not** add screenshots or videos to the repository. They live in the gitignored `captures/` dir that `visual-capture` produces, and reach the PR as GitHub attachments hosted off-tree.
 - Attachment paths, best first:
   1. **Native `gh pr edit --attach`** (preferred, programmatic). It uploads each local capture while rewriting the PR body in one operation. See **Native Attach Recipe**.
-  2. **Handoff when preflight fails.** Emit the artifact paths plus a paste-ready `## Screenshots` block containing each local path and its alt text. Mark the attach as pending. The user may manually drag and drop those files into the PR body as the fallback step; do not run any `--attach` flags.
+  2. **Handoff when a non-safety preflight fails.** Emit validated artifact paths plus a paste-ready `## Screenshots` block containing each validated local path and its alt text. Mark the attach as pending. The user may manually drag and drop those files into the PR body as the fallback step; do not run any `--attach` flags. An unsafe path stops without a handoff.
 - The only exception is a project that already keeps UI assets in a tracked asset dir (e.g. `docs/assets/`) and explicitly wants them committed — otherwise attach, never commit.
 - Reference attachments in the PR body only; the branch diff must not gain image/video files.
 
@@ -63,7 +63,7 @@ Blocking gates: `gh` older than 2.99.0, missing GitHub authentication or push ac
 
 Use one native attachment-bearing body edit. It uploads the assets and rewrites their local Markdown references to hosted URLs without adding body or media files to the branch.
 
-**Preflight.** Run every gate before generating an attachment edit. Any failure takes the pending-handoff path in **Artifact Handling**; never submit a partial `--attach` attempt.
+**Preflight.** Run every gate before generating an attachment edit. Any non-safety failure takes the pending-handoff path in **Artifact Handling**; an unsafe path stops without a handoff. Never submit a partial `--attach` attempt.
 
 | Gate | Check | Failure outcome |
 | --- | --- | --- |
@@ -91,7 +91,7 @@ Use one native attachment-bearing body edit. It uploads the assets and rewrites 
    case "$mime" in image/png|image/jpeg|image/gif|image/webp|image/svg+xml|video/mp4|video/quicktime|video/webm) ;; *) exit 1;; esac
    test "$bytes" -le 10485760
    ```
-   Re-encode or shrink an oversized or unsupported asset using `visual-capture` guidance. If an asset changes, update its body reference and repeat step 3 before attaching. If it cannot be made uploadable, stop and report it; never submit an asset expected to fail.
+   Re-encode or shrink an oversized or unsupported asset using `visual-capture` guidance. If an asset changes, update its reference only in the managed section, then repeat steps 3–4 before attaching. If its reference is outside that section, or it cannot be made uploadable, stop and report it; never submit an asset expected to fail.
 5. From the repository root, pass every inventory entry exactly once with `--attach`, using the unchanged literal path from the body and no more than 50 entries.
 
 **Attach and verify.** Run exactly one attachment-bearing edit, with one repeatable `--attach` flag for every local path in the final-body inventory:
@@ -99,9 +99,10 @@ Use one native attachment-bearing body edit. It uploads the assets and rewrites 
 Always re-read the body after the command returns, including after a nonzero exit. Capture the status without changing the caller's shell options:
 
 ```bash
+# Run from the repository root. Each --attach value exactly matches its body reference.
 if gh pr edit <number> --body-file "$BODY_FILE" \
-  --attach "/absolute/path/captures/widget.png" \
-  --attach "/absolute/path/captures/tour.mp4"
+  --attach "captures/<run>/widget.png" \
+  --attach "captures/<run>/tour.mp4"
 then
   attach_status=0
 else
