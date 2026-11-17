@@ -28,6 +28,8 @@ Scope: threads on your own branch's PR. To review a PR (own or others') or publi
    - Write reply text using `terse` (outcome-first, no redundancy).
    - Reply text should appear nested under the original review comment in the thread.
    - Then resolve the thread via GraphQL `resolveReviewThread` if appropriate.
+   - After replies/resolutions, take a fresh, complete paginated thread/review snapshot and `/pr info` snapshot. Re-request review only for eligible individual users whose latest review is `CHANGES_REQUESTED`, and only when this run published a fix for at least one of their triaged `request` threads, all their requested-change threads are resolved, no comment from them was declined or left unaddressed, and authoritative base/head are unchanged. Use the thread snapshot's reviewer identity and latest-review state; incomplete/paginated API results, bots, teams, already-requested reviewers, state/head changes, or API failures mean skip and report that reviewer. Never dismiss a review or re-request anyone without `CHANGES_REQUESTED`.
+   - For each eligible login, use `/pr info`'s owner/repo/number and `gh api -X POST repos/<owner>/<repo>/pulls/<number>/requested_reviewers/rerequest -f 'reviewers[]=<login>'`. Verify success with `gh api repos/<owner>/<repo>/pulls/<number>/requested_reviewers --jq '.users[].login'` and require the login. If either API call fails or verification omits the login, report the failure; do not retry in a loop or alter thread/review state.
 8. Optional nit/unchanged-existing threads may be explained/resolved without code changes where thread policy permits. Otherwise report the needed thread/owner decision, never compel a nit fix. Leave unresolved requests or coverage gaps open and report blockers.
 
 Treat feedback that implies product/architecture decisions or high-risk trade-offs as blocked: leave it unresolved and report it.
@@ -40,10 +42,11 @@ Findings from `/pr review` on your own PR are not threads; `/pr review <target> 
 - Never resolve comments before the branch state is finalized.
 - Never create an empty commit to mark review progress.
 - Never push or resolve threads if validation is failing.
+- Never dismiss a review or re-request an ineligible reviewer.
 - Never force-push unless explicitly requested.
 - Never overwrite or revert unrelated user changes.
 - If unexpected changes appear while working, stop as blocked and report the unexpected changes.
 
 ## Output Style
 
-Report source-verified thread/finding IDs and categories, fixed/resolved/explained vs unresolved requests and coverage gaps, validator/current-head review evidence, round/packet updates, commit/push or deferred status, and, when blocked, the `gates.md` blocked form with its unblocking condition.
+Report source-verified thread/finding IDs and categories, fixed/resolved/explained vs unresolved requests and coverage gaps, re-requested reviewers and per-reviewer skips, validator/current-head review evidence, round/packet updates, commit/push or deferred status, and, when blocked, the `gates.md` blocked form with its unblocking condition.
