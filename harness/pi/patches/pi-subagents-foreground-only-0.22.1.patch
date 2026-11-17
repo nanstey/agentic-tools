@@ -1,0 +1,133 @@
+--- a/src/index.ts
++++ b/src/index.ts
+@@ -87,6 +87,17 @@
+   return { content: [{ type: "text" as const, text: msg }], details: details as any };
+ }
+ 
++/** Managed policy permits neither detached nor scheduled Agent calls. */
++function foregroundOnlyAgentRequestError(params: { run_in_background?: unknown; schedule?: unknown }): string | undefined {
++  if (params.run_in_background === true) {
++    return "Managed subagent policy requires foreground execution; `run_in_background: true` is not allowed.";
++  }
++  if (params.schedule !== undefined) {
++    return "Managed subagent policy does not allow `schedule`.";
++  }
++  return undefined;
++}
++
+ /** Role-only profiles that the managed routing policy governs. */
+ const MANAGED_AGENT_TYPES = new Set([
+   "scout",
+@@ -1779,10 +1790,9 @@
+ 
+ Notes:
+ - description: 3-5 words (shown in UI). Prompts must be self-contained — the agent has not seen this conversation.
+-- Parallel work: one message, multiple Agent calls — they run concurrently.
+-- Subagents run in the background by default; you'll be notified when one completes. Pass run_in_background: false only when your very next action depends on the result and nothing else could usefully happen while it runs. Never fabricate or predict a pending agent's results — if the user asks before the notification arrives, say it's still running.
++- Each Agent call runs in the foreground and returns its complete result inline. Do not request background execution or scheduling.
+ - The result is not shown to the user — summarize it for them. Verify an agent's claimed code changes before reporting work done.
+-- resume continues a previous agent by ID; steer_subagent messages a running one.${isolationCompactGuideline}`;
++- resume continues a previous agent by ID in the foreground.${isolationCompactGuideline}`;
+ 
+   const fullAgentToolDescription = `Launch a new agent to handle complex, multi-step tasks autonomously. Each agent type has specific capabilities and tools available to it.
+ 
+@@ -1800,14 +1810,10 @@
+ ## Usage notes
+ 
+ - Always include a short (3-5 word) description summarizing what the agent will do (shown in UI).
+-- When you launch multiple agents for independent work, send them in a single message with multiple tool uses so they run concurrently. If the user specifies that they want you to run agents "in parallel", you MUST send a single message with multiple Agent tool use content blocks.
++- Every Agent call runs in the foreground and returns its complete result before you continue. Do not request \`run_in_background: true\`, scheduling, polling, or steering.
+ - When the agent is done, it returns a single message back to you. The result is not visible to the user — to show the user, send a text message with a concise summary.
+ - Trust but verify: an agent's summary describes what it intended to do, not necessarily what it did. When an agent writes or edits code, check the actual changes before reporting the work as done.
+-- Agents run in the background by default. When an agent runs in the background, you will be automatically notified when it completes — do NOT sleep, poll, or proactively check on its progress. Continue with other work or respond to the user instead.
+-- **Foreground vs background**: Pass \`run_in_background: false\` only when your very next action depends on the agent's result and nothing else could usefully happen while it runs — e.g., a research agent whose finding gates the edit you're about to make. Otherwise let it run in the background (the default) — this includes fire-and-forget work, independent investigations, and anything where the user might hand you something else in the meantime. Wanting the result "next" is not enough on its own.
+-- **Don't race**: after launching a background agent, you know nothing about its results. Never fabricate or predict them in any format — not as prose, summary, or structured output. The completion notification arrives in a later turn; it is never something you write yourself. If the user asks before it lands, say the agent is still running — give status, not a guess.
+-- Use resume with an agent ID to continue a previous agent's work. A new (non-resume) Agent call starts a fresh agent with no memory of prior runs, so the prompt must be self-contained.
+-- Use steer_subagent to send mid-run messages to a running background agent.
++- Use resume with an agent ID to continue a previous agent's work in the foreground. A new (non-resume) Agent call starts a fresh agent with no memory of prior runs, so the prompt must be self-contained.
+ - Clearly tell the agent whether you expect it to write code or just to do research (search, file reads, etc.), since it is not aware of the user's intent.
+ - If an agent's description says it should be used proactively, try to use it without the user having to ask for it first.
+ - Use model to specify a different model (as "provider/modelId", or fuzzy e.g. "haiku", "sonnet").
+@@ -1924,12 +1930,12 @@
+       ),
+       run_in_background: Type.Optional(
+         Type.Boolean({
+-          description: "Defaults to true — the agent runs detached, returning its ID immediately, and you are notified on completion. Set false only when your very next action depends on the result; the call then blocks and returns the agent's full output inline.",
++          description: "Managed subagents run in the foreground and return their full output inline. Omit this field or set false; true is refused.",
+         }),
+       ),
+       resume: Type.Optional(
+         Type.String({
+-          description: "Optional agent ID to resume from. Continues from previous context. Resumes detached like any other spawn; pass run_in_background: false to block and get the result inline. The resumed run gets a fresh max_turns budget. An agent can only be resumed once its current run has finished — use steer_subagent to reach one mid-run.",
++          description: "Optional agent ID to resume from. Continues from previous context in the foreground and returns its full output inline. The resumed run gets a fresh max_turns budget.",
+         }),
+       ),
+       isolated: Type.Optional(
+@@ -2071,6 +2077,9 @@
+     // ---- Execute ----
+ 
+     execute: async (toolCallId, params, signal, onUpdate, ctx) => {
++      const foregroundOnlyError = foregroundOnlyAgentRequestError(params);
++      if (foregroundOnlyError) return textResult(foregroundOnlyError);
++
+       // Ensure we have UI context for widget rendering
+       widget.setUICtx(ctx.ui as UICtx);
+ 
+@@ -2160,7 +2169,9 @@
+         if (thinkingError) return textResult(thinkingError);
+       }
+       const inheritContext = resolvedConfig.inheritContext;
+-      const runInBackground = resolvedConfig.runInBackground;
++      // Profiles and settings can only affect other resolved fields. This policy
++      // hardens both fresh and resume calls against detached execution.
++      const runInBackground = false;
+       const isolated = resolvedConfig.isolated;
+       const isolation = resolvedConfig.isolation;
+       // Whether this spawn writes its .output transcript. Per-agent
+@@ -2361,14 +2372,21 @@
+         if (!record) {
+           return textResult(`Failed to resume agent "${params.resume}".`);
+         }
++        // Foreground completion must identify the run and preserve the model
++        // provenance that the coordinator uses for cross-family review.
++        const completionDetails = {
++          ...buildDetails(detailBaseFor(record), record, resumeState),
++          agentId: record.id,
++          provenance: modelProvenance(record.invocation),
++        };
+         // A failed resume surfaces the error, plus any partial output THIS
+         // resume produced (never the previous turn's answer, #144).
+         if (record.status === "error") {
+-          return textResult(`Agent failed: ${record.error}${partialOutputSuffix(record)}`, buildDetails(detailBaseFor(record), record, resumeState));
++          return textResult(`Agent failed: ${record.error}${partialOutputSuffix(record)}`, completionDetails);
+         }
+         return textResult(
+-          record.result?.trim() || "No output.",
+-          buildDetails(detailBaseFor(record), record, resumeState),
++          `${record.result?.trim() || "No output."}\n\nAgent ID: ${record.id}\nModel provenance: ${JSON.stringify(modelProvenance(record.invocation))}`,
++          completionDetails,
+         );
+       }
+ 
+@@ -2622,7 +2640,11 @@
+       // two describe the same work when the agent delegated to nested children.
+       const tokenText = formatLifetimeTokens(record);
+ 
+-      const details = buildDetails(detailBaseFor(record), record, fgState, { tokens: tokenText });
++      const details = {
++        ...buildDetails(detailBaseFor(record), record, fgState, { tokens: tokenText }),
++        agentId: record.id,
++        provenance: modelProvenance(record.invocation),
++      };
+ 
+       if (record.status === "error") {
+         // Error headline + any partial output the run produced before failing.
+@@ -2638,7 +2660,7 @@
+       }
+       return textResult(
+         `${fallbackNote}Agent completed in ${formatMs(durationMs)} (${statsParts.join(", ")})${getForegroundOutcomeNote(record.status)}.\n\n` +
+-        (record.result?.trim() || "No output."),
++        `${record.result?.trim() || "No output."}\n\nAgent ID: ${record.id}\nModel provenance: ${JSON.stringify(modelProvenance(record.invocation))}`,
+         details,
+       );
+     },

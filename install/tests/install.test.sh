@@ -76,6 +76,8 @@ printf 'name: sample\n' >"$FIXTURE/skills/dev/sample/SKILL.md"
 printf 'name: reviewer\n' >"$FIXTURE/agents/reviewer.md"
 cp "$REPO/harness/pi/patches/pi-subagents-strict-dispatch-0.22.1.patch" \
   "$REPO/harness/pi/patches/pi-subagents-project-settings-0.22.1.patch" \
+  "$REPO/harness/pi/patches/pi-subagents-foreground-only-0.22.1.patch" \
+  "$REPO/harness/pi/patches/pi-subagents-foreground-handoff-0.22.1.patch" \
   "$FIXTURE/harness/pi/patches/"
 candidate_fixture="$PI_SUBAGENTS_PRISTINE_DIR"
 seed_candidate() {
@@ -160,6 +162,9 @@ ln -s "$SB/missing" "$HOME/.claude/skills/retired"
 run first 0 env PATH="$SB/capabilities:$PATH" USE_BUN=1 bash "$FIXTURE/install.sh"
 [ ! -s "$SB/first.err" ] || fail 'fresh install stderr'
 has first '1 overwritten'; has first 'removed dangling retired'
+has first "[patch-tintinweb-subagents-foreground-only] -> $HOME/custom-agent/npm/node_modules/@tintinweb/pi-subagents (patched)"
+has first "[patch-tintinweb-subagents-foreground-handoff] -> $HOME/custom-agent/npm/node_modules/@tintinweb/pi-subagents (patched)"
+grep -qF 'function sendForegroundToBackground(_ids: Iterable<string>): number {' "$HOME/custom-agent/npm/node_modules/@tintinweb/pi-subagents/src/index.ts" || fail 'foreground UI handoff guard missing'
 [ -L "$HOME/.claude/agents/reviewer.md" ] && [ "$(readlink "$HOME/.claude/agents/reviewer.md")" = /dev/null ] || fail 'Claude received a Pi-only agent type'
 [ ! -e "$HOME/.claude/agents/retired.md" ] || fail 'Claude dangling agent link remains'
 [ ! -e "$HOME/.claude/agents/pi-only.md" ] && [ ! -L "$HOME/.claude/agents/pi-only.md" ] || fail 'Claude live Pi-only agent link remains'
@@ -178,7 +183,55 @@ shim="$(sed -n 's/^shim //p' "$TEST_LOG")"
 run second 0 env PATH="$SB/capabilities:$PATH" bash "$FIXTURE/install.sh"
 has second '[skills] ->'; has second '(1 ok)'; has second '0 installed, 1 up to date'
 has second '[status-line] ->'; lacks second 'settings updated'; lacks second 'store reset'
+has second "[patch-tintinweb-subagents-foreground-only] -> $HOME/custom-agent/npm/node_modules/@tintinweb/pi-subagents (ok)"
+has second "[patch-tintinweb-subagents-foreground-handoff] -> $HOME/custom-agent/npm/node_modules/@tintinweb/pi-subagents (ok)"
 echo 'ok: fresh/rerun artifacts, configs, profiles, secret permissions and npx cleanup'
+
+# An incomplete foreground handoff fix must revoke managed profiles on rerun.
+cp "$HOME/custom-agent/npm/node_modules/@tintinweb/pi-subagents/src/index.ts" "$SB/complete-foreground-index.ts"
+python3 - "$HOME/custom-agent/npm/node_modules/@tintinweb/pi-subagents/src/index.ts" <<'PY'
+from pathlib import Path
+import sys
+path = Path(sys.argv[1])
+source = path.read_text()
+old = 'function sendForegroundToBackground(_ids: Iterable<string>): number {'
+assert old in source
+path.write_text(source.replace(old, old.replace('_ids:', 'ids:'), 1))
+PY
+run incompletehandoff 1 env PATH="$SB/capabilities:$PATH" bash "$FIXTURE/install.sh"
+grep -qF '[patch-tintinweb-subagents-foreground-handoff] upstream code changed' "$SB/incompletehandoff.err" || fail 'incomplete handoff accepted'
+[ ! -e "$HOME/custom-agent/agents/reviewer.md" ] || fail 'incomplete handoff left managed profile enabled'
+[ ! -e "$HOME/custom-agent/agents/.agentic-tools-pi-agents" ] || fail 'incomplete handoff left managed manifest enabled'
+cp "$SB/complete-foreground-index.ts" "$HOME/custom-agent/npm/node_modules/@tintinweb/pi-subagents/src/index.ts"
+run restoredhandoff 0 env PATH="$SB/capabilities:$PATH" bash "$FIXTURE/install.sh"
+[ -f "$HOME/custom-agent/agents/reviewer.md" ] || fail 'restored handoff fix did not re-enable managed profiles'
+echo 'ok: incomplete foreground handoff fix disables managed profiles, restored patch re-enables them'
+
+# A package with the prior foreground-only patch must upgrade through the full
+# installer, which leaves the old patch intact and applies handoff hardening.
+upgrade_agent="$HOME/foreground-upgrade-agent"
+seed_candidate "$upgrade_agent"
+for patch_file in pi-subagents-strict-dispatch-0.22.1.patch pi-subagents-project-settings-0.22.1.patch pi-subagents-foreground-only-0.22.1.patch; do
+  patch -p1 -s -f --fuzz=0 -d "$upgrade_agent/npm/node_modules/@tintinweb/pi-subagents" < "$FIXTURE/harness/pi/patches/$patch_file"
+done
+# The fixture .env owns PI_CODING_AGENT_DIR, so point it at the upgrade fixture.
+cp .env "$SB/foreground-upgrade.env"
+python3 - .env "$upgrade_agent" <<'PY'
+from pathlib import Path
+import sys
+path = Path(sys.argv[1])
+source = path.read_text()
+path.write_text(source.replace('PI_CODING_AGENT_DIR="$HOME/custom-agent"', f'PI_CODING_AGENT_DIR="{sys.argv[2]}"'))
+PY
+run foregroundupgrade 0 env PATH="$SB/capabilities:$PATH" bash "$FIXTURE/install.sh"
+has foregroundupgrade "[patch-tintinweb-subagents-strict-dispatch] -> $upgrade_agent/npm/node_modules/@tintinweb/pi-subagents (ok)"
+has foregroundupgrade "[patch-tintinweb-subagents-project-settings] -> $upgrade_agent/npm/node_modules/@tintinweb/pi-subagents (ok)"
+has foregroundupgrade "[patch-tintinweb-subagents-foreground-only] -> $upgrade_agent/npm/node_modules/@tintinweb/pi-subagents (ok)"
+has foregroundupgrade "[patch-tintinweb-subagents-foreground-handoff] -> $upgrade_agent/npm/node_modules/@tintinweb/pi-subagents (patched)"
+run foregroundupgradererun 0 env PATH="$SB/capabilities:$PATH" bash "$FIXTURE/install.sh"
+has foregroundupgradererun "[patch-tintinweb-subagents-foreground-handoff] -> $upgrade_agent/npm/node_modules/@tintinweb/pi-subagents (ok)"
+cp "$SB/foreground-upgrade.env" .env
+echo 'ok: installer upgrades the previous foreground patch and reruns idempotently'
 
 # An inherited key prevents even executing the fixture .env; registry uses the override.
 rm "$HOME/env-loaded"

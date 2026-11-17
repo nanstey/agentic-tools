@@ -1,0 +1,143 @@
+--- a/src/index.ts
++++ b/src/index.ts
+@@ -1342,43 +1342,12 @@
+   const widget = new AgentWidget(manager, agentActivity, getWidgetMode, isShowCostEnabled, isShowModelEnabled);
+   function setWidgetMode(m: WidgetMode): void { widgetMode = m; widget.update(); }
+ 
+-  /**
+-   * Foreground `Agent` calls whose run can be handed to the background, by
+-   * agent id. Each entry wakes its blocked tool call, which then returns as a
+-   * background spawn would. Only the Agent tool registers here, so a spawn with
+-   * no tool call to return — the agent generator, a workflow's agents — never
+-   * offers the handoff.
+-   */
++  // Kept empty by managed policy so neither ctrl+b nor the viewer offers handoff.
+   const foregroundHandoffs = new Map<string, () => void>();
+ 
+-  /** Hand these runs to the background and wake their tool calls; returns how many took. */
+-  function sendForegroundToBackground(ids: Iterable<string>): number {
+-    let sent = 0;
+-    for (const id of [...ids]) {
+-      const wake = foregroundHandoffs.get(id);
+-      if (!wake || !manager.sendToBackground(id)) continue;
+-      foregroundHandoffs.delete(id);
+-      wake();
+-      sent++;
+-      // It is a background agent from here on, so announce it as one — as a
+-      // detached resume re-announces an existing id.
+-      const record = manager.getRecord(id);
+-      if (record) {
+-        pi.events.emit("subagents:created", {
+-          id,
+-          type: record.type,
+-          description: record.description,
+-          isBackground: true,
+-        });
+-      }
+-    }
+-    if (sent > 0) {
+-      widget.ensureTimer();
+-      widget.update();
+-      fleet.ensureTimer();
+-      fleet.update();
+-    }
+-    return sent;
++  /** Managed policy disables foreground-to-background handoff, including UI shortcuts. */
++  function sendForegroundToBackground(_ids: Iterable<string>): number {
++    return 0;
+   }
+ 
+   /** The conversation viewer's `b`: hand just this run to the background. */
+@@ -2483,20 +2452,12 @@
+       let spinnerFrame = 0;
+       const startedAt = Date.now();
+       let fgId: string | undefined;
+-      // Set once the run is live and can be handed to the background — see
+-      // `foregroundHandoffs`. Unset while queued: there is no run to hand over.
+-      let handoffId: string | undefined;
+-      // Set by the handoff. From then on `onUpdate` is a dead handle (pi drops
+-      // updates once `execute` has returned), so `streamUpdate` stops building
+-      // them; the tracker keeps `fgState` live for the widget and FleetView.
+-      let backgrounded = false;
+       // Set only while the spawn is parked on a foreground concurrency slot
+       // (maxConcurrentForeground); undefined the rest of the time, including
+       // always when the limit is unset.
+       let queuedAhead: number | undefined;
+ 
+       const streamUpdate = () => {
+-        if (backgrounded) return;
+         // Spend from the record, everything else from the live tracker. `fgId`
+         // is set in onSessionCreated below, which fires before the first
+         // assistant message — so nothing is spent while this reads zero.
+@@ -2519,9 +2480,7 @@
+             ? describeActivity(fgState.activeTools, fgState.responseText)
+             : `queued — waiting for a foreground slot${queuedAhead > 0 ? ` (${queuedAhead} ahead)` : ""}`,
+           spinnerFrame: spinnerFrame % SPINNER.length,
+-          // One hint per batch, as in Claude Code: on the earliest call still
+-          // pending (a Map iterates in insertion order). ctrl+b takes them all.
+-          backgroundHint: handoffId !== undefined && foregroundHandoffs.keys().next().value === handoffId,
++          backgroundHint: false,
+         };
+         onUpdate?.({
+           content: [{ type: "text", text: `${fgState.toolUses} tool uses...` }],
+@@ -2571,17 +2530,9 @@
+ 
+       streamUpdate();
+ 
+-      // ctrl+b or the viewer's `b` wakes this with the run already handed over
+-      // (`sendForegroundToBackground`), raced against the run below. The
+-      // manager only accepts a handoff of a run that has not settled, and the
+-      // wake-up resolves synchronously with it, so whichever promise wins is
+-      // the truth: the result is never also delivered as a notification.
+-      let wakeBackgrounded!: () => void;
+-      const handedOff = new Promise<undefined>(resolve => { wakeBackgrounded = () => resolve(undefined); });
+-
+-      let fgResult: { record: AgentRecord } | undefined;
++      let fgResult: { record: AgentRecord };
+       try {
+-        fgResult = await Promise.race([manager.spawnAndWait(pi, ctx, subagentType, params.prompt, {
++        fgResult = await manager.spawnAndWait(pi, ctx, subagentType, params.prompt, {
+           description: params.description,
+           name: params.name as string | undefined,
+           model,
+@@ -2603,37 +2554,17 @@
+           // Set up the output file so streamToOutputFile can pick it up.
+           const fgRec = manager.getRecord(fgAgentId);
+           attachTranscript(fgRec, fgAgentId);
+-          // Fires once the run promise exists, i.e. the agent is running. From
+-          // here until this call returns, the run can be handed off.
+-          handoffId = fgAgentId;
+-          foregroundHandoffs.set(fgAgentId, () => {
+-            // What a background spawn sets up front: the notification names
+-            // this tool call, and it reports alone — its spawn batch is long
+-            // closed.
+-            if (fgRec) {
+-              fgRec.toolCallId = toolCallId;
+-              fgRec.joinMode = "async";
+-            }
+-            backgrounded = true;
+-            wakeBackgrounded();
+-          });
+-        }), handedOff]);
++        });
+       } finally {
+-        // Runs on both paths, so a startup throw — which now propagates, see
+-        // the background spawn above (#179) — no longer leaves the spinner
+-        // ticking or a finished agent on the widget.
++        // Clean up after completion or a startup throw.
+         clearInterval(spinnerInterval);
+-        if (handoffId !== undefined) foregroundHandoffs.delete(handoffId);
+-        // A handed-off run is still working: its row stays, and the
+-        // background settle in `onComplete` tears it down when it really ends.
+-        if (fgId && !backgrounded) {
++        if (fgId) {
+           agentActivity.delete(fgId);
+           widget.markFinished(fgId);
+           fleet.onAgentFinished(fgId);
+         }
+       }
+ 
+-      if (fgResult === undefined) return backgroundResult(handoffId!, manager.getRecord(handoffId!));
+       const record = fgResult.record;
+ 
+       // Get final token count — from the record, like the cost below it, so the

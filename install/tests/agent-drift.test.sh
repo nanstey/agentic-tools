@@ -75,7 +75,7 @@ for path in files:
         "allowed_subagents": "none",
         "prompt_mode": "append",
         "inherit_context": "false",
-        "run_in_background": "true",
+        "run_in_background": "false",
         "isolation": "off",
         "persist_session": "false",
         "output_transcript": "true",
@@ -113,6 +113,8 @@ for required in (
         fail(f"subagents.json omits {required}")
 if settings["fallbackSubagent"] not in (False, "none") or settings["scopeModels"] is not False:
     fail("subagents.json must fail closed and leave policy scope to the strict patch")
+if settings.get("backgroundByDefault") is not False or settings.get("schedulingEnabled") is not False:
+    fail("subagents.json must require foreground execution and disable scheduling")
 for key in ("workflowsEnabled", "disableDefaultAgents", "packageAgents", "packageWorkflows", "worktreeIsolation"):
     expected_value = False if key != "disableDefaultAgents" else True
     if settings[key] is not expected_value:
@@ -124,7 +126,7 @@ if settings.get("maxSubagentDepth") != 1 or settings.get("rememberAgents") is no
 
 for text in (
     "scout", "researcher", "planner", "worker", "reviewer",
-    "exact provider-qualified `model` and `thinking`", "get_subagent_result", "no stop/cancel tool",
+    "exact provider-qualified `model` and `thinking`", "Foreground execution", "no stop/cancel tool",
     "effective-at-start", "package-provided agent types", "package-provided workflows",
     "The coordinator selects the agent role", "state is exactly `{ task, context }`",
     "`role`", "`files touched`", "`producer family`", "`ambiguity`", "`stakes`", "`blast radius`",
@@ -157,5 +159,25 @@ for text in (
 if "registry.getAvailable?.() ?? registry.getAll()" in patch:
     fail("strict dispatch patch must not fall back to getAll")
 
-print("ok: five role-only agent profiles, scoped extension tools, strict settings, routing policy, and README catalog match")
+foreground_patch = (repo / "harness/pi/patches/pi-subagents-foreground-only-0.22.1.patch").read_text()
+handoff_patch = (repo / "harness/pi/patches/pi-subagents-foreground-handoff-0.22.1.patch").read_text()
+if "sendForegroundToBackground" in foreground_patch:
+    fail("foreground-only patch must remain the previously released patch")
+for text in (
+    "foregroundOnlyAgentRequestError",
+    "const runInBackground = false;",
+    "provenance: modelProvenance(record.invocation),",
+):
+    if text not in foreground_patch:
+        fail(f"foreground-only patch omits {text!r}")
+for text in (
+    "+  function sendForegroundToBackground(_ids: Iterable<string>): number {",
+    "+    return 0;",
+    "+          backgroundHint: false,",
+    "+        fgResult = await manager.spawnAndWait(pi, ctx, subagentType, params.prompt, {",
+):
+    if text not in handoff_patch:
+        fail(f"foreground-handoff patch omits {text!r}")
+
+print("ok: five role-only agent profiles, scoped extension tools, strict settings, split foreground patches, routing policy, and README catalog match")
 PY

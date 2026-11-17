@@ -42,6 +42,29 @@ REPO_ROOT="$REPO" install_tintinweb_subagents_strict_dispatch_patch "$candidate"
 REPO_ROOT="$REPO" install_tintinweb_subagents_strict_dispatch_patch "$candidate" | grep -q '(ok)'
 REPO_ROOT="$REPO" install_tintinweb_subagents_project_settings_patch "$candidate" | grep -q '(patched)'
 REPO_ROOT="$REPO" install_tintinweb_subagents_project_settings_patch "$candidate" | grep -q '(ok)'
+REPO_ROOT="$REPO" install_tintinweb_subagents_foreground_only_patch "$candidate" | grep -q '(patched)'
+REPO_ROOT="$REPO" install_tintinweb_subagents_foreground_only_patch "$candidate" | grep -q '(ok)'
+! grep -qF 'function sendForegroundToBackground(_ids: Iterable<string>): number {' "$candidate/src/index.ts"
+# The original patch must be exact-verified, not accepted on marker strings alone.
+tampered_foreground="$SB/tampered-foreground"
+cp -R "$candidate" "$tampered_foreground"
+python3 - "$tampered_foreground/src/index.ts" <<'PY'
+from pathlib import Path
+import sys
+path = Path(sys.argv[1])
+source = path.read_text()
+guard = '      const foregroundOnlyError = foregroundOnlyAgentRequestError(params);\n      if (foregroundOnlyError) return textResult(foregroundOnlyError);\n'
+assert guard in source
+path.write_text(source.replace(guard, '', 1))
+PY
+cp "$tampered_foreground/src/index.ts" "$SB/tampered-foreground-before.ts"
+if REPO_ROOT="$REPO" install_tintinweb_subagents_foreground_only_patch "$tampered_foreground" >"$SB/tampered-foreground.out" 2>&1; then
+  echo 'FAIL: foreground-only patch accepted a removed execution guard' >&2; exit 1
+fi
+cmp "$tampered_foreground/src/index.ts" "$SB/tampered-foreground-before.ts"
+echo 'ok: foreground-only patch rejects a removed execution guard without changing source'
+REPO_ROOT="$REPO" install_tintinweb_subagents_foreground_handoff_patch "$candidate" | grep -q '(patched)'
+REPO_ROOT="$REPO" install_tintinweb_subagents_foreground_handoff_patch "$candidate" | grep -q '(ok)'
 grep -qF 'export function saveSettings(_s: SubagentsSettings, _cwd: string = process.cwd()): boolean {' "$candidate/src/settings.ts"
 grep -qF 'return false;' "$candidate/src/settings.ts"
 ! grep -qF 'writeFileSync' "$candidate/src/settings.ts"
@@ -65,6 +88,156 @@ fs.rmSync(cwd, { recursive: true, force: true });
 console.log("ok: project settings save is session-only and creates no file");
 JS
 echo 'ok: project settings patch prevents generated project snapshots'
+
+# Foreground-only policy must reject detached fresh and resume calls and every
+# schedule request before invocation, then pin the resolved invocation foreground.
+node - "$candidate/src/index.ts" <<'JS'
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const vm = require("node:vm");
+const { stripTypeScriptTypes } = require("node:module");
+const source = fs.readFileSync(process.argv[2], "utf8");
+const start = source.indexOf("function foregroundOnlyAgentRequestError");
+const end = source.indexOf("\n\n/** Role-only profiles", start);
+assert(start >= 0 && end > start, "foreground-only request guard exists");
+const guard = vm.runInNewContext(`${stripTypeScriptTypes(source.slice(start, end), { mode: "transform" })}\nforegroundOnlyAgentRequestError`);
+assert.match(guard({ run_in_background: true }), /foreground execution/);
+assert.match(guard({ resume: "agent-1", run_in_background: true }), /foreground execution/);
+assert.match(guard({ schedule: "+1m" }), /does not allow `schedule`/);
+assert.match(guard({ resume: "agent-1", schedule: "+1m" }), /does not allow `schedule`/);
+assert.equal(guard({ run_in_background: false }), undefined);
+const execute = source.indexOf("execute: async (toolCallId, params, signal, onUpdate, ctx) => {");
+const dispatch = source.indexOf("const dispatch = resolveSpawnType(rawType);", execute);
+const guardCall = source.indexOf("const foregroundOnlyError = foregroundOnlyAgentRequestError(params);", execute);
+assert(execute >= 0 && dispatch > execute, "Agent execute handler reaches spawn dispatch");
+assert(guardCall > execute && guardCall < dispatch, "Agent execute handler invokes the foreground guard before dispatch");
+assert.match(source.slice(guardCall, dispatch), /if \(foregroundOnlyError\) return textResult\(foregroundOnlyError\);/);
+assert.match(source, /const runInBackground = false;/);
+const foregroundDetails = source.slice(source.indexOf("const details = {", execute), source.indexOf("if (record.status === \"error\")", source.indexOf("const details = {", execute)));
+assert.match(foregroundDetails, /agentId: record\.id,/);
+assert.match(foregroundDetails, /provenance: modelProvenance\(record\.invocation\),/);
+const resumeDetails = source.slice(source.indexOf("const completionDetails = {", execute), source.indexOf("if (record.status === \"error\")", source.indexOf("const completionDetails = {", execute)));
+assert.match(resumeDetails, /agentId: record\.id,/);
+assert.match(resumeDetails, /provenance: modelProvenance\(record\.invocation\),/);
+assert.equal([...source.matchAll(/Agent ID: \$\{record\.id\}\\nModel provenance: \$\{JSON\.stringify\(modelProvenance\(record\.invocation\)\)\}/g)].length, 2, "foreground and resumed completions expose ID and provenance text");
+console.log("ok: Agent execute guards fresh/resume background and schedules before dispatch, pins invocation foreground, and returns foreground completion ID/provenance");
+JS
+# Upgrade an already foreground-only package with the separate handoff patch,
+# then exercise the actual UI handlers and foreground await against a deferred run.
+# A key press must neither detach the child nor let the Agent call return early.
+node - "$candidate/src/index.ts" <<'JS'
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const vm = require("node:vm");
+const { stripTypeScriptTypes } = require("node:module");
+const source = fs.readFileSync(process.argv[2], "utf8");
+const uiStart = source.indexOf("const foregroundHandoffs =");
+const uiEnd = source.indexOf("\n\n  /**\n   * pi's fullscreen scrollbar", uiStart);
+const awaitStart = source.indexOf("let fgResult:");
+const awaitEnd = source.indexOf("\n\n      // Get final token count", awaitStart);
+assert(uiStart >= 0 && uiEnd > uiStart && awaitStart >= 0 && awaitEnd > awaitStart);
+assert.doesNotMatch(source, /foregroundHandoffs\.set\(|const handedOff =|Promise\.race\(/);
+assert.match(source, /backgroundHint: false,/);
+let onInput;
+let resolveRun;
+let rejectRun;
+let spawnCount = 0;
+let transcriptCount = 0;
+let cleanupCount = 0;
+const record = { id: "fg-agent", description: "foreground test", status: "running" };
+const forbidden = () => assert.fail("handoff must not detach, emit, notify, or refresh background UI");
+const sandbox = {
+  manager: {
+    getRecord: (id) => { assert.equal(id, record.id); return record; },
+    sendToBackground: forbidden,
+    spawnAndWait: (_pi, _ctx, _type, _prompt, options, onSpawned) => {
+      spawnCount++;
+      assert.equal(options.signal, sandbox.signal);
+      onSpawned(record.id);
+      return new Promise((resolve, reject) => { resolveRun = resolve; rejectRun = reject; });
+    },
+  },
+  pi: { events: { emit: forbidden } },
+  ctx: { sessionManager: { getSessionId: () => "parent-session" } },
+  subagentType: "worker", params: { description: "foreground test", prompt: "test" },
+  model: {}, effectiveMaxTurns: 5, isolated: false, inheritContext: false,
+  thinking: "medium", isolation: "none", agentInvocation: {}, signal: new AbortController().signal,
+  fgCallbacks: {}, fgId: record.id, queuedAhead: undefined, streamUpdate: () => {},
+  attachTranscript: (rec, id) => { assert.equal(rec, record); assert.equal(id, record.id); transcriptCount++; },
+  spinnerInterval: 42,
+  clearInterval: (id) => { assert.equal(id, 42); cleanupCount++; },
+  agentActivity: { delete: (id) => assert.equal(id, record.id) },
+  widget: { markFinished: (id) => assert.equal(id, record.id), ensureTimer: forbidden, update: forbidden },
+  fleet: { editorHasFocus: () => true, onAgentFinished: (id) => assert.equal(id, record.id), ensureTimer: forbidden, update: forbidden },
+  isKeyRelease: () => false, matchesKey: (data, key) => data === key,
+};
+const ui = { onTerminalInput: (handler) => { onInput = handler; return () => {}; }, notify: forbidden };
+const implementation = stripTypeScriptTypes(`${source.slice(uiStart, uiEnd)}\nasync function runForeground() {\n${source.slice(awaitStart, awaitEnd)}\nreturn record;\n}`, { mode: "transform" });
+const policy = vm.runInNewContext(`${implementation}\n({ runForeground, sendForegroundToBackground, backgroundActionFor, watchHandoffKey, foregroundHandoffs })`, sandbox);
+(async () => {
+  policy.watchHandoffKey(ui);
+  let completed = false;
+  const pending = policy.runForeground().then((result) => { completed = true; return result; });
+  assert.equal(spawnCount, 1);
+  assert.equal(transcriptCount, 1, "onSpawned still attaches the transcript");
+  assert.equal(policy.foregroundHandoffs.size, 0, "onSpawned registers no UI handoff");
+  assert.equal(policy.backgroundActionFor(record, forbidden).available(), false, "viewer b is unavailable");
+  policy.backgroundActionFor(record, forbidden).send();
+  assert.equal(onInput("ctrl+b"), undefined, "Ctrl+B is not consumed for handoff");
+  assert.equal(policy.sendForegroundToBackground([record.id]), 0);
+  // Even an unexpected stale registration cannot reach manager.sendToBackground.
+  policy.foregroundHandoffs.set(record.id, forbidden);
+  assert.equal(policy.sendForegroundToBackground([record.id]), 0);
+  policy.foregroundHandoffs.clear();
+  await Promise.resolve();
+  assert.equal(completed, false, "Agent remains blocked until its child completes");
+  assert.equal(cleanupCount, 0);
+  assert.equal(record.toolCallId, undefined);
+  assert.equal(record.joinMode, undefined, "onSpawned must not switch to async notification");
+  record.status = "done";
+  resolveRun({ record });
+  assert.equal(await pending, record, "Agent returns the completed record inline");
+  assert.equal(cleanupCount, 1);
+  const failed = policy.runForeground();
+  const failure = new Error("startup failure");
+  rejectRun(failure);
+  await assert.rejects(failed, (error) => error === failure);
+  assert.equal(cleanupCount, 2, "startup failure still clears the spinner");
+  console.log("ok: Ctrl+B/viewer b cannot detach foreground runs, Agent waits for completion, and startup cleanup is preserved");
+})().catch((error) => { console.error(error); process.exitCode = 1; });
+JS
+
+# Markers cannot make an older or partially patched package count as installed.
+for broken in legacy-handoff body registration await-return; do
+  damaged="$SB/candidate-$broken"
+  cp -R "$candidate" "$damaged"
+  python3 - "$damaged/src/index.ts" "$candidate_fixture/src/index.ts" "$broken" <<'PY'
+from pathlib import Path
+import sys
+path, pristine_path = map(Path, sys.argv[1:3])
+source, pristine = path.read_text(), pristine_path.read_text()
+case = sys.argv[3]
+if case == 'legacy-handoff':
+    start = source.index('  function sendForegroundToBackground(')
+    end = source.index('\n\n  /** The conversation viewer', start)
+    old_start = pristine.index('  function sendForegroundToBackground(')
+    old_end = pristine.index('\n\n  /** The conversation viewer', old_start)
+    source = source[:start] + pristine[old_start:old_end] + source[end:]
+elif case == 'body':
+    source = source.replace('    return 0;\n  }', '    return 1;\n  }', 1)
+elif case == 'registration':
+    source = source.replace('          attachTranscript(fgRec, fgAgentId);', '          attachTranscript(fgRec, fgAgentId);\n          foregroundHandoffs.set(fgAgentId, () => {});', 1)
+else:
+    source = source.replace('fgResult = await manager.spawnAndWait(', 'fgResult = await Promise.race([manager.spawnAndWait(', 1)
+path.write_text(source)
+PY
+  cp "$damaged/src/index.ts" "$SB/before-damaged"
+  if REPO_ROOT="$REPO" install_tintinweb_subagents_foreground_handoff_patch "$damaged" >"$SB/result" 2>&1; then
+    echo "FAIL: foreground-handoff patch accepted $broken" >&2; exit 1
+  fi
+  cmp "$damaged/src/index.ts" "$SB/before-damaged"
+done
+echo 'ok: foreground-handoff patch rejects old handoff and partial fixes without changing source'
 cp -R "$candidate_fixture" "$SB/candidate-wrong-version"
 python3 - "$SB/candidate-wrong-version/package.json" <<'PY'
 import json, sys
@@ -337,6 +510,8 @@ for state in {0..15}; do
       [ "$run" = 1 ] && expected_candidate=patched
       grep -qF "[patch-tintinweb-subagents-strict-dispatch] -> $candidate_pkg ($expected_candidate)" "$SB/install-$state-$run.log"
       grep -qF "[patch-tintinweb-subagents-project-settings] -> $candidate_pkg ($expected_candidate)" "$SB/install-$state-$run.log"
+      grep -qF "[patch-tintinweb-subagents-foreground-only] -> $candidate_pkg ($expected_candidate)" "$SB/install-$state-$run.log"
+      grep -qF "[patch-tintinweb-subagents-foreground-handoff] -> $candidate_pkg ($expected_candidate)" "$SB/install-$state-$run.log"
       if [ "$run" = 1 ]; then
         grep -qF "[pi-agents] -> $agent_profiles (0 ok, 5 copied, 24 removed)" "$SB/install-$state-$run.log"
       else
@@ -381,7 +556,7 @@ if (
   echo 'FAIL: candidate-absent install accepted' >&2; exit 1
 fi
 grep -q 'managed agents remain disabled' "$SB/install-candidate-absent.log"
-grep -q 'strict dispatch patch unavailable' "$SB/install-candidate-absent.log"
+grep -q 'managed policy patch unavailable' "$SB/install-candidate-absent.log"
 [ ! -e "$agent_profiles/worker.md" ] || { echo 'FAIL: absent candidate left managed profile enabled' >&2; exit 1; }
 [ ! -e "$agent_profiles/.agentic-tools-pi-agents" ] || { echo 'FAIL: absent candidate left managed manifest' >&2; exit 1; }
 candidate_pkg="$agent_dir/npm/node_modules/@tintinweb/pi-subagents"
@@ -394,6 +569,8 @@ cp -R "$candidate_fixture/." "$candidate_pkg/"
 ) > "$SB/install-candidate-enabled.log" 2>&1 || { tail -n 30 "$SB/install-candidate-enabled.log" >&2; exit 1; }
 grep -qF "[patch-tintinweb-subagents-strict-dispatch] -> $candidate_pkg (patched)" "$SB/install-candidate-enabled.log"
 grep -qF "[patch-tintinweb-subagents-project-settings] -> $candidate_pkg (patched)" "$SB/install-candidate-enabled.log"
+grep -qF "[patch-tintinweb-subagents-foreground-only] -> $candidate_pkg (patched)" "$SB/install-candidate-enabled.log"
+grep -qF "[patch-tintinweb-subagents-foreground-handoff] -> $candidate_pkg (patched)" "$SB/install-candidate-enabled.log"
 [ -f "$agent_profiles/worker.md" ] || { echo 'FAIL: patched candidate did not enable managed profiles' >&2; exit 1; }
 echo 'ok: first install fails closed and patched reinstall enables managed profiles'
 

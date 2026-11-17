@@ -8,7 +8,7 @@ skills: true
 allowed_subagents: none
 prompt_mode: append
 inherit_context: false
-run_in_background: true
+run_in_background: false
 isolation: off
 persist_session: false
 output_transcript: true
