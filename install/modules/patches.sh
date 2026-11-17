@@ -186,18 +186,58 @@ PY
   if grep -qF 'function foregroundOnlyAgentRequestError(' "$pkg/src/index.ts"; then
     for marker in 'function matchesManagedSecuritySetting(' 'const runInBackground = false;' \
       'Managed subagent policy requires foreground execution' \
-      'function sendForegroundToBackground(_ids: Iterable<string>): number {' \
-      'fgResult = await manager.spawnAndWait(' 'backgroundHint: false,' \
       'provenance: modelProvenance(record.invocation),'; do
       if ! grep -qF "$marker" "$pkg/src/index.ts"; then
         echo "  [patch-tintinweb-subagents-foreground-only] foreground-only markers are incomplete; $pkg NOT patched" >&2
         return 1
       fi
     done
-    # Markers alone must not accept an older or partially applied policy patch.
-    # No later patch changes this source, so verify every hunk in reverse below.
+    echo "  [patch-tintinweb-subagents-foreground-only] -> $pkg (ok)"
+    return 0
   fi
   apply_package_patch_exact "$pkg" patch-tintinweb-subagents-foreground-only "$REPO_ROOT/harness/pi/patches/pi-subagents-foreground-only-0.22.1.patch" src/index.ts
+}
+
+# Ctrl+B and the conversation viewer's `b` can otherwise detach an already
+# foreground invocation. Apply only after the foreground-only patch. This is a
+# separate patch so installations that already have the prior patch upgrade safely.
+install_tintinweb_subagents_foreground_handoff_patch() {
+  local pkg="$1" version
+  if [ ! -d "$pkg" ]; then
+    echo "  [patch-tintinweb-subagents-foreground-handoff] $pkg not installed; managed agents remain disabled until pi installs and this patch applies" >&2
+    return 1
+  fi
+  if [ ! -f "$pkg/package.json" ] || ! command -v python3 >/dev/null 2>&1; then
+    echo "  [patch-tintinweb-subagents-foreground-handoff] $pkg cannot verify pinned package version" >&2
+    return 1
+  fi
+  version="$(python3 - "$pkg/package.json" <<'PY'
+import json, sys
+try:
+    print(json.load(open(sys.argv[1])).get("version", ""))
+except Exception:
+    pass
+PY
+)"
+  if [ "$version" != "0.22.1" ]; then
+    echo "  [patch-tintinweb-subagents-foreground-handoff] $pkg is version ${version:-unknown}, expected 0.22.1" >&2
+    return 1
+  fi
+  if grep -qF 'function sendForegroundToBackground(_ids: Iterable<string>): number {' "$pkg/src/index.ts"; then
+    for marker in 'return 0;' 'fgResult = await manager.spawnAndWait(' 'backgroundHint: false,'; do
+      if ! grep -qF "$marker" "$pkg/src/index.ts"; then
+        echo "  [patch-tintinweb-subagents-foreground-handoff] foreground handoff markers are incomplete; $pkg NOT patched" >&2
+        return 1
+      fi
+    done
+    for forbidden in 'foregroundHandoffs.set(' 'const handedOff =' 'if (fgResult === undefined) return backgroundResult('; do
+      if grep -qF "$forbidden" "$pkg/src/index.ts"; then
+        echo "  [patch-tintinweb-subagents-foreground-handoff] foreground handoff markers are unsafe; $pkg NOT patched" >&2
+        return 1
+      fi
+    done
+  fi
+  apply_package_patch_exact "$pkg" patch-tintinweb-subagents-foreground-handoff "$REPO_ROOT/harness/pi/patches/pi-subagents-foreground-handoff-0.22.1.patch" src/index.ts
 }
 
 apply_package_patch() {

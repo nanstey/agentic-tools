@@ -159,5 +159,25 @@ for text in (
 if "registry.getAvailable?.() ?? registry.getAll()" in patch:
     fail("strict dispatch patch must not fall back to getAll")
 
-print("ok: five role-only agent profiles, scoped extension tools, strict settings, routing policy, and README catalog match")
+foreground_patch = (repo / "harness/pi/patches/pi-subagents-foreground-only-0.22.1.patch").read_text()
+handoff_patch = (repo / "harness/pi/patches/pi-subagents-foreground-handoff-0.22.1.patch").read_text()
+if "sendForegroundToBackground" in foreground_patch:
+    fail("foreground-only patch must remain the previously released patch")
+for text in (
+    "foregroundOnlyAgentRequestError",
+    "const runInBackground = false;",
+    "provenance: modelProvenance(record.invocation),",
+):
+    if text not in foreground_patch:
+        fail(f"foreground-only patch omits {text!r}")
+for text in (
+    "+  function sendForegroundToBackground(_ids: Iterable<string>): number {",
+    "+    return 0;",
+    "+          backgroundHint: false,",
+    "+        fgResult = await manager.spawnAndWait(pi, ctx, subagentType, params.prompt, {",
+):
+    if text not in handoff_patch:
+        fail(f"foreground-handoff patch omits {text!r}")
+
+print("ok: five role-only agent profiles, scoped extension tools, strict settings, split foreground patches, routing policy, and README catalog match")
 PY

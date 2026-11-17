@@ -44,6 +44,9 @@ REPO_ROOT="$REPO" install_tintinweb_subagents_project_settings_patch "$candidate
 REPO_ROOT="$REPO" install_tintinweb_subagents_project_settings_patch "$candidate" | grep -q '(ok)'
 REPO_ROOT="$REPO" install_tintinweb_subagents_foreground_only_patch "$candidate" | grep -q '(patched)'
 REPO_ROOT="$REPO" install_tintinweb_subagents_foreground_only_patch "$candidate" | grep -q '(ok)'
+! grep -qF 'function sendForegroundToBackground(_ids: Iterable<string>): number {' "$candidate/src/index.ts"
+REPO_ROOT="$REPO" install_tintinweb_subagents_foreground_handoff_patch "$candidate" | grep -q '(patched)'
+REPO_ROOT="$REPO" install_tintinweb_subagents_foreground_handoff_patch "$candidate" | grep -q '(ok)'
 grep -qF 'export function saveSettings(_s: SubagentsSettings, _cwd: string = process.cwd()): boolean {' "$candidate/src/settings.ts"
 grep -qF 'return false;' "$candidate/src/settings.ts"
 ! grep -qF 'writeFileSync' "$candidate/src/settings.ts"
@@ -101,7 +104,8 @@ assert.match(resumeDetails, /provenance: modelProvenance\(record\.invocation\),/
 assert.equal([...source.matchAll(/Agent ID: \$\{record\.id\}\\nModel provenance: \$\{JSON\.stringify\(modelProvenance\(record\.invocation\)\)\}/g)].length, 2, "foreground and resumed completions expose ID and provenance text");
 console.log("ok: Agent execute guards fresh/resume background and schedules before dispatch, pins invocation foreground, and returns foreground completion ID/provenance");
 JS
-# Exercise the actual UI handlers and foreground await against a deferred run.
+# Upgrade an already foreground-only package with the separate handoff patch,
+# then exercise the actual UI handlers and foreground await against a deferred run.
 # A key press must neither detach the child nor let the Agent call return early.
 node - "$candidate/src/index.ts" <<'JS'
 const assert = require("node:assert/strict");
@@ -210,12 +214,12 @@ else:
 path.write_text(source)
 PY
   cp "$damaged/src/index.ts" "$SB/before-damaged"
-  if REPO_ROOT="$REPO" install_tintinweb_subagents_foreground_only_patch "$damaged" >"$SB/result" 2>&1; then
-    echo "FAIL: foreground patch accepted $broken" >&2; exit 1
+  if REPO_ROOT="$REPO" install_tintinweb_subagents_foreground_handoff_patch "$damaged" >"$SB/result" 2>&1; then
+    echo "FAIL: foreground-handoff patch accepted $broken" >&2; exit 1
   fi
   cmp "$damaged/src/index.ts" "$SB/before-damaged"
 done
-echo 'ok: foreground patch rejects old handoff and partial fixes without changing source'
+echo 'ok: foreground-handoff patch rejects old handoff and partial fixes without changing source'
 cp -R "$candidate_fixture" "$SB/candidate-wrong-version"
 python3 - "$SB/candidate-wrong-version/package.json" <<'PY'
 import json, sys
@@ -489,6 +493,7 @@ for state in {0..15}; do
       grep -qF "[patch-tintinweb-subagents-strict-dispatch] -> $candidate_pkg ($expected_candidate)" "$SB/install-$state-$run.log"
       grep -qF "[patch-tintinweb-subagents-project-settings] -> $candidate_pkg ($expected_candidate)" "$SB/install-$state-$run.log"
       grep -qF "[patch-tintinweb-subagents-foreground-only] -> $candidate_pkg ($expected_candidate)" "$SB/install-$state-$run.log"
+      grep -qF "[patch-tintinweb-subagents-foreground-handoff] -> $candidate_pkg ($expected_candidate)" "$SB/install-$state-$run.log"
       if [ "$run" = 1 ]; then
         grep -qF "[pi-agents] -> $agent_profiles (0 ok, 5 copied, 24 removed)" "$SB/install-$state-$run.log"
       else
@@ -547,6 +552,7 @@ cp -R "$candidate_fixture/." "$candidate_pkg/"
 grep -qF "[patch-tintinweb-subagents-strict-dispatch] -> $candidate_pkg (patched)" "$SB/install-candidate-enabled.log"
 grep -qF "[patch-tintinweb-subagents-project-settings] -> $candidate_pkg (patched)" "$SB/install-candidate-enabled.log"
 grep -qF "[patch-tintinweb-subagents-foreground-only] -> $candidate_pkg (patched)" "$SB/install-candidate-enabled.log"
+grep -qF "[patch-tintinweb-subagents-foreground-handoff] -> $candidate_pkg (patched)" "$SB/install-candidate-enabled.log"
 [ -f "$agent_profiles/worker.md" ] || { echo 'FAIL: patched candidate did not enable managed profiles' >&2; exit 1; }
 echo 'ok: first install fails closed and patched reinstall enables managed profiles'
 
