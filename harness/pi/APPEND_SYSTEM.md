@@ -127,9 +127,9 @@ demonstrably low-quality result.
 | `scout` | `anthropic/claude-haiku-5-5`, low | `anthropic/claude-sonnet-5-5`, medium | `anthropic/claude-sonnet-5-5`, high | `anthropic/claude-sonnet-5-5`, high |
 | `researcher` | `anthropic/claude-haiku-5-5`, low | `anthropic/claude-sonnet-5-5`, medium | `anthropic/claude-sonnet-5-5`, high | `anthropic/claude-opus-5-5`, high |
 | `planner` | `anthropic/claude-sonnet-5-5`, low | `anthropic/claude-sonnet-5-5`, medium | `anthropic/claude-sonnet-5-5`, high | `anthropic/claude-fable-5-1`, high |
-| `worker` | `openai-codex/gpt-6-luna`, low | `openai-codex/gpt-5.6-terra`, medium | `openai-codex/gpt-5.6-terra`, high | `openai-codex/gpt-6.1-sol`, high |
+| `worker` | `openai-codex/gpt-6-luna`, low | `openai-codex/gpt-6-luna`, medium | `openai-codex/gpt-6-luna`, high | `openai-codex/gpt-6-luna`, high |
 | `reviewer` of OpenAI work | `anthropic/claude-haiku-5-5`, low | `anthropic/claude-sonnet-5-5`, medium | `anthropic/claude-sonnet-5-5`, high | `anthropic/claude-opus-5-5`, high |
-| `reviewer` of Anthropic work | `openai-codex/gpt-6-luna`, low | `openai-codex/gpt-5.6-terra`, medium | `openai-codex/gpt-5.6-terra`, high | `openai-codex/gpt-6.1-sol`, high |
+| `reviewer` of Anthropic work | `openai-codex/gpt-6-luna`, low | `openai-codex/gpt-6-luna`, medium | `openai-codex/gpt-6-luna`, high | `openai-codex/gpt-6-luna`, high |
 
 Managed `subagents.json` disables unknown-type fallback, default and package-provided agent types,
 widgets, mentions, workflows including package-provided workflows, worktrees, persistent agent
