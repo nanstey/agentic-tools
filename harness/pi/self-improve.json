@@ -1,12 +1,12 @@
 {
   "maxReflectionsPerDay": 5,
   "maxWorkersPerReflection": 3,
-  "workerModel": "openai-codex/gpt-5.6-terra",
+  "workerModel": "openai-codex/gpt-6-luna",
   "workerThinking": "medium",
   "reflectModel": "",
   "reflectThinking": "",
   "reviewerModelByWorkerFamily": {
-    "anthropic": "openai-codex/gpt-5.6-terra:medium",
+    "anthropic": "openai-codex/gpt-6-luna:medium",
     "openai": "anthropic/claude-sonnet-5-5:medium"
   }
 }
