@@ -19,8 +19,12 @@ const PATCH_MARKERS = [
 	"function matchesManagedSecuritySetting(",
 	"function foregroundOnlyAgentRequestError(",
 	"const runInBackground = false;",
+	"function sendForegroundToBackground(_ids: Iterable<string>): number {\n    return 0;\n  }",
+	"fgResult = await manager.spawnAndWait(",
+	"backgroundHint: false,",
 	"provenance: modelProvenance(record.invocation),",
 ];
+const FORBIDDEN_HANDOFF_MARKERS = ["foregroundHandoffs.set(", "const handedOff =", "if (fgResult === undefined) return backgroundResult("];
 const REQUIRED_PROFILES = ["scout.md", "researcher.md", "planner.md", "worker.md", "reviewer.md"];
 
 type ReadinessFailure = { ready: false; reason: string };
@@ -52,7 +56,8 @@ function isSafeProfileName(name: string): boolean {
 /** Read-only check shared by the startup hook and its offline test. */
 export function checkSubagentsReadiness(agentDir: string): SubagentsReadiness {
 	const packageSource = readText(join(agentDir, "npm", "node_modules", "@tintinweb", "pi-subagents", "src", "index.ts"));
-	if (!packageSource || !PATCH_MARKERS.every((marker) => packageSource.includes(marker))) {
+	if (!packageSource || !PATCH_MARKERS.every((marker) => packageSource.includes(marker))
+		|| FORBIDDEN_HANDOFF_MARKERS.some((marker) => packageSource.includes(marker))) {
 		return { ready: false, reason: "a managed subagent policy patch is missing" };
 	}
 

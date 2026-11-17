@@ -161,6 +161,8 @@ ln -s "$SB/missing" "$HOME/.claude/skills/retired"
 run first 0 env PATH="$SB/capabilities:$PATH" USE_BUN=1 bash "$FIXTURE/install.sh"
 [ ! -s "$SB/first.err" ] || fail 'fresh install stderr'
 has first '1 overwritten'; has first 'removed dangling retired'
+has first "[patch-tintinweb-subagents-foreground-only] -> $HOME/custom-agent/npm/node_modules/@tintinweb/pi-subagents (patched)"
+grep -qF 'function sendForegroundToBackground(_ids: Iterable<string>): number {' "$HOME/custom-agent/npm/node_modules/@tintinweb/pi-subagents/src/index.ts" || fail 'foreground UI handoff guard missing'
 [ -L "$HOME/.claude/agents/reviewer.md" ] && [ "$(readlink "$HOME/.claude/agents/reviewer.md")" = /dev/null ] || fail 'Claude received a Pi-only agent type'
 [ ! -e "$HOME/.claude/agents/retired.md" ] || fail 'Claude dangling agent link remains'
 [ ! -e "$HOME/.claude/agents/pi-only.md" ] && [ ! -L "$HOME/.claude/agents/pi-only.md" ] || fail 'Claude live Pi-only agent link remains'
@@ -179,7 +181,28 @@ shim="$(sed -n 's/^shim //p' "$TEST_LOG")"
 run second 0 env PATH="$SB/capabilities:$PATH" bash "$FIXTURE/install.sh"
 has second '[skills] ->'; has second '(1 ok)'; has second '0 installed, 1 up to date'
 has second '[status-line] ->'; lacks second 'settings updated'; lacks second 'store reset'
+has second "[patch-tintinweb-subagents-foreground-only] -> $HOME/custom-agent/npm/node_modules/@tintinweb/pi-subagents (ok)"
 echo 'ok: fresh/rerun artifacts, configs, profiles, secret permissions and npx cleanup'
+
+# An incomplete foreground handoff fix must revoke managed profiles on rerun.
+cp "$HOME/custom-agent/npm/node_modules/@tintinweb/pi-subagents/src/index.ts" "$SB/complete-foreground-index.ts"
+python3 - "$HOME/custom-agent/npm/node_modules/@tintinweb/pi-subagents/src/index.ts" <<'PY'
+from pathlib import Path
+import sys
+path = Path(sys.argv[1])
+source = path.read_text()
+old = 'function sendForegroundToBackground(_ids: Iterable<string>): number {'
+assert old in source
+path.write_text(source.replace(old, old.replace('_ids:', 'ids:'), 1))
+PY
+run incompletehandoff 1 env PATH="$SB/capabilities:$PATH" bash "$FIXTURE/install.sh"
+grep -qF 'foreground-only markers are incomplete' "$SB/incompletehandoff.err" || fail 'incomplete handoff accepted'
+[ ! -e "$HOME/custom-agent/agents/reviewer.md" ] || fail 'incomplete handoff left managed profile enabled'
+[ ! -e "$HOME/custom-agent/agents/.agentic-tools-pi-agents" ] || fail 'incomplete handoff left managed manifest enabled'
+cp "$SB/complete-foreground-index.ts" "$HOME/custom-agent/npm/node_modules/@tintinweb/pi-subagents/src/index.ts"
+run restoredhandoff 0 env PATH="$SB/capabilities:$PATH" bash "$FIXTURE/install.sh"
+[ -f "$HOME/custom-agent/agents/reviewer.md" ] || fail 'restored handoff fix did not re-enable managed profiles'
+echo 'ok: incomplete foreground handoff fix disables managed profiles, restored patch re-enables them'
 
 # An inherited key prevents even executing the fixture .env; registry uses the override.
 rm "$HOME/env-loaded"

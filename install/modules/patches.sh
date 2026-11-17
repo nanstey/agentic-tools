@@ -186,14 +186,16 @@ PY
   if grep -qF 'function foregroundOnlyAgentRequestError(' "$pkg/src/index.ts"; then
     for marker in 'function matchesManagedSecuritySetting(' 'const runInBackground = false;' \
       'Managed subagent policy requires foreground execution' \
+      'function sendForegroundToBackground(_ids: Iterable<string>): number {' \
+      'fgResult = await manager.spawnAndWait(' 'backgroundHint: false,' \
       'provenance: modelProvenance(record.invocation),'; do
       if ! grep -qF "$marker" "$pkg/src/index.ts"; then
         echo "  [patch-tintinweb-subagents-foreground-only] foreground-only markers are incomplete; $pkg NOT patched" >&2
         return 1
       fi
     done
-    echo "  [patch-tintinweb-subagents-foreground-only] -> $pkg (ok)"
-    return 0
+    # Markers alone must not accept an older or partially applied policy patch.
+    # No later patch changes this source, so verify every hunk in reverse below.
   fi
   apply_package_patch_exact "$pkg" patch-tintinweb-subagents-foreground-only "$REPO_ROOT/harness/pi/patches/pi-subagents-foreground-only-0.22.1.patch" src/index.ts
 }
