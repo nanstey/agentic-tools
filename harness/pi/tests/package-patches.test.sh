@@ -45,6 +45,24 @@ REPO_ROOT="$REPO" install_tintinweb_subagents_project_settings_patch "$candidate
 REPO_ROOT="$REPO" install_tintinweb_subagents_foreground_only_patch "$candidate" | grep -q '(patched)'
 REPO_ROOT="$REPO" install_tintinweb_subagents_foreground_only_patch "$candidate" | grep -q '(ok)'
 ! grep -qF 'function sendForegroundToBackground(_ids: Iterable<string>): number {' "$candidate/src/index.ts"
+# The original patch must be exact-verified, not accepted on marker strings alone.
+tampered_foreground="$SB/tampered-foreground"
+cp -R "$candidate" "$tampered_foreground"
+python3 - "$tampered_foreground/src/index.ts" <<'PY'
+from pathlib import Path
+import sys
+path = Path(sys.argv[1])
+source = path.read_text()
+guard = '      const foregroundOnlyError = foregroundOnlyAgentRequestError(params);\n      if (foregroundOnlyError) return textResult(foregroundOnlyError);\n'
+assert guard in source
+path.write_text(source.replace(guard, '', 1))
+PY
+cp "$tampered_foreground/src/index.ts" "$SB/tampered-foreground-before.ts"
+if REPO_ROOT="$REPO" install_tintinweb_subagents_foreground_only_patch "$tampered_foreground" >"$SB/tampered-foreground.out" 2>&1; then
+  echo 'FAIL: foreground-only patch accepted a removed execution guard' >&2; exit 1
+fi
+cmp "$tampered_foreground/src/index.ts" "$SB/tampered-foreground-before.ts"
+echo 'ok: foreground-only patch rejects a removed execution guard without changing source'
 REPO_ROOT="$REPO" install_tintinweb_subagents_foreground_handoff_patch "$candidate" | grep -q '(patched)'
 REPO_ROOT="$REPO" install_tintinweb_subagents_foreground_handoff_patch "$candidate" | grep -q '(ok)'
 grep -qF 'export function saveSettings(_s: SubagentsSettings, _cwd: string = process.cwd()): boolean {' "$candidate/src/settings.ts"

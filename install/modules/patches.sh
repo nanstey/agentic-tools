@@ -192,8 +192,8 @@ PY
         return 1
       fi
     done
-    echo "  [patch-tintinweb-subagents-foreground-only] -> $pkg (ok)"
-    return 0
+    # Markers provide a clear error, but the exact reverse dry-run below is
+    # authoritative so a tampered applied patch cannot pass as installed.
   fi
   apply_package_patch_exact "$pkg" patch-tintinweb-subagents-foreground-only "$REPO_ROOT/harness/pi/patches/pi-subagents-foreground-only-0.22.1.patch" src/index.ts
 }
