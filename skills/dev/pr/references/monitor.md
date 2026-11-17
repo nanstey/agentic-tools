@@ -61,4 +61,4 @@ Delegate to `/pr info`, `/pr comments`, `/pr ci`, `/pr ready`, `/pr rebase` (or 
 
 ## Output Style
 
-Report PR/mode/result, final base/head/policy, outcome and expected-CI/dependency evidence, packet freshness/quality/security coverage or docs-only evidence entry, retained/request IDs, round state, waits, and blockers. Include local remediation/publication, deferred thread finalization, description update, and ready transition; name the exact missing evidence/trigger or blocking condition.
+Report PR/mode/result, final base/head/policy, outcome and expected-CI/dependency evidence, packet freshness/quality/security coverage or docs-only evidence entry, retained/request IDs, round state, waits, and blockers. Include local remediation/publication, deferred thread finalization and reviewer re-request results, description update, and ready transition; name the exact missing evidence/trigger or blocking condition.
