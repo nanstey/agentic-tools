@@ -143,6 +143,7 @@ describe("scan", () => {
         wt("/reopened", "c"),
         wt("/none", "d"),
         wt("/err", "e"),
+        wt("/hidden", "g"),
         wt("/other", "f", 1, "someone/else"),
       ],
       refs: {
@@ -150,6 +151,7 @@ describe("scan", () => {
         [list("b")]: okJson([ref(6, "CLOSED"), ref(8, "MERGED")]),
         [list("c")]: okJson([ref(7, "CLOSED"), ref(9, "OPEN")]),
         [list("e")]: fail("boom"),
+        [list("g")]: fail("GraphQL: Could not resolve to a Repository with the name 'acme/x'. (repository)"),
       },
       dirty: 2,
     });

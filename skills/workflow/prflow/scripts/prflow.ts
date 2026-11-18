@@ -9,7 +9,7 @@ import type { PrSnapshot } from "./core/types.ts";
 import { realDeps } from "./deps.ts";
 import { loadConfig } from "./config.ts";
 import { plan, scan, type ScanResult } from "./scan.ts";
-import { decideWatch } from "./core/watch.ts";
+import { decideWatch, fingerprint } from "./core/watch.ts";
 
 /** Default watch state file: ${XDG_STATE_HOME:-~/.local/state}/prflow/watch-<name>.txt. */
 function watchStatePath(name: string): string {
@@ -120,7 +120,7 @@ async function main(argv: string[]): Promise<number> {
     const actionable = sortItems(plan(result)).filter((c) => c.kind !== "waiting");
     const report = actionable.length ? renderReport(actionable) : "";
     const statePath = values.state ?? watchStatePath(values.name);
-    const d = decideWatch(readOrNull(statePath), report, result.errors);
+    const d = decideWatch(readOrNull(statePath), fingerprint(actionable), report, result.errors);
     if (d.save !== null) {
       mkdirSync(dirname(statePath), { recursive: true });
       writeFileSync(statePath, d.save);

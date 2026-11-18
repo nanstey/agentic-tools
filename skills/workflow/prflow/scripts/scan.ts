@@ -73,6 +73,9 @@ async function fetchPr(deps: Deps, j: Job, errors: string[]): Promise<PrSnapshot
   return parsePr(r.stdout, j.hit.repo, j.hit.number, j.role, j.account);
 }
 
+/** gh errors meaning the repo does not exist or the account cannot see it. */
+export const NOT_VISIBLE = /Could not resolve to a Repository|HTTP 404|Not Found/;
+
 async function scanWorktrees(deps: Deps, cfg: Config, errors: string[]): Promise<WorktreeItem[]> {
   let rows;
   try {
@@ -91,6 +94,8 @@ async function scanWorktrees(deps: Deps, cfg: Config, errors: string[]): Promise
           ? ["pr", "view", String(w.linkedPr), "-R", w.repo, ...fields]
           : ["pr", "list", "-R", w.repo, "--head", w.branch, "--state", "all", "--limit", "10", ...fields];
       const r = await deps.gh(account.login, args);
+      // A repo this account cannot see is not its work; skip it rather than fail the scan.
+      if (!r.ok && NOT_VISIBLE.test(r.stderr)) return null;
       if (!r.ok) {
         errors.push(`${account.login}: ${w.repo} ${w.branch}: ${r.stderr.trim()}`);
         return null;
