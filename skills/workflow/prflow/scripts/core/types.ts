@@ -99,7 +99,7 @@ export interface WorktreeItem {
   dirtyFiles: number | null;
 }
 
-/** One legacy precheck trigger, as in `<repo>#<n>@<head8>:<kind>[:<detail>]`. */
+/** One reason an own PR needs action, with optional detail (job ids or a timestamp). */
 export interface Trigger {
   kind: "comments" | "ci" | "rerun" | "behind" | "merge";
   detail?: string;
@@ -117,7 +117,7 @@ export interface Classification {
   role: Role | "worktree";
   account: string;
   kind: Kind;
-  /** Every legacy trigger that fired (author PRs only). */
+  /** Every trigger that fired (author PRs only). */
   triggers: Trigger[];
   status: string;
   nextAction: string;

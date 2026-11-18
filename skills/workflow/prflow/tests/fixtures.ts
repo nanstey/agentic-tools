@@ -1,6 +1,6 @@
 /**
  * Synthetic GitHub GraphQL fixtures in the `PR_QUERY` response shape. The same
- * JSON feeds prflow (`parsePr`) and the vendored legacy precheck in parity tests.
+ * JSON feeds prflow (`parsePr`).
  */
 
 export const ME = "octocat";
@@ -103,12 +103,12 @@ export function prResponse(s: PrSpec = {}): unknown {
 export interface Case {
   name: string;
   pr: PrSpec;
-  /** Legacy lines without the `<repo>#<n>@<head8>:` prefix. */
+  /** Expected triggers as `kind[:detail]`. */
   lines: string[];
   kind: string;
 }
 
-/** Author-PR cases. `lines` is the legacy precheck output, `kind` the prflow kind. */
+/** Author-PR cases: expected triggers and the chosen kind. */
 export const CASES: Case[] = [
   // merge
   { name: "clean approved green", pr: {}, lines: ["merge"], kind: "merge-ready" },

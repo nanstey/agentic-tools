@@ -58,13 +58,13 @@ describe("gh parsing", () => {
     assert.equal(parsePr('{"data":{"repository":null}}', "A/b", 1, "author", "octocat"), null);
   });
 
-  it("returns null for a PR with no commits (known divergence: legacy crashed)", () => {
+  it("returns null for a PR with no commits ", () => {
     const raw = prResponse() as { data: { repository: { pullRequest: { commits: { nodes: unknown[] } } } } };
     raw.data.repository.pullRequest.commits.nodes = [];
     assert.equal(parsePr(JSON.stringify(raw), "A/b", 1, "author", "octocat"), null);
   });
 
-  it("builds the per-PR query args and keeps the legacy fields", () => {
+  it("builds the per-PR query args and requests every field the rules use", () => {
     assert.deepEqual(prArgs("A/b", 7).slice(4), ["-F", "o=A", "-F", "r=b", "-F", "n=7"]);
     for (const f of ["isDraft", "headRefOid", "mergeStateStatus", "reviewDecision", "committedDate", "comments(last:50)", "reviews(last:50)", "reviewThreads(first:100)", "contexts(first:100)"])
       assert.ok(PR_QUERY.includes(f), f);

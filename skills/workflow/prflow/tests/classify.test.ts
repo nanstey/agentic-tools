@@ -6,8 +6,7 @@ import {
   classifyReviewRequest,
   classifyWorktree,
   jobId,
-  legacyLine,
-  legacyTriggers,
+  authorTriggers,
   version,
 } from "../scripts/core/classify.ts";
 import { renderReport } from "../scripts/core/report.ts";
@@ -25,15 +24,15 @@ describe("author classifier fixtures", () => {
   for (const c of CASES) {
     it(c.name, () => {
       const pr = snap(c.pr);
-      const lines = legacyTriggers(pr, ME).map((t) => legacyLine(pr, t));
-      assert.deepEqual(lines, c.lines.map((l) => `Acme/widgets#1@${HEAD.slice(0, 8)}:${l}`));
+      const lines = authorTriggers(pr, ME).map((t) => (t.detail === undefined ? t.kind : `${t.kind}:${t.detail}`));
+      assert.deepEqual(lines, c.lines);
       assert.equal(classifyAuthored(pr, ME).kind, c.kind);
     });
   }
 
-  it("ignores own pending review instead of crashing (legacy crashed)", () => {
+  it("ignores own pending review instead of crashing (would crash a naive timestamp compare)", () => {
     const pr = snap({ decision: null, comments: [comment(alice, AFTER)], reviews: [review(me, "PENDING", null)] });
-    assert.deepEqual(legacyTriggers(pr, ME), [{ kind: "comments", detail: AFTER }]);
+    assert.deepEqual(authorTriggers(pr, ME), [{ kind: "comments", detail: AFTER }]);
   });
 
   it("reports every trigger but picks the highest-priority kind", () => {

@@ -1,7 +1,7 @@
 ---
 name: prflow
 description: Scans open PRs, review requests, and leftover worktrees, then reports each item grouped by status and next action. Use when checking which PRs need a merge decision, a rerun, a CI or comment fix, a rebase, a review, or worktree cleanup, or when scheduling a recurring PR watch.
-argument-hint: "[scan|plan|watch|config] [--config <path>] [--user <login>] [--owner <login>] [--repo <owner/repo>] [--format text|json|legacy] [--no-worktrees]"
+argument-hint: "[scan|plan|watch|config] [--config <path>] [--user <login>] [--owner <login>] [--repo <owner/repo>] [--format text|json] [--no-worktrees]"
 user-invocable: true
 disable-model-invocation: false
 ---
@@ -36,7 +36,6 @@ Copy `config.example.json` to start. Each account has a `login` and optional `ow
 1. Run `node <skill-dir>/scripts/prflow.ts plan` (Node 22.18+ runs `.ts` directly).
 2. Relay the grouped report. Report `warn:` lines from stderr as scan gaps. Each starts with the account it ran as.
 3. For raw facts, run `scan`. For machine output, add `--format json`.
-4. To compare with the legacy precheck, run `plan --format legacy --no-worktrees`. It prints `<repo>#<n>@<head8>:<kind>[:<detail>]` lines without any dedupe ledger.
 
 ## Scheduling
 
@@ -57,14 +56,14 @@ One kind per PR, in priority order:
 | `cleanup` | Orca worktree whose PR is merged or closed | Archive if clean, else you check | prflow or you |
 | `waiting` | Anything else | None | others |
 
-Author PRs keep every legacy trigger in `triggers`. prflow encodes no repo-specific rules: every check counts the same, and caveats such as a job that only needs a rerun belong in that repo's own docs.
+Author PRs list every trigger that fired in `triggers`. prflow encodes no repo-specific rules: every check counts the same, and caveats such as a job that only needs a rerun belong in that repo's own docs.
 
-Rules port the legacy precheck in `tests/legacy/precheck.sh` with three divergences. Legacy treated failures of certain jobs, picked by name, as reruns; prflow reports every failure as `ci`. Where legacy crashed and printed nothing for any PR, prflow ignores pending reviews with no timestamp and skips a PR with no commits. That copy has its login and state directory replaced by `__USER__` and `__STATE__`, which the parity tests fill in.
+Pending reviews with no timestamp are ignored, and a PR with no commits is skipped.
 
 ## Development
 
 - `npm install` once, then `npm test` (strict `tsc --noEmit`, then `node --test`).
-- Fixtures live in `tests/fixtures.ts` and feed both prflow and the legacy script.
+- Fixtures live in `tests/fixtures.ts`.
 
 ## Safety Rules
 

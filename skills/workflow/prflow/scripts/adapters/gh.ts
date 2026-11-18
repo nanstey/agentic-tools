@@ -1,8 +1,7 @@
 import type { Actor, Check, PrSnapshot, Review, Role } from "../core/types.ts";
 
 /**
- * Per-PR GraphQL query. A superset of the legacy precheck query, so the same
- * response feeds both the legacy script and prflow in parity tests.
+ * Per-PR GraphQL query.
  */
 export const PR_QUERY = `query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){
 title url state isDraft headRefOid headRefName mergeStateStatus reviewDecision mergeable

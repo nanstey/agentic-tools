@@ -23,7 +23,7 @@ export interface CheckSummary {
   requiredPending: number;
 }
 
-/** Job id the legacy precheck reports: last URL path segment, else the check name. */
+/** Job id: last URL path segment, else the check name. */
 export function jobId(url: string | null, name: string): string {
   return (url ?? "").replace(/.*\//, "") || name;
 }
@@ -35,8 +35,8 @@ function isPending(c: Check): boolean {
 }
 
 /**
- * Port of the legacy precheck check loop, minus its check-name exception. Every
- * check counts the same; repo-specific caveats belong in each repo's docs.
+ * Summarize checks. Every check counts the same; repo-specific caveats belong in
+ * each repo's docs.
  */
 export function summarizeChecks(checks: Check[]): CheckSummary {
   const s: CheckSummary = {
@@ -72,8 +72,7 @@ const maxOf = (xs: string[]): string => xs.reduce((m, x) => (x > m ? x : m));
 
 /**
  * Latest unanswered human feedback newer than the head commit, or `null`.
- * Port of the legacy "comments" rule. Timestamps compare as ISO strings.
- * Divergence: pending reviews (null timestamp) are ignored; legacy crashed on them.
+ * Timestamps compare as ISO strings. Pending reviews (null timestamp) are ignored.
  */
 export function unansweredFeedback(pr: PrSnapshot, me: string): string | null {
   const ours: string[] = [];
@@ -99,8 +98,8 @@ export function unansweredFeedback(pr: PrSnapshot, me: string): string | null {
   return latest;
 }
 
-/** Every trigger the legacy precheck would print for this PR, in its order. */
-export function legacyTriggers(pr: PrSnapshot, me: string): Trigger[] {
+/** Every trigger that fires for an own PR, in a fixed order. */
+export function authorTriggers(pr: PrSnapshot, me: string): Trigger[] {
   if (pr.isDraft) return [];
   const out: Trigger[] = [];
   const latest = unansweredFeedback(pr, me);
@@ -115,11 +114,6 @@ export function legacyTriggers(pr: PrSnapshot, me: string): Trigger[] {
       out.push({ kind: "merge" });
   }
   return out;
-}
-
-export function legacyLine(pr: PrSnapshot, t: Trigger): string {
-  const base = `${pr.repo}#${pr.number}@${pr.headSha.slice(0, 8)}:${t.kind}`;
-  return t.detail === undefined ? base : `${base}:${t.detail}`;
 }
 
 /** `headSha8-digest8`; a new comment, review or thread change on the same head is a new version. */
@@ -195,7 +189,7 @@ function base(pr: PrSnapshot) {
 
 /** Classify one of the account's own open PRs. */
 export function classifyAuthored(pr: PrSnapshot, me: string): Classification {
-  const triggers = legacyTriggers(pr, me);
+  const triggers = authorTriggers(pr, me);
   const top = [...triggers].sort((a, b) => rank(TRIGGER_KIND[a.kind]) - rank(TRIGGER_KIND[b.kind]))[0];
   const kind: Kind = top ? TRIGGER_KIND[top.kind] : "waiting";
   const plan = authorPlan(kind, top);

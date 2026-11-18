@@ -3,7 +3,7 @@ import { closeSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, statS
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { parseArgs } from "node:util";
-import { legacyLine, summarizeChecks, version } from "./core/classify.ts";
+import { summarizeChecks, version } from "./core/classify.ts";
 import { renderReport, sortItems } from "./core/report.ts";
 import type { PrSnapshot } from "./core/types.ts";
 import { realDeps } from "./deps.ts";
@@ -75,7 +75,7 @@ Options:
   --user <login>             Use one account and ignore config files
   --owner <login>            Owner scope for --user or the active account, repeatable
   --repo <owner/repo>        Repo scope for --user or the active account, repeatable
-  --format text|json|legacy  Output format (legacy: plan only, precheck.sh lines)
+  --format text|json         Output format
   --no-worktrees             Skip Orca worktree cleanup candidates
   --actionable               plan: drop waiting items; print nothing when none remain
   --name <name>              watch: state name, one per scheduled job (default: default)
@@ -140,8 +140,7 @@ async function main(argv: string[]): Promise<number> {
     return values.help ? 0 : 2;
   }
   const format = values.format;
-  if (format !== "text" && format !== "json" && format !== "legacy") throw new Error(`unknown --format ${format}`);
-  if (format === "legacy" && cmd !== "plan") throw new Error("--format legacy applies to plan only");
+  if (format !== "text" && format !== "json") throw new Error(`unknown --format ${format}`);
   if (cmd === "watch" && format !== "text") throw new Error("watch prints text only");
   if (!/^[A-Za-z0-9_.-]+$/.test(values.name)) throw new Error("--name must use letters, digits, _ . -");
   const deps = realDeps();
@@ -176,13 +175,7 @@ async function main(argv: string[]): Promise<number> {
   const all = sortItems(plan(result));
   const items = values.actionable ? all.filter((c) => c.kind !== "waiting") : all;
   if (format === "json") console.log(JSON.stringify(items, null, 2));
-  else if (format === "legacy") {
-    const lines = result.prs.filter((p) => p.role === "author").flatMap((p) => {
-      const c = items.find((i) => i.key === `${p.repo}#${p.number}`);
-      return (c?.triggers ?? []).map((t) => legacyLine(p, t));
-    });
-    if (lines.length) console.log(lines.join("\n"));
-  } else if (!values.actionable || items.length) console.log(renderReport(items));
+  else if (!values.actionable || items.length) console.log(renderReport(items));
   return 0;
 }
 
