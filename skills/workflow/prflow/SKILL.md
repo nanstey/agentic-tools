@@ -45,15 +45,17 @@ One kind per PR, in priority order:
 | Kind | Trigger | Next action | Owner |
 | --- | --- | --- | --- |
 | `merge-ready` | CLEAN, APPROVED, checks finished with no failure or cancel | Tell you it is ready. Never merge | you |
-| `rerun` | Cancelled jobs, or only `required-action(s)-checker` failed, nothing pending | `gh run rerun --failed` | prflow |
-| `ci` | A real check failed, nothing pending | CI fix brief | Pi session |
+| `rerun` | Cancelled jobs, no failures, nothing pending | `gh run rerun --failed` | prflow |
+| `ci` | Any check failed, nothing pending | CI fix brief; the session follows the repo's CI docs | Pi session |
 | `comments` | Human comment, review body, changes request, or unresolved thread newer than the head commit, with no later reply from `me` | Fix-and-reply brief | Pi session |
 | `behind` | BEHIND or DIRTY, nothing pending | Rebase brief | Pi session |
 | `review-requested` | `me` is requested, not draft, required checks finished, head not yet reviewed by `me` | Reviewer session, draft only | Pi reviewer |
 | `cleanup` | Orca worktree whose PR is merged or closed | Archive if clean, else you check | prflow or you |
 | `waiting` | Anything else | None | others |
 
-Author PRs keep every legacy trigger in `triggers`. Rules port the legacy precheck in `tests/legacy/precheck.sh` exactly, with two divergences where legacy crashed and printed nothing for any PR: pending reviews with no timestamp are ignored, and a PR with no commits is skipped. That copy has its login and state directory replaced by `__USER__` and `__STATE__`, which the parity tests fill in.
+Author PRs keep every legacy trigger in `triggers`. prflow encodes no repo-specific rules: every check counts the same, and caveats such as a job that only needs a rerun belong in that repo's own docs.
+
+Rules port the legacy precheck in `tests/legacy/precheck.sh` with three divergences. Legacy treated failures of certain jobs, picked by name, as reruns; prflow reports every failure as `ci`. Where legacy crashed and printed nothing for any PR, prflow ignores pending reviews with no timestamp and skips a PR with no commits. That copy has its login and state directory replaced by `__USER__` and `__STATE__`, which the parity tests fill in.
 
 ## Development
 

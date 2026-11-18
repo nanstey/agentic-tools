@@ -10,22 +10,15 @@ import {
   type WorktreeItem,
 } from "./types.ts";
 
-/** Required-action checker jobs: a failure here is never a real CI failure. */
-export const CHECKER_NAMES: readonly string[] = [
-  "required-action-checker",
-  "required-actions-checker",
-];
-
 const BAD_CHECK_RUN = ["FAILURE", "TIMED_OUT", "STARTUP_FAILURE", "ACTION_REQUIRED"];
 const BAD_STATUS = ["FAILURE", "ERROR"];
 const PENDING_STATUS = ["PENDING", "EXPECTED"];
 
 export interface CheckSummary {
   pending: boolean;
-  /** Real failures (job ids), checker excluded. */
+  /** Failed job ids. */
   failed: string[];
   cancelled: string[];
-  checkerFailed: string[];
   total: number;
   requiredPending: number;
 }
@@ -41,13 +34,15 @@ function isPending(c: Check): boolean {
     : PENDING_STATUS.includes(c.state);
 }
 
-/** Port of the legacy precheck check loop. */
+/**
+ * Port of the legacy precheck check loop, minus its check-name exception. Every
+ * check counts the same; repo-specific caveats belong in each repo's docs.
+ */
 export function summarizeChecks(checks: Check[]): CheckSummary {
   const s: CheckSummary = {
     pending: false,
     failed: [],
     cancelled: [],
-    checkerFailed: [],
     total: checks.length,
     requiredPending: 0,
   };
@@ -63,9 +58,7 @@ export function summarizeChecks(checks: Check[]): CheckSummary {
         ? BAD_CHECK_RUN.includes(conclusion ?? "")
         : BAD_STATUS.includes(conclusion ?? "");
     const id = jobId(c.url, c.name);
-    if (CHECKER_NAMES.includes(c.name)) {
-      if (bad) s.checkerFailed.push(id);
-    } else if (bad) s.failed.push(id);
+    if (bad) s.failed.push(id);
     else if (conclusion === "CANCELLED") s.cancelled.push(id);
   }
   return s;
@@ -115,11 +108,7 @@ export function legacyTriggers(pr: PrSnapshot, me: string): Trigger[] {
   const s = summarizeChecks(pr.checks);
   if (!s.pending) {
     if (s.failed.length) out.push({ kind: "ci", detail: [...s.failed].sort().join(",") });
-    else if (s.cancelled.length || s.checkerFailed.length)
-      out.push({
-        kind: "rerun",
-        detail: [...s.cancelled, ...s.checkerFailed].sort().join(","),
-      });
+    else if (s.cancelled.length) out.push({ kind: "rerun", detail: [...s.cancelled].sort().join(",") });
     else if (pr.mergeStateStatus === "BEHIND" || pr.mergeStateStatus === "DIRTY")
       out.push({ kind: "behind" });
     else if (pr.mergeStateStatus === "CLEAN" && pr.reviewDecision === "APPROVED")
@@ -161,7 +150,7 @@ function checkStatus(pr: PrSnapshot): string {
   if (s.total === 0) bits.push("checks=none");
   else if (s.pending) bits.push("checks=pending");
   else if (s.failed.length) bits.push(`checks=failed(${s.failed.length})`);
-  else if (s.cancelled.length || s.checkerFailed.length) bits.push("checks=cancelled/checker");
+  else if (s.cancelled.length) bits.push("checks=cancelled");
   else bits.push("checks=green");
   return bits.join(" ");
 }
@@ -173,7 +162,7 @@ function authorPlan(kind: Kind, t: Trigger | undefined): Pick<Classification, "n
     case "rerun":
       return { nextAction: `gh run rerun --failed (${t?.detail ?? ""})`, owner: "prflow" };
     case "ci":
-      return { nextAction: `send CI fix brief (${t?.detail ?? ""})`, owner: "Pi session" };
+      return { nextAction: `send CI fix brief, following the repo's CI docs (${t?.detail ?? ""})`, owner: "Pi session" };
     case "comments":
       return { nextAction: `send fix-and-reply brief (latest ${t?.detail ?? ""})`, owner: "Pi session" };
     case "behind":

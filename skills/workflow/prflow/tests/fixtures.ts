@@ -144,16 +144,11 @@ export const CASES: Case[] = [
   { name: "status failure and error", pr: { checks: [status("y", "FAILURE"), status("x", "ERROR")] }, lines: ["ci:x-id,y-id"], kind: "ci" },
   { name: "job id falls back to name", pr: { checks: [run("lint", "COMPLETED", "FAILURE", null), status("ctx", "ERROR", "")] }, lines: ["ci:ctx,lint"], kind: "ci" },
   { name: "trailing slash url falls back to name", pr: { checks: [run("lint", "COMPLETED", "FAILURE", "https://x/y/")] }, lines: ["ci:lint"], kind: "ci" },
-  { name: "failure beats checker", pr: { checks: [run("required-action-checker", "COMPLETED", "FAILURE"), run("t", "COMPLETED", "FAILURE")] }, lines: ["ci:t-id"], kind: "ci" },
   { name: "failure beats behind", pr: { merge: "DIRTY", checks: [run("t", "COMPLETED", "FAILURE")] }, lines: ["ci:t-id"], kind: "ci" },
   // rerun
   { name: "cancelled", pr: { checks: [ok("a"), run("e2e", "COMPLETED", "CANCELLED")] }, lines: ["rerun:e2e-id"], kind: "rerun" },
-  { name: "checker failed", pr: { checks: [ok("a"), run("required-action-checker", "COMPLETED", "FAILURE")] }, lines: ["rerun:required-action-checker-id"], kind: "rerun" },
-  { name: "plural checker failed", pr: { checks: [run("required-actions-checker", "COMPLETED", "ACTION_REQUIRED")] }, lines: ["rerun:required-actions-checker-id"], kind: "rerun" },
-  { name: "checker status error", pr: { checks: [status("required-action-checker", "ERROR")] }, lines: ["rerun:required-action-checker-id"], kind: "rerun" },
-  { name: "cancelled and checker sorted", pr: { checks: [run("required-action-checker", "COMPLETED", "FAILURE"), run("b", "COMPLETED", "CANCELLED")] }, lines: ["rerun:b-id,required-action-checker-id"], kind: "rerun" },
-  { name: "checker failed while pending", pr: { checks: [run("required-action-checker", "COMPLETED", "FAILURE"), run("b", "IN_PROGRESS", null)] }, lines: [], kind: "waiting" },
-  { name: "cancelled checker is ignored", pr: { checks: [run("required-action-checker", "COMPLETED", "CANCELLED")] }, lines: ["merge"], kind: "merge-ready" },
+  { name: "cancelled sorted", pr: { checks: [run("b", "COMPLETED", "CANCELLED"), status("ok", "SUCCESS"), run("a", "COMPLETED", "CANCELLED")] }, lines: ["rerun:a-id,b-id"], kind: "rerun" },
+  { name: "failure beats cancelled", pr: { checks: [run("b", "COMPLETED", "CANCELLED"), status("x", "ERROR")] }, lines: ["ci:x-id"], kind: "ci" },
   { name: "cancelled beats behind", pr: { merge: "BEHIND", checks: [run("x", "COMPLETED", "CANCELLED")] }, lines: ["rerun:x-id"], kind: "rerun" },
   // behind
   { name: "behind", pr: { merge: "BEHIND" }, lines: ["behind"], kind: "behind" },

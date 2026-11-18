@@ -13,7 +13,7 @@ import { join } from "node:path";
 import { describe, it } from "node:test";
 import { legacyLine, legacyTriggers } from "../scripts/core/classify.ts";
 import { parsePr } from "../scripts/adapters/gh.ts";
-import { alice, AFTER, CASES, comment, ME, me, prResponse, review } from "./fixtures.ts";
+import { alice, AFTER, CASES, comment, ME, me, prResponse, review, run } from "./fixtures.ts";
 
 const STATE = "precheck";
 const LEGACY_SOURCE = readFileSync(join(import.meta.dirname, "legacy", "precheck.sh"), "utf8")
@@ -113,6 +113,14 @@ describe("legacy precheck parity", { skip: !hasTools && "bash/python3 missing" }
     assert.equal(legacy.out.trim(), "");
     assert.equal(legacy.code, 1);
     assert.deepEqual(prflowLines(prs), ["Acme/widgets#1@c0ffee11:merge"]);
+  });
+
+  it("known divergence: legacy reruns a failed check by name; prflow has no repo-specific check names", () => {
+    // The legacy script hardcodes one repo's checker job as rerun-only. prflow treats
+    // every failed check the same and leaves such caveats to each repo's docs.
+    const prs: Pr[] = [{ repo: "Acme/widgets", number: 1, body: prResponse({ checks: [run("required-action-checker", "COMPLETED", "FAILURE")] }) }];
+    assert.deepEqual(split(runLegacy(prs).out), ["Acme/widgets#1@c0ffee11:rerun:required-action-checker-id"]);
+    assert.deepEqual(prflowLines(prs), ["Acme/widgets#1@c0ffee11:ci:required-action-checker-id"]);
   });
 
   it("known divergence: an own pending review crashes legacy, prflow ignores it", () => {
