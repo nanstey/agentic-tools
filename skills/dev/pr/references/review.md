@@ -183,14 +183,23 @@ invocation continues to publication.
      finding references a specific line, function, section, or file, prefer an inline comment
      anchored to the closest applicable changed head-side hunk.
    - Use the review body only when no such anchor exists.
-   - Inline comments may contain only the disclosure, a neutral code-facing assessment, findings
-     (ID/category/severity/location/evidence/concrete suggestion), code-evidence gaps (for example,
-     gateway CORS was not verified), and neutral PR decision statements. The review body may also
-     contain the hidden review marker.
-   - Do not include skills, commands, modes, review depth/rows, validators/verifiers,
-     models/providers, auth/tool/dispatch failures, sandbox/isolation, coverage status, the packet
-     verdict word `incomplete`, the reason for `COMMENT`, review-process gaps, or invoker-facing
-     reports/directives such as `Decision for <name>`, `for you`, or `the decision stays with <invoker>`.
+   - The review body may contain only the disclosure (per `disclosure.md`), a neutral assessment,
+     blocking items, one short `fixed` or `still open` line per earlier thread, and optional nits.
+     The review body may also contain the hidden review marker. A clean review is an `APPROVE` with
+     a short assessment, not a `COMMENT`.
+   - Inline comments may contain only the disclosure, a neutral code-facing assessment, and one
+     source-verified finding. State the failing input or scenario, then the fix. Each ask names one
+     action (two at most, with the recommended action first) and does not end with a question.
+   - Raise each point once per PR. Never repeat a point already declined, deferred, or pre-existing,
+     or carry a cosmetic nit into a later round. Number findings only within one review.
+   - Never publish verdict text the author cannot act on, such as `ready to approve`; the event carries
+     the verdict.
+   - Do not include process jargon or review internals, including reviewers/angles, validators,
+     confidence, models/providers, refuted findings, or what was not run. Do not list CI status; mention
+     CI only when a failing check is caused by this diff. Also exclude skills, commands, modes, review
+     depth/rows, auth/tool/dispatch failures, sandbox/isolation, coverage status, the packet verdict
+     word `incomplete`, the reason for `COMMENT`, review-process gaps, or invoker-facing reports/directives
+     such as `Decision for <name>`, `for you`, or `the decision stays with <invoker>`.
    - Decisions must be neutral. For example: `The PR asks for a decision on X; ...`.
    - Who must decide, invoker next steps, and why no approval belongs only in the caller report.
    - Never post secrets or more than minimal evidence snippets.
@@ -236,11 +245,11 @@ invocation continues to publication.
      reassessment.
    - Fetch every page of reviews with
      `gh api --paginate 'repos/{owner}/{repo}/pulls/{number}/reviews?per_page=100'`.
-   - Filter the viewer's non-pending, non-dismissed reviews at `<headRefOid>`. Pagination or
-     retrieval failure is `blocked`.
+   - Retain the viewer's non-pending, non-dismissed reviews, including reviews at earlier heads, for
+     marker validation and deduplication. Pagination or retrieval failure is `blocked`.
 
 6. **Deduplicate existing reviews.** Check the hidden review markers on retained reviews.
-   - Validate v2 only when it has the exact step-3 HTML comment syntax, a full current head OID, a
+   - Validate v2 only when it has the exact step-3 HTML comment syntax, a full head OID, a
      permitted review event, comma-joined lexicographically sorted stable IDs (or an empty `findings`
      value), and a lowercase hexadecimal SHA-256 that matches the specified RFC 8785 UTF-8 hash input.
    - Validate legacy v1 only when it exactly has `<!-- pr-review: v1=<base64url-payload>; sha256=<digest> -->`,
@@ -250,9 +259,15 @@ invocation continues to publication.
    - At the current head, skip publication when a valid v2 marker's full `head`, `event`, and sorted
      findings equal the proposed values, or when a valid v1 marker's decoded full `head`, `event`, and
      sorted findings equal those values.
+   - Across heads, skip publication and report `skipped: no new findings since <prior-head-short>`
+     only when all conditions hold: the viewer has a valid published review marker on this PR at an
+     earlier head; the proposed findings are empty or contain only IDs already published, declined,
+     or resolved; no earlier thread changed state since that review; and the proposed event equals the
+     prior review's event. Use the existing marker's head, event, and findings; do not change marker
+     format. A changed event or any new finding still publishes.
    - Treat invalid or unreadable markers as non-matches. They do not deduplicate a review.
-   - A changed event or finding IDs may supersede an earlier review. Deduplication applies only at
-     the current head.
+   - A changed event or finding IDs may supersede an earlier review. Current-head deduplication and
+     the across-head skip above are separate checks.
 
 7. **Post and verify.** Post and verify the review.
    - Immediately before POST, re-read `/pr info` and recompute trusted policy identity. Require
