@@ -74,7 +74,7 @@ async function fetchPr(deps: Deps, j: Job, errors: string[]): Promise<PrSnapshot
 }
 
 /** gh errors meaning the repo does not exist or the account cannot see it. */
-export const NOT_VISIBLE = /Could not resolve to a Repository|HTTP 404|Not Found/;
+export const NOT_VISIBLE = /GraphQL: Could not resolve to a Repository with the name|HTTP 404: Not Found/;
 
 async function scanWorktrees(deps: Deps, cfg: Config, errors: string[]): Promise<WorktreeItem[]> {
   let rows;

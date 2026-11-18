@@ -22,7 +22,10 @@ node <skill-dir>/scripts/prflow.ts watch [--name <job>] [--config <path>] [scope
   suppress each other's reports. `--state <path>` overrides the file.
 - A scan error never updates state, so a partial scan cannot hide an item and
   announce it again later. The next successful run reports normally.
-- Watch is read-only toward GitHub and Orca. It writes only its state file.
+- A run holds `<state>.lock` while it scans. An overlapping run of the same job
+  exits 0 silently; a lock older than 30 minutes is treated as stale. State is
+  written atomically.
+- Watch is read-only toward GitHub and Orca. It writes only its state and lock files.
 
 ## Set up a schedule (agent steps)
 
@@ -61,10 +64,13 @@ step 3.
 ### cron
 
 ```
-*/15 * * * * PATH=<path> <node> <skill-dir>/scripts/prflow.ts watch --name cron 2>&1 | mail -E -s prflow "$USER"
+MAILTO=you@example.com
+PATH=<path>
+*/15 * * * * <node> <skill-dir>/scripts/prflow.ts watch --name cron
 ```
 
-`mail -E` skips empty bodies, so quiet runs send nothing.
+cron mails any stdout or stderr and sends nothing for a silent run, so reports
+and errors both arrive and quiet runs stay quiet. Requires a working local MTA.
 
 ### systemd user timer
 

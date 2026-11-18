@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { closeSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { parseArgs } from "node:util";
@@ -15,6 +15,37 @@ import { decideWatch, fingerprint } from "./core/watch.ts";
 function watchStatePath(name: string): string {
   const base = process.env.XDG_STATE_HOME || join(homedir(), ".local", "state");
   return join(base, "prflow", `watch-${name}.txt`);
+}
+
+/** A lock older than this belongs to a crashed or hung run and is taken over. */
+const LOCK_STALE_MS = 30 * 60 * 1000;
+
+/** Take an exclusive lock file; `false` if another live run holds it. */
+function tryLock(path: string): boolean {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      closeSync(openSync(path, "wx"));
+      return true;
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code !== "EEXIST") throw e;
+      let age = 0;
+      try {
+        age = Date.now() - statSync(path).mtimeMs;
+      } catch {
+        continue; // Released between open and stat; retry.
+      }
+      if (age < LOCK_STALE_MS) return false;
+      rmSync(path, { force: true });
+    }
+  }
+  return false;
+}
+
+/** Write via a temp file and rename, so a crash never leaves a truncated state file. */
+function writeAtomic(path: string, text: string): void {
+  const tmp = `${path}.${process.pid}.tmp`;
+  writeFileSync(tmp, text);
+  renameSync(tmp, path);
 }
 
 function readOrNull(path: string): string | null {
@@ -66,6 +97,26 @@ function renderScan(r: ScanResult): string {
   return lines.join("\n") || "No PRs found.";
 }
 
+/** One watch run under a per-state-file lock. */
+async function watch(statePath: string, runScan: () => Promise<ScanResult>): Promise<number> {
+  mkdirSync(dirname(statePath), { recursive: true });
+  const lock = `${statePath}.lock`;
+  // Another run of this job is still going and will report; stay silent.
+  if (!tryLock(lock)) return 0;
+  try {
+    const result = await runScan();
+    const actionable = sortItems(plan(result)).filter((c) => c.kind !== "waiting");
+    const report = actionable.length ? renderReport(actionable) : "";
+    const d = decideWatch(readOrNull(statePath), fingerprint(actionable), report, result.errors);
+    if (d.save !== null) writeAtomic(statePath, d.save);
+    process.stdout.write(d.stdout);
+    process.stderr.write(d.stderr);
+    return d.exitCode;
+  } finally {
+    rmSync(lock, { force: true });
+  }
+}
+
 async function main(argv: string[]): Promise<number> {
   const { values, positionals } = parseArgs({
     args: argv,
@@ -115,20 +166,8 @@ async function main(argv: string[]): Promise<number> {
     }
     return 0;
   }
+  if (cmd === "watch") return watch(values.state ?? watchStatePath(values.name), () => scan(deps, cfg));
   const result = await scan(deps, cfg);
-  if (cmd === "watch") {
-    const actionable = sortItems(plan(result)).filter((c) => c.kind !== "waiting");
-    const report = actionable.length ? renderReport(actionable) : "";
-    const statePath = values.state ?? watchStatePath(values.name);
-    const d = decideWatch(readOrNull(statePath), fingerprint(actionable), report, result.errors);
-    if (d.save !== null) {
-      mkdirSync(dirname(statePath), { recursive: true });
-      writeFileSync(statePath, d.save);
-    }
-    process.stdout.write(d.stdout);
-    process.stderr.write(d.stderr);
-    return d.exitCode;
-  }
   for (const e of result.errors) console.error(`warn: ${e}`);
   if (cmd === "scan") {
     console.log(format === "json" ? JSON.stringify(result, null, 2) : renderScan(result));
