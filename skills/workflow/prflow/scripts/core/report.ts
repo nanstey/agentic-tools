@@ -15,17 +15,20 @@ export function sortItems(items: Classification[]): Classification[] {
   );
 }
 
-export function row(c: Classification): string {
-  return `- ${c.repo}#${c.number} ${JSON.stringify(c.title)} | ${c.kind}: ${c.status} | next: ${c.nextAction} | owner: ${c.owner}`;
+/** One report row. `showAccount` adds the GitHub account when several are configured. */
+export function row(c: Classification, showAccount = false): string {
+  const acct = showAccount ? ` | account: ${c.account}` : "";
+  return `- ${c.repo}#${c.number} ${JSON.stringify(c.title)} | ${c.kind}: ${c.status} | next: ${c.nextAction} | owner: ${c.owner}${acct}`;
 }
 
 /** Text report grouped by status and next action. Empty groups are omitted. */
 export function renderReport(items: Classification[]): string {
+  const showAccount = new Set(items.map((c) => c.account)).size > 1;
   const out: string[] = [];
   for (const g of GROUPS) {
     const rows = sortItems(items.filter((c) => g.kinds.includes(c.kind)));
     if (rows.length === 0) continue;
-    out.push(`## ${g.title} (${rows.length})`, ...rows.map(row), "");
+    out.push(`## ${g.title} (${rows.length})`, ...rows.map((c) => row(c, showAccount)), "");
   }
   return out.length ? out.join("\n").trimEnd() : "Nothing to report.";
 }

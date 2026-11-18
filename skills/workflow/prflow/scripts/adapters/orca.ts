@@ -19,7 +19,7 @@ interface RawWorktree {
   linkedPR?: number | null;
 }
 
-/** Repo from an Orca project id such as `github:github.com-work/checkfront/expedition`. */
+/** Repo from an Orca project id such as `github:github.com-alt/acme/widgets`. */
 export function repoFromProjectId(id: string): string | null {
   const m = /^github:(.+)$/.exec(id);
   if (!m?.[1]) return null;

@@ -169,7 +169,7 @@ function checkStatus(pr: PrSnapshot): string {
 function authorPlan(kind: Kind, t: Trigger | undefined): Pick<Classification, "nextAction" | "owner"> {
   switch (kind) {
     case "merge-ready":
-      return { nextAction: "notify Noel to merge (prflow never merges)", owner: "you" };
+      return { nextAction: "ready for you to merge (prflow never merges)", owner: "you" };
     case "rerun":
       return { nextAction: `gh run rerun --failed (${t?.detail ?? ""})`, owner: "prflow" };
     case "ci":
@@ -200,10 +200,11 @@ function base(pr: PrSnapshot) {
     title: pr.title,
     url: pr.url,
     role: pr.role,
+    account: pr.account,
   };
 }
 
-/** Classify one of Noel's own open PRs. */
+/** Classify one of the account's own open PRs. */
 export function classifyAuthored(pr: PrSnapshot, me: string): Classification {
   const triggers = legacyTriggers(pr, me);
   const top = [...triggers].sort((a, b) => rank(TRIGGER_KIND[a.kind]) - rank(TRIGGER_KIND[b.kind]))[0];
@@ -236,7 +237,7 @@ export function classifyReviewRequest(pr: PrSnapshot, me: string): Classificatio
   return {
     ...out,
     kind: "review-requested",
-    nextAction: "launch reviewer session (draft only, Noel approves before posting)",
+    nextAction: "launch reviewer session (draft only, you approve before posting)",
     owner: "Pi reviewer",
   };
 }
@@ -254,6 +255,7 @@ export function classifyWorktree(w: WorktreeItem): Classification | null {
     title: w.pr.title,
     url: w.pr.url,
     role: "worktree",
+    account: w.account,
     kind: "cleanup",
     triggers: [],
     status: `PR ${w.pr.state}; worktree ${w.path} ${dirty}`,

@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# Prints one line per Noel PR that needs ACTION NOW (exit 0), else prints nothing (exit 1).
+# Prints one line per own PR that needs ACTION NOW (exit 0), else prints nothing (exit 1).
 # Lines: <repo>#<n>@<head8>:<kind>[:<detail>]  kinds: comments, ci, behind, rerun, merge
 # Waiting states (checks pending, approvals outstanding) are NOT actionable and print nothing.
 # Failing jobs named required-action-checker / required-actions-checker are never "ci" failures;
 # a failed checker with every other check finished is "rerun".
 set -u
-export GH_TOKEN="$(gh auth token -u noelcf)"
-D="$HOME/.local/state/pr-comment-watch"; touch "$D/dispatched.txt" "$D/inflight.txt"
-gh search prs --author noelcf --state open --draft=false --limit 50 --json number,repository 2>/dev/null \
+export GH_TOKEN="$(gh auth token -u __USER__)"
+D="$HOME/.local/state/__STATE__"; touch "$D/dispatched.txt" "$D/inflight.txt"
+gh search prs --author __USER__ --state open --draft=false --limit 50 --json number,repository 2>/dev/null \
  | python3 -c '
 import json,sys,subprocess,os,time,re
-d=os.path.expanduser("~/.local/state/pr-comment-watch/")
+d=os.path.expanduser("~/.local/state/__STATE__/")
 st=set(open(d+"dispatched.txt").read().split())
 now=time.time()
 for ln in open(d+"inflight.txt"):
@@ -24,8 +24,8 @@ comments(last:50){nodes{createdAt author{login __typename}}}
 reviews(last:50){nodes{submittedAt state body author{login __typename}}}
 reviewThreads(first:100){nodes{isResolved comments(last:50){nodes{createdAt author{login __typename}}}}}}}}"""
 CHK=("required-action-checker","required-actions-checker")
-def human(a): return a and a["__typename"]!="Bot" and a["login"]!="noelcf"
-def mine_(a): return a and a["login"]=="noelcf"
+def human(a): return a and a["__typename"]!="Bot" and a["login"]!="__USER__"
+def mine_(a): return a and a["login"]=="__USER__"
 need=[]
 for p in json.load(sys.stdin):
     r=p["repository"]["nameWithOwner"]; n=p["number"]; o_,r_=r.split("/")

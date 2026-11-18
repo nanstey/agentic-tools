@@ -45,23 +45,23 @@ describe("gh parsing", () => {
   });
 
   it("parses a PR snapshot", () => {
-    const p = parsePr(JSON.stringify(prResponse({ checks: [status("ci", "SUCCESS", null, true)], requests: ["noelcf"] })), "A/b", 1, "reviewer");
+    const p = parsePr(JSON.stringify(prResponse({ checks: [status("ci", "SUCCESS", null, true)], requests: ["octocat"] })), "A/b", 1, "reviewer", "octocat");
     assert.ok(p);
     assert.equal(p.headSha, HEAD);
     assert.equal(p.role, "reviewer");
     assert.deepEqual(p.checks, [{ typename: "StatusContext", name: "ci", state: "SUCCESS", url: null, isRequired: true }]);
-    assert.deepEqual(p.reviewRequests, ["noelcf"]);
+    assert.deepEqual(p.reviewRequests, ["octocat"]);
   });
 
   it("returns null for a missing PR", () => {
-    assert.equal(parsePr('{"data":{"repository":{"pullRequest":null}}}', "A/b", 1, "author"), null);
-    assert.equal(parsePr('{"data":{"repository":null}}', "A/b", 1, "author"), null);
+    assert.equal(parsePr('{"data":{"repository":{"pullRequest":null}}}', "A/b", 1, "author", "octocat"), null);
+    assert.equal(parsePr('{"data":{"repository":null}}', "A/b", 1, "author", "octocat"), null);
   });
 
   it("returns null for a PR with no commits (known divergence: legacy crashed)", () => {
     const raw = prResponse() as { data: { repository: { pullRequest: { commits: { nodes: unknown[] } } } } };
     raw.data.repository.pullRequest.commits.nodes = [];
-    assert.equal(parsePr(JSON.stringify(raw), "A/b", 1, "author"), null);
+    assert.equal(parsePr(JSON.stringify(raw), "A/b", 1, "author", "octocat"), null);
   });
 
   it("builds the per-PR query args and keeps the legacy fields", () => {
@@ -81,19 +81,19 @@ describe("orca parsing", () => {
   const list = {
     result: {
       worktrees: [
-        { path: "/m", branch: "refs/heads/main", projectId: "github:github.com-work/checkfront/x", isMainWorktree: true },
-        { path: "/a", branch: "refs/heads/feat", projectId: "github:github.com-work/checkfront/x", linkedPR: 12 },
-        { path: "/b", branch: "refs/heads/old", projectId: "github:Checkfront/y", isArchived: true },
-        { path: "/c", branch: "refs/heads/z", projectId: "github:nanstey/tools" },
-        { path: "/d", branch: null, projectId: "github:checkfront/x" },
+        { path: "/m", branch: "refs/heads/main", projectId: "github:github.com-alt/acme/x", isMainWorktree: true },
+        { path: "/a", branch: "refs/heads/feat", projectId: "github:github.com-alt/acme/x", linkedPR: 12 },
+        { path: "/b", branch: "refs/heads/old", projectId: "github:Acme/y", isArchived: true },
+        { path: "/c", branch: "refs/heads/z", projectId: "github:someone/tools" },
+        { path: "/d", branch: null, projectId: "github:acme/x" },
         { path: "/e", branch: "refs/heads/f" },
       ],
     },
   };
 
   it("keeps active non-main worktrees of in-scope owners", () => {
-    assert.deepEqual(parseWorktrees(JSON.stringify(list), ["Checkfront"]), [
-      { path: "/a", branch: "feat", repo: "checkfront/x", linkedPr: 12 },
+    assert.deepEqual(parseWorktrees(JSON.stringify(list), ["Acme"]), [
+      { path: "/a", branch: "feat", repo: "acme/x", linkedPr: 12 },
     ]);
   });
 
@@ -105,9 +105,9 @@ describe("orca parsing", () => {
   });
 
   it("parses repo ids and PR urls", () => {
-    assert.equal(repoFromProjectId("github:github.com-work/checkfront/expedition"), "checkfront/expedition");
+    assert.equal(repoFromProjectId("github:github.com-alt/acme/widgets"), "acme/widgets");
     assert.equal(repoFromProjectId("folder:/x"), null);
-    assert.equal(repoFromPrUrl("https://github.com/Checkfront/x/pull/5"), "Checkfront/x");
+    assert.equal(repoFromPrUrl("https://github.com/Acme/x/pull/5"), "Acme/x");
     assert.equal(repoFromPrUrl("nope"), null);
   });
 });

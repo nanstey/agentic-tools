@@ -81,7 +81,7 @@ function check(c: RawContext): Check {
 }
 
 /** Parse the `PR_QUERY` response into a snapshot. Returns `null` when the PR is missing. */
-export function parsePr(json: string, repo: string, number: number, role: Role): PrSnapshot | null {
+export function parsePr(json: string, repo: string, number: number, role: Role, account: string): PrSnapshot | null {
   const out = JSON.parse(json) as { data?: { repository?: { pullRequest?: RawPr | null } | null } };
   const pr = out.data?.repository?.pullRequest;
   if (!pr) return null;
@@ -100,6 +100,7 @@ export function parsePr(json: string, repo: string, number: number, role: Role):
     title: pr.title,
     url: pr.url,
     role,
+    account,
     state: pr.state,
     isDraft: pr.isDraft,
     headSha: pr.headRefOid,

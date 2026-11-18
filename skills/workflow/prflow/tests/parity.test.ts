@@ -1,12 +1,13 @@
 /**
- * Differential parity with the legacy precheck. `tests/legacy/precheck.sh` is an
- * unmodified copy of `~/.local/state/pr-comment-watch/precheck.sh`. It runs with
- * HOME set to a temp dir and a fake `gh` on PATH that serves the shared fixtures,
- * and its output must equal prflow's legacy-format lines.
+ * Differential parity with the legacy precheck. `tests/legacy/precheck.sh` is the
+ * legacy script with its login and state directory replaced by `__USER__` and
+ * `__STATE__`; the test fills them in. It runs with HOME set to a temp dir and a
+ * fake `gh` on PATH that serves the shared fixtures, and its output must equal
+ * prflow's legacy-format lines.
  */
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "node:test";
@@ -14,7 +15,10 @@ import { legacyLine, legacyTriggers } from "../scripts/core/classify.ts";
 import { parsePr } from "../scripts/adapters/gh.ts";
 import { alice, AFTER, CASES, comment, ME, me, prResponse, review } from "./fixtures.ts";
 
-const LEGACY = join(import.meta.dirname, "legacy", "precheck.sh");
+const STATE = "precheck";
+const LEGACY_SOURCE = readFileSync(join(import.meta.dirname, "legacy", "precheck.sh"), "utf8")
+  .replaceAll("__USER__", ME)
+  .replaceAll("__STATE__", STATE);
 const hasTools = ["bash", "python3"].every((t) => spawnSync(t, ["--version"]).status === 0);
 
 const FAKE_GH = `#!/usr/bin/env bash
@@ -40,7 +44,7 @@ function runLegacy(prs: Pr[], dispatched = ""): { code: number | null; out: stri
   const root = mkdtempSync(join(tmpdir(), "prflow-parity-"));
   const fix = join(root, "fix");
   const bin = join(root, "bin");
-  const state = join(root, ".local", "state", "pr-comment-watch");
+  const state = join(root, ".local", "state", STATE);
   for (const d of [fix, bin, state]) mkdirSync(d, { recursive: true });
   writeFileSync(join(state, "dispatched.txt"), dispatched);
   writeFileSync(join(bin, "gh"), FAKE_GH);
@@ -54,7 +58,9 @@ function runLegacy(prs: Pr[], dispatched = ""): { code: number | null; out: stri
     const [o, r] = p.repo.split("/");
     writeFileSync(join(fix, `${o}__${r}__${p.number}.json`), JSON.stringify(p.body));
   }
-  const r = spawnSync("bash", [LEGACY], {
+  const script = join(root, "precheck.sh");
+  writeFileSync(script, LEGACY_SOURCE);
+  const r = spawnSync("bash", [script], {
     env: { PATH: `${bin}:${process.env.PATH}`, HOME: root, FIX: fix },
     encoding: "utf8",
   });
@@ -64,7 +70,7 @@ function runLegacy(prs: Pr[], dispatched = ""): { code: number | null; out: stri
 function prflowLines(prs: Pr[]): string[] {
   return prs.flatMap((p) => {
     if (p.body === null) return [];
-    const s = parsePr(JSON.stringify(p.body), p.repo, p.number, "author");
+    const s = parsePr(JSON.stringify(p.body), p.repo, p.number, "author", ME);
     return s ? legacyTriggers(s, ME).map((t) => legacyLine(s, t)) : [];
   });
 }

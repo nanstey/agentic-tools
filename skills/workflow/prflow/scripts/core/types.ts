@@ -71,6 +71,8 @@ export interface PrSnapshot {
   title: string;
   url: string;
   role: Role;
+  /** GitHub login whose search found this PR and whose token fetched it. */
+  account: string;
   state: string;
   isDraft: boolean;
   headSha: string;
@@ -90,6 +92,8 @@ export interface WorktreeItem {
   path: string;
   branch: string;
   repo: string;
+  /** Configured account that covers the repo. */
+  account: string;
   pr: { number: number; state: string; title: string; url: string };
   /** Count of `git status --porcelain` lines, `null` when unknown. */
   dirtyFiles: number | null;
@@ -111,6 +115,7 @@ export interface Classification {
   title: string;
   url: string;
   role: Role | "worktree";
+  account: string;
   kind: Kind;
   /** Every legacy trigger that fired (author PRs only). */
   triggers: Trigger[];

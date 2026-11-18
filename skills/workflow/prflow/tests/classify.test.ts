@@ -16,7 +16,7 @@ import { parsePr } from "../scripts/adapters/gh.ts";
 import { AFTER, alice, CASES, comment, HEAD, LATER, ME, me, ok, prResponse, review, run, type PrSpec } from "./fixtures.ts";
 
 function snap(spec: PrSpec, role: Role = "author", number = 1): PrSnapshot {
-  const p = parsePr(JSON.stringify(prResponse(spec)), "Acme/widgets", number, role);
+  const p = parsePr(JSON.stringify(prResponse(spec)), "Acme/widgets", number, role, ME);
   assert.ok(p);
   return p;
 }
@@ -82,7 +82,7 @@ describe("review-requested classifier", () => {
     const c = rq({ checks: [ok("build", true), run("slow", "IN_PROGRESS", null, null, false)] });
     assert.equal(c.kind, "review-requested");
     assert.equal(c.owner, "Pi reviewer");
-    assert.match(c.nextAction, /Noel approves before posting/);
+    assert.match(c.nextAction, /you approve before posting/);
   });
 
   it("waits while a required check runs", () => {
@@ -122,6 +122,7 @@ describe("worktree classifier", () => {
     path: "/w/x",
     branch: "x",
     repo: "Acme/widgets",
+    account: ME,
     pr: { number: 7, state, title: "t", url: "u" },
     dirtyFiles,
   });
@@ -137,7 +138,7 @@ describe("worktree classifier", () => {
     }
   });
 
-  it("hands dirty or unknown worktrees to Noel", () => {
+  it("hands dirty or unknown worktrees to the user", () => {
     for (const d of [3, null]) {
       const c = classifyWorktree(wt("MERGED", d));
       assert.equal(c?.owner, "you");

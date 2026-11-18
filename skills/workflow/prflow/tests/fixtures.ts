@@ -3,7 +3,7 @@
  * JSON feeds prflow (`parsePr`) and the vendored legacy precheck in parity tests.
  */
 
-export const ME = "noelcf";
+export const ME = "octocat";
 export const HEAD = "c0ffee11aabbccddeeff00112233445566778899";
 export const HEAD_AT = "2026-01-10T12:00:00Z";
 export const BEFORE = "2026-01-10T11:00:00Z";

@@ -10,26 +10,67 @@ function run(cmd: string, args: string[], env: NodeJS.ProcessEnv, cwd?: string):
   });
 }
 
-/** Environment without any ambient GitHub token, so the per-account token always wins. */
-function cleanEnv(): NodeJS.ProcessEnv {
+/** Environment without any ambient GitHub token, so a per-account token always wins. */
+function withoutTokens(): NodeJS.ProcessEnv {
   const env = { ...process.env };
   delete env.GH_TOKEN;
   delete env.GITHUB_TOKEN;
   return env;
 }
 
+export interface RealDeps extends Deps {
+  /** Login of the active gh account (ambient auth). */
+  whoami(): Promise<string>;
+}
+
 /**
- * Real dependencies. Every gh call runs with `GH_TOKEN` from `gh auth token -u <me>`
- * (never `gh auth switch`) and passes the read-only allowlist first.
+ * Real dependencies. Each account's gh calls run with `GH_TOKEN` from
+ * `gh auth token -u <login>` (never `gh auth switch`). If that lookup fails for
+ * the active account (for example auth comes only from `GH_TOKEN`), its calls use
+ * ambient auth. Every gh call passes the read-only allowlist first.
  */
-export async function realDeps(me: string): Promise<Deps> {
-  const tok = await run("gh", ["auth", "token", "-u", me], cleanEnv());
-  if (!tok.ok || !tok.stdout.trim()) throw new Error(`gh auth token -u ${me} failed: ${tok.stderr.trim()}`);
-  const env = { ...cleanEnv(), GH_TOKEN: tok.stdout.trim(), GH_PROMPT_DISABLED: "1" };
+export function realDeps(): RealDeps {
+  const ambient: NodeJS.ProcessEnv = { ...process.env, GH_PROMPT_DISABLED: "1" };
+  const envs = new Map<string, Promise<NodeJS.ProcessEnv | string>>();
+  let me: Promise<string> | undefined;
+
+  const ambientGh = (args: string[]) => {
+    assertReadOnly(args);
+    return run("gh", args, ambient);
+  };
+  const whoami = () =>
+    (me ??= ambientGh(["api", "graphql", "-f", "query=query{viewer{login}}"]).then((r) => {
+      let login: string | undefined;
+      try {
+        if (r.ok) login = (JSON.parse(r.stdout) as { data?: { viewer?: { login?: string } } }).data?.viewer?.login;
+      } catch {
+        // Fall through to the error below.
+      }
+      if (!login) throw new Error(`cannot resolve the active gh account; pass --user or add a config: ${r.stderr.trim()}`);
+      return login;
+    }));
+  /** Env for `login`, or an error message. */
+  const envFor = (login: string) => {
+    let p = envs.get(login);
+    if (!p) {
+      p = run("gh", ["auth", "token", "-u", login], withoutTokens()).then(async (tok) => {
+        if (tok.ok && tok.stdout.trim())
+          return { ...withoutTokens(), GH_TOKEN: tok.stdout.trim(), GH_PROMPT_DISABLED: "1" };
+        const active = await whoami().catch(() => "");
+        if (active.toLowerCase() === login.toLowerCase()) return ambient;
+        return `no gh token for ${login} (run gh auth login): ${tok.stderr.trim()}`;
+      });
+      envs.set(login, p);
+    }
+    return p;
+  };
+
   return {
-    gh(args) {
+    whoami,
+    async gh(login, args) {
       assertReadOnly(args);
-      return run("gh", args, env);
+      const env = await envFor(login);
+      return typeof env === "string" ? { ok: false, stdout: "", stderr: env } : run("gh", args, env);
     },
     async orcaWorktrees() {
       const r = await run("orca", ["worktree", "list", "--limit", "1000", "--json"], process.env);

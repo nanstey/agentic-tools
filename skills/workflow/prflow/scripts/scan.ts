@@ -1,19 +1,8 @@
 import { classify, classifyWorktree } from "./core/classify.ts";
+import { accountFor, type Account, type Config } from "./core/config.ts";
 import type { Classification, PrSnapshot, Role, WorktreeItem } from "./core/types.ts";
 import { parsePr, parsePrRefs, parseSearch, prArgs, type SearchHit } from "./adapters/gh.ts";
 import { parseWorktrees, repoFromPrUrl } from "./adapters/orca.ts";
-
-export interface Config {
-  /** GitHub login prflow acts for. */
-  me: string;
-  /** Owners in scope. Empty means every owner (legacy precheck behavior). */
-  owners: string[];
-  limit: number;
-  /** Include Orca worktree cleanup candidates. */
-  worktrees: boolean;
-}
-
-export const DEFAULT_CONFIG: Config = { me: "noelcf", owners: ["Checkfront"], limit: 50, worktrees: true };
 
 export interface CmdResult {
   ok: boolean;
@@ -23,8 +12,8 @@ export interface CmdResult {
 
 /** All I/O the scanner needs. Real implementations live in `deps.ts`; tests fake them. */
 export interface Deps {
-  /** Run a read-only `gh` command as `me`. */
-  gh(args: string[]): Promise<CmdResult>;
+  /** Run a read-only `gh` command as GitHub account `login`. */
+  gh(login: string, args: string[]): Promise<CmdResult>;
   /** `orca worktree list --json` output. */
   orcaWorktrees(): Promise<string>;
   /** Uncommitted file count in a worktree, `null` when unknown. */
@@ -37,46 +26,73 @@ export interface ScanResult {
   errors: string[];
 }
 
-function ownerArgs(cfg: Config): string[] {
-  return cfg.owners.flatMap((o) => ["--owner", o]);
+/** Search scopes for one account: owners and repos are separate queries; none means unscoped. */
+export function scopes(a: Account): string[][] {
+  if (a.owners.length === 0 && a.repos.length === 0) return [[]];
+  const out: string[][] = [];
+  if (a.owners.length) out.push(a.owners.flatMap((o) => ["--owner", o]));
+  if (a.repos.length) out.push(a.repos.flatMap((r) => ["--repo", r]));
+  return out;
 }
 
-async function search(deps: Deps, args: string[], errors: string[]): Promise<SearchHit[]> {
-  const r = await deps.gh(args);
+async function search(deps: Deps, login: string, args: string[], errors: string[]): Promise<SearchHit[]> {
+  const r = await deps.gh(login, args);
   if (!r.ok) {
-    errors.push(`gh ${args.slice(0, 4).join(" ")}: ${r.stderr.trim()}`);
+    errors.push(`${login}: gh ${args.slice(0, 4).join(" ")}: ${r.stderr.trim()}`);
     return [];
   }
   return parseSearch(r.stdout);
 }
 
-async function fetchPr(deps: Deps, hit: SearchHit, role: Role, errors: string[]): Promise<PrSnapshot | null> {
-  const r = await deps.gh(prArgs(hit.repo, hit.number));
+interface Job {
+  hit: SearchHit;
+  role: Role;
+  account: string;
+}
+
+async function searchAccount(deps: Deps, cfg: Config, a: Account, errors: string[]): Promise<Job[]> {
+  const base = ["--state", "open", "--limit", String(cfg.limit), "--json", "number,repository"];
+  const runs = scopes(a).flatMap((scope) => [
+    { role: "author" as const, args: ["search", "prs", "--author", a.login, "--draft=false", ...base, ...scope] },
+    { role: "reviewer" as const, args: ["search", "prs", "--review-requested", a.login, ...base, ...scope] },
+  ]);
+  const results = await Promise.all(runs.map((r) => search(deps, a.login, r.args, errors)));
+  // A repo belongs to exactly one account; drop hits in repos another account covers.
+  const mine = (repo: string) => accountFor(cfg, repo)?.login === a.login;
+  return runs.flatMap((r, i) =>
+    (results[i] ?? []).filter((hit) => mine(hit.repo)).map((hit) => ({ hit, role: r.role, account: a.login })),
+  );
+}
+
+async function fetchPr(deps: Deps, j: Job, errors: string[]): Promise<PrSnapshot | null> {
+  const r = await deps.gh(j.account, prArgs(j.hit.repo, j.hit.number));
   if (!r.ok) {
-    errors.push(`${hit.repo}#${hit.number}: ${r.stderr.trim()}`);
+    errors.push(`${j.account}: ${j.hit.repo}#${j.hit.number}: ${r.stderr.trim()}`);
     return null;
   }
-  return parsePr(r.stdout, hit.repo, hit.number, role);
+  return parsePr(r.stdout, j.hit.repo, j.hit.number, j.role, j.account);
 }
 
 async function scanWorktrees(deps: Deps, cfg: Config, errors: string[]): Promise<WorktreeItem[]> {
   let rows;
   try {
-    rows = parseWorktrees(await deps.orcaWorktrees(), cfg.owners);
+    rows = parseWorktrees(await deps.orcaWorktrees(), []);
   } catch (e) {
     errors.push(`orca worktree list: ${(e as Error).message}`);
     return [];
   }
   const out = await Promise.all(
     rows.map(async (w): Promise<WorktreeItem | null> => {
+      const account = accountFor(cfg, w.repo);
+      if (!account) return null;
       const fields = ["--json", "number,state,title,url"];
       const args =
         w.linkedPr !== null
           ? ["pr", "view", String(w.linkedPr), "-R", w.repo, ...fields]
           : ["pr", "list", "-R", w.repo, "--head", w.branch, "--state", "all", "--limit", "10", ...fields];
-      const r = await deps.gh(args);
+      const r = await deps.gh(account.login, args);
       if (!r.ok) {
-        errors.push(`${w.repo} ${w.branch}: ${r.stderr.trim()}`);
+        errors.push(`${account.login}: ${w.repo} ${w.branch}: ${r.stderr.trim()}`);
         return null;
       }
       const refs = parsePrRefs(r.stdout);
@@ -86,6 +102,7 @@ async function scanWorktrees(deps: Deps, cfg: Config, errors: string[]): Promise
         path: w.path,
         branch: w.branch,
         repo: repoFromPrUrl(pr.url) ?? w.repo,
+        account: account.login,
         pr,
         dirtyFiles: await deps.gitDirty(w.path),
       };
@@ -94,32 +111,33 @@ async function scanWorktrees(deps: Deps, cfg: Config, errors: string[]): Promise
   return out.filter((w): w is WorktreeItem => w !== null);
 }
 
-/** Read-only scan: own open non-draft PRs, review requests, and worktrees of closed PRs. */
+/**
+ * Read-only scan for every configured account: its open non-draft PRs and review
+ * requests within its scope, plus Orca worktrees of closed PRs in covered repos.
+ * A PR found by several searches is fetched once; the first account and the
+ * author role win.
+ */
 export async function scan(deps: Deps, cfg: Config): Promise<ScanResult> {
   const errors: string[] = [];
-  const common = ["--state", "open", "--limit", String(cfg.limit), "--json", "number,repository", ...ownerArgs(cfg)];
-  const [own, asked] = await Promise.all([
-    search(deps, ["search", "prs", "--author", cfg.me, "--draft=false", ...common], errors),
-    search(deps, ["search", "prs", "--review-requested", cfg.me, ...common], errors),
-  ]);
-  const seen = new Set<string>();
-  const jobs: [SearchHit, Role][] = [];
-  for (const [hits, role] of [[own, "author"], [asked, "reviewer"]] as const)
-    for (const h of hits) {
-      const k = `${h.repo}#${h.number}`;
-      if (seen.has(k)) continue;
-      seen.add(k);
-      jobs.push([h, role]);
-    }
-  const [prs, worktrees] = await Promise.all([
-    Promise.all(jobs.map(([h, role]) => fetchPr(deps, h, role, errors))),
+  const [found, worktrees] = await Promise.all([
+    Promise.all(cfg.accounts.map((a) => searchAccount(deps, cfg, a, errors))),
     cfg.worktrees ? scanWorktrees(deps, cfg, errors) : Promise.resolve([]),
   ]);
+  const all = found.flat();
+  const ordered = [...all.filter((j) => j.role === "author"), ...all.filter((j) => j.role === "reviewer")];
+  const seen = new Set<string>();
+  const jobs = ordered.filter((j) => {
+    const k = `${j.hit.repo}#${j.hit.number}`.toLowerCase();
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+  const prs = await Promise.all(jobs.map((j) => fetchPr(deps, j, errors)));
   return { prs: prs.filter((p): p is PrSnapshot => p !== null), worktrees, errors };
 }
 
-export function plan(result: ScanResult, cfg: Config): Classification[] {
-  const items = result.prs.map((p) => classify(p, cfg.me));
+export function plan(result: ScanResult): Classification[] {
+  const items = result.prs.map((p) => classify(p, p.account));
   for (const w of result.worktrees) {
     const c = classifyWorktree(w);
     if (c) items.push(c);
