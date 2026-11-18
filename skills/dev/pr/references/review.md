@@ -259,12 +259,15 @@ invocation continues to publication.
    - At the current head, skip publication when a valid v2 marker's full `head`, `event`, and sorted
      findings equal the proposed values, or when a valid v1 marker's decoded full `head`, `event`, and
      sorted findings equal those values.
-   - Across heads, skip publication and report `skipped: no new findings since <prior-head-short>`
-     only when all conditions hold: the viewer has a valid published review marker on this PR at an
-     earlier head; the proposed findings are empty or contain only IDs already published, declined,
-     or resolved; no earlier thread changed state since that review; and the proposed event equals the
-     prior review's event. Use the existing marker's head, event, and findings; do not change marker
-     format. A changed event or any new finding still publishes.
+   - Across heads, use only the viewer's most recent retained review by submission time as the
+     comparison baseline. Retained reviews are non-pending and non-dismissed. The baseline must have
+     a valid v2 or v1 marker at an earlier head; if the most recent retained review has no valid
+     marker, publish normally. Skip publication and report `skipped: no new findings since
+     <prior-head-short>` only when all conditions hold for that baseline: the proposed findings are
+     empty or contain only IDs already published, declined, or resolved in its marker; no earlier
+     thread changed state since that review; and the proposed event equals its marker event. Use that
+     same review's marker head, event, and findings; do not change marker format. A changed event or
+     any new finding still publishes.
    - Treat invalid or unreadable markers as non-matches. They do not deduplicate a review.
    - A changed event or finding IDs may supersede an earlier review. Current-head deduplication and
      the across-head skip above are separate checks.
