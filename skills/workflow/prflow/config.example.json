@@ -1,0 +1,17 @@
+{
+  "$comment": "Copy to config.json in this directory (git-ignored) or to ${XDG_CONFIG_HOME:-~/.config}/prflow/config.json. Each account needs a gh login: gh auth login, then check with gh auth status. prflow reads tokens with gh auth token -u <login> and never switches the active account.",
+  "accounts": [
+    {
+      "$comment": "Work account: every repo under these owners, plus one repo elsewhere. A repos entry wins over another account's owners entry.",
+      "login": "work-login",
+      "owners": ["work-org"],
+      "repos": ["partner-org/shared-repo"]
+    },
+    {
+      "$comment": "Personal account: no owners or repos means every repo not claimed above. At most one account may be unscoped.",
+      "login": "personal-login"
+    }
+  ],
+  "limit": 50,
+  "worktrees": true
+}
