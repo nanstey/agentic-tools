@@ -105,7 +105,7 @@ export interface Trigger {
   detail?: string;
 }
 
-export type Owner = "you" | "prflow" | "Pi session" | "Pi reviewer" | "others";
+export type Owner = "you" | "prflow" | "agent" | "agent reviewer" | "others";
 
 export interface Classification {
   key: string;

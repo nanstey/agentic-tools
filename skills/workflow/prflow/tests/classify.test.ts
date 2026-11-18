@@ -81,7 +81,7 @@ describe("review-requested classifier", () => {
   it("requests a review when required checks finished", () => {
     const c = rq({ checks: [ok("build", true), run("slow", "IN_PROGRESS", null, null, false)] });
     assert.equal(c.kind, "review-requested");
-    assert.equal(c.owner, "Pi reviewer");
+    assert.equal(c.owner, "agent reviewer");
     assert.match(c.nextAction, /you approve before posting/);
   });
 

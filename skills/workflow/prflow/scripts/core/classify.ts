@@ -162,11 +162,11 @@ function authorPlan(kind: Kind, t: Trigger | undefined): Pick<Classification, "n
     case "rerun":
       return { nextAction: `gh run rerun --failed (${t?.detail ?? ""})`, owner: "prflow" };
     case "ci":
-      return { nextAction: `send CI fix brief, following the repo's CI docs (${t?.detail ?? ""})`, owner: "Pi session" };
+      return { nextAction: `send CI fix brief, following the repo's CI docs (${t?.detail ?? ""})`, owner: "agent" };
     case "comments":
-      return { nextAction: `send fix-and-reply brief (latest ${t?.detail ?? ""})`, owner: "Pi session" };
+      return { nextAction: `send fix-and-reply brief (latest ${t?.detail ?? ""})`, owner: "agent" };
     case "behind":
-      return { nextAction: "send rebase brief", owner: "Pi session" };
+      return { nextAction: "send rebase brief", owner: "agent" };
     default:
       return { nextAction: "none", owner: "others" };
   }
@@ -227,7 +227,7 @@ export function classifyReviewRequest(pr: PrSnapshot, me: string): Classificatio
     ...out,
     kind: "review-requested",
     nextAction: "launch reviewer session (draft only, you approve before posting)",
-    owner: "Pi reviewer",
+    owner: "agent reviewer",
   };
 }
 

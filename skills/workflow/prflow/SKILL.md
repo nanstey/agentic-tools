@@ -1,7 +1,7 @@
 ---
 name: prflow
-description: Scans open PRs, review requests, and leftover worktrees, then reports each item grouped by status and next action. Use when checking which PRs need a merge decision, a rerun, a CI or comment fix, a rebase, a review, or worktree cleanup.
-argument-hint: "[scan|plan|config] [--config <path>] [--user <login>] [--owner <login>] [--repo <owner/repo>] [--format text|json|legacy] [--no-worktrees]"
+description: Scans open PRs, review requests, and leftover worktrees, then reports each item grouped by status and next action. Use when checking which PRs need a merge decision, a rerun, a CI or comment fix, a rebase, a review, or worktree cleanup, or when scheduling a recurring PR watch.
+argument-hint: "[scan|plan|watch|config] [--config <path>] [--user <login>] [--owner <login>] [--repo <owner/repo>] [--format text|json|legacy] [--no-worktrees]"
 user-invocable: true
 disable-model-invocation: false
 ---
@@ -16,7 +16,7 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 ## Required Inputs
 
-1. Command: `scan` (facts), `plan` (classified report), or `config` (resolved accounts). Default `plan`.
+1. Command: `scan` (facts), `plan` (classified report), `watch` (scheduled change report), or `config` (resolved accounts). Default `plan`.
 2. Optional accounts config. See [Configuration](#configuration).
 
 ## Configuration
@@ -38,6 +38,10 @@ Copy `config.example.json` to start. Each account has a `login` and optional `ow
 3. For raw facts, run `scan`. For machine output, add `--format json`.
 4. To compare with the legacy precheck, run `plan --format legacy --no-worktrees`. It prints `<repo>#<n>@<head8>:<kind>[:<detail>]` lines without any dedupe ledger.
 
+## Scheduling
+
+prflow is scheduler- and agent-agnostic. `prflow watch` prints the actionable report only when it changed since the last run, prints nothing otherwise, and exits 1 on scan errors without saving state. To set up a recurring job on cron, systemd, Hermes, or any other scheduler, follow `references/scheduling.md`.
+
 ## Classifier
 
 One kind per PR, in priority order:
@@ -46,10 +50,10 @@ One kind per PR, in priority order:
 | --- | --- | --- | --- |
 | `merge-ready` | CLEAN, APPROVED, checks finished with no failure or cancel | Tell you it is ready. Never merge | you |
 | `rerun` | Cancelled jobs, no failures, nothing pending | `gh run rerun --failed` | prflow |
-| `ci` | Any check failed, nothing pending | CI fix brief; the session follows the repo's CI docs | Pi session |
-| `comments` | Human comment, review body, changes request, or unresolved thread newer than the head commit, with no later reply from `me` | Fix-and-reply brief | Pi session |
-| `behind` | BEHIND or DIRTY, nothing pending | Rebase brief | Pi session |
-| `review-requested` | `me` is requested, not draft, required checks finished, head not yet reviewed by `me` | Reviewer session, draft only | Pi reviewer |
+| `ci` | Any check failed, nothing pending | CI fix brief; the session follows the repo's CI docs | agent |
+| `comments` | Human comment, review body, changes request, or unresolved thread newer than the head commit, with no later reply from `me` | Fix-and-reply brief | agent |
+| `behind` | BEHIND or DIRTY, nothing pending | Rebase brief | agent |
+| `review-requested` | `me` is requested, not draft, required checks finished, head not yet reviewed by `me` | Reviewer session, draft only | agent reviewer |
 | `cleanup` | Orca worktree whose PR is merged or closed | Archive if clean, else you check | prflow or you |
 | `waiting` | Anything else | None | others |
 
