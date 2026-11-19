@@ -1,16 +1,6 @@
 {
-  "$comment": "Copy to config.json in this directory (git-ignored) or to ${XDG_CONFIG_HOME:-~/.config}/repo-sync/config.json. Accounts matter only for HTTPS remotes: their fetch gets GH_TOKEN from gh auth token -u <login>. SSH remotes use your ssh config and never get a token. repo-sync never switches the active gh account. reportChanges lists repos (Orca display name, folder name, or owner/repo) whose pulls print the new commits and changed paths; default tiger-team-sync.",
-  "accounts": [
-    {
-      "$comment": "Work account: every repo under these owners, plus one repo elsewhere. A repos entry wins over another account's owners entry.",
-      "login": "work-login",
-      "owners": ["work-org"],
-      "repos": ["partner-org/shared-repo"]
-    },
-    {
-      "$comment": "Personal account: no owners or repos means every repo not claimed above. At most one account may be unscoped.",
-      "login": "personal-login"
-    }
-  ],
-  "reportChanges": ["tiger-team-sync"]
+  "$comment": "Copy to config.json in this directory (git-ignored) or to ${XDG_CONFIG_HOME:-~/.config}/repo-sync/config.json. reportChanges lists repos (Orca display name, folder name, or owner/repo) whose pulls print the new commits and changed paths; default tiger-team-sync. GitHub accounts are not set here: repo-sync reads them from prflow's config (PRFLOW_CONFIG, prflow's skill-dir config.json, then ${XDG_CONFIG_HOME:-~/.config}/prflow/config.json). They matter only for HTTPS remotes.",
+  "reportChanges": [
+    "tiger-team-sync"
+  ]
 }

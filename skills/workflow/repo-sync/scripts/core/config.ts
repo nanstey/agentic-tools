@@ -1,4 +1,8 @@
-/** repo-sync configuration: GitHub accounts by remote owner, and repos whose pulls are reported. Pure, no I/O. */
+/**
+ * repo-sync configuration. Pure, no I/O.
+ * Accounts come from prflow's config (one source of truth for GitHub accounts);
+ * repo-sync's own config only lists repos whose pulls are reported.
+ */
 
 export interface Account {
   /** GitHub login. Its token comes from `gh auth token -u <login>`, only for HTTPS remotes. */
@@ -27,11 +31,7 @@ function strings(v: unknown, where: string, fail: (m: string) => never): string[
   return v as string[];
 }
 
-/** Parse and validate config JSON. Throws with `source` in the message. */
-export function parseConfig(text: string, source: string): Config {
-  const fail = (msg: string): never => {
-    throw new Error(`${source}: ${msg}`);
-  };
+function parseObject(text: string, fail: (m: string) => never): Record<string, unknown> {
   let raw: unknown;
   try {
     raw = JSON.parse(text);
@@ -39,31 +39,49 @@ export function parseConfig(text: string, source: string): Config {
     return fail(`invalid JSON: ${(e as Error).message}`);
   }
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return fail("must be a JSON object");
+  return raw as Record<string, unknown>;
+}
+
+const failer = (source: string) => (msg: string): never => {
+  throw new Error(`${source}: ${msg}`);
+};
+
+/** Parse repo-sync's own config JSON (`reportChanges` only). Throws with `source` in the message. */
+export function parseConfig(text: string, source: string): Config {
+  const fail = failer(source);
   const out = defaultConfig();
-  for (const [k, v] of Object.entries(raw)) {
+  for (const [k, v] of Object.entries(parseObject(text, fail))) {
     if (k === "$comment") continue;
     if (k === "reportChanges") out.reportChanges = strings(v, "reportChanges", fail);
-    else if (k === "accounts") {
-      if (!Array.isArray(v)) fail("accounts must be an array");
-      out.accounts = (v as unknown[]).map((a, i) => {
-        const where = `accounts[${i}]`;
-        if (typeof a !== "object" || a === null || Array.isArray(a)) return fail(`${where} must be an object`);
-        const r = a as Record<string, unknown>;
-        for (const key of Object.keys(r)) if (!["$comment", "login", "owners", "repos"].includes(key)) fail(`${where}: unknown key "${key}"`);
-        if (typeof r.login !== "string" || !NAME.test(r.login)) fail(`${where}.login must be a GitHub login`);
-        const owners = strings(r.owners, `${where}.owners`, fail);
-        const repos = strings(r.repos, `${where}.repos`, fail);
-        for (const o of owners) if (!NAME.test(o)) fail(`${where}.owners entry "${o}" must be a GitHub user or org`);
-        for (const repo of repos) {
-          const parts = repo.split("/");
-          if (parts.length !== 2 || !NAME.test(parts[0] ?? "") || !REPO_PART.test(parts[1] ?? "")) fail(`${where}.repos entry "${repo}" must be owner/repo`);
-        }
-        return { login: r.login as string, owners, repos };
-      });
-    } else fail(`unknown key "${k}"`);
+    else if (k === "accounts") fail('"accounts" is read from prflow\'s config; remove it here');
+    else fail(`unknown key "${k}"`);
   }
-  if (out.accounts.filter((a) => !a.owners.length && !a.repos.length).length > 1) fail("at most one account may have no owners or repos");
   return out;
+}
+
+/** Read `accounts` from prflow's config JSON, ignoring its other keys. Throws with `source` in the message. */
+export function parseAccounts(text: string, source: string): Account[] {
+  const fail = failer(source);
+  const v = parseObject(text, fail).accounts;
+  if (v === undefined) return [];
+  if (!Array.isArray(v)) return fail("accounts must be an array");
+  const accounts = v.map((a, i) => {
+    const where = `accounts[${i}]`;
+    if (typeof a !== "object" || a === null || Array.isArray(a)) return fail(`${where} must be an object`);
+    const r = a as Record<string, unknown>;
+    for (const key of Object.keys(r)) if (!["$comment", "login", "owners", "repos"].includes(key)) fail(`${where}: unknown key "${key}"`);
+    if (typeof r.login !== "string" || !NAME.test(r.login)) fail(`${where}.login must be a GitHub login`);
+    const owners = strings(r.owners, `${where}.owners`, fail);
+    const repos = strings(r.repos, `${where}.repos`, fail);
+    for (const o of owners) if (!NAME.test(o)) fail(`${where}.owners entry "${o}" must be a GitHub user or org`);
+    for (const repo of repos) {
+      const parts = repo.split("/");
+      if (parts.length !== 2 || !NAME.test(parts[0] ?? "") || !REPO_PART.test(parts[1] ?? "")) fail(`${where}.repos entry "${repo}" must be owner/repo`);
+    }
+    return { login: r.login as string, owners, repos };
+  });
+  if (accounts.filter((a) => !a.owners.length && !a.repos.length).length > 1) fail("at most one account may have no owners or repos");
+  return accounts;
 }
 
 /** The account for `owner/repo`: an exact `repos` entry, then an `owners` entry, then the unscoped account. */

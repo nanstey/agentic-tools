@@ -1,5 +1,5 @@
 import { parseArgs } from "node:util";
-import { loadConfig, defaultPaths } from "./config.ts";
+import { defaultPaths, loadConfig, prflowPaths } from "./config.ts";
 import { nextState, renderDryRun, renderRun, renderStatus, runEvents } from "./core/report.ts";
 import { parseRepoList } from "./core/repos.ts";
 import type { Repo } from "./core/types.ts";
@@ -19,8 +19,11 @@ export const USAGE = `Usage: repo-sync <command> [options]
   resume         Resume scheduled runs.
 
 Options:
-  --config <path>     Config file (default: <skill-dir>/config.json, then
+  --config <path>     Config file for reportChanges (default:
+                      <skill-dir>/config.json, then
                       \${XDG_CONFIG_HOME:-~/.config}/repo-sync/config.json).
+                      Accounts come from prflow's config (PRFLOW_CONFIG,
+                      prflow's skill dir, then ~/.config/prflow/config.json).
   --state-dir <path>  State directory (default:
                       \${XDG_STATE_HOME:-~/.local/state}/repo-sync).
   --format json       Machine output for status.
@@ -115,7 +118,7 @@ export async function main(argv: string[], io: Io): Promise<number> {
 }
 
 async function runCmd(io: Io, store: Store, dryRun: boolean, configPath: string | undefined): Promise<number> {
-  const { config } = loadConfig(configPath, defaultPaths(io.env));
+  const { config } = loadConfig({ explicit: configPath, paths: defaultPaths(io.env), prflowExplicit: io.env.PRFLOW_CONFIG || undefined, prflowPaths: prflowPaths(io.env) });
   if (dryRun) {
     const repos = await listRepos(io, store, false);
     if (!repos) return 1;

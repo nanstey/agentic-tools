@@ -22,17 +22,15 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 ## Configuration
 
-repo-sync uses the first of: `--config <path>` or `REPO_SYNC_CONFIG` (must exist), `<skill-dir>/config.json` (git-ignored), `${XDG_CONFIG_HOME:-~/.config}/repo-sync/config.json`, then defaults. Copy `config.example.json` to start.
-
-- `accounts`: `[{login, owners?, repos?}]`. A repo maps to an exact `repos` entry, then an `owners` entry, then the one unscoped account. Only HTTPS remotes use it: their fetch gets `GH_TOKEN` from `gh auth token -u <login>`. SSH remotes, including host aliases such as `github.com-work`, use the user's ssh config and get no token.
-- `reportChanges`: repos (Orca display name, folder name, or `owner/repo`) whose pulls print their new commits. Default `["tiger-team-sync"]`.
+- **Accounts:** read from prflow's config, the same file prflow uses: `PRFLOW_CONFIG` (must exist), prflow's `<skill-dir>/config.json`, then `${XDG_CONFIG_HOME:-~/.config}/prflow/config.json`. Only `accounts` is read. A repo maps to an exact `repos` entry, then an `owners` entry, then the one unscoped account. Only HTTPS remotes use it: their fetch gets `GH_TOKEN` from `gh auth token -u <login>`. SSH remotes, including host aliases such as `github.com-work`, use the user's ssh config and get no token.
+- **`reportChanges`:** repos (Orca display name, folder name, or `owner/repo`) whose pulls print their new commits. Default `["tiger-team-sync"]`. Set it in repo-sync's own config: `--config <path>` or `REPO_SYNC_CONFIG` (must exist), `<skill-dir>/config.json` (git-ignored), then `${XDG_CONFIG_HOME:-~/.config}/repo-sync/config.json`. Copy `config.example.json` to start.
 
 ## Workflow
 
 For each repo, in order (Node 22.18+ runs `.ts` directly):
 
 1. Read the current branch. If git cannot read the checkout: `failed (error)`.
-2. Require an `origin` remote (`no-remote`) and a default branch: `origin/HEAD`, else the Orca base ref (`no-default-branch`).
+2. Require an `origin` remote (`no-remote`) and a default branch: `origin/HEAD`, else the Orca base ref (`no-default-branch`). If origin's default branch changed, the local `origin/HEAD` stays stale until `git remote set-head origin --auto`; the stuck notice says so.
 3. Require the default branch to be checked out (`not-on-default`) and `git status --porcelain` to be empty, untracked files included (`dirty`).
 4. `git fetch origin <default>` (`fetch-failed`).
 5. Compare with `origin/<default>`: `diverged`, `ahead`, or up to date.

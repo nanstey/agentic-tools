@@ -3,17 +3,19 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import { loadConfig } from "../scripts/config.ts";
-import { accountFor, parseConfig, reportsChanges } from "../scripts/core/config.ts";
+import { accountFor, parseAccounts, parseConfig, reportsChanges } from "../scripts/core/config.ts";
 import { changeBlock, nextState, renderDryRun, renderRun, renderStatus, runEvents } from "../scripts/core/report.ts";
 import { baseBranch, parseRemote, parseRepoList, transport } from "../scripts/core/repos.ts";
 import type { LastRun, RepoResult } from "../scripts/core/types.ts";
 import { config, ORCA_LIST, SHA_A, SHA_B } from "./fixtures.ts";
 
 describe("config", () => {
-  it("parses accounts and reportChanges, defaulting reportChanges", () => {
-    const c = parseConfig(JSON.stringify({ $comment: "x", accounts: [{ login: "noel-work", owners: ["WorkOrg"] }, { login: "me", $comment: "rest" }] }), "c.json");
-    assert.deepEqual(c.accounts, [{ login: "noel-work", owners: ["WorkOrg"], repos: [] }, { login: "me", owners: [], repos: [] }]);
+  it("parses reportChanges, defaulting it, and accounts from a prflow config", () => {
+    const c = parseConfig(JSON.stringify({ $comment: "x" }), "c.json");
     assert.deepEqual(c.reportChanges, ["tiger-team-sync"]);
+    const prflow = { accounts: [{ login: "noel-work", owners: ["WorkOrg"] }, { login: "me", $comment: "rest" }], rails: { maxActions: 1 }, dispatch: {} };
+    assert.deepEqual(parseAccounts(JSON.stringify(prflow), "p.json"), [{ login: "noel-work", owners: ["WorkOrg"], repos: [] }, { login: "me", owners: [], repos: [] }]);
+    assert.deepEqual(parseAccounts("{}", "p.json"), []);
     assert.deepEqual(parseConfig('{"reportChanges": []}', "c").reportChanges, []);
   });
 
@@ -22,17 +24,23 @@ describe("config", () => {
       ["{", /c.json: invalid JSON/],
       ["[]", /must be a JSON object/],
       ['{"other": 1}', /unknown key "other"/],
+      ['{"accounts": []}', /read from prflow's config/],
+      ['{"reportChanges": "x"}', /array of strings/],
+    ] as const)
+      assert.throws(() => parseConfig(text, "c.json"), msg, text);
+    for (const [text, msg] of [
+      ["{", /p.json: invalid JSON/],
+      ['{"accounts": "x"}', /accounts must be an array/],
       ['{"accounts": [{"login": "-bad"}]}', /login must be a GitHub login/],
       ['{"accounts": [{"login": "a", "token": "x"}]}', /unknown key "token"/],
       ['{"accounts": [{"login": "a", "repos": ["nope"]}]}', /must be owner\/repo/],
       ['{"accounts": [{"login": "a"}, {"login": "b"}]}', /at most one account/],
-      ['{"reportChanges": "x"}', /array of strings/],
     ] as const)
-      assert.throws(() => parseConfig(text, "c.json"), msg, text);
+      assert.throws(() => parseAccounts(text, "p.json"), msg, text);
   });
 
   it("maps a repo to an account: repos entry, then owner, then unscoped", () => {
-    const c = parseConfig(JSON.stringify({ accounts: [{ login: "work", owners: ["WorkOrg"] }, { login: "side", repos: ["WorkOrg/shared"] }, { login: "me" }] }), "c");
+    const c = config({ accounts: parseAccounts(JSON.stringify({ accounts: [{ login: "work", owners: ["WorkOrg"] }, { login: "side", repos: ["WorkOrg/shared"] }, { login: "me" }] }), "c") });
     assert.equal(accountFor(c, "workorg/app")?.login, "work");
     assert.equal(accountFor(c, "WorkOrg/shared")?.login, "side");
     assert.equal(accountFor(c, "someone/else")?.login, "me");
@@ -50,16 +58,28 @@ describe("config", () => {
 
   it("accepts the shipped config.example.json", () => {
     const text = readFileSync(join(import.meta.dirname, "..", "config.example.json"), "utf8");
-    assert.equal(parseConfig(text, "config.example.json").accounts.length, 2);
+    assert.deepEqual(parseConfig(text, "config.example.json").reportChanges, ["tiger-team-sync"]);
   });
 
   it("loads an explicit file, then the first default path, then defaults", () => {
     const files: Record<string, string> = { "/a.json": '{"reportChanges": ["a"]}', "/d2.json": '{"reportChanges": ["d2"]}' };
     const read = (p: string) => files[p] ?? null;
-    assert.deepEqual(loadConfig("/a.json", ["/d2.json"], read).config.reportChanges, ["a"]);
-    assert.throws(() => loadConfig("/missing.json", [], read), /not found/);
-    assert.equal(loadConfig(undefined, ["/d1.json", "/d2.json"], read).source, "/d2.json");
-    assert.equal(loadConfig(undefined, ["/d1.json"], read).source, "defaults");
+    const load = (explicit: string | undefined, paths: string[]) => loadConfig({ explicit, paths, prflowPaths: [] }, read);
+    assert.deepEqual(load("/a.json", ["/d2.json"]).config.reportChanges, ["a"]);
+    assert.throws(() => load("/missing.json", []), /not found/);
+    assert.equal(load(undefined, ["/d1.json", "/d2.json"]).source, "/d2.json");
+    assert.equal(load(undefined, ["/d1.json"]).source, "defaults");
+  });
+
+  it("takes accounts from prflow's config: PRFLOW_CONFIG, then the first existing prflow path", () => {
+    const acct = (login: string) => JSON.stringify({ accounts: [{ login }], rails: {} });
+    const files: Record<string, string> = { "/own.json": '{"reportChanges": []}', "/env.json": acct("env"), "/p2.json": acct("p2") };
+    const read = (p: string) => files[p] ?? null;
+    const viaEnv = loadConfig({ explicit: "/own.json", paths: [], prflowExplicit: "/env.json", prflowPaths: ["/p2.json"] }, read);
+    assert.deepEqual([viaEnv.config.accounts[0]?.login, viaEnv.config.reportChanges, viaEnv.accountsSource], ["env", [], "/env.json"]);
+    assert.equal(loadConfig({ paths: [], prflowPaths: ["/p1.json", "/p2.json"] }, read).config.accounts[0]?.login, "p2");
+    assert.deepEqual(loadConfig({ paths: [], prflowPaths: ["/p1.json"] }, read).config.accounts, []);
+    assert.throws(() => loadConfig({ paths: [], prflowExplicit: "/gone.json", prflowPaths: [] }, read), /not found: \/gone.json/);
   });
 });
 
@@ -120,7 +140,7 @@ describe("streaks and scheduler output", () => {
       "",
       "app: skipped (dirty) for 2 runs: 2 changed paths\n",
       "",
-      "app: skipped (not-on-default) for 2 runs: on feat, default main\n",
+      "app: skipped (not-on-default) for 2 runs: on feat, default main (if origin's default branch changed: git remote set-head origin --auto)\n",
       "",
     ]);
   });

@@ -68,7 +68,10 @@ const short = (sha: string | undefined) => (sha ?? "").slice(0, 7);
 function noticeLine(n: Notice): string {
   const r = n.result;
   const detail = r.detail ? `: ${r.detail}` : "";
-  if (n.kind === "stuck") return `${r.name}: skipped (${r.reason}) for ${plural(n.streak, "run")}${detail}`;
+  if (n.kind === "stuck") {
+    const hint = r.reason === "not-on-default" ? " (if origin's default branch changed: git remote set-head origin --auto)" : "";
+    return `${r.name}: skipped (${r.reason}) for ${plural(n.streak, "run")}${detail}${hint}`;
+  }
   if (r.reason === "fetch-failed") return `${r.name}: fetch failed${detail}`;
   if (r.reason === "merge-failed") return `${r.name}: merge failed${detail}`;
   return `${r.name}: error${detail}`;

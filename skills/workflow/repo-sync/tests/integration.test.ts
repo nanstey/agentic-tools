@@ -8,6 +8,7 @@ import { main } from "../scripts/cli.ts";
 import { realDeps, type Deps } from "../scripts/deps.ts";
 
 const root = mkdtempSync(join(tmpdir(), "repo-sync-it-"));
+writeFileSync(join(root, "prflow.json"), JSON.stringify({ accounts: [] }));
 after(() => rmSync(root, { recursive: true, force: true }));
 
 /** Setup git (not subject to the allowlist). */
@@ -75,7 +76,7 @@ describe("real git: run against temporary clones", () => {
   it("fast-forwards clean checkouts and leaves every other checkout untouched", async () => {
     const list = JSON.stringify({ ok: true, result: { repos: NAMES.map((n) => ({ id: n, path: path(n), displayName: n, kind: "git", executionHostId: "local", gitRemoteIdentity: { remoteName: "origin", remoteUrl: remote } })) } });
     const deps: Deps = { ...realDeps(), orcaRepos: async () => ({ ok: true, stdout: list, stderr: "" }) };
-    const env = { XDG_STATE_HOME: join(root, "state"), XDG_CONFIG_HOME: join(root, "config") };
+    const env = { XDG_STATE_HOME: join(root, "state"), XDG_CONFIG_HOME: join(root, "config"), PRFLOW_CONFIG: join(root, "prflow.json") };
     let out = "";
     const io = { deps, env, now: () => Date.now(), out: (s: string) => (out += s), err: (s: string) => assert.fail(s) };
 
@@ -112,7 +113,7 @@ describe("real git: run against temporary clones", () => {
         "dirty: skipped (dirty) for 2 runs: 1 changed path",
         "untracked: skipped (dirty) for 2 runs: 1 changed path",
         "diverged: skipped (diverged) for 2 runs: 1 ahead, 2 behind origin/main",
-        "other-branch: skipped (not-on-default) for 2 runs: on feature, default main",
+        "other-branch: skipped (not-on-default) for 2 runs: on feature, default main (if origin's default branch changed: git remote set-head origin --auto)",
         "ahead: skipped (ahead) for 2 runs: 1 ahead of origin/main",
       ].join("\n") + "\n",
     );
@@ -128,7 +129,7 @@ describe("real git: run against temporary clones", () => {
     const list = JSON.stringify({ ok: true, result: { repos: [{ id: "u", path: dir, displayName: "unreachable", kind: "git", gitRemoteIdentity: { remoteName: "origin", remoteUrl: join(root, "gone.git") } }] } });
     const deps: Deps = { ...realDeps(), orcaRepos: async () => ({ ok: true, stdout: list, stderr: "" }) };
     let out = "";
-    const code = await main(["run"], { deps, env: { XDG_STATE_HOME: join(root, "state2"), XDG_CONFIG_HOME: join(root, "config") }, now: () => Date.now(), out: (t) => (out += t), err: () => {} });
+    const code = await main(["run"], { deps, env: { XDG_STATE_HOME: join(root, "state2"), XDG_CONFIG_HOME: join(root, "config"), PRFLOW_CONFIG: join(root, "prflow.json") }, now: () => Date.now(), out: (t) => (out += t), err: () => {} });
     assert.equal(code, 0);
     assert.match(out, /^unreachable: fetch failed: .*gone\.git/);
     assert.deepEqual(snapshot(dir), s);
