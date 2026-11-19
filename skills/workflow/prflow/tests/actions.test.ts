@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { makeAct, makeVerify, rerunTargets } from "../scripts/actions.ts";
 import { parsePr } from "../scripts/adapters/gh.ts";
-import { pause } from "../scripts/commands.ts";
+import { pause, resume } from "../scripts/commands.ts";
 import type { Store } from "../scripts/store.ts";
 import { tick, type TickDeps } from "../scripts/tick.ts";
 import { HEAD, ME, ok, prResponse, run, status } from "./fixtures.ts";
@@ -76,10 +76,44 @@ describe("rerun action", () => {
     assert.deepEqual(w.effects, ["rerun Acme/x 42"]);
     assert.equal(s.dispatch(1)?.state, "done");
     assert.match(out, /rerun Acme\/x#1 rerun #1: reran failed and cancelled jobs in run 42/);
-    // Same version next tick: idempotent, no second rerun.
+  });
+
+  it("reruns a version cancelled again up to rerunsPerVersion times, then pauses the item once", async () => {
+    const s = tempStore();
+    const w = world({ prs: { "Acme/x#1": RERUN_PR } });
+    await runTick(w, s);
+    // Still cancelled at the same version on the next tick: second rerun.
+    w.clock += 15 * MIN;
+    const second = (await runTick(w, s)).stdout;
+    assert.deepEqual(w.effects, ["rerun Acme/x 42", "rerun Acme/x 42"]);
+    assert.match(second, /dispatched Acme\/x#1 rerun #2: gh run rerun 42/);
+    assert.match(s.dispatch(2)?.version ?? "", /~r2$/);
+    // Cancelled again after two reruns: no third, the item is paused.
+    w.clock += 15 * MIN;
+    const third = (await runTick(w, s)).stdout;
+    assert.equal(w.effects.length, 2);
+    assert.match(third, /paused Acme\/x#1 rerun: checks cancelled again after 2 reruns at this version/);
+    assert.match(third, /## Needs your decision \(1\)\n- Acme\/x#1 paused: checks cancelled again/);
+    // After resume, the same version is neither rerun nor paused again.
+    resume(s, w.clock, { item: "Acme/x#1" });
     w.clock += 15 * MIN;
     await runTick(w, s);
-    assert.deepEqual(w.effects, ["rerun Acme/x 42"]);
+    assert.equal(w.effects.length, 2);
+    assert.equal(s.item("Acme/x#1")?.paused, false);
+  });
+
+  it("honours a configured rerunsPerVersion and resets on a new version", async () => {
+    const s = tempStore();
+    const w = world({ prs: { "Acme/x#1": RERUN_PR } });
+    await runTick(w, s, { rails: { rerunsPerVersion: 1 } });
+    w.clock += 15 * MIN;
+    await runTick(w, s, { rails: { rerunsPerVersion: 1 } });
+    assert.equal(w.effects.length, 1);
+    resume(s, w.clock, { item: "Acme/x#1" });
+    w.prs["Acme/x#1"] = prResponse({ decision: null, head: "b".repeat(40), checks: [cancelled("e2e", 43)] });
+    w.clock += 15 * MIN;
+    await runTick(w, s, { rails: { rerunsPerVersion: 1 } });
+    assert.deepEqual(w.effects, ["rerun Acme/x 42", "rerun Acme/x 43"]);
   });
 
   it("never reruns while a run is still in progress or its status is unknown", async () => {

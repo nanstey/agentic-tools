@@ -18,7 +18,7 @@ import { archiveArgs } from "./adapters/orca.ts";
 import { classifyWorktree, summarizeChecks } from "./core/classify.ts";
 import { leaseUntil } from "./core/rails.ts";
 import type { Classification, Kind, PrSnapshot, WorktreeItem } from "./core/types.ts";
-import { beginDispatch, finishDispatch, legacyHandled, type TickContext } from "./dispatch.ts";
+import { beginDispatch, finishDispatch, legacyHandled, pauseItem, type TickContext } from "./dispatch.ts";
 import type { ScanResult } from "./scan.ts";
 import type { Dispatch, Store } from "./store.ts";
 import type { Act, TickDeps, TickOptions, Verify } from "./tick.ts";
@@ -99,12 +99,35 @@ function dryRunSlot(r: Run, ref: string): boolean {
   return true;
 }
 
+/**
+ * Dispatch version for the next rerun of `version`: the first rerun uses the
+ * item version itself, later ones `<version>~r<n>`. `null` once
+ * `rerunsPerVersion` reruns are done (the checks were cancelled again each time).
+ */
+export function nextRerunVersion(store: Store, item: string, version: string, limit: number): string | null {
+  for (let n = 1; n <= limit; n++) {
+    const v = n === 1 ? version : `${version}~r${n}`;
+    if (store.findDispatch(item, v, "rerun")?.state !== "done") return v;
+  }
+  return null;
+}
+
 async function rerun(r: Run, c: Classification, pr: PrSnapshot): Promise<void> {
   const { deps, store, ctx } = r;
   const trigger = c.triggers.find((t) => t.kind === "rerun")?.detail ?? null;
   // Never while any check is still running.
   if (summarizeChecks(pr.checks).pending) return;
-  if (dryRunBlocked(store, c.key, c.version, "rerun", trigger)) return;
+  const limit = ctx.rails.rerunsPerVersion;
+  const version = nextRerunVersion(store, c.key, c.version, limit);
+  if (version === null) {
+    // Cancelled again after every allowed rerun: pause once per version and ask.
+    if (r.dryRun || store.systemPaused() !== null || store.item(c.key)?.paused) return;
+    const ref = `rerun-limit:${c.key}:${c.version}`;
+    if (store.addLedger({ at: ctx.now, item: c.key, version: c.version, kind: "rerun", outcome: "abandoned", detail: `${limit} reruns`, source: "prflow", ref }))
+      pauseItem(store, ctx.now, c.key, `checks cancelled again after ${limit} reruns at this version; rerun by hand or push a fix, then \`prflow resume --item ${c.key}\``, { version: c.version, kind: "rerun" });
+    return;
+  }
+  if (dryRunBlocked(store, c.key, version, "rerun", trigger)) return;
   const { runIds, unknown } = rerunTargets(pr);
   if (runIds.length === 0) {
     once(store, ctx.now, `ask:rerun:${c.key}:${c.version}`, "needs-decision", {
@@ -130,14 +153,14 @@ async function rerun(r: Run, c: Classification, pr: PrSnapshot): Promise<void> {
   }
   const command = runIds.map((id) => `gh ${rerunArgs(c.repo, id).join(" ")}`).join("; ");
   if (r.dryRun) {
-    const ref = `dry-run:rerun:${c.key}:${c.version}`;
+    const ref = `dry-run:rerun:${c.key}:${version}`;
     if (!dryRunSlot(r, ref)) return;
-    once(store, ctx.now, ref, "dry-run", { type: "dry-run", item: c.key, version: c.version, kind: "rerun", detail: `would run: ${command}` });
+    once(store, ctx.now, ref, "dry-run", { type: "dry-run", item: c.key, version, kind: "rerun", detail: `would run: ${command}` });
     return;
   }
   await live(
     r,
-    { item: c.key, version: c.version, kind: "rerun", trigger, command },
+    { item: c.key, version, kind: "rerun", trigger, command },
     async () => {
       const failed: string[] = [];
       for (const id of runIds) {

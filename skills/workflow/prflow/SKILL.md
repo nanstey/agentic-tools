@@ -49,7 +49,7 @@ prflow is scheduler- and agent-agnostic. `prflow watch` prints the actionable re
 
 | Kind | Action | Preconditions | Otherwise |
 | --- | --- | --- | --- |
-| `rerun` | `gh run rerun <run-id> --failed -R <owner/repo>` for each GitHub Actions run behind a cancelled job | No PR check pending, and `gh run view` reports every run `completed` | Waits; asks you (`needs-decision`) when no Actions run can be found |
+| `rerun` | `gh run rerun <run-id> --failed -R <owner/repo>` for each GitHub Actions run behind a cancelled job | No PR check pending, and `gh run view` reports every run `completed`. At most `rails.rerunsPerVersion` (default 2) reruns per item version | Waits; asks you (`needs-decision`) when no Actions run can be found; pauses the item when the checks are cancelled again after the last rerun |
 | `cleanup` | `orca-ide worktree rm --worktree path:<path> --json`; for a merged PR, then `git --git-dir <repo> update-ref -d refs/heads/<branch> <sha>` (local branch only; deleted only while it still points at the checked commit and no worktree has it) | PR merged or closed, `git status --porcelain` empty, and no commits outside the remotes unless HEAD is the PR head or its ancestor | Asks you (`needs-decision`) once; never archives. Keeps a closed PR's branch, and a merged PR's branch when HEAD is detached or on another branch |
 
 Each live action writes its dispatch row and a `dispatched` event before the command, then records `done` with a `rerun` or `archived` event, or `failed` with `action-failed`. An interrupted action is settled or marked stale on the next tick. All rails apply.

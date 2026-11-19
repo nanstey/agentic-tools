@@ -69,6 +69,8 @@ export interface Rails {
   leaseMinutes: number;
   /** Starts of one dispatch (item, version, kind) before it is abandoned. */
   maxAttempts: number;
+  /** Reruns of one item version's cancelled checks; then the item is paused. */
+  rerunsPerVersion: number;
 }
 
 export const DEFAULT_RAILS: Rails = {
@@ -84,6 +86,7 @@ export const DEFAULT_RAILS: Rails = {
   childTimeoutSeconds: 60,
   leaseMinutes: 45,
   maxAttempts: 3,
+  rerunsPerVersion: 2,
 };
 
 /** Validate a `rails` object: known keys only, positive integers. Missing keys use defaults. */
