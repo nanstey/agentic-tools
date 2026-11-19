@@ -69,6 +69,18 @@ CREATE INDEX IF NOT EXISTS ledger_item ON ledger (item, outcome, at);
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
 `;
 
+/** Columns added after a table was first created; `Store.open` adds any that are missing. */
+const ADDED_COLUMNS: Record<string, [string, string][]> = {
+  dispatches: [
+    ["worktree", "TEXT"],
+    ["sent_at", "INTEGER"],
+    ["seen_at", "INTEGER"],
+    ["nudged_at", "INTEGER"],
+    ["brief", "TEXT"],
+    ["last_message", "TEXT"],
+  ],
+};
+
 export interface Dispatch {
   id: number;
   item: string;
@@ -81,7 +93,34 @@ export interface Dispatch {
   leaseUntil: number | null;
   sessionHandle: string | null;
   detail: string | null;
+  /** Orca worktree id an agent dispatch targets. */
+  worktree: string | null;
+  /** When the brief was sent or the session launched. */
+  sentAt: number | null;
+  /** Last session activity prflow saw. */
+  seenAt: number | null;
+  /** When prflow nudged the session. */
+  nudgedAt: number | null;
+  /** The brief text sent, for a retry. */
+  brief: string | null;
+  /** The session's last message prflow saw. */
+  lastMessage: string | null;
 }
+
+/** Dispatch fields `patchDispatch` may set. */
+export type DispatchPatch = Partial<Pick<Dispatch, "sessionHandle" | "detail" | "leaseUntil" | "worktree" | "sentAt" | "seenAt" | "nudgedAt" | "brief" | "lastMessage">>;
+
+const PATCH_COLUMNS: Record<keyof DispatchPatch, string> = {
+  sessionHandle: "session_handle",
+  detail: "detail",
+  leaseUntil: "lease_until",
+  worktree: "worktree",
+  sentAt: "sent_at",
+  seenAt: "seen_at",
+  nudgedAt: "nudged_at",
+  brief: "brief",
+  lastMessage: "last_message",
+};
 
 export interface ItemRow {
   key: string;
@@ -140,6 +179,12 @@ function toDispatch(r: Row): Dispatch {
     leaseUntil: num(r.lease_until),
     sessionHandle: str(r.session_handle),
     detail: str(r.detail),
+    worktree: str(r.worktree),
+    sentAt: num(r.sent_at),
+    seenAt: num(r.seen_at),
+    nudgedAt: num(r.nudged_at),
+    brief: str(r.brief),
+    lastMessage: str(r.last_message),
   };
 }
 
@@ -211,6 +256,10 @@ export class Store {
     const db = new DatabaseSync(join(dir, "prflow.db"));
     db.exec("PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;");
     db.exec(SCHEMA);
+    for (const [table, cols] of Object.entries(ADDED_COLUMNS)) {
+      const have = new Set((db.prepare(`PRAGMA table_info(${table})`).all() as Row[]).map((c) => String(c.name)));
+      for (const [name, type] of cols) if (!have.has(name)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${type}`);
+    }
     return new Store(dir, db);
   }
 
@@ -416,6 +465,25 @@ export class Store {
       .run(to, d.attempts + (retry ? 1 : 0), now, lease, handle, detail, id, d.state);
     if (Number(r.changes) !== 1) throw new Error(`dispatch ${id} changed during ${d.state} -> ${to}`);
     return this.dispatch(id) as Dispatch;
+  }
+
+  /** Set fields of a dispatch without changing its state. */
+  patchDispatch(id: number, patch: DispatchPatch, now: number): Dispatch {
+    const keys = Object.keys(patch) as (keyof DispatchPatch)[];
+    if (keys.length) {
+      const sets = keys.map((k) => `${PATCH_COLUMNS[k]} = ?`).join(", ");
+      const r = this.db.prepare(`UPDATE dispatches SET ${sets}, updated_at = ? WHERE id = ?`).run(...keys.map((k) => patch[k] ?? null), now, id);
+      if (Number(r.changes) !== 1) throw new Error(`dispatch ${id} not found`);
+    }
+    return this.dispatch(id) as Dispatch;
+  }
+
+  /** Record an agent session tied to a dispatch (one row per handle; the latest dispatch wins). */
+  upsertSession(s: { handle: string; item: string; dispatchId: number; at: number; lastOutputAt: number | null; state: string }): void {
+    this.db
+      .prepare(`INSERT INTO sessions (handle, item, dispatch_id, created_at, last_output_at, state) VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT (handle) DO UPDATE SET item = excluded.item, dispatch_id = excluded.dispatch_id, last_output_at = excluded.last_output_at, state = excluded.state`)
+      .run(s.handle, s.item, s.dispatchId, s.at, s.lastOutputAt, s.state);
   }
 
   /** Extend the lease of an open dispatch (progress seen). */

@@ -20,6 +20,71 @@ export interface Config {
   rails: Rails;
   /** Side-effect switches for `prflow tick`. */
   actions: Actions;
+  /** Pi session dispatch for `ci`, `comments`, and `behind`. */
+  dispatch: DispatchConfig;
+}
+
+/** A shared project that some repos' PRs belong to; briefs point agents at it. */
+export interface ProjectContext {
+  /** Absolute path of the project's checkout (for example a docs repo). */
+  path: string;
+  /** Folder inside `path` with the project's own docs, or `null`. */
+  folder: string | null;
+  /** `owner/repo` entries whose PRs belong to this project. */
+  repos: string[];
+}
+
+export interface DispatchConfig {
+  /**
+   * Announce briefs and targets without launching or messaging any session.
+   * Defaults to `true`, separate from `actions.dryRun`; set `false` to dispatch.
+   */
+  dryRun: boolean;
+  projectContext: ProjectContext[];
+}
+
+export const DEFAULT_DISPATCH: DispatchConfig = { dryRun: true, projectContext: [] };
+
+function parseDispatch(v: unknown, fail: (msg: string) => never): DispatchConfig {
+  if (v === undefined) return { ...DEFAULT_DISPATCH, projectContext: [] };
+  if (typeof v !== "object" || v === null || Array.isArray(v)) return fail("dispatch must be an object");
+  const out: DispatchConfig = { ...DEFAULT_DISPATCH, projectContext: [] };
+  for (const [k, x] of Object.entries(v)) {
+    if (k === "$comment") continue;
+    if (k === "dryRun") {
+      if (typeof x !== "boolean") fail("dispatch.dryRun must be a boolean");
+      out.dryRun = x as boolean;
+    } else if (k === "projectContext") {
+      if (!Array.isArray(x)) fail("dispatch.projectContext must be an array");
+      out.projectContext = (x as unknown[]).map((p, i) => {
+        const where = `dispatch.projectContext[${i}]`;
+        if (typeof p !== "object" || p === null || Array.isArray(p)) return fail(`${where} must be an object`);
+        const r = p as Record<string, unknown>;
+        for (const key of Object.keys(r)) if (!["$comment", "path", "folder", "repos"].includes(key)) fail(`${where}: unknown key "${key}"`);
+        if (typeof r.path !== "string" || !r.path.startsWith("/") || /[\n\0]/.test(r.path)) fail(`${where}.path must be an absolute path`);
+        if (r.folder !== undefined && (typeof r.folder !== "string" || !/^[A-Za-z0-9_.-]+(\/[A-Za-z0-9_.-]+)*$/.test(r.folder) || r.folder.split("/").includes("..")))
+          fail(`${where}.folder must be a relative folder name`);
+        let repos: string[] = [];
+        try {
+          repos = strings(r.repos, `${where}.repos`);
+        } catch (e) {
+          fail((e as Error).message);
+        }
+        for (const repo of repos) {
+          const parts = repo.split("/");
+          if (parts.length !== 2 || !parts.every((q) => NAME.test(q))) fail(`${where}.repos entry "${repo}" must be owner/repo`);
+        }
+        return { path: r.path as string, folder: (r.folder as string | undefined) ?? null, repos };
+      });
+    } else fail(`dispatch: unknown key "${k}"`);
+  }
+  return out;
+}
+
+/** The project a repo's PRs belong to, if any (case-insensitive). */
+export function projectFor(d: DispatchConfig, repo: string): ProjectContext | null {
+  const r = repo.toLowerCase();
+  return d.projectContext.find((p) => p.repos.some((x) => x.toLowerCase() === r)) ?? null;
 }
 
 export interface Actions {
@@ -71,6 +136,8 @@ export interface Rails {
   maxAttempts: number;
   /** Reruns of one item version's cancelled checks; then the item is paused. */
   rerunsPerVersion: number;
+  /** A dispatched session still working this long after the brief is stale. */
+  stuckMinutes: number;
 }
 
 export const DEFAULT_RAILS: Rails = {
@@ -87,6 +154,7 @@ export const DEFAULT_RAILS: Rails = {
   leaseMinutes: 45,
   maxAttempts: 3,
   rerunsPerVersion: 2,
+  stuckMinutes: 120,
 };
 
 /** Validate a `rails` object: known keys only, positive integers. Missing keys use defaults. */
@@ -148,7 +216,7 @@ export function parseConfig(text: string, source: string): Config {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return fail("top level must be an object");
   const o = raw as Record<string, unknown>;
   for (const k of Object.keys(o))
-    if (!["$comment", "accounts", "limit", "worktrees", "rails", "actions"].includes(k)) fail(`unknown key "${k}"`);
+    if (!["$comment", "accounts", "limit", "worktrees", "rails", "actions", "dispatch"].includes(k)) fail(`unknown key "${k}"`);
   if (!Array.isArray(o.accounts) || o.accounts.length === 0) fail("accounts must be a non-empty array");
   const accounts = (o.accounts as unknown[]).map((a, i): Account => {
     const where = `accounts[${i}]`;
@@ -193,5 +261,6 @@ export function parseConfig(text: string, source: string): Config {
     worktrees: (o.worktrees as boolean | undefined) ?? true,
     rails: parseRails(o.rails, fail),
     actions: parseActions(o.actions, fail),
+    dispatch: parseDispatch(o.dispatch, fail),
   };
 }

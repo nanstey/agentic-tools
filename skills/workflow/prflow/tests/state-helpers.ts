@@ -5,8 +5,8 @@ import { join } from "node:path";
 import { after } from "node:test";
 import { assertReadOnly, assertRerun, rerunArgs } from "../scripts/adapters/gh.ts";
 import { assertDeleteBranch, deleteBranchArgs } from "../scripts/adapters/git.ts";
-import { archiveArgs, assertArchive } from "../scripts/adapters/orca.ts";
-import { DEFAULT_ACTIONS, DEFAULT_LIMIT, DEFAULT_RAILS, type Config, type Rails } from "../scripts/core/config.ts";
+import { agentListArgs, archiveArgs, assertArchive, assertOrca, closeArgs, launchArgs, sendArgs, terminalListArgs } from "../scripts/adapters/orca.ts";
+import { DEFAULT_ACTIONS, DEFAULT_DISPATCH, DEFAULT_LIMIT, DEFAULT_RAILS, type Config, type Rails } from "../scripts/core/config.ts";
 import type { CmdResult } from "../scripts/scan.ts";
 import { Store } from "../scripts/store.ts";
 import type { TickDeps } from "../scripts/tick.ts";
@@ -33,6 +33,7 @@ export const cfg = (rails: Partial<Rails> = {}, worktrees = false): Config => ({
   worktrees,
   rails: { ...DEFAULT_RAILS, ...rails },
   actions: { ...DEFAULT_ACTIONS },
+  dispatch: { ...DEFAULT_DISPATCH, projectContext: [] },
 });
 
 export const okJson = (v: unknown): CmdResult => ({ ok: true, stdout: JSON.stringify(v), stderr: "" });
@@ -60,13 +61,57 @@ export interface World {
   /** Branch checked out per worktree path (default from the worktree row); `null` for detached. */
   heads: Record<string, string | null>;
   branchFails: Record<string, string>;
+  /** Raw `agent list` rows (`orcaSessionId`, `kind`, `agent`, `state`, `worktreeId`, `paneKey`, ...). */
+  agents: Record<string, unknown>[];
+  /** Raw `terminal list` rows by worktree id (`handle`, `tabId`, `leafId`, `lastOutputAt`, ...). */
+  terminals: Record<string, Record<string, unknown>[]>;
+  /** Failing Orca reads or writes, by call name (`agents`, `terminals`, `launch`, `send`, `close`). */
+  orcaFails: Record<string, string>;
+  /** `gh run view --job <id> --log-failed` output by job id. */
+  logs: Record<string, string>;
+  /** BRIEF_QUERY responses by `Acme/repo#n`; default derived from `prs`. */
+  briefs: Record<string, unknown>;
+  /** Launch reply override (raw JSON result). */
+  launchReply?: unknown;
+  /** Messages sent with orchestration send: `to | subject | body`. */
+  sent: string[];
   /** Side effects performed, e.g. `rerun Acme/x 42`, `archive /w/a`. */
   effects: string[];
   calls: string[][];
 }
 
+/** Derive a BRIEF_QUERY response from a PR_QUERY fixture: urls and bodies added. */
+export function briefFromPr(pr: unknown): unknown {
+  const p = (pr as { data: { repository: { pullRequest: Record<string, unknown> } } }).data.repository.pullRequest;
+  type N = { createdAt?: string; submittedAt?: string; body?: string; author: unknown; state?: string };
+  const nodes = (x: unknown) => ((x as { nodes: N[] } | undefined)?.nodes ?? []);
+  let i = 0;
+  const note = (n: N) => ({ ...n, url: `https://github.com/Acme/x/pull/1#c${++i}`, body: n.body ?? `comment ${i}` });
+  return {
+    data: {
+      repository: {
+        pullRequest: {
+          baseRefName: "main",
+          headRefName: p.headRefName ?? "feature",
+          comments: { nodes: nodes(p.comments).map(note) },
+          reviews: { nodes: nodes(p.reviews).map(note) },
+          reviewThreads: {
+            nodes: nodes(p.reviewThreads).map((t) => {
+              const th = t as unknown as { isResolved: boolean; comments: unknown };
+              return { isResolved: th.isResolved, path: "src/a.ts", line: 7, originalLine: 7, comments: { nodes: nodes(th.comments).map(note) } };
+            }),
+          },
+        },
+      },
+    },
+  };
+}
+
 export function world(over: Partial<World> = {}): World {
-  return { clock: T0, prs: {}, worktrees: [], refs: {}, dirty: {}, unpushed: {}, runs: {}, rerunFails: {}, archiveFails: {}, heads: {}, branchFails: {}, effects: [], calls: [], ...over };
+  return {
+    clock: T0, prs: {}, worktrees: [], refs: {}, dirty: {}, unpushed: {}, runs: {}, rerunFails: {}, archiveFails: {}, heads: {}, branchFails: {},
+    agents: [], terminals: {}, orcaFails: {}, logs: {}, briefs: {}, sent: [], effects: [], calls: [], ...over,
+  };
 }
 
 export function fakeTickDeps(w: World): TickDeps {
@@ -86,9 +131,17 @@ export function fakeTickDeps(w: World): TickDeps {
         );
       }
       if (args[0] === "api") {
+        assertReadOnly(args);
         const v = (k: string) => args.find((a) => a.startsWith(`${k}=`))?.slice(k.length + 1);
-        const pr = w.prs[`${v("o")}/${v("r")}#${v("n")}`];
+        const key = `${v("o")}/${v("r")}#${v("n")}`;
+        const pr = w.prs[key];
+        if (v("query")?.includes("baseRefName")) return w.briefs[key] ? okJson(w.briefs[key]) : pr ? okJson(briefFromPr(pr)) : fail("Could not resolve");
         return pr ? okJson(pr) : fail("Could not resolve");
+      }
+      if (args[0] === "run" && args[2] === "--job") {
+        assertReadOnly(args);
+        const log = w.logs[args[3] ?? ""];
+        return log === undefined ? fail("log not found") : { ok: true, stdout: log, stderr: "" };
       }
       if (args[0] === "pr") return w.refs[args.join(" ")] ?? okJson([]);
       if (args[0] === "run" && args[1] === "view") {
@@ -123,6 +176,39 @@ export function fakeTickDeps(w: World): TickDeps {
       const row = (w.worktrees as { path?: string; branch?: string }[]).find((r) => r.path === path);
       const branch = path in w.heads ? (w.heads[path] ?? null) : (row?.branch?.replace(/^refs\/heads\//, "") ?? null);
       return { gitDir: "/repo/.git", branch, sha: "a".repeat(40) };
+    },
+    async orcaAgents() {
+      assertOrca(agentListArgs());
+      w.calls.push(["orca", "agent", "list"]);
+      return w.orcaFails.agents ? fail(w.orcaFails.agents) : okJson({ ok: true, result: { agents: w.agents } });
+    },
+    async orcaTerminals(wt) {
+      assertOrca(terminalListArgs(wt));
+      w.calls.push(["orca", "terminal", "list", wt]);
+      return w.orcaFails.terminals ? fail(w.orcaFails.terminals) : okJson({ ok: true, result: { terminals: w.terminals[wt] ?? [] } });
+    },
+    async launchPi(wt, prompt) {
+      assertOrca(launchArgs(wt, prompt));
+      w.effects.push(`launch ${wt}`);
+      w.sent.push(`launch ${wt} | ${prompt}`);
+      if (w.orcaFails.launch) return fail(w.orcaFails.launch);
+      const n = w.effects.filter((e) => e.startsWith("launch")).length;
+      const handle = `term_new${n}`;
+      (w.terminals[wt] ??= []).push({ handle, worktreeId: wt, tabId: `tab${n}`, leafId: "l", agentIdentity: "pi", lastOutputAt: null });
+      return okJson(w.launchReply ?? { ok: true, result: { launch: { outcome: { kind: "terminal", handle }, prompt: { outcome: "handed-to-terminal" }, receipt: { detail: "terminal per setting" } } } });
+    },
+    async sendToAgent(to, subject, body) {
+      assertOrca(sendArgs(to, subject, body));
+      w.effects.push(`send ${to}`);
+      w.sent.push(`${to} | ${subject} | ${body}`);
+      return w.orcaFails.send ? fail(w.orcaFails.send) : okJson({ ok: true, result: { message: { id: `msg_${w.sent.length}` } } });
+    },
+    async closeTerminal(handle) {
+      assertOrca(closeArgs(handle));
+      w.effects.push(`close ${handle}`);
+      if (w.orcaFails.close) return fail(w.orcaFails.close);
+      for (const k of Object.keys(w.terminals)) w.terminals[k] = (w.terminals[k] ?? []).filter((t) => t.handle !== handle);
+      return okJson({ ok: true, result: { closed: true } });
     },
     async deleteBranch(gitDir, branch, sha) {
       assertDeleteBranch(deleteBranchArgs(gitDir, branch, sha));

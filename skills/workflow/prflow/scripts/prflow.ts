@@ -7,13 +7,14 @@ import { summarizeChecks, version } from "./core/classify.ts";
 import { renderReport, sortItems } from "./core/report.ts";
 import type { PrSnapshot } from "./core/types.ts";
 import { realDeps } from "./deps.ts";
-import { loadConfig } from "./config.ts";
 import { plan, scan, type ScanResult } from "./scan.ts";
 import { decideWatch, fingerprint } from "./core/watch.ts";
 import { importLegacy, pause, renderStatus, resume, status, type LegacyFile } from "./commands.ts";
 import { defaultStateDir, Store } from "./store.ts";
 import { tick } from "./tick.ts";
 import { makeAct, makeVerify } from "./actions.ts";
+import { loadTemplates, makeAgentFlow } from "./agents.ts";
+import { loadConfig, SKILL_DIR } from "./config.ts";
 
 /** Default watch state file: ${XDG_STATE_HOME:-~/.local/state}/prflow/watch-<name>.txt. */
 function watchStatePath(name: string): string {
@@ -72,7 +73,9 @@ const USAGE = `Usage: prflow <command> [options]
                  events since the last tick, then the report when it changed;
                  nothing when nothing happened. Exit 1 on failure. Actions
                  (rerun, worktree cleanup) run only when the config sets
-                 "actions": {"dryRun": false}; otherwise they are announced.
+                 "actions": {"dryRun": false}; Pi dispatch (ci, comments,
+                 behind briefs) only when it sets "dispatch": {"dryRun":
+                 false}. Otherwise both are announced.
   status         Print items, open dispatches, pauses, and the last tick.
   pause          Pause prflow (default, or --all) or one item (--item).
   resume         Resume prflow, one item (--item), or prflow and every
@@ -101,8 +104,8 @@ Options:
   --item <owner/repo#N>      pause, resume: one item
   --all                      pause: the whole system; resume: the system and every item
   --reason <text>            pause: reason recorded in the event
-  --dry-run                  tick: announce actions without running them, even
-                             when the config enables them
+  --dry-run                  tick: announce actions and Pi dispatches without
+                             running them, even when the config enables them
   -h, --help                 Show this help`;
 
 function scanLine(p: PrSnapshot): string {
@@ -231,7 +234,17 @@ async function main(argv: string[]): Promise<number> {
     const store = Store.open(stateDir);
     try {
       const dryRun = values["dry-run"] || cfg.actions.dryRun;
-      const out = await tick(deps, store, cfg, { dryRun }, { act: makeAct(deps, store), verify: makeVerify(cfg.worktrees) });
+      const dispatchDryRun = values["dry-run"] || cfg.dispatch.dryRun;
+      const safe = makeAct(deps, store);
+      const agents = makeAgentFlow(deps, store, cfg, loadTemplates(join(SKILL_DIR, "templates", "briefs")));
+      const out = await tick(deps, store, cfg, { dryRun, dispatchDryRun }, {
+        monitor: agents.monitor,
+        verify: makeVerify(cfg.worktrees),
+        act: async (...a) => {
+          await safe(...a);
+          await agents.act(...a);
+        },
+      });
       process.stdout.write(out.stdout);
       process.stderr.write(out.stderr);
       return out.exitCode;

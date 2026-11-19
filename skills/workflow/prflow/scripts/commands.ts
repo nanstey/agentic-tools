@@ -39,7 +39,7 @@ export function renderStatus(s: ReturnType<typeof status>): string {
   ];
   if (s.backoff.nextTickAt) lines.push(`backoff: ${s.backoff.failures} failed ticks; next tick after ${s.backoff.nextTickAt}`);
   lines.push(`items: ${s.items.length}, open dispatches: ${s.openDispatches.length}, paused items: ${s.pausedItems.length}`);
-  for (const d of s.openDispatches) lines.push(inFlightRow(d));
+  for (const d of s.openDispatches) lines.push(inFlightRow(d, Date.parse(s.now)));
   for (const p of s.pausedItems) lines.push(`- ${p.item} paused: ${p.reason ?? ""}`);
   return lines.join("\n");
 }

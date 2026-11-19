@@ -211,7 +211,7 @@ function authorPlan(kind: Kind, t: Trigger | undefined): Pick<Classification, "n
     case "comments":
       return { nextAction: `send fix-and-reply brief (latest ${t?.detail ?? ""})`, owner: "agent" };
     case "behind":
-      return { nextAction: "send rebase brief", owner: "agent" };
+      return { nextAction: "send brief to merge the base in", owner: "agent" };
     default:
       return { nextAction: "none", owner: "others" };
   }
