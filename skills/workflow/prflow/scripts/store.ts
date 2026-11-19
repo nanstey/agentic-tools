@@ -10,6 +10,7 @@
  * module returns, so a crash leaves a row the next tick can reconcile.
  */
 import { appendFileSync, closeSync, mkdirSync, openSync, readFileSync, readSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -174,8 +175,27 @@ function toRun(r: Row): RunRow {
   };
 }
 
-/** A lock older than this belongs to a crashed or hung tick and is taken over. */
+/** A lock without a readable pid is taken over after this. */
 export const LOCK_STALE_MS = 30 * 60 * 1000;
+/** A lock whose process is still alive is taken over only after this (a hung tick). */
+export const LOCK_HUNG_MS = 6 * 60 * 60 * 1000;
+
+/** True when `pid` names a running process (EPERM: running, owned by someone else). */
+function pidAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (e) {
+    return (e as NodeJS.ErrnoException).code === "EPERM";
+  }
+}
+
+/** Whether a lock with `content` and `age` belongs to a dead or hung tick. */
+export function lockStale(content: string, age: number): boolean {
+  const pid = Number(content.split(" ")[0]);
+  if (!Number.isInteger(pid) || pid <= 0) return age >= LOCK_STALE_MS;
+  return !pidAlive(pid) || age >= LOCK_HUNG_MS;
+}
 
 export class Store {
   readonly dir: string;
@@ -216,32 +236,53 @@ export class Store {
 
   // ---- lock ----
 
-  /** Take `tick.lock`; `false` if another live tick holds it. */
+  /** Content of the lock this store holds, so `unlock` never removes another tick's lock. */
+  private lockToken: string | null = null;
+
+  /**
+   * Take `tick.lock`; `false` if another live tick holds it. A lock is taken over
+   * when its process is gone, or after `LOCK_HUNG_MS` (`LOCK_STALE_MS` when it
+   * names no pid).
+   */
   tryLock(now: number): boolean {
     const path = this.path("tick.lock");
+    const token = `${process.pid} ${new Date(now).toISOString()} ${randomUUID()}\n`;
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
         const fd = openSync(path, "wx");
-        writeFileSync(fd, `${process.pid} ${new Date(now).toISOString()}\n`);
+        writeFileSync(fd, token);
         closeSync(fd);
+        this.lockToken = token;
         return true;
       } catch (e) {
         if ((e as NodeJS.ErrnoException).code !== "EEXIST") throw e;
+        let content: string;
         let age: number;
         try {
+          content = readFileSync(path, "utf8");
           age = now - statSync(path).mtimeMs;
         } catch {
           continue;
         }
-        if (age < LOCK_STALE_MS) return false;
-        rmSync(path, { force: true });
+        if (!lockStale(content, age)) return false;
+        // Remove only the lock judged stale, not one another tick took meanwhile.
+        if (this.readLock() === content) rmSync(path, { force: true });
       }
     }
     return false;
   }
 
+  private readLock(): string | null {
+    try {
+      return readFileSync(this.path("tick.lock"), "utf8");
+    } catch {
+      return null;
+    }
+  }
+
   unlock(): void {
-    rmSync(this.path("tick.lock"), { force: true });
+    if (this.lockToken !== null && this.readLock() === this.lockToken) rmSync(this.path("tick.lock"), { force: true });
+    this.lockToken = null;
   }
 
   // ---- pause ----

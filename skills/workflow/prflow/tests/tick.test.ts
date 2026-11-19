@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
-import { existsSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { existsSync, readFileSync, utimesSync, writeFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { importLegacy, pause, resume, status } from "../scripts/commands.ts";
 import { leaseUntil, MINUTE_MS } from "../scripts/core/rails.ts";
 import { DEFAULT_RAILS } from "../scripts/core/config.ts";
+import { LOCK_HUNG_MS, lockStale } from "../scripts/store.ts";
 import { META, tick } from "../scripts/tick.ts";
 import { prResponse, run } from "./fixtures.ts";
 import { cfg, fakeTickDeps, MIN, T0, tempStore, world } from "./state-helpers.ts";
@@ -105,6 +107,30 @@ describe("tick", () => {
     assert.equal(w.calls.length, 0);
     w.clock = Date.now() + 31 * MIN;
     assert.match((await tick(fakeTickDeps(w), s, cfg(), { dryRun: true })).stdout, /behind/);
+  });
+
+  it("keeps a lock whose process is alive and takes over one whose process is gone", async () => {
+    const s = tempStore();
+    const w = world({ prs: { "Acme/x#1": BEHIND } });
+    // Our own pid is alive: even an old lock is kept (below the hung limit).
+    writeFileSync(s.path("tick.lock"), `${process.pid} x\n`);
+    utimesSync(s.path("tick.lock"), new Date(Date.now() - 2 * 60 * MIN), new Date(Date.now() - 2 * 60 * MIN));
+    assert.equal((await tick(fakeTickDeps(w), s, cfg(), { dryRun: true })).stdout, "");
+    // A hung tick is taken over after LOCK_HUNG_MS.
+    assert.equal(lockStale(`${process.pid} x`, LOCK_HUNG_MS), true);
+    // A dead pid is taken over at once.
+    const dead = spawnSync(process.execPath, ["-e", ""]).pid;
+    writeFileSync(s.path("tick.lock"), `${dead} x\n`);
+    assert.match((await tick(fakeTickDeps(w), s, cfg(), { dryRun: true })).stdout, /behind/);
+    assert.equal(existsSync(s.path("tick.lock")), false);
+  });
+
+  it("never removes a lock another tick took", () => {
+    const s = tempStore();
+    assert.equal(s.tryLock(T0), true);
+    writeFileSync(s.path("tick.lock"), "999999999 someone else\n");
+    s.unlock();
+    assert.equal(readFileSync(s.path("tick.lock"), "utf8"), "999999999 someone else\n");
   });
 
   it("releases the lock after a failure", async () => {

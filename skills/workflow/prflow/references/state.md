@@ -9,7 +9,7 @@ All state lives in one directory, `${XDG_STATE_HOME:-~/.local/state}/prflow/`
 | --- | --- |
 | `prflow.db` | SQLite: `items`, `dispatches`, `sessions`, `runs`, `ledger`, `meta` |
 | `paused` | Present while prflow is paused; holds the reason |
-| `tick.lock` | Held while a tick runs; a lock older than 30 minutes is taken over |
+| `tick.lock` | Held while a tick runs (pid and a unique token). Taken over when its process is gone, or after 6 hours (30 minutes when it names no pid). A tick removes only its own lock |
 | `events.jsonl` | Append-only event feed for the orchestration layer |
 | `watch-<name>.txt` | `prflow watch` state (unchanged from phase 1) |
 
