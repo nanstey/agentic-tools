@@ -11,6 +11,8 @@ disable-model-invocation: false
 
 The coordinating session owns user communication, scope and approval decisions, run-report state, work assignment, compact handoffs, supervision, and final reporting.
 
+When a workflow step names `/skill-name args` and no slash-command dispatcher is available, read that skill's `SKILL.md` and follow it with `args` as the invocation. Apply the active environment's permissions and delegation rules: in particular, `/review-code` requires a coordinator with `Agent` dispatch; a leaf agent must report that it is blocked rather than simulate the review inline.
+
 Use whatever delegation mechanism the active environment provides. Delegate substantive work when a separate context helps; otherwise work inline. Do not prescribe tool names, agent types, models, workflow modes, or invocation syntax.
 
 Use the least coordination that preserves correctness. Keep one owner for global state and decisions even when execution is delegated. Preserve coordinator context by retaining only current state, decisions, and compact evidence packets; durable artifacts hold detailed findings and output. Follow `CLAUDE.md` / `AGENTS.md` on conflict.
