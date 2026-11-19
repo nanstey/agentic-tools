@@ -52,7 +52,7 @@ Escalate critical existing issues separately. Only explicit applicable independe
 ## Verdicts and caller boundaries
 
 - `changes_required`: At least one unresolved verified request. Also disclose incomplete coverage. Missing checks cannot hide a known request.
-- `incomplete`: No unresolved verified requests established, but material gaps or failed/unavailable review work prevent complete requested coverage. For `/review-code`, a missing coverage row, or a required row, validator, or candidate-verifier without `done` status, always makes the verdict incomplete.
+- `incomplete`: No unresolved verified requests established, but material gaps or failed/unavailable review work prevent complete requested coverage. For `/review-code`, a missing coverage row, or a required row or candidate-verifier without `done` status, always makes the verdict incomplete. The outcome validator is advisory, not gating (temporarily): its failure, absence, or skip never makes a packet incomplete.
 - `clean`: Complete requested source-review coverage and no unresolved verified requests. A `/review-code` packet also requires a complete coverage table with every required row done. `context-engineering` may be `skipped-inapplicable` only with its recorded reason. Nits and unchanged existing findings may remain.
 
 `clean` does not certify test execution, CI, readiness, human approval, or merge permission. It never grants gate or mutation permission.

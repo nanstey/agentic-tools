@@ -40,7 +40,9 @@ Optional for new standalone work:
 
 Use `scope` when unclear. Bare default: branch merge-base through HEAD plus working-tree changes, never refactor's whole-repository default. Record base/head/policy, included paths/exclusions, working-tree separation/content identity. Local diffs are diagnostic. Reuse evidence only under the freshness contract; changed snapshots require affected-path/check reassessment.
 
-### 2. Outcome validation
+### 2. Outcome validation (advisory, not gating (temporarily))
+
+The validator is advisory and never gates the verdict while it is flaky. If it ran, report its result and evidence. If it failed, was skipped, or was unavailable, record that under validation/gaps for the caller only; it never makes the packet `incomplete`. A validator result that shows a verified defect is still a finding. Dispatch instructions below stay so gating can return.
 
 The coordinator dispatches `verification` as one foreground validator using `worker` with the exact model and thinking selected from the worker routing row. Supply claims and snapshot/environment-matched evidence; reuse valid caller results. This stage alone executes checks, including touched-area validation after fixes. Disposable validator scratch worktrees/artifacts are exempt from target-write restrictions, not from caller restrictions. Respect untrusted-code boundaries; unavailable/forbidden checks become gaps.
 
@@ -64,7 +66,7 @@ The separate report-only candidate verifier uses `reviewer` as a foreground call
 
 Merge returns into ONE packet. Deduplicate root causes; retain IDs/resolutions. Keep `request` / `nit` / `existing` separate from severity/confidence. The coordinator dispatches one separate read-only candidate verifier to source-verify every candidate against baseline/obligations. Record rejection reasons; uncertainty becomes a gap. Include the packet coverage table required by the `risk-review` skill's `references/packet.md` contract.
 
-Return `round_state` and `clean`, `changes_required`, or `incomplete`, with gaps. Any required row, validator, or candidate verifier that is not done makes the verdict `incomplete`, never `clean`. Reviewer failure cannot produce clean. Advisory Jev cannot reduce coverage, dismiss requests, or declare clean/readiness.
+Return `round_state` and `clean`, `changes_required`, or `incomplete`, with gaps. Any required row or candidate verifier that is not done makes the verdict `incomplete`, never `clean`. A validator that is not done does not. Reviewer failure cannot produce clean. Advisory Jev cannot reduce coverage, dismiss requests, or declare clean/readiness.
 
 **Plan mode:** cover verified requests only: IDs, narrow fix, files, validation, risk, and order. Batch related findings across reviewers into one head. Offer narrow-fix/split/revert for large requests. Open questions become `needs-decision`. Separate optional nits/existing followups. Return inline unless one artifact path is permitted; never edit source or start implementation.
 
