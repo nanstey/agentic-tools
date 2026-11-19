@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { DEFAULT_LIMIT, type Account, type Config } from "../scripts/core/config.ts";
+import { DEFAULT_LIMIT, DEFAULT_RAILS, type Account, type Config } from "../scripts/core/config.ts";
 import { plan, scan, scopes, type CmdResult, type Deps } from "../scripts/scan.ts";
 import { ME, prResponse } from "./fixtures.ts";
 
 const account = (login: string, owners: string[] = [], repos: string[] = []): Account => ({ login, owners, repos });
-const config = (accounts: Account[], worktrees = true): Config => ({ accounts, limit: DEFAULT_LIMIT, worktrees });
+const config = (accounts: Account[], worktrees = true): Config => ({ accounts, limit: DEFAULT_LIMIT, worktrees, rails: DEFAULT_RAILS });
 const DEFAULT_CONFIG = config([account(ME, ["Acme"])]);
 
 const okJson = (v: unknown): CmdResult => ({ ok: true, stdout: JSON.stringify(v), stderr: "" });
@@ -171,6 +171,6 @@ describe("scan", () => {
   it("survives an Orca failure", async () => {
     const { deps } = fakeDeps({});
     const r = await scan({ ...deps, orcaWorktrees: async () => { throw new Error("orca down"); } }, DEFAULT_CONFIG);
-    assert.deepEqual(r.errors, ["orca worktree list: orca down"]);
+    assert.deepEqual(r.errors, ["orca-ide worktree list: orca down"]);
   });
 });

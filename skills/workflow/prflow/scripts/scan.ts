@@ -14,7 +14,7 @@ export interface CmdResult {
 export interface Deps {
   /** Run a read-only `gh` command as GitHub account `login`. */
   gh(login: string, args: string[]): Promise<CmdResult>;
-  /** `orca worktree list --json` output. */
+  /** `orca-ide worktree list --json` output. */
   orcaWorktrees(): Promise<string>;
   /** Uncommitted file count in a worktree, `null` when unknown. */
   gitDirty(path: string): Promise<number | null>;
@@ -81,7 +81,7 @@ async function scanWorktrees(deps: Deps, cfg: Config, errors: string[]): Promise
   try {
     rows = parseWorktrees(await deps.orcaWorktrees(), []);
   } catch (e) {
-    errors.push(`orca worktree list: ${(e as Error).message}`);
+    errors.push(`orca-ide worktree list: ${(e as Error).message}`);
     return [];
   }
   const out = await Promise.all(

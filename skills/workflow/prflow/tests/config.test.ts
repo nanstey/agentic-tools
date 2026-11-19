@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import { defaultPaths, loadConfig, SKILL_DIR } from "../scripts/config.ts";
-import { accountFor, parseConfig } from "../scripts/core/config.ts";
+import { accountFor, DEFAULT_RAILS, parseConfig } from "../scripts/core/config.ts";
 
 const parse = (v: unknown) => parseConfig(JSON.stringify(v), "cfg.json");
 
@@ -20,7 +20,13 @@ describe("parseConfig", () => {
       accounts: [{ login: "a", owners: [], repos: [] }],
       limit: 50,
       worktrees: true,
+      rails: DEFAULT_RAILS,
     });
+  });
+
+  it("overrides single rails and keeps the other defaults", () => {
+    const cfg = parse({ accounts: [{ login: "a" }], rails: { perHour: 2, leaseMinutes: 10 } });
+    assert.deepEqual(cfg.rails, { ...DEFAULT_RAILS, perHour: 2, leaseMinutes: 10 });
   });
 
   const bad: [string, unknown, RegExp][] = [
@@ -37,6 +43,10 @@ describe("parseConfig", () => {
     ["duplicate login", { accounts: [{ login: "a", owners: ["o"] }, { login: "A", owners: ["p"] }] }, /listed twice/],
     ["two unscoped", { accounts: [{ login: "a" }, { login: "b" }] }, /at most one/],
     ["shared owner", { accounts: [{ login: "a", owners: ["O"] }, { login: "b", owners: ["o"] }] }, /owner o is assigned to both a and b/],
+    ["rails not object", { accounts: [{ login: "a" }], rails: [] }, /rails must be an object/],
+    ["unknown rail", { accounts: [{ login: "a" }], rails: { turbo: 1 } }, /rails: unknown key "turbo"/],
+    ["zero rail", { accounts: [{ login: "a" }], rails: { perDay: 0 } }, /rails\.perDay must be an integer/],
+    ["fractional rail", { accounts: [{ login: "a" }], rails: { perDay: 1.5 } }, /rails\.perDay/],
     ["bad limit", { accounts: [{ login: "a" }], limit: 0 }, /limit/],
     ["bad worktrees", { accounts: [{ login: "a" }], worktrees: "yes" }, /worktrees/],
   ];

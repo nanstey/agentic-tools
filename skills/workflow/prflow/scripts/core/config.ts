@@ -16,9 +16,68 @@ export interface Config {
   limit: number;
   /** Include Orca worktree cleanup candidates. */
   worktrees: boolean;
+  /** Safety limits for `prflow tick`. */
+  rails: Rails;
 }
 
 export const DEFAULT_LIMIT = 50;
+
+/** Safety limits for `prflow tick`. Every field has a conservative default. */
+export interface Rails {
+  /** Dispatch starts allowed in one tick. */
+  startsPerTick: number;
+  /** Dispatches open (planned, launched, working) at once. */
+  maxOpen: number;
+  /** Dispatch starts per rolling hour. */
+  perHour: number;
+  /** Dispatch starts per rolling 24 hours. */
+  perDay: number;
+  /** Starts for one item and version in 24 hours that pause the item. */
+  loopSameVersion: number;
+  /** Starts for one item across versions in 24 hours that pause the item. */
+  loopAcrossVersions: number;
+  /** Delay after the first failed tick; doubles per further failure. */
+  backoffBaseMinutes: number;
+  backoffMaxMinutes: number;
+  /** Time allowed for the scan of one tick. */
+  pollBudgetSeconds: number;
+  /** Time allowed for one child process (gh, git, orca-ide). */
+  childTimeoutSeconds: number;
+  /** Lease a launched dispatch holds before it counts as stale. */
+  leaseMinutes: number;
+  /** Starts of one dispatch (item, version, kind) before it is abandoned. */
+  maxAttempts: number;
+}
+
+export const DEFAULT_RAILS: Rails = {
+  startsPerTick: 2,
+  maxOpen: 5,
+  perHour: 6,
+  perDay: 30,
+  loopSameVersion: 3,
+  loopAcrossVersions: 8,
+  backoffBaseMinutes: 15,
+  backoffMaxMinutes: 240,
+  pollBudgetSeconds: 120,
+  childTimeoutSeconds: 60,
+  leaseMinutes: 45,
+  maxAttempts: 3,
+};
+
+/** Validate a `rails` object: known keys only, positive integers. Missing keys use defaults. */
+function parseRails(v: unknown, fail: (msg: string) => never): Rails {
+  if (v === undefined) return { ...DEFAULT_RAILS };
+  if (typeof v !== "object" || v === null || Array.isArray(v)) return fail("rails must be an object");
+  const out: Rails = { ...DEFAULT_RAILS };
+  for (const [k, x] of Object.entries(v)) {
+    if (k === "$comment") continue;
+    if (!(k in DEFAULT_RAILS)) fail(`rails: unknown key "${k}"`);
+    if (typeof x !== "number" || !Number.isInteger(x) || x < 1 || x > 100000)
+      fail(`rails.${k} must be an integer from 1 to 100000`);
+    out[k as keyof Rails] = x as number;
+  }
+  return out;
+}
 
 /** An account with no owners and no repos covers every repo. */
 export const isUnscoped = (a: Account): boolean => a.owners.length === 0 && a.repos.length === 0;
@@ -64,7 +123,7 @@ export function parseConfig(text: string, source: string): Config {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return fail("top level must be an object");
   const o = raw as Record<string, unknown>;
   for (const k of Object.keys(o))
-    if (!["$comment", "accounts", "limit", "worktrees"].includes(k)) fail(`unknown key "${k}"`);
+    if (!["$comment", "accounts", "limit", "worktrees", "rails"].includes(k)) fail(`unknown key "${k}"`);
   if (!Array.isArray(o.accounts) || o.accounts.length === 0) fail("accounts must be a non-empty array");
   const accounts = (o.accounts as unknown[]).map((a, i): Account => {
     const where = `accounts[${i}]`;
@@ -107,5 +166,6 @@ export function parseConfig(text: string, source: string): Config {
     accounts,
     limit: (o.limit as number | undefined) ?? DEFAULT_LIMIT,
     worktrees: (o.worktrees as boolean | undefined) ?? true,
+    rails: parseRails(o.rails, fail),
   };
 }

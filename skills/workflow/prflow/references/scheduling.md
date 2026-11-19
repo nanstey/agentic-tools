@@ -27,6 +27,26 @@ node <skill-dir>/scripts/prflow.ts watch [--name <job>] [--config <path>] [scope
   written atomically.
 - Watch is read-only toward GitHub and Orca. It writes only its state and lock files.
 
+## The tick contract
+
+```
+node <skill-dir>/scripts/prflow.ts tick [--state-dir <path>] [--config <path>] [scope flags]
+```
+
+`tick` is a superset of `watch`: the same scan and report, plus state, rails,
+and an event feed (see `references/state.md`).
+
+| Result | stdout | Exit |
+| --- | --- | --- |
+| New events, or the report changed | `## New events (n)` lines, then the grouped report | 0 |
+| Nothing new | Empty | 0 |
+| Backing off after a failure, or another tick running | Empty | 0 |
+| Scan error, poll budget exceeded, or bad config | Empty; details on stderr | 1 |
+
+Notify on non-empty stdout and alert on non-zero exit, as with `watch`. A
+`watch` job keeps working unchanged; switch a job from `watch` to `tick` when
+you want the state and feed.
+
 ## Set up a schedule (agent steps)
 
 1. **Config.** Run `prflow config`. If it shows the wrong accounts, copy
@@ -39,8 +59,10 @@ node <skill-dir>/scripts/prflow.ts watch [--name <job>] [--config <path>] [scope
    plain cron usually lacks it, while systemd user timers have it.
 3. **Paths.** Schedulers run with a minimal `PATH`. Use absolute paths for
    `node` (`command -v node`) and the skill directory, and put the
-   directories of `gh`, `git`, and `orca` on `PATH` in the job. Without
-   `orca`, pass `--no-worktrees` or every run fails with a scan error.
+   directories of `gh`, `git`, and `orca-ide` on `PATH` in the job. Without
+   `orca-ide`, pass `--no-worktrees` or every run fails with a scan error.
+   prflow runs `orca-ide`, never bare `orca`, which is the GNOME screen
+   reader on some Linux desktops.
 4. **HOME.** prflow reads config, state, and `gh` auth from the real home
    directory. If the scheduler changes `HOME`, set it back in the job or pass
    `--config` and `--state` explicitly.
@@ -53,7 +75,7 @@ node <skill-dir>/scripts/prflow.ts watch [--name <job>] [--config <path>] [scope
    two GitHub searches per account scope plus one call per PR.
 7. **Verify** with the scheduler's run history after the first scheduled run.
 
-Never schedule anything that merges, approves, comments, or reruns: phase 1
+Never schedule anything that merges, approves, comments, or reruns: prflow
 reports only.
 
 ## Examples

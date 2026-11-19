@@ -2,10 +2,16 @@ import { execFile } from "node:child_process";
 import { assertReadOnly } from "./adapters/gh.ts";
 import type { CmdResult, Deps } from "./scan.ts";
 
+/** Default limit for one child process; `setChildTimeout` overrides it from config. */
+let childTimeoutMs = 60_000;
+
+/** Run a child process. It is killed after the child timeout and reported as a failure. */
 function run(cmd: string, args: string[], env: NodeJS.ProcessEnv, cwd?: string): Promise<CmdResult> {
   return new Promise((resolve) => {
-    execFile(cmd, args, { env, cwd, maxBuffer: 64 * 1024 * 1024 }, (err, stdout, stderr) => {
-      resolve({ ok: !err, stdout: String(stdout), stderr: err && !stderr ? err.message : String(stderr) });
+    execFile(cmd, args, { env, cwd, maxBuffer: 64 * 1024 * 1024, timeout: childTimeoutMs, killSignal: "SIGKILL" }, (err, stdout, stderr) => {
+      const killed = err && (err as { killed?: boolean }).killed;
+      const msg = killed ? `${cmd} ${args.slice(0, 2).join(" ")} timed out after ${childTimeoutMs / 1000}s` : err && !stderr ? err.message : String(stderr);
+      resolve({ ok: !err, stdout: String(stdout), stderr: msg });
     });
   });
 }
@@ -21,6 +27,10 @@ function withoutTokens(): NodeJS.ProcessEnv {
 export interface RealDeps extends Deps {
   /** Login of the active gh account (ambient auth). */
   whoami(): Promise<string>;
+  /** Milliseconds since the epoch. */
+  now(): number;
+  /** Limit every later child process to `ms`. */
+  setChildTimeout(ms: number): void;
 }
 
 /**
@@ -67,13 +77,18 @@ export function realDeps(): RealDeps {
 
   return {
     whoami,
+    now: () => Date.now(),
+    setChildTimeout(ms) {
+      childTimeoutMs = ms;
+    },
     async gh(login, args) {
       assertReadOnly(args);
       const env = await envFor(login);
       return typeof env === "string" ? { ok: false, stdout: "", stderr: env } : run("gh", args, env);
     },
     async orcaWorktrees() {
-      const r = await run("orca", ["worktree", "list", "--limit", "1000", "--json"], process.env);
+      // `orca-ide`, never bare `orca`: on some Linux desktops `orca` is the GNOME screen reader.
+      const r = await run("orca-ide", ["worktree", "list", "--limit", "1000", "--json"], process.env);
       if (!r.ok) throw new Error(r.stderr.trim());
       return r.stdout;
     },

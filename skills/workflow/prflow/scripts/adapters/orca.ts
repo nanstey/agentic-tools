@@ -1,4 +1,4 @@
-/** Parsing for `orca worktree list --json` (read-only). */
+/** Parsing for `orca-ide worktree list --json` (read-only). */
 
 export interface OrcaWorktree {
   path: string;
