@@ -295,6 +295,17 @@ describe("agent dispatch: live", () => {
     assert.equal(s.dispatch(d.id)?.state, "working");
   });
 
+  it("adopts a new Pi terminal with no output yet after a crash right after launch", async () => {
+    const { w, s } = setup(CI_PR);
+    const d = s.createDispatch(KEY, "x", "ci", T0 - MIN);
+    s.transition(d.id, "launched", T0 - MIN, { leaseUntil: T0 + 44 * MIN });
+    s.patchDispatch(d.id, { worktree: WT, sentAt: T0 - MIN, knownSessions: "term_old" }, T0 - MIN);
+    w.terminals[WT] = [term("term_old", "to", T0), term("term_fresh", "tf", null)];
+    w.agents = [agent("so", "to", "working", T0)];
+    const out = (await runTick(w, s, { live: true })).stdout;
+    assert.match(out, /recovered Acme\/x#1 ci #1: adopted orphaned session term_fresh/);
+  });
+
   it("records a failed launch and retries it next tick", async () => {
     const { w, s } = setup(CI_PR, { orcaFails: { launch: "no such worktree" } });
     const out = (await runTick(w, s, { live: true })).stdout;

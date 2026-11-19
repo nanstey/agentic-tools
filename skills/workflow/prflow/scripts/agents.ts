@@ -242,8 +242,9 @@ async function deliver(c: Ctx, d: Dispatch, wt: OrcaWorktree, target: Exclude<Ta
   const { store, deps } = c;
   const now = c.ctx.now;
   const handle = target.do === "message" ? target.session.handle : null;
+  const known = (await c.view.sessions(wt.id)).map((x) => x.handle).join(" ");
   let cur = store.transition(d.id, "launched", now, { leaseUntil: leaseUntil(c.ctx.rails, now), sessionHandle: handle, detail: describe(target, wt) });
-  cur = store.patchDispatch(d.id, { worktree: wt.id, sentAt: now, seenAt: null, nudgedAt: null, brief, lastMessage: null }, now);
+  cur = store.patchDispatch(d.id, { worktree: wt.id, sentAt: now, seenAt: null, nudgedAt: null, brief, lastMessage: null, knownSessions: known }, now);
   const fail = (why: string) => {
     const t = deps.now();
     finishDispatch(store, t, store.dispatch(d.id) as Dispatch, "failed", why);
@@ -383,9 +384,13 @@ async function monitorOne(c: Ctx, d: Dispatch, item: Classification | undefined,
   const since = d.sentAt ?? d.updatedAt;
 
   // Orphan: launched, but the launch reply was never recorded. Adopt the Pi
-  // session that appeared since; otherwise the lease decides.
+  // terminal that was not there before the launch (else one active since);
+  // otherwise the lease decides.
   if (!d.sessionHandle) {
-    const fresh = sessions.filter((s) => s.kind === "terminal" && (s.lastActivityAt ?? 0) >= since).sort((a, b) => (b.lastActivityAt ?? 0) - (a.lastActivityAt ?? 0))[0];
+    const known = new Set((d.knownSessions ?? "").split(" ").filter(Boolean));
+    const terms = sessions.filter((s) => s.kind === "terminal");
+    const isNew = d.knownSessions !== null ? terms.filter((s) => !known.has(s.handle)) : terms.filter((s) => (s.lastActivityAt ?? 0) >= since);
+    const fresh = isNew.sort((a, b) => (b.lastActivityAt ?? 0) - (a.lastActivityAt ?? 0))[0];
     if (!fresh) return;
     d = store.patchDispatch(d.id, { sessionHandle: fresh.handle }, now);
     store.appendEvent(now, { ...ev(d), type: "recovered", sessionHandle: fresh.handle, detail: `adopted orphaned session ${fresh.handle}` });

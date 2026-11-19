@@ -100,13 +100,14 @@ Each side effect is preceded by a committed row change and an event:
 | --- | --- |
 | Plan | `planned` row, `started` ledger row, `dispatched` event (brief id and target) |
 | Deliver a deferred plan | `dispatched` event (`… (was waiting)`) |
-| Launch or message | `launched` row with lease, target, worktree, send time, and brief |
+| Launch or message | `launched` row with lease, target, worktree, send time, brief, and the session handles already in the worktree |
 | Nudge | `nudged_at`, renewed lease, `nudged` event |
 | Close for a retry | the retry's `planned` row and `dispatched` event |
 
 A crash after a launch leaves a `launched` row with no session handle. At the
 start of the next tick prflow lists the worktree's Pi sessions and adopts the
-one active since the launch (`recovered`); otherwise the lease decides.
+Pi terminal that was not there before the launch, even before it prints
+anything (`recovered`); otherwise the lease decides.
 
 ## Events
 
@@ -125,8 +126,8 @@ one active since the launch (`recovered`); otherwise the lease decides.
 ## State
 
 `dispatches` rows for agent kinds also hold `worktree` (Orca worktree id),
-`sent_at`, `seen_at` (last activity seen), `nudged_at`, `brief`, and
-`last_message`. `sessions` holds one row per session handle prflow used, with
+`sent_at`, `seen_at` (last activity seen), `nudged_at`, `brief`,
+`last_message`, and `known_sessions` (handles present before a launch). `sessions` holds one row per session handle prflow used, with
 its dispatch, last activity, and state. `prflow status` and the report's
 In flight group show each open dispatch's session handle, state, age, lease,
 and attempt.

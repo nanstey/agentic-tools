@@ -78,6 +78,7 @@ const ADDED_COLUMNS: Record<string, [string, string][]> = {
     ["nudged_at", "INTEGER"],
     ["brief", "TEXT"],
     ["last_message", "TEXT"],
+    ["known_sessions", "TEXT"],
   ],
 };
 
@@ -105,10 +106,12 @@ export interface Dispatch {
   brief: string | null;
   /** The session's last message prflow saw. */
   lastMessage: string | null;
+  /** Session handles in the worktree before a launch (space-separated), to find an orphan's new session. */
+  knownSessions: string | null;
 }
 
 /** Dispatch fields `patchDispatch` may set. */
-export type DispatchPatch = Partial<Pick<Dispatch, "sessionHandle" | "detail" | "leaseUntil" | "worktree" | "sentAt" | "seenAt" | "nudgedAt" | "brief" | "lastMessage">>;
+export type DispatchPatch = Partial<Pick<Dispatch, "sessionHandle" | "detail" | "leaseUntil" | "worktree" | "sentAt" | "seenAt" | "nudgedAt" | "brief" | "lastMessage" | "knownSessions">>;
 
 const PATCH_COLUMNS: Record<keyof DispatchPatch, string> = {
   sessionHandle: "session_handle",
@@ -120,6 +123,7 @@ const PATCH_COLUMNS: Record<keyof DispatchPatch, string> = {
   nudgedAt: "nudged_at",
   brief: "brief",
   lastMessage: "last_message",
+  knownSessions: "known_sessions",
 };
 
 export interface ItemRow {
@@ -185,6 +189,7 @@ function toDispatch(r: Row): Dispatch {
     nudgedAt: num(r.nudged_at),
     brief: str(r.brief),
     lastMessage: str(r.last_message),
+    knownSessions: str(r.known_sessions),
   };
 }
 
