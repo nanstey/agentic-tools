@@ -36,6 +36,8 @@ jobs:
             run: bash harness/pi/tests/pi-improve.test.sh
           - name: prflow
             run: cd skills/workflow/prflow && npm ci && npm test
+          - name: repo-sync
+            run: cd skills/workflow/repo-sync && npm ci && npm test
     steps:
       - uses: actions/checkout@v4
       # package-patches.test.sh uses node:module stripTypeScriptTypes (Node 22.13+).
