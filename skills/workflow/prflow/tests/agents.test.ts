@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { describe, it } from "node:test";
 import { makeAct, makeVerify } from "../scripts/actions.ts";
 import { chooseTarget, loadTemplates, makeAgentFlow } from "../scripts/agents.ts";
-import { pause } from "../scripts/commands.ts";
+import { pause, recover } from "../scripts/commands.ts";
 import { SKILL_DIR } from "../scripts/config.ts";
 import type { Config } from "../scripts/core/config.ts";
 import type { PiSession } from "../scripts/adapters/orca.ts";
@@ -88,7 +88,7 @@ describe("agent dispatch: dry run", () => {
   it("points widget project PRs at the project context", async () => {
     const { w, s } = setup(COMMENTS_PR);
     const c = cfg();
-    c.dispatch.projectContext = [{ path: "/docs/sync", folder: "proj", repos: ["acme/x"] }];
+    c.dispatch.projectContext = [{ path: "/docs/sync", folder: "proj", repos: ["acme/x"], owners: [] }];
     const out = (await runTick(w, s, { config: c })).stdout;
     assert.match(out, /Project context: this PR belongs to the shared project documented in `\/docs\/sync` \(`proj\/`\)\. Run `git pull` there, then read `\/docs\/sync\/AGENTS\.md` and `\/docs\/sync\/proj\/AGENTS\.md`/);
   });
@@ -203,6 +203,15 @@ describe("agent dispatch: live", () => {
     assert.deepEqual(chooseTarget([], null), { do: "launch", close: null });
     // A retry replaces the earlier session even when it is idle.
     assert.deepEqual(chooseTarget([s("done")], "term_a"), { do: "launch", close: s("done") });
+    // After the busy wait: a lone busy terminal is interrupted; two are not; a chat is not.
+    const M = 60_000;
+    assert.equal(chooseTarget([s("working")], null, { waitedMs: 44 * M, busyWaitMs: 45 * M }).do, "wait");
+    assert.equal(chooseTarget([s("working")], null, { waitedMs: 45 * M, busyWaitMs: 45 * M }).do, "interrupt");
+    assert.equal(chooseTarget([s("working"), { ...s("working"), handle: "term_b" }], null, { waitedMs: 99 * M, busyWaitMs: 45 * M }).do, "wait");
+    assert.equal(chooseTarget([{ ...s("working"), kind: "chat" }], null, { waitedMs: 99 * M, busyWaitMs: 45 * M }).do, "wait");
+    // Reuse: the earlier session is interrupted if busy, messaged with the restart brief if idle.
+    assert.equal(chooseTarget([s("working")], "term_a", { reuse: true, busyWaitMs: 45 * M }).do, "interrupt");
+    assert.deepEqual(chooseTarget([s("done")], "term_a", { reuse: true, busyWaitMs: 45 * M }), { do: "message", session: s("done"), restart: "the previous attempt ran past the 45m limit" });
   });
 
   it("renews the lease while the session shows progress, then finishes with its last message", async () => {
@@ -264,16 +273,74 @@ describe("agent dispatch: live", () => {
     assert.equal(w.effects.length, 4);
   });
 
-  it("marks a session stuck working past stuckMinutes stale", async () => {
+  it("restarts its own session in place when it is still busy busyWaitMinutes after the brief", async () => {
     const { w, s } = setup(CI_PR);
-    await runTick(w, s, { live: true, rails: { stuckMinutes: 60 } });
-    for (let i = 1; i <= 4; i++) {
-      w.clock += 20 * MIN;
+    await runTick(w, s, { live: true });
+    for (let i = 1; i <= 3; i++) {
+      w.clock += 15 * MIN;
       w.terminals[WT] = [term("term_new1", "tab1", w.clock - MIN)];
-      w.agents = [agent("s9", "tab1", "working", w.clock - MIN)];
-      await runTick(w, s, { live: true, rails: { stuckMinutes: 60, maxAttempts: 1 } });
+      w.agents = [agent("s9", "tab1", "working", w.clock - MIN, "Rewriting the whole test suite")];
+      await runTick(w, s, { live: true });
     }
-    assert.match(events(s).join("\n"), /session-stale #1 term_new1: stuck working for 80m \(limit 60m\)/);
+    const ev = events(s).join("\n");
+    assert.match(ev, /session-stale #1 term_new1: still working 45m after the brief \(limit 45m\); last message: Rewriting/);
+    assert.match(ev, /interrupted #1 term_new1: the previous attempt was still working after the 45m limit, so prflow stopped its turn/);
+    // Same session: Escape, then the restart brief. Never closed, never a second launch.
+    assert.deepEqual(w.effects, [`launch ${WT}`, "interrupt term_new1", "send term_new1"]);
+    assert.equal(s.dispatch(1)?.attempts, 2);
+    assert.equal(s.dispatch(1)?.sessionHandle, "term_new1");
+    const msg = w.sent.at(-1) ?? "";
+    assert.match(msg, /^term_new1 \| prflow: ci on Acme\/x#1 \| prflow is restarting work on Acme\/x#1 in this session/);
+    assert.match(msg, /First, before anything else, reply with an immediate update/);
+    assert.match(msg, /# Fix failing CI on Acme\/x#1/);
+    assert.match(msg, /This is attempt 2\. Attempt 1 ended: still working 45m after the brief/);
+  });
+
+  it("waits up to busyWaitMinutes on another busy Pi session, then interrupts it and briefs it in place", async () => {
+    const { w, s } = setup(CI_PR, { terminals: { [WT]: [term("term_a", "t1", T0)] }, agents: [agent("s1", "t1", "working", T0, "Working on something else")] });
+    await runTick(w, s, { live: true });
+    for (let i = 1; i <= 2; i++) {
+      w.clock += 15 * MIN;
+      await runTick(w, s, { live: true });
+      assert.deepEqual(w.effects, [], `tick ${i}`);
+    }
+    w.clock += 15 * MIN;
+    const out = (await runTick(w, s, { live: true })).stdout;
+    assert.match(out, /dispatched Acme\/x#1 ci #1: interrupt Pi session term_a in \/w\/x1 with Escape, then restart it with the brief, asking for an immediate update first \(this session was working for 45m \(limit 45m\) while a brief waited/);
+    assert.match(out, /interrupted Acme\/x#1 ci #1: .*last message: Working on something else/);
+    assert.deepEqual(w.effects, ["interrupt term_a", "send term_a"]);
+    assert.ok(w.calls.some((c) => c.join(" ") === "orca terminal wait term_a"));
+    assert.equal(s.dispatch(1)?.state, "launched");
+    assert.equal(s.dispatch(1)?.attempts, 1);
+    assert.match(w.sent.at(-1) ?? "", /immediate update[\s\S]*# Fix failing CI/);
+  });
+
+  it("never interrupts when several Pi sessions are busy, and gives up one lease later", async () => {
+    const busy = { terminals: { [WT]: [term("term_a", "t1", T0), term("term_b", "t2", T0)] }, agents: [agent("s1", "t1", "working", T0), agent("s2", "t2", "waiting", T0)] };
+    const { w, s } = setup(CI_PR, busy);
+    await runTick(w, s, { live: true, rails: { maxAttempts: 1 } });
+    for (let i = 0; i < 7; i++) {
+      w.clock += 15 * MIN;
+      await runTick(w, s, { live: true, rails: { maxAttempts: 1 } });
+    }
+    assert.deepEqual(w.effects, []);
+    const ev = events(s).join("\n");
+    assert.match(ev, /session-stale #1: could not deliver the brief within 105m: a busy Pi session in the worktree could not be interrupted/);
+    assert.match(ev, /abandoned #1/);
+  });
+
+  it("retries a failed interrupt on the same session, never closing it, then abandons", async () => {
+    const { w, s } = setup(CI_PR, { terminals: { [WT]: [term("term_a", "t1", T0)] }, agents: [agent("s1", "t1", "working", T0)], ignoreEscape: true });
+    await runTick(w, s, { live: true, rails: { maxAttempts: 2 } });
+    for (let i = 0; i < 5; i++) {
+      w.clock += 15 * MIN;
+      await runTick(w, s, { live: true, rails: { maxAttempts: 2 } });
+    }
+    assert.deepEqual(w.effects, ["interrupt term_a", "interrupt term_a"]);
+    const ev = events(s).join("\n");
+    assert.match(ev, /action-failed #1 term_a: Pi session term_a did not show its prompt within 30s of Escape; not sending the brief/);
+    assert.match(ev, /abandoned #1: 2 attempts ended failed/);
+    assert.equal(s.item(KEY)?.paused, true);
   });
 
   it("marks a dispatch stale when its lease runs out with no activity", async () => {
@@ -306,6 +373,50 @@ describe("agent dispatch: live", () => {
     w.agents = [agent("so", "to", "working", T0)];
     const out = (await runTick(w, s, { live: true })).stdout;
     assert.match(out, /recovered Acme\/x#1 ci #1: adopted orphaned session term_fresh/);
+  });
+
+  it("prflow recover restarts an abandoned dispatch with fresh attempts and lifts its pause", async () => {
+    const { w, s } = setup(CI_PR, { orcaFails: { launch: "boom" } });
+    await runTick(w, s, { live: true, rails: { maxAttempts: 1 } });
+    w.clock += 15 * MIN;
+    await runTick(w, s, { live: true, rails: { maxAttempts: 1 } });
+    assert.equal(s.dispatch(1)?.state, "abandoned");
+    assert.equal(s.item(KEY)?.paused, true);
+    // Paused and abandoned: nothing more happens on its own.
+    w.orcaFails = {};
+    w.clock += 15 * MIN;
+    await runTick(w, s, { live: true, rails: { maxAttempts: 1 } });
+    assert.deepEqual(w.effects, [`launch ${WT}`]);
+
+    assert.equal(recover(s, w.clock, 1), `recovered dispatch #1 (${KEY} ci, was abandoned); the next tick retries it\nresumed ${KEY}`);
+    assert.match(events(s).join("\n"), /recovered #1: recovered by hand \(prflow recover\): was abandoned after 1 attempt\(s\); the next tick retries it/);
+    w.clock += 15 * MIN;
+    await runTick(w, s, { live: true, rails: { maxAttempts: 1, loopSameVersion: 1 } });
+    // Fresh attempt 1; the loop breaker count restarted at the recover.
+    assert.deepEqual(w.effects, [`launch ${WT}`, `launch ${WT}`]);
+    assert.equal(s.dispatch(1)?.state, "launched");
+    assert.equal(s.dispatch(1)?.attempts, 1);
+  });
+
+  it("prflow recover replaces the session of an open dispatch next tick", async () => {
+    const { w, s } = setup(CI_PR);
+    await runTick(w, s, { live: true });
+    assert.match(recover(s, w.clock, 1), /was launched/);
+    assert.equal(s.dispatch(1)?.state, "stale");
+    assert.equal(s.dispatch(1)?.attempts, 0);
+    w.clock += MIN;
+    await runTick(w, s, { live: true });
+    assert.deepEqual(w.effects, [`launch ${WT}`, "close term_new1", `launch ${WT}`]);
+    assert.equal(s.dispatch(1)?.attempts, 1);
+    assert.throws(() => recover(s, w.clock, 99), /dispatch #99 not found/);
+  });
+
+  it("prflow recover leaves an unrelated pause alone", async () => {
+    const { w, s } = setup(CI_PR, { orcaFails: { launch: "boom" } });
+    await runTick(w, s, { live: true });
+    pause(s, w.clock, { item: KEY }, "on hold by Noel");
+    assert.match(recover(s, w.clock, 1), /Acme\/x#1 stays paused \(on hold by Noel\); run prflow resume --item Acme\/x#1/);
+    assert.equal(s.item(KEY)?.paused, true);
   });
 
   it("records a failed launch and retries it next tick", async () => {

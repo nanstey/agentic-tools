@@ -7,8 +7,8 @@ import { informationalApproval } from "./classify.ts";
 import type { ProjectContext } from "./config.ts";
 import type { Actor } from "./types.ts";
 
-export type BriefKind = "ci" | "comments" | "behind" | "nudge";
-export const BRIEF_KINDS: readonly BriefKind[] = ["ci", "comments", "behind", "nudge"];
+export type BriefKind = "ci" | "comments" | "behind" | "nudge" | "restart";
+export const BRIEF_KINDS: readonly BriefKind[] = ["ci", "comments", "behind", "nudge", "restart"];
 
 /** Every brief ends with this sentence (the no-self-edit note). */
 export const NO_SELF_EDIT = "Do not change your own workflow, skills, prompts, or agent configuration";

@@ -9,7 +9,7 @@ import type { PrSnapshot } from "./core/types.ts";
 import { realDeps } from "./deps.ts";
 import { plan, scan, type ScanResult } from "./scan.ts";
 import { decideWatch, fingerprint } from "./core/watch.ts";
-import { importLegacy, pause, renderStatus, resume, status, type LegacyFile } from "./commands.ts";
+import { importLegacy, pause, recover, renderStatus, resume, status, type LegacyFile } from "./commands.ts";
 import { defaultStateDir, Store } from "./store.ts";
 import { tick } from "./tick.ts";
 import { makeAct, makeVerify } from "./actions.ts";
@@ -80,6 +80,10 @@ const USAGE = `Usage: prflow <command> [options]
   pause          Pause prflow (default, or --all) or one item (--item).
   resume         Resume prflow, one item (--item), or prflow and every
                  item (--all).
+  recover <id>   Give one dispatch a fresh start: mark it stale (or reopen it
+                 when failed, stale, or abandoned), reset its attempts and the
+                 item's loop breaker count, and lift a pause it caused. The
+                 next tick retries it while the PR still needs that work.
   import-legacy  Import the legacy automations' dispatched.txt files into the
                  ledger (idempotent; reads them only).
   config         Print the resolved accounts and where they came from.
@@ -99,7 +103,7 @@ Options:
   --name <name>              watch: state name, one per scheduled job (default: default)
   --state <path>             watch: state file (default:
                              \${XDG_STATE_HOME:-~/.local/state}/prflow/watch-<name>.txt)
-  --state-dir <path>         tick, status, pause, resume, import-legacy: state
+  --state-dir <path>         tick, status, pause, resume, recover, import-legacy: state
                              directory (default: \${XDG_STATE_HOME:-~/.local/state}/prflow)
   --item <owner/repo#N>      pause, resume: one item
   --all                      pause: the whole system; resume: the system and every item
@@ -142,7 +146,7 @@ async function watch(statePath: string, runScan: () => Promise<ScanResult>): Pro
   }
 }
 
-const COMMANDS = ["scan", "plan", "watch", "tick", "status", "pause", "resume", "import-legacy", "config"];
+const COMMANDS = ["scan", "plan", "watch", "tick", "status", "pause", "resume", "recover", "import-legacy", "config"];
 const ITEM_KEY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+#\d+$/;
 
 async function main(argv: string[]): Promise<number> {
@@ -190,6 +194,12 @@ async function main(argv: string[]): Promise<number> {
   if (cmd === "status") {
     const s = withStore((store) => status(store, Date.now()));
     console.log(format === "json" ? JSON.stringify(s, null, 2) : renderStatus(s));
+    return 0;
+  }
+  if (cmd === "recover") {
+    const id = positionals[1] ?? "";
+    if (!/^[1-9]\d{0,9}$/.test(id) || positionals.length !== 2) throw new Error("usage: prflow recover <dispatchId>");
+    console.log(withStore((store) => recover(store, Date.now(), Number(id))));
     return 0;
   }
   if (cmd === "pause" || cmd === "resume") {

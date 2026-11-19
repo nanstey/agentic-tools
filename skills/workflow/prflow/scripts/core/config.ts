@@ -32,6 +32,8 @@ export interface ProjectContext {
   folder: string | null;
   /** `owner/repo` entries whose PRs belong to this project. */
   repos: string[];
+  /** Owners (users or orgs) all of whose repos belong to this project. */
+  owners: string[];
 }
 
 export interface DispatchConfig {
@@ -60,21 +62,25 @@ function parseDispatch(v: unknown, fail: (msg: string) => never): DispatchConfig
         const where = `dispatch.projectContext[${i}]`;
         if (typeof p !== "object" || p === null || Array.isArray(p)) return fail(`${where} must be an object`);
         const r = p as Record<string, unknown>;
-        for (const key of Object.keys(r)) if (!["$comment", "path", "folder", "repos"].includes(key)) fail(`${where}: unknown key "${key}"`);
+        for (const key of Object.keys(r)) if (!["$comment", "path", "folder", "repos", "owners"].includes(key)) fail(`${where}: unknown key "${key}"`);
         if (typeof r.path !== "string" || !r.path.startsWith("/") || /[\n\0]/.test(r.path)) fail(`${where}.path must be an absolute path`);
         if (r.folder !== undefined && (typeof r.folder !== "string" || !/^[A-Za-z0-9_.-]+(\/[A-Za-z0-9_.-]+)*$/.test(r.folder) || r.folder.split("/").includes("..")))
           fail(`${where}.folder must be a relative folder name`);
         let repos: string[] = [];
+        let owners: string[] = [];
         try {
           repos = strings(r.repos, `${where}.repos`);
+          owners = strings(r.owners, `${where}.owners`);
         } catch (e) {
           fail((e as Error).message);
         }
+        for (const o of owners) if (!NAME.test(o)) fail(`${where}.owners entry "${o}" must be a GitHub user or org`);
+        if (!repos.length && !owners.length) fail(`${where} needs repos or owners`);
         for (const repo of repos) {
           const parts = repo.split("/");
           if (parts.length !== 2 || !parts.every((q) => NAME.test(q))) fail(`${where}.repos entry "${repo}" must be owner/repo`);
         }
-        return { path: r.path as string, folder: (r.folder as string | undefined) ?? null, repos };
+        return { path: r.path as string, folder: (r.folder as string | undefined) ?? null, repos, owners };
       });
     } else fail(`dispatch: unknown key "${k}"`);
   }
@@ -82,9 +88,11 @@ function parseDispatch(v: unknown, fail: (msg: string) => never): DispatchConfig
 }
 
 /** The project a repo's PRs belong to, if any (case-insensitive). */
+/** The project of `repo`: an exact repo entry first, then an owner entry. */
 export function projectFor(d: DispatchConfig, repo: string): ProjectContext | null {
   const r = repo.toLowerCase();
-  return d.projectContext.find((p) => p.repos.some((x) => x.toLowerCase() === r)) ?? null;
+  const owner = r.split("/")[0] ?? "";
+  return d.projectContext.find((p) => p.repos.some((x) => x.toLowerCase() === r)) ?? d.projectContext.find((p) => p.owners.some((x) => x.toLowerCase() === owner)) ?? null;
 }
 
 export interface Actions {
@@ -136,8 +144,12 @@ export interface Rails {
   maxAttempts: number;
   /** Reruns of one item version's cancelled checks; then the item is paused. */
   rerunsPerVersion: number;
-  /** A dispatched session still working this long after the brief is stale. */
-  stuckMinutes: number;
+  /**
+   * How long a busy Pi session may hold up a brief: a session busy in the
+   * worktree before delivery, or the briefed session still busy after it.
+   * Then prflow interrupts it and restarts it with the brief.
+   */
+  busyWaitMinutes: number;
 }
 
 export const DEFAULT_RAILS: Rails = {
@@ -154,7 +166,7 @@ export const DEFAULT_RAILS: Rails = {
   leaseMinutes: 45,
   maxAttempts: 3,
   rerunsPerVersion: 2,
-  stuckMinutes: 120,
+  busyWaitMinutes: 45,
 };
 
 /** Validate a `rails` object: known keys only, positive integers. Missing keys use defaults. */

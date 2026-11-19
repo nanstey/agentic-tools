@@ -14,7 +14,9 @@ describe("brief templates", () => {
     for (const [k, t] of Object.entries(T)) {
       assert.match(t.id, new RegExp(`^${k} v\\d+$`));
       const last = t.body.trim().split("\n").at(-1) ?? "";
-      assert.ok(last.startsWith(NO_SELF_EDIT), `${k}: ${last}`);
+      // The restart brief wraps a full brief, which carries the note.
+      if (k === "restart") assert.equal(last, "{{brief}}");
+      else assert.ok(last.startsWith(NO_SELF_EDIT), `${k}: ${last}`);
     }
   });
 

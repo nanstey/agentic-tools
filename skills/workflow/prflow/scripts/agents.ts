@@ -7,9 +7,12 @@
  *    (`needs-decision`); prflow never creates one.
  * 2. Read the worktree's Pi sessions. Any busy one (working, blocked, waiting,
  *    or of unknown state): leave the dispatch `planned` and retry next tick.
+ *    After `busyWaitMinutes`, a lone busy Pi terminal is interrupted (Escape)
+ *    and gets the brief in the same session, asked first for an immediate update.
  * 3. Otherwise message the idle Pi session with `orchestration send`, or launch
- *    a fresh Pi with the brief. A retry closes the session of the failed
- *    attempt and always launches fresh, with what the attempt left behind.
+ *    a fresh Pi with the brief. A retry after an idle or closed session closes
+ *    it and launches fresh; a retry after a session that stayed busy
+ *    interrupts and reuses it. Both carry what the attempt left behind.
  * The dispatch row and an event are written before every side effect.
  *
  * Monitor (before reconcile), per open agent dispatch:
@@ -19,7 +22,7 @@
  *   new feedback version, trigger gone, or PR no longer listed):
  *   `session-finished` with the session's last message.
  * - Recovery ladder: idle with the work unfinished -> one nudge; idle again,
- *   closed, stuck working past `stuckMinutes`, or lease expired -> `stale`;
+ *   closed, still busy `busyWaitMinutes` after the brief, or lease expired -> `stale`;
  *   the next tick retries with a fresh session; after `maxAttempts` the
  *   dispatch is abandoned and the item paused (`beginDispatch`).
  *
@@ -29,7 +32,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { briefArgs, jobLogArgs, parseBriefFacts } from "./adapters/gh.ts";
-import { isBusy, matchWorktree, parseAgents, parseLaunch, parseSend, parseTerminals, parseWorktrees, piSessions, type AgentRow, type OrcaWorktree, type PiSession, type TerminalRow } from "./adapters/orca.ts";
+import { isBusy, matchWorktree, parseAgents, parseLaunch, parseSend, parseTerminals, parseWaitIdle, parseWorktrees, piSessions, type AgentRow, type OrcaWorktree, type PiSession, type TerminalRow } from "./adapters/orca.ts";
 import { dryRunBlocked, dryRunSlot, once } from "./actions.ts";
 import {
   behindDetails,
@@ -115,28 +118,62 @@ class OrcaView {
 /** What prflow will do for a dispatch. */
 type Target =
   | { do: "wait"; why: string }
-  | { do: "message"; session: PiSession }
+  /** `restart`: why the session restarts; the brief is wrapped in the restart template. */
+  | { do: "message"; session: PiSession; restart: string | null }
+  /** Escape the busy session, wait for its prompt, then send the restart brief. */
+  | { do: "interrupt"; session: PiSession; restart: string }
   | { do: "launch"; close: PiSession | null };
 
 function describe(t: Target, wt: OrcaWorktree): string {
   if (t.do === "wait") return `wait: ${t.why}`;
-  if (t.do === "message") return `message idle Pi session ${t.session.handle} in ${wt.path} with orchestration send`;
+  if (t.do === "message")
+    return t.restart
+      ? `message Pi session ${t.session.handle} in ${wt.path} to restart it, asking for an immediate update first (${t.restart})`
+      : `message idle Pi session ${t.session.handle} in ${wt.path} with orchestration send`;
+  if (t.do === "interrupt")
+    return `interrupt Pi session ${t.session.handle} in ${wt.path} with Escape, then restart it with the brief, asking for an immediate update first (${t.restart})`;
   return `${t.close ? `close ${t.close.handle}, then ` : ""}launch a fresh Pi session in ${wt.path}`;
 }
 
+export interface TargetOptions {
+  /** Reuse `prior` (it stayed busy past the limit) instead of closing it. */
+  reuse?: boolean;
+  /** How long this dispatch has waited on busy sessions. */
+  waitedMs?: number;
+  /** `busyWaitMinutes` in ms; after it a lone busy Pi terminal is interrupted. */
+  busyWaitMs?: number;
+}
+
 /**
- * Pick the target. `prior` is the session of an earlier attempt: it is closed
- * and replaced, never messaged again. Any other busy Pi session blocks the start.
+ * Pick the target. `prior` is the session of an earlier attempt: closed and
+ * replaced, or, with `reuse`, interrupted if busy and restarted in place. Any
+ * other busy Pi session blocks the start until `busyWaitMs`, then a lone busy
+ * Pi terminal is interrupted and restarted with the brief.
  */
-export function chooseTarget(sessions: PiSession[], prior: string | null): Target {
+export function chooseTarget(sessions: PiSession[], prior: string | null, o: TargetOptions = {}): Target {
+  const waited = o.waitedMs ?? 0;
+  const limit = o.busyWaitMs ?? Number.POSITIVE_INFINITY;
+  const limitText = `${Math.round(limit / MINUTE_MS)}m`;
   const old = prior ? (sessions.find((s) => s.handle === prior) ?? null) : null;
   const others = sessions.filter((s) => s.handle !== prior);
-  const busy = others.find(isBusy);
-  if (busy) return { do: "wait", why: `Pi session ${busy.handle} is ${busy.state}` };
-  if (old && old.kind !== "terminal") return { do: "wait", why: `earlier session ${old.handle} is a chat prflow cannot close` };
+  const busy = others.filter(isBusy).sort((a, b) => (b.lastActivityAt ?? 0) - (a.lastActivityAt ?? 0));
+  const first = busy[0];
+  if (first) {
+    const why = `Pi session ${first.handle} is ${first.state}`;
+    if (waited < limit) return { do: "wait", why };
+    if (busy.length > 1) return { do: "wait", why: `${busy.length} Pi sessions are busy; prflow interrupts only a lone busy session` };
+    if (first.kind !== "terminal") return { do: "wait", why: `${why}, a chat prflow cannot interrupt` };
+    if (old) return { do: "wait", why: `${why}, and the earlier session ${old.handle} is still open` };
+    return { do: "interrupt", session: first, restart: `this session was ${first.state} for ${Math.round(waited / MINUTE_MS)}m (limit ${limitText}) while a brief waited, so prflow stopped its turn` };
+  }
+  if (old && old.kind !== "terminal") return { do: "wait", why: `earlier session ${old.handle} is a chat prflow cannot ${o.reuse ? "interrupt" : "close"}` };
+  if (o.reuse && old)
+    return isBusy(old)
+      ? { do: "interrupt", session: old, restart: `the previous attempt was still ${old.state} after the ${limitText} limit, so prflow stopped its turn` }
+      : { do: "message", session: old, restart: `the previous attempt ran past the ${limitText} limit` };
   if (prior) return { do: "launch", close: old };
   const idle = others.filter((s) => s.state === "done").sort((a, b) => (b.lastActivityAt ?? 0) - (a.lastActivityAt ?? 0))[0];
-  return idle ? { do: "message", session: idle } : { do: "launch", close: null };
+  return idle ? { do: "message", session: idle, restart: null } : { do: "launch", close: null };
 }
 
 /**
@@ -230,6 +267,11 @@ function nudgeText(c: Ctx, d: Dispatch, item: Classification, pr: PrSnapshot | u
   });
 }
 
+function restartText(c: Ctx, d: Dispatch, reason: string, brief: string): string {
+  const [repo, number] = d.item.split("#");
+  return render(c.templates.restart, { repo: repo ?? d.item, number: number ?? "", reason, brief: brief.trimEnd() });
+}
+
 const subject = (d: { item: string; kind: string }) => `prflow: ${d.kind} on ${d.item}`;
 
 // ---- side effects ----
@@ -241,18 +283,29 @@ const subject = (d: { item: string; kind: string }) => `prflow: ${d.kind} on ${d
 async function deliver(c: Ctx, d: Dispatch, wt: OrcaWorktree, target: Exclude<Target, { do: "wait" }>, brief: string): Promise<void> {
   const { store, deps } = c;
   const now = c.ctx.now;
-  const handle = target.do === "message" ? target.session.handle : null;
+  const handle = target.do === "message" || target.do === "interrupt" ? target.session.handle : null;
   const known = (await c.view.sessions(wt.id)).map((x) => x.handle).join(" ");
   let cur = store.transition(d.id, "launched", now, { leaseUntil: leaseUntil(c.ctx.rails, now), sessionHandle: handle, detail: describe(target, wt) });
-  cur = store.patchDispatch(d.id, { worktree: wt.id, sentAt: now, seenAt: null, nudgedAt: null, brief, lastMessage: null, knownSessions: known }, now);
+  // An interrupt that fails is retried on the same session, never by closing it.
+  const restartHandle = target.do === "interrupt" ? target.session.handle : null;
+  cur = store.patchDispatch(d.id, { worktree: wt.id, sentAt: now, seenAt: null, nudgedAt: null, brief, lastMessage: null, knownSessions: known, waitSince: null, restartHandle }, now);
   const fail = (why: string) => {
     const t = deps.now();
     finishDispatch(store, t, store.dispatch(d.id) as Dispatch, "failed", why);
     store.appendEvent(t, { ...ev(cur), type: "action-failed", sessionHandle: handle, detail: short(why, 300) });
   };
   try {
-    if (target.do === "message") {
-      const r = await deps.sendToAgent(target.session.handle, subject(d), brief);
+    if (target.do === "interrupt") {
+      const h = target.session.handle;
+      store.appendEvent(now, { ...ev(cur), type: "interrupted", sessionHandle: h, detail: `${target.restart}; last message: ${short(target.session.lastMessage) || "(none)"}` });
+      const i = await deps.interruptTerminal(h);
+      if (!i.ok) return fail(`orca-ide terminal send Escape ${h}: ${i.stderr.trim() || i.stdout.trim()}`);
+      const wr = await deps.waitIdle(h);
+      if (!wr.ok || !parseWaitIdle(wr.stdout)) return fail(`Pi session ${h} did not show its prompt within 30s of Escape; not sending the brief`);
+    }
+    if (target.do === "message" || target.do === "interrupt") {
+      const body = target.restart ? restartText(c, d, target.restart, brief) : brief;
+      const r = await deps.sendToAgent(target.session.handle, subject(d), body);
       if (!r.ok) return fail(`orca-ide orchestration send: ${r.stderr.trim() || r.stdout.trim()}`);
       parseSend(r.stdout);
       store.upsertSession({ handle: target.session.handle, item: d.item, dispatchId: d.id, at: now, lastOutputAt: target.session.lastActivityAt, state: target.session.state });
@@ -315,11 +368,21 @@ async function dispatchItem(c: Ctx, item: Classification, pr: PrSnapshot): Promi
   }
   const wt = m.worktree;
   const prior = existing && (existing.state === "failed" || existing.state === "stale") ? existing : null;
-  // A retry replaces the earlier attempt's session; a planned retry keeps its handle until delivered.
-  const target = chooseTarget(await c.view.sessions(wt.id), mine ? mine.sessionHandle : (prior?.sessionHandle ?? null));
+  // A retry replaces (or, after a busy attempt, reuses) the earlier attempt's
+  // session; a planned retry keeps its handle until delivered.
+  const ref = mine ?? prior;
+  const busyWaitMs = ctx.rails.busyWaitMinutes * MINUTE_MS;
+  const target = chooseTarget(await c.view.sessions(wt.id), ref?.restartHandle ?? ref?.sessionHandle ?? null, {
+    reuse: !!ref?.restartHandle,
+    waitedMs: mine?.waitSince != null ? ctx.now - mine.waitSince : 0,
+    busyWaitMs,
+  });
+  // A waiting dispatch gets past the busy wait plus one lease before it is stale.
+  const waitLease = (since: number) => since + busyWaitMs + ctx.rails.leaseMinutes * MINUTE_MS;
 
   if (mine) {
     // Planned earlier and deferred (busy session): retry delivery with the stored brief.
+    if (target.do === "wait" && mine.waitSince === null && !c.dryRun) store.patchDispatch(mine.id, { waitSince: ctx.now, leaseUntil: waitLease(ctx.now) }, ctx.now);
     if (target.do === "wait" || c.dryRun || store.item(key)?.paused) return;
     store.appendEvent(ctx.now, { ...ev(mine), type: "dispatched", detail: `${describe(target, wt)} (was waiting)` });
     await deliver(c, mine, wt, target, mine.brief ?? (await buildBrief(c, item, pr, wt, null)));
@@ -351,7 +414,7 @@ async function dispatchItem(c: Ctx, item: Classification, pr: PrSnapshot): Promi
     event: { type: "dispatched", detail: `brief ${c.templates[kind as BriefKind].id}: ${plan}` },
   });
   if (!start.ok) return;
-  const d = store.patchDispatch(start.dispatch.id, { worktree: wt.id, brief, detail: plan }, ctx.now);
+  const d = store.patchDispatch(start.dispatch.id, target.do === "wait" ? { worktree: wt.id, brief, detail: plan, waitSince: ctx.now, leaseUntil: waitLease(ctx.now) } : { worktree: wt.id, brief, detail: plan }, ctx.now);
   if (target.do === "wait") return;
   await deliver(c, d, wt, target, brief);
 }
@@ -362,8 +425,8 @@ async function monitorOne(c: Ctx, d: Dispatch, item: Classification | undefined,
   const { store, ctx } = c;
   const now = ctx.now;
   const { rails } = ctx;
-  const stale = (why: string, handle: string | null, last: string | null) => {
-    store.patchDispatch(d.id, { lastMessage: last }, now);
+  const stale = (why: string, handle: string | null, last: string | null, restartHandle: string | null = null) => {
+    store.patchDispatch(d.id, { lastMessage: last, restartHandle }, now);
     finishDispatch(store, now, store.dispatch(d.id) as Dispatch, "stale", why);
     store.appendEvent(now, { ...ev(d), type: "session-stale", sessionHandle: handle, detail: last ? `${why}; last message: ${short(last)}` : why });
   };
@@ -375,8 +438,8 @@ async function monitorOne(c: Ctx, d: Dispatch, item: Classification | undefined,
   };
 
   if (d.state === "planned") {
-    // Waiting on a busy session; give up after a lease.
-    if (leaseExpired(rails, d, now)) stale(`waited ${rails.leaseMinutes}m for a busy Pi session in the worktree`, null, null);
+    // Waiting on a busy session; act interrupts it after busyWaitMinutes. Give up one lease later.
+    if (leaseExpired(rails, d, now)) stale(`could not deliver the brief within ${Math.round((now - (d.waitSince ?? d.updatedAt)) / MINUTE_MS)}m: a busy Pi session in the worktree could not be interrupted`, null, null, d.restartHandle);
     return;
   }
   if (!d.worktree) return;
@@ -413,9 +476,11 @@ async function monitorOne(c: Ctx, d: Dispatch, item: Classification | undefined,
 
   if (isBusy(s)) {
     const busyFor = now - since;
-    if (busyFor > rails.stuckMinutes * MINUTE_MS) {
+    // An unknown state with no activity is not proof of work; the lease decides.
+    if (busyFor >= rails.busyWaitMinutes * MINUTE_MS && (s.state !== "unknown" || activity > since)) {
       if (moved) done(`${moved}; session still ${s.state} after ${Math.round(busyFor / MINUTE_MS)}m`, s);
-      else stale(`stuck ${s.state} for ${Math.round(busyFor / MINUTE_MS)}m (limit ${rails.stuckMinutes}m)`, s.handle, s.lastMessage);
+      // The retry interrupts this session and restarts it in place.
+      else stale(`still ${s.state} ${Math.round(busyFor / MINUTE_MS)}m after the brief (limit ${rails.busyWaitMinutes}m)`, s.handle, s.lastMessage, s.kind === "terminal" ? s.handle : null);
     }
     return;
   }

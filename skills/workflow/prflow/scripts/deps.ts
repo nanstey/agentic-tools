@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { assertReadOnly, assertRerun, rerunArgs } from "./adapters/gh.ts";
 import { assertDeleteBranch, deleteBranchArgs } from "./adapters/git.ts";
-import { agentListArgs, archiveArgs, assertArchive, assertOrca, closeArgs, launchArgs, sendArgs, terminalListArgs, worktreeListArgs } from "./adapters/orca.ts";
+import { agentListArgs, archiveArgs, assertArchive, assertOrca, closeArgs, interruptArgs, launchArgs, sendArgs, terminalListArgs, waitIdleArgs, worktreeListArgs } from "./adapters/orca.ts";
 import type { CmdResult } from "./scan.ts";
 import type { TickDeps } from "./tick.ts";
 
@@ -103,6 +103,8 @@ export function realDeps(): RealDeps {
     launchPi: (worktreeId, prompt) => orca(launchArgs(worktreeId, prompt)),
     sendToAgent: (handle, subject, body) => orca(sendArgs(handle, subject, body)),
     closeTerminal: (handle) => orca(closeArgs(handle)),
+    interruptTerminal: (handle) => orca(interruptArgs(handle)),
+    waitIdle: (handle) => orca(waitIdleArgs(handle)),
     async gitDirty(path) {
       const r = await run("git", ["status", "--porcelain"], process.env, path);
       return r.ok ? r.stdout.split("\n").filter(Boolean).length : null;

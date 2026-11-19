@@ -270,6 +270,22 @@ export const sendArgs = (to: string, subject: string, body: string): string[] =>
 ];
 /** Close one terminal pane that prflow dispatched to. */
 export const closeArgs = (handle: string): string[] => ["terminal", "close", "--terminal", handle, "--json"];
+/** Escape, the only raw input prflow sends: it stops a Pi turn. Never text, never Enter. */
+export const ESCAPE = "\x1b";
+export const interruptArgs = (handle: string): string[] => ["terminal", "send", "--terminal", handle, "--text", ESCAPE, "--json"];
+/** Wait for an interrupted Pi to show its prompt again. */
+export const WAIT_IDLE_MS = 30000;
+export const waitIdleArgs = (handle: string): string[] => ["terminal", "wait", "--terminal", handle, "--for", "tui-idle", "--timeout-ms", String(WAIT_IDLE_MS), "--json"];
+
+/** Whether a `terminal wait --for tui-idle` reply says the terminal is idle. */
+export function parseWaitIdle(stdout: string): boolean {
+  try {
+    const v = JSON.parse(stdout) as { ok?: boolean; result?: { wait?: { satisfied?: unknown } } };
+    return v.ok === true && v.result?.wait?.satisfied === true;
+  } catch {
+    return false;
+  }
+}
 
 const same = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((x, i) => x === b[i]);
 
@@ -283,7 +299,9 @@ export function assertOrca(args: readonly string[]): void {
     (args.length === 5 && safePath(wt) && same(args, terminalListArgs(wt))) ||
     (args.length === 11 && safePath(wt) && typeof args[9] === "string" && args[9].length > 0 && same(args, launchArgs(wt, args[9]))) ||
     (args.length === 9 && ADDRESS.test(args[3] ?? "") && !!args[5] && !!args[7] && same(args, sendArgs(args[3] ?? "", args[5] ?? "", args[7] ?? ""))) ||
-    (args.length === 5 && TERMINAL.test(args[3] ?? "") && same(args, closeArgs(args[3] ?? "")));
+    (args.length === 5 && TERMINAL.test(args[3] ?? "") && same(args, closeArgs(args[3] ?? ""))) ||
+    (args.length === 7 && TERMINAL.test(args[3] ?? "") && same(args, interruptArgs(args[3] ?? ""))) ||
+    (args.length === 9 && TERMINAL.test(args[3] ?? "") && same(args, waitIdleArgs(args[3] ?? "")));
   if (ok) return;
   try {
     assertArchive(args);

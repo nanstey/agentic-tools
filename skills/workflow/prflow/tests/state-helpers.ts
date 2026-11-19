@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { after } from "node:test";
 import { assertReadOnly, assertRerun, rerunArgs } from "../scripts/adapters/gh.ts";
 import { assertDeleteBranch, deleteBranchArgs } from "../scripts/adapters/git.ts";
-import { agentListArgs, archiveArgs, assertArchive, assertOrca, closeArgs, launchArgs, sendArgs, terminalListArgs } from "../scripts/adapters/orca.ts";
+import { agentListArgs, archiveArgs, assertArchive, assertOrca, closeArgs, interruptArgs, launchArgs, sendArgs, terminalListArgs, waitIdleArgs } from "../scripts/adapters/orca.ts";
 import { DEFAULT_ACTIONS, DEFAULT_DISPATCH, DEFAULT_LIMIT, DEFAULT_RAILS, type Config, type Rails } from "../scripts/core/config.ts";
 import type { CmdResult } from "../scripts/scan.ts";
 import { Store } from "../scripts/store.ts";
@@ -73,6 +73,8 @@ export interface World {
   briefs: Record<string, unknown>;
   /** Launch reply override (raw JSON result). */
   launchReply?: unknown;
+  /** The Pi session ignores Escape: it stays busy and never shows its prompt. */
+  ignoreEscape?: boolean;
   /** Messages sent with orchestration send: `to | subject | body`. */
   sent: string[];
   /** Side effects performed, e.g. `rerun Acme/x 42`, `archive /w/a`. */
@@ -209,6 +211,20 @@ export function fakeTickDeps(w: World): TickDeps {
       if (w.orcaFails.close) return fail(w.orcaFails.close);
       for (const k of Object.keys(w.terminals)) w.terminals[k] = (w.terminals[k] ?? []).filter((t) => t.handle !== handle);
       return okJson({ ok: true, result: { closed: true } });
+    },
+    async interruptTerminal(handle) {
+      assertOrca(interruptArgs(handle));
+      w.effects.push(`interrupt ${handle}`);
+      if (w.orcaFails.interrupt) return fail(w.orcaFails.interrupt);
+      // Escape ends the turn: the agent goes idle.
+      const t = Object.values(w.terminals).flat().find((x) => (x as { handle: string }).handle === handle) as { tabId: string } | undefined;
+      if (t && !w.ignoreEscape) for (const a of w.agents as { paneKey: string; state: string }[]) if (a.paneKey === `${t.tabId}:l`) a.state = "done";
+      return okJson({ ok: true, result: { send: { accepted: true } } });
+    },
+    async waitIdle(handle) {
+      assertOrca(waitIdleArgs(handle));
+      w.calls.push(["orca", "terminal", "wait", handle]);
+      return okJson({ ok: true, result: { wait: { handle, condition: "tui-idle", satisfied: !w.ignoreEscape } } });
     },
     async deleteBranch(gitDir, branch, sha) {
       assertDeleteBranch(deleteBranchArgs(gitDir, branch, sha));

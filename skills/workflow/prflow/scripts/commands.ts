@@ -1,6 +1,7 @@
-/** State commands that need no scan: status, pause, resume, import-legacy. */
+/** State commands that need no scan: status, pause, resume, recover, import-legacy. */
 import { parseLegacy, type LegacySource } from "./core/legacy.ts";
-import { pauseItem } from "./dispatch.ts";
+import { isOpen } from "./core/rails.ts";
+import { finishDispatch, pauseItem } from "./dispatch.ts";
 import type { Store } from "./store.ts";
 import { inFlightRow, META } from "./tick.ts";
 
@@ -79,6 +80,43 @@ export function resume(store: Store, now: number, target: { item?: string; all?:
   }
   if (target.all) for (const i of store.pausedItems()) resumeOne(i.key);
   return out.join("\n") || "nothing was paused";
+}
+
+/**
+ * `prflow recover <id>`: give one dispatch a fresh start. An open dispatch is
+ * marked stale (the next tick closes its session and launches a new one); a
+ * failed, stale, or abandoned one is reopened. Attempts and the item's loop
+ * breaker count restart from zero, and a pause this dispatch caused is lifted.
+ * The next tick retries it while the PR still needs the same work.
+ */
+export function recover(store: Store, now: number, id: number): string {
+  const d = store.dispatch(id);
+  if (!d) throw new Error(`dispatch #${id} not found`);
+  if (d.state === "done") throw new Error(`dispatch #${id} is done; nothing to recover`);
+  const why = "recovered by hand (prflow recover)";
+  if (isOpen(d.state)) finishDispatch(store, now, d, "stale", why);
+  store.reopenDispatch(id, now, why);
+  store.addLedger({ at: now, item: d.item, version: d.version, kind: d.kind, outcome: "recovered", detail: why, dispatchId: id, source: "prflow" });
+  store.appendEvent(now, {
+    type: "recovered",
+    item: d.item,
+    version: d.version,
+    kind: d.kind,
+    dispatchId: id,
+    sessionHandle: d.sessionHandle,
+    detail: `${why}: was ${d.state} after ${d.attempts} attempt(s); the next tick retries it${d.sessionHandle ? `, replacing session ${d.sessionHandle}` : ""}`,
+  });
+  const out = [`recovered dispatch #${id} (${d.item} ${d.kind}, was ${d.state}); the next tick retries it`];
+  const item = store.item(d.item);
+  if (item?.paused) {
+    const reason = item.pausedReason ?? "";
+    if (reason.includes(`dispatch #${id} `) || reason.startsWith("loop breaker")) {
+      store.resumeItem(d.item);
+      store.appendEvent(now, { type: "resumed", item: d.item, detail: `prflow recover #${id}` });
+      out.push(`resumed ${d.item}`);
+    } else out.push(`${d.item} stays paused (${reason}); run prflow resume --item ${d.item} to let the retry start`);
+  }
+  return out.join("\n");
 }
 
 export interface LegacyFile {

@@ -46,6 +46,10 @@ export interface TickDeps extends Deps {
   sendToAgent(handle: string, subject: string, body: string): Promise<CmdResult>;
   /** `orca-ide terminal close --terminal <handle> --json`. */
   closeTerminal(handle: string): Promise<CmdResult>;
+  /** `orca-ide terminal send --terminal <handle> --text <Escape> --json`: stop a busy Pi turn. */
+  interruptTerminal(handle: string): Promise<CmdResult>;
+  /** `orca-ide terminal wait --terminal <handle> --for tui-idle --timeout-ms <n> --json`. */
+  waitIdle(handle: string): Promise<CmdResult>;
 }
 
 export interface TickOptions {

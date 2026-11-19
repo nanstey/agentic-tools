@@ -79,6 +79,8 @@ const ADDED_COLUMNS: Record<string, [string, string][]> = {
     ["brief", "TEXT"],
     ["last_message", "TEXT"],
     ["known_sessions", "TEXT"],
+    ["wait_since", "INTEGER"],
+    ["restart_handle", "TEXT"],
   ],
 };
 
@@ -108,10 +110,14 @@ export interface Dispatch {
   lastMessage: string | null;
   /** Session handles in the worktree before a launch (space-separated), to find an orphan's new session. */
   knownSessions: string | null;
+  /** When a planned dispatch started waiting on a busy Pi session. */
+  waitSince: number | null;
+  /** Session that was still busy when its attempt ended; the retry interrupts and reuses it. */
+  restartHandle: string | null;
 }
 
 /** Dispatch fields `patchDispatch` may set. */
-export type DispatchPatch = Partial<Pick<Dispatch, "sessionHandle" | "detail" | "leaseUntil" | "worktree" | "sentAt" | "seenAt" | "nudgedAt" | "brief" | "lastMessage" | "knownSessions">>;
+export type DispatchPatch = Partial<Pick<Dispatch, "sessionHandle" | "detail" | "leaseUntil" | "worktree" | "sentAt" | "seenAt" | "nudgedAt" | "brief" | "lastMessage" | "knownSessions" | "waitSince" | "restartHandle">>;
 
 const PATCH_COLUMNS: Record<keyof DispatchPatch, string> = {
   sessionHandle: "session_handle",
@@ -124,6 +130,8 @@ const PATCH_COLUMNS: Record<keyof DispatchPatch, string> = {
   brief: "brief",
   lastMessage: "last_message",
   knownSessions: "known_sessions",
+  waitSince: "wait_since",
+  restartHandle: "restart_handle",
 };
 
 export interface ItemRow {
@@ -190,6 +198,8 @@ function toDispatch(r: Row): Dispatch {
     brief: str(r.brief),
     lastMessage: str(r.last_message),
     knownSessions: str(r.known_sessions),
+    waitSince: r.wait_since === null || r.wait_since === undefined ? null : Number(r.wait_since),
+    restartHandle: str(r.restart_handle),
   };
 }
 
@@ -483,6 +493,19 @@ export class Store {
     return this.dispatch(id) as Dispatch;
   }
 
+  /**
+   * `prflow recover`: put a closed dispatch (failed, stale, or abandoned) back
+   * to `stale` with no attempts used, so the next tick retries it with a full
+   * recovery ladder. Bypasses the transition table on purpose; only recover calls it.
+   */
+  reopenDispatch(id: number, now: number, detail: string): Dispatch {
+    const r = this.db
+      .prepare("UPDATE dispatches SET state = 'stale', attempts = 0, lease_until = NULL, wait_since = NULL, restart_handle = NULL, detail = ?, updated_at = ? WHERE id = ? AND state IN ('failed', 'stale', 'abandoned')")
+      .run(detail, now, id);
+    if (Number(r.changes) !== 1) throw new Error(`dispatch ${id} is not failed, stale, or abandoned`);
+    return this.dispatch(id) as Dispatch;
+  }
+
   /** Record an agent session tied to a dispatch (one row per handle; the latest dispatch wins). */
   upsertSession(s: { handle: string; item: string; dispatchId: number; at: number; lastOutputAt: number | null; state: string }): void {
     this.db
@@ -538,8 +561,9 @@ export class Store {
     let sql = "SELECT COUNT(*) AS n FROM ledger WHERE outcome = 'started' AND at > ?";
     const args: (string | number)[] = [since];
     if (item !== undefined) {
-      sql += " AND item = ?";
-      args.push(item);
+      // `prflow recover` restarts the loop breaker's count for the item.
+      sql += " AND item = ? AND at > COALESCE((SELECT MAX(at) FROM ledger WHERE outcome = 'recovered' AND item = ?), 0)";
+      args.push(item, item);
     }
     if (version !== undefined) {
       sql += " AND version = ?";

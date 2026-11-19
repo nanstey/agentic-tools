@@ -3,6 +3,8 @@
 export type EventType =
   | "dispatched"
   | "nudged"
+  /** A busy Pi session was stopped with Escape so it can take the brief. */
+  | "interrupted"
   | "recovered"
   | "session-finished"
   | "session-stale"

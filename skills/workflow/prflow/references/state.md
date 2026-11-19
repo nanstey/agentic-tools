@@ -12,7 +12,7 @@ All state lives in one directory, `${XDG_STATE_HOME:-~/.local/state}/prflow/`
 | `events.jsonl` | Append-only event feed for the orchestration layer |
 | `watch-<name>.txt` | `prflow watch` state (unchanged from phase 1) |
 
-Only prflow writes these files. Use `pause`, `resume`, and `import-legacy`.
+Only prflow writes these files. Use `pause`, `resume`, `recover`, and `import-legacy`.
 
 ## Tables
 
@@ -34,7 +34,7 @@ One JSON object per line:
 ```
 
 Every key is always present; unknown values are `null`. `item` is `null` for
-events about prflow itself. Types: `dispatched`, `nudged`, `recovered`,
+events about prflow itself. Types: `dispatched`, `nudged`, `interrupted`, `recovered`,
 `session-finished`, `session-stale`, `abandoned`, `rerun`, `archived`,
 `docs-committed`, `paused`, `resumed`, `rail-tripped`, `action-failed` (an
 action failed; its dispatch is `failed`), `needs-decision` (prflow will not act
@@ -65,7 +65,8 @@ failed | stale -> planned   (retry, attempts + 1)
   emit `recovered`.
 - **Retries:** a `failed` or `stale` dispatch may start again until it reaches
   `maxAttempts`; then it becomes `abandoned`, the item is paused, and prflow
-  emits `abandoned` and `paused`.
+  emits `abandoned` and `paused`. `prflow recover <id>` resets a dispatch to
+  `stale` with 0 attempts and restarts the item's loop-breaker count.
 - **Legacy:** a dispatch is skipped when an imported legacy entry has the same
   item, kind, and head sha prefix (and comment timestamp, when recorded).
 
@@ -83,7 +84,7 @@ All limits come from the config `rails` object; see `SKILL.md` for defaults.
 | Pause | While prflow is paused, `tick` does nothing: no scan, no actions, no output. Its events print on the first tick after `prflow resume`. A paused item is still scanned and reported but starts nothing |
 | Reruns: `rerunsPerVersion` (default 2) | Checks cancelled again at the same item version are rerun up to this many times (dispatch versions `<version>`, `<version>~r2`, ...). Then the item is paused once with a reason; after `prflow resume --item` that version is not rerun again. A new head or new comments start a fresh count |
 | Dry run | Config `actions.dryRun` and `dispatch.dryRun` (each default `true`) or `tick --dry-run`: no side effects; dry-run announcements honour `startsPerTick` |
-| Stuck: `stuckMinutes` | An agent dispatch whose session is still busy this long after the brief is stale |
+| Busy wait: `busyWaitMinutes` | A busy Pi session may hold up a brief this long; then prflow interrupts it and restarts it with the brief (`references/dispatch.md`) |
 
 ## Tick
 

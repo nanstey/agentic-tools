@@ -6,11 +6,14 @@ import {
   archiveArgs,
   assertOrca,
   closeArgs,
+  interruptArgs,
+  waitIdleArgs,
   isBusy,
   launchArgs,
   matchWorktree,
   parseAgents,
   parseLaunch,
+  parseWaitIdle,
   parseSend,
   parseTerminals,
   piSessions,
@@ -32,6 +35,8 @@ describe("assertOrca", () => {
       sendArgs("term_abc-1", "s", "b"),
       sendArgs("orca_session_id:pi_1", "s", "b"),
       closeArgs("term_abc"),
+      interruptArgs("term_abc"),
+      waitIdleArgs("term_abc"),
       archiveArgs("/w/x"),
     ])
       assert.doesNotThrow(() => assertOrca(a), a.join(" "));
@@ -40,6 +45,14 @@ describe("assertOrca", () => {
   it("rejects terminal send, other agents, worktree creation, and anything malformed", () => {
     for (const a of [
       ["terminal", "send", "--terminal", "term_a", "--text", "hi", "--enter", "--json"],
+      ["terminal", "send", "--terminal", "term_a", "--text", "hi", "--json"],
+      ["terminal", "send", "--terminal", "term_a", "--text", "\x03", "--json"],
+      ["terminal", "send", "--terminal", "term_a", "--text", "\x1b", "--enter", "--json"],
+      ["terminal", "send", "--terminal", "term_a", "--text", "\x1b", "--interrupt", "--json"],
+      ["terminal", "send", "--terminal", "term_a", "--text", "\x1b\x1b", "--json"],
+      interruptArgs("orca_session_id:pi_1"),
+      ["terminal", "wait", "--terminal", "term_a", "--for", "exit", "--timeout-ms", "30000", "--json"],
+      ["terminal", "wait", "--terminal", "term_a", "--for", "tui-idle", "--timeout-ms", "999999", "--json"],
       ["agent", "launch", "--agent", "codex", "--surface", "terminal", "--worktree", `id:${WT}`, "--prompt", "x", "--json"],
       ["agent", "launch", "--agent", "pi", "--surface", "chat", "--worktree", `id:${WT}`, "--prompt", "x", "--json"],
       launchArgs(WT, ""),
@@ -124,6 +137,13 @@ describe("Pi sessions", () => {
 
   it("surfaces Orca errors", () => {
     assert.throws(() => parseAgents(JSON.stringify({ ok: false, error: { code: "runtime_down", message: "no" } })), /agent list: runtime_down: no/);
+  });
+
+  it("reads a tui-idle wait reply", () => {
+    assert.equal(parseWaitIdle(JSON.stringify({ ok: true, result: { wait: { condition: "tui-idle", satisfied: true } } })), true);
+    assert.equal(parseWaitIdle(JSON.stringify({ ok: true, result: { wait: { condition: "tui-idle", satisfied: false } } })), false);
+    assert.equal(parseWaitIdle(JSON.stringify({ ok: false, error: { code: "timeout" } })), false);
+    assert.equal(parseWaitIdle("not json"), false);
   });
 
   it("parses launch and send replies", () => {
