@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { assertReadOnly, assertRerun, parsePr, parsePrRefs, parseSearch, prArgs, PR_QUERY, rerunArgs, runViewArgs } from "../scripts/adapters/gh.ts";
+import { assertDeleteBranch, deleteBranchArgs } from "../scripts/adapters/git.ts";
 import { archiveArgs, assertArchive, parseWorktrees, repoFromPrUrl, repoFromProjectId } from "../scripts/adapters/orca.ts";
 import { HEAD, prResponse, status } from "./fixtures.ts";
 
@@ -172,5 +173,30 @@ describe("phase 3 allowlist", () => {
       ["worktree", "set", "--worktree", "path:/w/a", "--json"],
     ];
     for (const a of bad) assert.throws(() => assertArchive(a), /not the allowed archive call/, a.join(" "));
+  });
+});
+
+describe("branch deletion allowlist", () => {
+  const sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  it("allows exactly git --git-dir <abs> update-ref -d refs/heads/<branch> <sha>", () => {
+    assert.deepEqual(deleteBranchArgs("/r/.git", "feat/x", sha), ["--git-dir", "/r/.git", "update-ref", "-d", "refs/heads/feat/x", sha]);
+    assert.doesNotThrow(() => assertDeleteBranch(deleteBranchArgs("/r/.git", "feat/x-1.2", sha)));
+    const bad = [
+      deleteBranchArgs("r/.git", "x", sha),
+      deleteBranchArgs("/r/../.git", "x", sha),
+      deleteBranchArgs("/r/.git", "-x", sha),
+      deleteBranchArgs("/r/.git", "a..b", sha),
+      deleteBranchArgs("/r/.git", "a b", sha),
+      deleteBranchArgs("/r/.git", "x*", sha),
+      deleteBranchArgs("/r/.git", "x.lock", sha),
+      deleteBranchArgs("/r/.git", "x", "abc"),
+      deleteBranchArgs("/r/.git", "x", ""),
+      ["--git-dir", "/r/.git", "update-ref", "-d", "refs/tags/x", sha],
+      ["--git-dir", "/r/.git", "update-ref", "-d", "refs/heads/x"],
+      ["--git-dir", "/r/.git", "branch", "-D", "x"],
+      ["--git-dir", "/r/.git", "push", "origin", ":x"],
+      ["--git-dir", "/r/.git", "update-ref", "-d", "refs/heads/x", sha, "--no-deref"],
+    ];
+    for (const a of bad) assert.throws(() => assertDeleteBranch(a), /not the allowed branch deletion/, a.join(" "));
   });
 });

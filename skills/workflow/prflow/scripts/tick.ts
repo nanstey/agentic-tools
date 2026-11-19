@@ -26,6 +26,16 @@ export interface TickDeps extends Deps {
   gitUnpushed(path: string, prHeadSha: string | null): Promise<number | null>;
   /** `orca-ide worktree rm --worktree path:<path> --json`; never forced. */
   archiveWorktree(path: string): Promise<CmdResult>;
+  /**
+   * The repository's common git dir, the branch checked out in the worktree at
+   * `path`, and its commit. `branch` is `null` for a detached HEAD; `null` when unknown.
+   */
+  branchInfo(path: string): Promise<{ gitDir: string; branch: string | null; sha: string } | null>;
+  /**
+   * Delete local `refs/heads/<branch>` only while it points at `sha` and no
+   * worktree has it checked out (`git update-ref -d`).
+   */
+  deleteBranch(gitDir: string, branch: string, sha: string): Promise<CmdResult>;
 }
 
 export interface TickOptions {

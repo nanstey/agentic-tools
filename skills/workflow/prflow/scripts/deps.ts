@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
 import { assertReadOnly, assertRerun, rerunArgs } from "./adapters/gh.ts";
+import { assertDeleteBranch, deleteBranchArgs } from "./adapters/git.ts";
 import { archiveArgs, assertArchive } from "./adapters/orca.ts";
 import type { CmdResult } from "./scan.ts";
 import type { TickDeps } from "./tick.ts";
@@ -117,6 +118,22 @@ export function realDeps(): RealDeps {
       const args = archiveArgs(path);
       assertArchive(args);
       return run("orca-ide", args, process.env);
+    },
+    async branchInfo(path) {
+      const dir = await run("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], process.env, path);
+      const head = await run("git", ["rev-parse", "HEAD"], process.env, path);
+      if (!dir.ok || !head.ok) return null;
+      const ref = await run("git", ["symbolic-ref", "-q", "--short", "HEAD"], process.env, path);
+      return { gitDir: dir.stdout.trim(), branch: ref.ok ? ref.stdout.trim() || null : null, sha: head.stdout.trim() };
+    },
+    async deleteBranch(gitDir, branch, sha) {
+      const args = deleteBranchArgs(gitDir, branch, sha);
+      assertDeleteBranch(args);
+      const wt = await run("git", ["--git-dir", gitDir, "worktree", "list", "--porcelain"], process.env);
+      if (!wt.ok) return wt;
+      if (wt.stdout.split("\n").includes(`branch refs/heads/${branch}`))
+        return { ok: false, stdout: "", stderr: `${branch} is still checked out in a worktree` };
+      return run("git", args, process.env);
     },
   };
 }

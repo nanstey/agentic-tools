@@ -1,6 +1,7 @@
 /**
  * Safe actions for `prflow tick`: `rerun` (gh run rerun --failed) and `cleanup`
- * (archive a clean Orca worktree of a merged or closed PR).
+ * (archive a clean Orca worktree of a merged or closed PR, and delete a merged
+ * PR's local branch).
  *
  * Live actions go through `beginDispatch`, which writes the dispatch row, a
  * `started` ledger row, and a `dispatched` event before the side effect. The
@@ -12,6 +13,7 @@
  * item version as a `dry-run` event, without writing a dispatch.
  */
 import { rerunArgs, runViewArgs } from "./adapters/gh.ts";
+import { deleteBranchArgs, safeBranch } from "./adapters/git.ts";
 import { archiveArgs } from "./adapters/orca.ts";
 import { classifyWorktree, summarizeChecks } from "./core/classify.ts";
 import { leaseUntil } from "./core/rails.ts";
@@ -67,7 +69,7 @@ async function live(
   r: Run,
   req: { item: string; version: string; kind: Kind; trigger: string | null; command: string },
   effect: () => Promise<{ ok: boolean; detail: string }>,
-  success: { type: "rerun" | "archived"; detail: string },
+  success: "rerun" | "archived",
 ): Promise<void> {
   const { store, ctx } = r;
   const start = beginDispatch(store, ctx, { item: req.item, version: req.version, kind: req.kind, trigger: req.trigger, event: { type: "dispatched", detail: req.command } });
@@ -78,7 +80,7 @@ async function live(
   const now = r.deps.now();
   if (out.ok) {
     finishDispatch(store, now, d, "done", out.detail);
-    store.appendEvent(now, { ...ev, ...success });
+    store.appendEvent(now, { ...ev, type: success, detail: short(out.detail) });
   } else {
     finishDispatch(store, now, d, "failed", out.detail);
     store.appendEvent(now, { ...ev, type: "action-failed", detail: short(out.detail) });
@@ -142,9 +144,9 @@ async function rerun(r: Run, c: Classification, pr: PrSnapshot): Promise<void> {
         const res = await deps.rerunFailed(c.account, c.repo, id);
         if (!res.ok) failed.push(`run ${id}: ${res.stderr.trim()}`);
       }
-      return failed.length ? { ok: false, detail: failed.join("; ") } : { ok: true, detail: `reran runs ${runIds.join(", ")}` };
+      return failed.length ? { ok: false, detail: failed.join("; ") } : { ok: true, detail: `reran failed and cancelled jobs in run ${runIds.join(", ")}` };
     },
-    { type: "rerun", detail: `reran failed and cancelled jobs in run ${runIds.join(", ")}` },
+    "rerun",
   );
 }
 
@@ -174,7 +176,15 @@ async function cleanup(r: Run, w: WorktreeItem): Promise<void> {
     });
     return;
   }
-  const command = `orca-ide ${archiveArgs(w.path).join(" ")}`;
+  // A merged PR's local branch goes too, pinned to the commit checked above.
+  let target: { gitDir: string; branch: string; sha: string } | null = null;
+  let keep = "branch kept";
+  if (w.pr.state === "MERGED") {
+    const info = await deps.branchInfo(w.path);
+    if (info?.branch && info.branch === w.branch && safeBranch(info.branch)) target = { gitDir: info.gitDir, branch: info.branch, sha: info.sha };
+    else keep = `local branch ${w.branch} kept: ${!info ? "branch state unknown" : !info.branch ? "HEAD is detached" : info.branch !== w.branch ? `worktree is on ${info.branch}` : "unusual branch name"}`;
+  }
+  const command = [`orca-ide ${archiveArgs(w.path).join(" ")}`, ...(target ? [`git ${deleteBranchArgs(target.gitDir, target.branch, target.sha).join(" ")}`] : [])].join("; ");
   if (r.dryRun) {
     const ref = `dry-run:cleanup:${c.key}:${version}`;
     if (!dryRunSlot(r, ref)) return;
@@ -186,9 +196,14 @@ async function cleanup(r: Run, w: WorktreeItem): Promise<void> {
     { item: c.key, version, kind: "cleanup", trigger: null, command },
     async () => {
       const res = await deps.archiveWorktree(w.path);
-      return res.ok ? { ok: true, detail: `archived ${w.path}` } : { ok: false, detail: `orca-ide worktree rm: ${res.stderr.trim() || res.stdout.trim()}` };
+      if (!res.ok) return { ok: false, detail: `orca-ide worktree rm: ${res.stderr.trim() || res.stdout.trim()}` };
+      if (target) {
+        const del = await deps.deleteBranch(target.gitDir, target.branch, target.sha);
+        keep = del.ok ? `deleted local branch ${target.branch}` : `local branch ${target.branch} kept: ${del.stderr.trim() || "git update-ref failed"}`;
+      }
+      return { ok: true, detail: `archived ${w.path} (PR ${w.pr.state}; ${keep})` };
     },
-    { type: "archived", detail: `archived ${w.path} (PR ${w.pr.state}; branch kept)` },
+    "archived",
   );
 }
 

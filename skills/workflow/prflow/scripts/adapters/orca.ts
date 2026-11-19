@@ -55,7 +55,9 @@ export function repoFromPrUrl(url: string): string | null {
 
 /**
  * The one Orca write prflow makes: remove (archive) a Git worktree by path. Orca
- * keeps the branch by default. Never `--force`, never `--delete-branch`.
+ * keeps the branch by default. Never `--force`, never `--delete-branch` (Orca
+ * keeps squash-merged branches it cannot prove merged; prflow deletes a merged
+ * PR's branch itself, see `adapters/git.ts`).
  */
 export const archiveArgs = (path: string): string[] => ["worktree", "rm", "--worktree", `path:${path}`, "--json"];
 

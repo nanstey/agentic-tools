@@ -50,7 +50,7 @@ prflow is scheduler- and agent-agnostic. `prflow watch` prints the actionable re
 | Kind | Action | Preconditions | Otherwise |
 | --- | --- | --- | --- |
 | `rerun` | `gh run rerun <run-id> --failed -R <owner/repo>` for each GitHub Actions run behind a cancelled job | No PR check pending, and `gh run view` reports every run `completed` | Waits; asks you (`needs-decision`) when no Actions run can be found |
-| `cleanup` | `orca-ide worktree rm --worktree path:<path> --json` (Orca keeps the branch) | PR merged or closed, `git status --porcelain` empty, and no commits outside the remotes unless HEAD is the PR head or its ancestor | Asks you (`needs-decision`) once; never archives |
+| `cleanup` | `orca-ide worktree rm --worktree path:<path> --json`; for a merged PR, then `git --git-dir <repo> update-ref -d refs/heads/<branch> <sha>` (local branch only; deleted only while it still points at the checked commit and no worktree has it) | PR merged or closed, `git status --porcelain` empty, and no commits outside the remotes unless HEAD is the PR head or its ancestor | Asks you (`needs-decision`) once; never archives. Keeps a closed PR's branch, and a merged PR's branch when HEAD is detached or on another branch |
 
 Each live action writes its dispatch row and a `dispatched` event before the command, then records `done` with a `rerun` or `archived` event, or `failed` with `action-failed`. An interrupted action is settled or marked stale on the next tick. All rails apply.
 
@@ -96,6 +96,7 @@ Pending reviews with no timestamp are ignored, and a PR with no commits is skipp
 - Never merge, approve, comment, force-push, or dismiss reviews.
 - Never run a GitHub write other than `gh run rerun <id> --failed -R <owner/repo>` (`assertRerun`), and never while any check is running.
 - Never run an Orca write other than `orca-ide worktree rm --worktree path:<path> --json` (`assertArchive`): no `--force`, no `--delete-branch`. Never archive a worktree with uncommitted files or unpushed commits.
+- Never run a git write other than `git --git-dir <abs> update-ref -d refs/heads/<branch> <sha>` (`assertDeleteBranch`, `scripts/adapters/git.ts`), and only for a merged PR's branch after its worktree is archived. Never delete a remote branch.
 - Never turn off dry run (`actions.dryRun`) without the user's request.
 - Never edit files in the prflow state directory by hand; use `pause`, `resume`, and `import-legacy`.
 - Never write to the legacy `pr-comment-watch` or `pr-watch` state directories.

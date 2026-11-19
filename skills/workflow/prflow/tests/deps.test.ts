@@ -35,11 +35,41 @@ describe("real git checks", () => {
     assert.equal(await deps.gitDirty(dir), 1, "untracked files count as dirty");
   });
 
+  it("deletes a local branch only at the checked commit and when no worktree has it", async () => {
+    const deps = realDeps();
+    git("checkout", "-q", "-B", "main");
+    git("branch", "gone");
+    git("branch", "moved");
+    git("branch", "busy");
+    const info = await deps.branchInfo(dir);
+    assert.ok(info);
+    assert.equal(info.branch, git("symbolic-ref", "--short", "HEAD"));
+    const gitDir = info.gitDir;
+    const wt = join(dir, "..", `${dir.split("/").at(-1)}-wt`);
+    git("worktree", "add", "-q", wt, "busy");
+    after(() => rmSync(wt, { recursive: true, force: true }));
+    const sha = info.sha;
+    assert.equal((await deps.deleteBranch(gitDir, "gone", sha)).ok, true);
+    assert.equal(git("branch", "--list", "gone"), "");
+    git("checkout", "-q", "moved");
+    writeFileSync(join(dir, "a"), "3");
+    git("commit", "-qam", "three");
+    const moved = await deps.deleteBranch(gitDir, "moved", sha);
+    assert.equal(moved.ok, false, "branch moved since the check");
+    assert.notEqual(git("branch", "--list", "moved"), "");
+    const busy = await deps.deleteBranch(gitDir, "busy", sha);
+    assert.match(busy.stderr, /still checked out/);
+    assert.notEqual(git("branch", "--list", "busy"), "");
+    git("checkout", "-q", "--detach");
+    assert.equal((await deps.branchInfo(dir))?.branch, null);
+  });
+
   it("refuses a malformed rerun or archive before running anything", async () => {
     const deps = realDeps();
     await assert.rejects(deps.rerunFailed("u", "Acme/x", "42 --debug"), /not the allowed rerun call/);
     await assert.rejects(deps.rerunFailed("u", "Acme", "42"), /not the allowed rerun call/);
     await assert.rejects(deps.archiveWorktree("relative/path"), /not the allowed archive call/);
     await assert.rejects(deps.archiveWorktree("/w/../etc"), /not the allowed archive call/);
+    await assert.rejects(deps.deleteBranch("/r/.git", "--force", "a".repeat(40)), /not the allowed branch deletion/);
   });
 });

@@ -165,10 +165,38 @@ describe("cleanup action", () => {
       },
     };
     const out = (await runTick(w, s, { worktrees: true, deps })).stdout;
-    assert.deepEqual(seen, ["launched dispatched Acme/x#5 #1: orca-ide worktree rm --worktree path:/w/a --json"]);
-    assert.deepEqual(w.effects, ["archive /w/a"]);
+    assert.deepEqual(seen, ["launched dispatched Acme/x#5 #1: orca-ide worktree rm --worktree path:/w/a --json; git --git-dir /repo/.git update-ref -d refs/heads/b5 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]);
+    assert.deepEqual(w.effects, ["archive /w/a", "delete-branch b5"]);
     assert.equal(s.dispatch(1)?.state, "done");
-    assert.match(out, /archived Acme\/x#5 cleanup #1: archived \/w\/a \(PR MERGED; branch kept\)/);
+    assert.match(out, /archived Acme\/x#5 cleanup #1: archived \/w\/a \(PR MERGED; deleted local branch b5\)/);
+  });
+
+  it("keeps the branch of a closed, unmerged PR", async () => {
+    const s = tempStore();
+    const w = merged({ refs: { [WT_REF]: prRef(5, "CLOSED") } });
+    const out = (await runTick(w, s, { worktrees: true })).stdout;
+    assert.deepEqual(w.effects, ["archive /w/a"]);
+    assert.match(out, /archived Acme\/x#5 cleanup #1: archived \/w\/a \(PR CLOSED; branch kept\)/);
+  });
+
+  for (const [name, head, why] of [
+    ["detached", null, "HEAD is detached"],
+    ["switched", "other", "worktree is on other"],
+  ] as const)
+    it(`keeps the branch when the worktree is ${name}`, async () => {
+      const s = tempStore();
+      const w = merged({ heads: { "/w/a": head } });
+      const out = (await runTick(w, s, { worktrees: true })).stdout;
+      assert.deepEqual(w.effects, ["archive /w/a"]);
+      assert.match(out, new RegExp(`archived /w/a \\(PR MERGED; local branch b5 kept: ${why}\\)`));
+    });
+
+  it("still records the archive when branch deletion fails", async () => {
+    const s = tempStore();
+    const w = merged({ branchFails: { b5: "cannot lock ref" } });
+    const out = (await runTick(w, s, { worktrees: true })).stdout;
+    assert.equal(s.dispatch(1)?.state, "done");
+    assert.match(out, /archived \/w\/a \(PR MERGED; local branch b5 kept: cannot lock ref\)/);
   });
 
   for (const [name, over, why] of [
@@ -212,7 +240,7 @@ describe("cleanup action", () => {
     assert.match(out, /rail-tripped prflow: cap startsPerTick=1 reached/);
     w.clock += 15 * MIN;
     await runTick(w, s, { worktrees: true, rails: { startsPerTick: 1 } });
-    assert.deepEqual(w.effects, ["archive /w/a", "archive /w/b"]);
+    assert.deepEqual(w.effects, ["archive /w/a", "archive /w/b", "delete-branch b6"]);
   });
 });
 
