@@ -9,17 +9,22 @@ export const GROUPS: readonly { title: string; kinds: readonly Kind[] }[] = [
   { title: "Cleanup", kinds: ["cleanup"] },
 ];
 
+/** Priority order: kind, then low-priority review requests last, then repo and number. */
 export function sortItems(items: Classification[]): Classification[] {
   return [...items].sort(
-    (a, b) => rank(a.kind) - rank(b.kind) || a.repo.localeCompare(b.repo) || a.number - b.number,
+    (a, b) => rank(a.kind) - rank(b.kind) || Number(a.lowPriority ?? false) - Number(b.lowPriority ?? false) || a.repo.localeCompare(b.repo) || a.number - b.number,
   );
 }
 
-/** One report row. `showAccount` adds the GitHub account when several are configured. */
-export function row(c: Classification, showAccount = false): string {
+/**
+ * One report row. `showAccount` adds the GitHub account when several are
+ * configured; `changed` says what changed since the last printed report.
+ */
+export function row(c: Classification, showAccount = false, changed: string | null = null): string {
   const acct = showAccount ? ` | account: ${c.account}` : "";
   const notes = (c.notes ?? []).map((n) => ` | note: ${n}`).join("");
-  return `- ${c.repo}#${c.number} ${JSON.stringify(c.title)} | ${c.kind}: ${c.status} | next: ${c.nextAction} | owner: ${c.owner}${acct}${notes}`;
+  const diff = changed ? ` | changed: ${changed}` : "";
+  return `- ${c.repo}#${c.number} ${JSON.stringify(c.title)} | ${c.kind}: ${c.status}${diff} | next: ${c.nextAction} | owner: ${c.owner}${acct}${notes}`;
 }
 
 /** Text report grouped by status and next action. Empty groups are omitted. */
@@ -38,7 +43,73 @@ export function renderReport(items: Classification[]): string {
 export interface TickExtras {
   inFlight: string[];
   paused: string[];
+  /** What changed per item key (lowercase) since the last printed report. */
+  changes?: Map<string, string>;
 }
+
+/** What a printed report showed for one item. */
+export interface SeenRow {
+  version: string;
+  title: string;
+  kind: string;
+  checksPending: boolean;
+}
+
+/** Rows of a printed report by lowercase item key. */
+export type Snapshot = Record<string, SeenRow>;
+
+export function snapshotOf(items: Classification[]): Snapshot {
+  const out: Snapshot = {};
+  for (const c of items) out[c.key.toLowerCase()] = { version: c.version, title: c.title, kind: c.kind, checksPending: c.checksPending ?? false };
+  return out;
+}
+
+const PR_VERSION = /^([0-9a-f]{8})-([0-9a-f]{8})$/;
+
+/**
+ * What changed in a row since the last printed report: a new head, new
+ * comments or reviews, a new title, another kind, or finished checks. `null`
+ * when nothing did, or when there is no earlier report; `new` for a row the
+ * last report did not have.
+ */
+export function changeNote(prev: Snapshot | null, c: Classification): string | null {
+  if (prev === null) return null;
+  const p = prev[c.key.toLowerCase()];
+  if (!p) return "new";
+  const bits: string[] = [];
+  const a = PR_VERSION.exec(p.version);
+  const b = PR_VERSION.exec(c.version);
+  if (a && b) {
+    if (a[1] !== b[1]) bits.push(`new head ${b[1]}`);
+    else if (a[2] !== b[2]) bits.push("new comments or reviews");
+  } else if (p.version !== c.version) bits.push(`now ${c.version}`);
+  if (p.title !== c.title) bits.push("retitled");
+  if (p.kind !== c.kind) bits.push(`was ${p.kind}`);
+  if (p.checksPending && !c.checksPending) bits.push("checks finished");
+  return bits.length ? bits.join(", ") : null;
+}
+
+/**
+ * Change fingerprint of the tick report's items. Like the watch fingerprint,
+ * but a PR whose checks are still running keeps the head the last printed
+ * report showed: a new head alone does not reprint the report until its checks
+ * finish (new comments still do). A review request the last report showed, now
+ * waiting only for its required checks on a new head, still counts as that
+ * review request.
+ */
+export function tickFingerprint(actionable: Classification[], waiting: Classification[], prev: Snapshot | null): string {
+  const line = (c: Classification, kind: string) => {
+    const m = PR_VERSION.exec(c.version);
+    const shownHead = PR_VERSION.exec(prev?.[c.key.toLowerCase()]?.version ?? "")?.[1];
+    const v = c.checksPending && m ? `${shownHead ?? m[1]}-${m[2]}` : c.version;
+    return [c.key, kind, v, ...c.triggers.map((t) => `${t.kind}:${t.detail ?? ""}`)].join(" ");
+  };
+  const sticky = waiting.filter((c) => c.role === "reviewer" && c.checksPending && prev?.[c.key.toLowerCase()]?.kind === "review-requested");
+  return [...actionable.map((c) => line(c, c.kind)), ...sticky.map((c) => line(c, "review-requested"))].sort().join("\n");
+}
+
+/** A review request whose draft is ready for the user's decision. */
+const decided = (c: Classification) => c.kind === "review-requested" && c.owner === "you";
 
 /**
  * `prflow tick` report: the watch report plus paused items (under Needs your
@@ -48,9 +119,10 @@ export interface TickExtras {
  */
 export function renderTickReport(items: Classification[], x: TickExtras): string {
   const showAccount = new Set(items.map((c) => c.account)).size > 1;
-  const rows = (kinds: readonly Kind[]) => sortItems(items.filter((c) => kinds.includes(c.kind))).map((c) => row(c, showAccount));
+  const render = (list: Classification[]) => sortItems(list).map((c) => row(c, showAccount, x.changes?.get(c.key.toLowerCase()) ?? null));
+  const rows = (kinds: readonly Kind[]) => render(items.filter((c) => kinds.includes(c.kind) && !decided(c)));
   const sections: [string, string[]][] = [
-    ["Needs your decision", [...rows(["merge-ready"]), ...x.paused]],
+    ["Needs your decision", [...rows(["merge-ready"]), ...render(items.filter(decided)), ...x.paused]],
     ["Ready to act", rows(["rerun", "ci", "comments", "behind", "review-requested"])],
     ["In flight", x.inFlight],
     ["Blocked on others", rows(["waiting"])],

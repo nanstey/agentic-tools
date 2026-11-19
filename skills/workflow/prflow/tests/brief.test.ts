@@ -20,6 +20,18 @@ describe("brief templates", () => {
     }
   });
 
+  it("make the reviewer draft only: report mode, no GitHub writes, clean worktree", () => {
+    const b = T.review.body;
+    assert.match(b, /run `\/pr review \{\{pr_url\}\} report`\. Report mode never publishes\./);
+    assert.match(b, /Do not post anything to GitHub: no review, comment, reply, reaction, approval, request for changes, thread resolution, label, or reviewer request\./);
+    assert.match(b, /Do not edit, commit, or push code/);
+    assert.match(b, /Write the draft only to `\{\{draft_path\}\}`, never inside the worktree\./);
+    assert.match(b, /gh auth token -u \{\{account\}\}/);
+    assert.match(b, /<!-- prflow review draft v1 -->/);
+    assert.doesNotMatch(b, /gh api .*-X POST|--method POST|gh pr review/);
+    assert.match(T["review-nudge"].body, /post nothing to GitHub/);
+  });
+
   it("state the hard rules in every code-work brief", () => {
     for (const k of ["ci", "comments", "behind"] as const) {
       const b = T[k].body;

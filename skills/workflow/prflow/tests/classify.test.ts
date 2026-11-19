@@ -110,6 +110,30 @@ describe("review-requested classifier", () => {
     assert.equal(rq({ reviews: [review(me, "PENDING", null, "", HEAD), review(alice, "APPROVED", LATER, "", HEAD)] }).kind, "review-requested");
   });
 
+  it("marks a request another human already approved as low priority, without skipping it", () => {
+    const bob = user("bob");
+    const c = rq({ decision: "APPROVED", reviews: [review(alice, "APPROVED", AFTER, "lgtm", HEAD), review(bob, "APPROVED", LATER, "", HEAD)] });
+    assert.equal(c.kind, "review-requested");
+    assert.equal(c.lowPriority, true);
+    assert.match(c.status, /^low priority \(already approved by alice, bob\); merge=/);
+    assert.match(renderReport([c]), /review-requested: low priority \(already approved by alice, bob\)/);
+  });
+
+  it("is not low priority when changes are requested, the approval was superseded, or only a bot approved", () => {
+    const bob = user("bob");
+    assert.equal(rq({ decision: "CHANGES_REQUESTED", reviews: [review(alice, "APPROVED", AFTER, "", HEAD)] }).lowPriority, undefined);
+    assert.equal(rq({ reviews: [review(alice, "APPROVED", AFTER, "", HEAD), review(bob, "CHANGES_REQUESTED", LATER, "fix", HEAD)] }).lowPriority, undefined);
+    assert.equal(rq({ reviews: [review(alice, "APPROVED", AFTER, "", HEAD), review(alice, "DISMISSED", LATER, "", HEAD)] }).lowPriority, undefined);
+    assert.equal(rq({ reviews: [review(alice, "APPROVED", AFTER, "", HEAD), review(alice, "COMMENTED", LATER, "one more", HEAD)] }).lowPriority, true);
+    assert.equal(rq({ reviews: [review(bot("ci"), "APPROVED", AFTER, "", HEAD)] }).lowPriority, undefined);
+  });
+
+  it("sorts low-priority requests after the others", () => {
+    const a = { ...rq({ reviews: [review(alice, "APPROVED", AFTER, "", HEAD)] }), number: 1, key: "Acme/widgets#1" };
+    const b = { ...rq({}), number: 2, key: "Acme/widgets#2" };
+    assert.match(renderReport([a, b]), /widgets#2 .*\n.*widgets#1 /);
+  });
+
   it("classify routes by role", () => {
     assert.equal(classify(snap({ decision: null }, "reviewer"), ME).kind, "review-requested");
     assert.equal(classify(snap({ decision: null }, "author"), ME).kind, "waiting");

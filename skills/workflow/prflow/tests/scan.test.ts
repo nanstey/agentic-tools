@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { DEFAULT_LIMIT, DEFAULT_ACTIONS, DEFAULT_DISPATCH, DEFAULT_RAILS, type Account, type Config } from "../scripts/core/config.ts";
+import { DEFAULT_LIMIT, DEFAULT_ACTIONS, DEFAULT_DISPATCH, DEFAULT_RAILS, DEFAULT_REVIEW, type Account, type Config } from "../scripts/core/config.ts";
 import { plan, scan, scopes, type CmdResult, type Deps } from "../scripts/scan.ts";
 import { ME, prResponse } from "./fixtures.ts";
 
 const account = (login: string, owners: string[] = [], repos: string[] = []): Account => ({ login, owners, repos });
-const config = (accounts: Account[], worktrees = true): Config => ({ accounts, limit: DEFAULT_LIMIT, worktrees, rails: DEFAULT_RAILS, actions: DEFAULT_ACTIONS, dispatch: DEFAULT_DISPATCH });
+const config = (accounts: Account[], worktrees = true): Config => ({ accounts, limit: DEFAULT_LIMIT, worktrees, rails: DEFAULT_RAILS, actions: DEFAULT_ACTIONS, dispatch: DEFAULT_DISPATCH, review: DEFAULT_REVIEW });
 const DEFAULT_CONFIG = config([account(ME, ["Acme"])]);
 
 const okJson = (v: unknown): CmdResult => ({ ok: true, stdout: JSON.stringify(v), stderr: "" });
@@ -145,6 +145,7 @@ describe("scan", () => {
         wt("/err", "e"),
         wt("/hidden", "g"),
         wt("/other", "f", 1, "someone/else"),
+        wt("/review", "prflow-review/x-5-c0ffee11", 5),
       ],
       refs: {
         "pr view 5 -R acme/x --json number,state,title,url,headRefOid": okJson(ref(5, "CLOSED")),
@@ -164,6 +165,8 @@ describe("scan", () => {
       ],
     );
     assert.ok(!calls.some(([, a]) => a.includes("someone/else")));
+    // Review worktrees are the review flow's to archive, never cleanup candidates.
+    assert.ok(!r.worktrees.some((w) => w.path === "/review"));
     assert.deepEqual(r.errors, [`${ME}: acme/x e: boom`]);
     assert.deepEqual(plan(r).map((c) => `${c.kind}:${c.owner}`), ["cleanup:you", "cleanup:you"]);
   });

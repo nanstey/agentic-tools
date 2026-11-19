@@ -2,7 +2,7 @@ import { classify, classifyWorktree } from "./core/classify.ts";
 import { accountFor, type Account, type Config } from "./core/config.ts";
 import type { Classification, PrSnapshot, Role, WorktreeItem } from "./core/types.ts";
 import { parsePr, parsePrRefs, parseSearch, prArgs, type SearchHit } from "./adapters/gh.ts";
-import { parseWorktrees, repoFromPrUrl } from "./adapters/orca.ts";
+import { isReviewBranch, parseWorktrees, repoFromPrUrl } from "./adapters/orca.ts";
 
 export interface CmdResult {
   ok: boolean;
@@ -86,6 +86,8 @@ async function scanWorktrees(deps: Deps, cfg: Config, errors: string[]): Promise
   }
   const out = await Promise.all(
     rows.map(async (w): Promise<WorktreeItem | null> => {
+      // Review worktrees are archived by the review flow once their draft is saved.
+      if (isReviewBranch(w.branch)) return null;
       const account = accountFor(cfg, w.repo);
       if (!account) return null;
       const fields = ["--json", "number,state,title,url,headRefOid"];

@@ -2,9 +2,10 @@
  * Orca adapter: parsing and the exact `orca-ide` calls prflow may make.
  *
  * Reads: `worktree list`, `agent list`, `terminal list`. Writes: archive a
- * worktree, launch Pi in an existing worktree, mail a running agent with
- * `orchestration send` (never `terminal send`), and close a terminal prflow
- * dispatched to. `assertOrca` rejects every other call.
+ * worktree, create a review worktree for one PR head, launch Pi in an existing
+ * worktree, mail a running agent with `orchestration send` (never `terminal
+ * send`), and close a terminal prflow dispatched to. `assertOrca` rejects every
+ * other call.
  */
 
 export interface OrcaWorktree {
@@ -86,6 +87,80 @@ export function assertArchive(args: readonly string[]): void {
     !/[\n\0]/.test(path) &&
     args[4] === "--json";
   if (!ok) throw new Error(`prflow: orca-ide ${args.join(" ")} is not the allowed archive call`);
+}
+
+// ---- review worktrees ----
+
+/** Branches of review worktrees prflow creates; nothing else uses this prefix. */
+export const REVIEW_BRANCH_PREFIX = "prflow-review/";
+export const isReviewBranch = (b: string): boolean => b.startsWith(REVIEW_BRANCH_PREFIX);
+
+/** `<repo name>-<n>-<head8>`, lowercase, safe for a worktree name and a branch. */
+export function reviewSlug(repo: string, number: number, head8: string): string {
+  const name = (repo.split("/")[1] ?? repo).toLowerCase().replace(/[^a-z0-9._-]/g, "-");
+  return `${name}-${number}-${head8.toLowerCase()}`;
+}
+export const reviewWorktreeName = (slug: string): string => `prflow-review-${slug}`;
+export const reviewBranch = (slug: string): string => `${REVIEW_BRANCH_PREFIX}${slug}`;
+
+/**
+ * New Orca worktree for reviewing one PR head: own branch, linked to the PR,
+ * no parent lineage, repo setup hooks skipped. Orca bases it on the repo
+ * default branch; the reviewer brief moves it to the PR head.
+ */
+export const reviewWorktreeArgs = (repoId: string, slug: string, pr: number): string[] => [
+  "worktree", "create", "--repo", `id:${repoId}`, "--name", reviewWorktreeName(slug), "--branch", reviewBranch(slug), "--pr", String(pr), "--no-parent", "--setup", "skip", "--json",
+];
+
+const REPO_ID = /^[A-Za-z0-9_-]+$/;
+const SLUG = /^[a-z0-9._-]+-[1-9]\d{0,9}-[0-9a-f]{8}$/;
+
+/** Throws unless `args` is exactly the review worktree creation above. */
+export function assertReviewWorktree(args: readonly string[]): void {
+  const repoId = (args[3] ?? "").slice(3);
+  const slug = (args[5] ?? "").slice("prflow-review-".length);
+  const pr = Number(args[9]);
+  const ok =
+    args.length === 14 &&
+    (args[3] ?? "").startsWith("id:") &&
+    REPO_ID.test(repoId) &&
+    SLUG.test(slug) &&
+    !slug.includes("..") &&
+    Number.isSafeInteger(pr) &&
+    pr > 0 &&
+    slug.split("-").at(-2) === String(pr) &&
+    reviewWorktreeArgs(repoId, slug, pr).every((x, i) => x === args[i]);
+  if (!ok) throw new Error(`prflow: orca-ide ${args.slice(0, 2).join(" ")} is not the allowed review worktree creation`);
+}
+
+/**
+ * Orca repo id for `repo` (`owner/repo`) from `worktree list` output: the main
+ * worktree of that GitHub project. With several clones, the one whose folder
+ * is named after the repo; `null` when none or still ambiguous.
+ */
+export function repoIdFor(json: string, repo: string): { id: string; path: string } | null {
+  const out = JSON.parse(json) as { result?: { worktrees?: (RawWorktree & { repoId?: string })[] } };
+  const want = repo.toLowerCase();
+  const mains = (out.result?.worktrees ?? []).filter((w) => w.isMainWorktree && !w.isArchived && w.projectId && repoFromProjectId(w.projectId) === want && w.repoId && REPO_ID.test(w.repoId));
+  const name = want.split("/")[1] ?? "";
+  const pick = mains.length === 1 ? mains : mains.filter((w) => w.path.split("/").at(-1)?.toLowerCase() === name);
+  const one = pick.length === 1 ? pick[0] : undefined;
+  return one?.repoId ? { id: one.repoId, path: one.path } : null;
+}
+
+/** The review worktree for `slug`, if Orca lists it (branch, maybe with Orca's numeric suffix). */
+export function findReviewWorktree(rows: OrcaWorktree[], repo: string, number: number, slug: string): OrcaWorktree | null {
+  const b = reviewBranch(slug);
+  const suffixed = (x: string) => x.startsWith(`${b}-`) && /^\d+$/.test(x.slice(b.length + 1));
+  const hits = rows.filter((w) => w.repo === repo.toLowerCase() && w.id && (w.branch === b || suffixed(w.branch)) && (w.linkedPr === null || w.linkedPr === number));
+  return hits.length === 1 ? (hits[0] ?? null) : (hits.find((w) => w.branch === b) ?? null);
+}
+
+/** `orca-ide worktree create --json`: the new worktree's id and path, when the reply has them. */
+export function parseCreatedWorktree(json: string): { id: string; path: string } | null {
+  const r = result<Record<string, unknown>>(json, "orca-ide worktree create");
+  const w = (r.worktree ?? r) as { id?: unknown; path?: unknown };
+  return typeof w.id === "string" && typeof w.path === "string" && WORKTREE_ID.test(w.id) ? { id: w.id, path: w.path } : null;
 }
 
 // ---- worktree matching ----
@@ -289,7 +364,7 @@ export function parseWaitIdle(stdout: string): boolean {
 
 const same = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((x, i) => x === b[i]);
 
-/** Throws unless `args` is one of the exact calls above (or the archive call). */
+/** Throws unless `args` is one of the exact calls above, the review worktree creation, or the archive call. */
 export function assertOrca(args: readonly string[]): void {
   const sel = (args[2] === "--worktree" ? args[3] : args[7]) ?? "";
   const wt = sel.startsWith("id:") ? sel.slice(3) : "";
@@ -303,6 +378,7 @@ export function assertOrca(args: readonly string[]): void {
     (args.length === 7 && TERMINAL.test(args[3] ?? "") && same(args, interruptArgs(args[3] ?? ""))) ||
     (args.length === 9 && TERMINAL.test(args[3] ?? "") && same(args, waitIdleArgs(args[3] ?? "")));
   if (ok) return;
+  if (args[0] === "worktree" && args[1] === "create") return assertReviewWorktree(args);
   try {
     assertArchive(args);
   } catch {

@@ -1,7 +1,8 @@
 # prflow Pi dispatch
 
 How `prflow tick` hands `ci`, `comments`, and `behind` work to Pi sessions in
-Orca, watches them, and recovers. Code: `scripts/agents.ts` (flow),
+Orca, watches them, and recovers. Reviewer sessions for `review-requested`
+reuse this monitor and recovery; see `references/review.md`. Code: `scripts/agents.ts` (flow),
 `scripts/core/brief.ts` (briefs), `scripts/adapters/orca.ts` (Orca calls).
 
 ## Switch
@@ -27,6 +28,7 @@ Every `orca-ide` call passes `assertOrca`; anything else throws before it runs.
 | Message | `orca-ide orchestration send --to <term_… or orca_session_id:…> --subject <s> --body <brief> --json` |
 | Close | `orca-ide terminal close --terminal <term_…> --json` |
 | Interrupt | `orca-ide terminal send --terminal <term_…> --text <Escape> --json`, then `orca-ide terminal wait --terminal <term_…> --for tui-idle --timeout-ms 30000 --json` |
+| Review worktree (reviewers only) | `orca-ide worktree create --repo id:<repoId> --name prflow-review-<slug> --branch prflow-review/<slug> --pr <n> --no-parent --setup skip --json` (`assertReviewWorktree`; `<slug>` is `<repo>-<n>-<head8>`) |
 
 `orca-ide agent read` cannot read Pi terminal transcripts, so a session's state
 and last message come from `agent list` (`state`, `lastAssistantMessage`,

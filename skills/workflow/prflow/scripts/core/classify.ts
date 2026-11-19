@@ -235,6 +235,7 @@ function base(pr: PrSnapshot) {
     url: pr.url,
     role: pr.role,
     account: pr.account,
+    checksPending: summarizeChecks(pr.checks).pending,
   };
 }
 
@@ -269,12 +270,35 @@ export function classifyReviewRequest(pr: PrSnapshot, me: string): Classificatio
     return { ...out, kind: "waiting", status: `head already reviewed; ${out.status}`, nextAction: "none", owner: "others" };
   if (s.requiredPending > 0)
     return { ...out, kind: "waiting", status: `required checks pending; ${out.status}`, nextAction: "none", owner: "others" };
+  const approvers = otherApprovals(pr, me);
+  const low = approvers.length > 0;
   return {
     ...out,
     kind: "review-requested",
+    status: low ? `low priority (already approved by ${approvers.join(", ")}); ${out.status}` : out.status,
     nextAction: "launch reviewer session (draft only, you approve before posting)",
     owner: "agent reviewer",
+    ...(low ? { lowPriority: true } : {}),
   };
+}
+
+/**
+ * Other humans whose latest deciding review (approve, request changes, or
+ * dismissed) approves the PR. Empty when anyone's latest deciding review
+ * requests changes or GitHub reports changes requested.
+ */
+export function otherApprovals(pr: PrSnapshot, me: string): string[] {
+  if (pr.reviewDecision === "CHANGES_REQUESTED") return [];
+  const latest = new Map<string, Review>();
+  for (const r of pr.reviews) {
+    if (r.at === null || !human(r.author, me) || !["APPROVED", "CHANGES_REQUESTED", "DISMISSED"].includes(r.state)) continue;
+    const login = r.author?.login ?? "";
+    const prev = latest.get(login);
+    if (!prev || (prev.at ?? "") <= r.at) latest.set(login, r);
+  }
+  const states = [...latest.entries()];
+  if (states.some(([, r]) => r.state === "CHANGES_REQUESTED")) return [];
+  return states.filter(([, r]) => r.state === "APPROVED").map(([login]) => login).sort();
 }
 
 /** Classify a worktree whose PR is no longer open. Returns `null` for open PRs. */
@@ -293,6 +317,7 @@ export function classifyWorktree(w: WorktreeItem): Classification | null {
     account: w.account,
     kind: "cleanup",
     triggers: [],
+    checksPending: false,
     status: `PR ${w.pr.state}; worktree ${w.path} ${dirty}`,
     nextAction: blocked ? "check uncommitted work before archiving" : "archive worktree",
     owner: blocked ? "you" : "prflow",

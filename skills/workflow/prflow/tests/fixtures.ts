@@ -179,3 +179,28 @@ export const CASES: Case[] = [
   // draft
   { name: "draft is skipped", pr: { isDraft: true, comments: [comment(alice, AFTER)], checks: [run("t", "COMPLETED", "FAILURE")] }, lines: [], kind: "waiting" },
 ];
+
+/** A saved review draft for `Acme/x#5` at `HEAD`. */
+export const DRAFT = `<!-- prflow review draft v1 -->
+# Review of Acme/x#5 at c0ffee11
+
+Verdict: request-changes
+
+## Summary
+
+One blocking finding: F1 in src/a.ts.
+
+## Inline comments
+
+### src/a.ts:12
+
+F1: this drops the error.
+
+### \`src/b.ts:3-9\`
+
+Nit: name this.
+
+## Notes for Noel
+
+Ran the pr skill in report mode.
+`;

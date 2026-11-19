@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, describe, it } from "node:test";
-import { realDeps } from "../scripts/deps.ts";
+import { realDeps, realPostDeps } from "../scripts/deps.ts";
 
 const dir = mkdtempSync(join(tmpdir(), "prflow-git-"));
 after(() => rmSync(dir, { recursive: true, force: true }));
@@ -71,5 +71,14 @@ describe("real git checks", () => {
     await assert.rejects(deps.archiveWorktree("relative/path"), /not the allowed archive call/);
     await assert.rejects(deps.archiveWorktree("/w/../etc"), /not the allowed archive call/);
     await assert.rejects(deps.deleteBranch("/r/.git", "--force", "a".repeat(40)), /not the allowed branch deletion/);
+  });
+});
+
+describe("realPostDeps", () => {
+  it("refuses a post input outside the state directory's drafts before running gh", async () => {
+    const d = realPostDeps("/state/prflow");
+    await assert.rejects(d.postReview("octocat", "Acme/x", 5, "/elsewhere/drafts/Acme-x-5/c0ffee11/post.json"), /is not under \/state\/prflow\/drafts\//);
+    await assert.rejects(d.postReview("octocat", "Acme/x", 5, "/state/prflow/drafts/../drafts/a/post.json"), /not the allowed review post/);
+    await assert.rejects(d.postReview("octocat", "Acme/x", 5, "/tmp/post.json"), /not the allowed review post/);
   });
 });

@@ -20,7 +20,13 @@ export type EventType =
   /** prflow will not act and asks the user to decide (for example a dirty worktree). */
   | "needs-decision"
   /** Dry run: the action prflow would take. */
-  | "dry-run";
+  | "dry-run"
+  /** A reviewer session started in its own review worktree. */
+  | "review-started"
+  /** A reviewer session saved its draft review (draft id, verdict suggestion, comment count, path). */
+  | "review-drafted"
+  /** `prflow review post` published a draft to GitHub (never from tick). */
+  | "review-posted";
 
 export interface PrflowEvent {
   /** ISO timestamp. */

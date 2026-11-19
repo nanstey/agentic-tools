@@ -7,8 +7,8 @@ import { informationalApproval } from "./classify.ts";
 import type { ProjectContext } from "./config.ts";
 import type { Actor } from "./types.ts";
 
-export type BriefKind = "ci" | "comments" | "behind" | "nudge" | "restart";
-export const BRIEF_KINDS: readonly BriefKind[] = ["ci", "comments", "behind", "nudge", "restart"];
+export type BriefKind = "ci" | "comments" | "behind" | "nudge" | "restart" | "review" | "review-nudge";
+export const BRIEF_KINDS: readonly BriefKind[] = ["ci", "comments", "behind", "nudge", "restart", "review", "review-nudge"];
 
 /** Every brief ends with this sentence (the no-self-edit note). */
 export const NO_SELF_EDIT = "Do not change your own workflow, skills, prompts, or agent configuration";
@@ -21,7 +21,7 @@ export interface Template {
 
 /** Parse a template file. Throws when the version header is missing or names another kind. */
 export function parseTemplate(kind: BriefKind, text: string): Template {
-  const m = /^<!-- prflow brief: ([a-z]+) (v\d+) -->\n/.exec(text);
+  const m = /^<!-- prflow brief: ([a-z-]+) (v\d+) -->\n/.exec(text);
   if (!m || m[1] !== kind) throw new Error(`brief template ${kind}: first line must be <!-- prflow brief: ${kind} v<n> -->`);
   return { id: `${kind} ${m[2]}`, body: text.slice(m[0].length) };
 }
@@ -115,6 +115,13 @@ export function projectContextText(p: ProjectContext | null): string {
   return `\nProject context: this PR belongs to the shared project documented in \`${p.path}\`${p.folder ? ` (\`${p.folder}/\`)` : ""}. Run \`git pull\` there, then read ${docs} to see how this PR relates to other tasks, and follow its rules for updating those docs when you change a PR.\n`;
 }
 
+/** Project context for a reviewer: read-only. */
+export function reviewProjectContextText(p: ProjectContext | null): string {
+  if (!p) return "";
+  const docs = p.folder ? `\`${p.path}/AGENTS.md\` and \`${p.path}/${p.folder}/AGENTS.md\`` : `\`${p.path}/AGENTS.md\``;
+  return `\nProject context: this PR belongs to the shared project documented in \`${p.path}\`${p.folder ? ` (\`${p.folder}/\`)` : ""}. Read ${docs} and the task this PR implements there to judge whether it does what its task needs and how it relates to other tasks. Do not edit, commit, or pull in that checkout.\n`;
+}
+
 export function otherTriggersText(kinds: string[]): string {
   return kinds.length ? `\nAlso open on this PR: ${kinds.join(", ")}. prflow sends a separate brief for each once this one is done; you need not act on them now.\n` : "";
 }
@@ -124,4 +131,15 @@ export function previousText(attempt: number, reason: string | null, lastMessage
   if (attempt <= 1) return "";
   const msg = lastMessage?.trim() ? `Its last message:\n\n${quote(lastMessage, 2000)}\n` : "It left no message.\n";
   return `\n## Previous attempt\n\nThis is attempt ${attempt}. Attempt ${attempt - 1} ended: ${reason ?? "unknown"}. ${msg}\nCheck the branch and the PR for work it already pushed or replied to, and continue from there. Do not redo finished work.\n`;
+}
+
+/** For a review request on a PR someone else already approved. */
+export function approvalsText(approvers: string[]): string {
+  return approvers.length ? `\nAlready approved by ${approvers.join(", ")} with no changes requested, so this review is low priority. Still review it fully.\n` : "";
+}
+
+/** For a review of a newer head: the earlier draft to build on. */
+export function earlierDraftText(head8: string | null, path: string | null, account: string): string {
+  if (!head8 || !path) return "";
+  return `\n## Earlier draft\n\nprflow saved a draft for the earlier head \`${head8}\` at \`${path}\`, and \`${account}\` may have posted it. Review the full PR, but say for each earlier finding whether it is fixed, still open, or moot, and mark new findings as new.\n`;
 }
