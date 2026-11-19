@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync, utimesSync, writeFileSync } from "node:fs";
+import { existsSync, writeFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { importLegacy, pause, resume, status } from "../scripts/commands.ts";
 import { leaseUntil, MINUTE_MS } from "../scripts/core/rails.ts";
 import { DEFAULT_RAILS } from "../scripts/core/config.ts";
-import { LOCK_HUNG_MS, lockStale } from "../scripts/store.ts";
+import { LOCK_HUNG_MS, LOCK_KEY, lockStale, Store } from "../scripts/store.ts";
 import { META, tick } from "../scripts/tick.ts";
 import { prResponse, run } from "./fixtures.ts";
 import { cfg, fakeTickDeps, MIN, T0, tempStore, world } from "./state-helpers.ts";
@@ -99,44 +99,40 @@ describe("tick", () => {
     assert.match(r.stderr, /scan exceeded its 1s budget/);
   });
 
-  it("exits silently while another tick holds the lock, and takes over a stale lock", async () => {
+  it("exits silently while a live tick holds the lock, and takes over a dead or hung one", async () => {
     const s = tempStore();
     const w = world({ prs: { "Acme/x#1": BEHIND } });
-    writeFileSync(s.path("tick.lock"), "other\n");
+    s.setMeta(LOCK_KEY, `${process.pid} ${T0 - 2 * 60 * MIN} other`);
     assert.deepEqual(await tick(fakeTickDeps(w), s, cfg(), { dryRun: true }), { stdout: "", stderr: "", exitCode: 0 });
     assert.equal(w.calls.length, 0);
-    w.clock = Date.now() + 31 * MIN;
+    // Same live pid, but past the hung limit.
+    w.clock = T0 - 2 * 60 * MIN + LOCK_HUNG_MS;
     assert.match((await tick(fakeTickDeps(w), s, cfg(), { dryRun: true })).stdout, /behind/);
-  });
-
-  it("keeps a lock whose process is alive and takes over one whose process is gone", async () => {
-    const s = tempStore();
-    const w = world({ prs: { "Acme/x#1": BEHIND } });
-    // Our own pid is alive: even an old lock is kept (below the hung limit).
-    writeFileSync(s.path("tick.lock"), `${process.pid} x\n`);
-    utimesSync(s.path("tick.lock"), new Date(Date.now() - 2 * 60 * MIN), new Date(Date.now() - 2 * 60 * MIN));
-    assert.equal((await tick(fakeTickDeps(w), s, cfg(), { dryRun: true })).stdout, "");
-    // A hung tick is taken over after LOCK_HUNG_MS.
-    assert.equal(lockStale(`${process.pid} x`, LOCK_HUNG_MS), true);
-    // A dead pid is taken over at once.
+    assert.equal(s.getMeta(LOCK_KEY), null);
+    // A dead pid is taken over at once; a malformed value too.
     const dead = spawnSync(process.execPath, ["-e", ""]).pid;
-    writeFileSync(s.path("tick.lock"), `${dead} x\n`);
-    assert.match((await tick(fakeTickDeps(w), s, cfg(), { dryRun: true })).stdout, /behind/);
-    assert.equal(existsSync(s.path("tick.lock")), false);
+    assert.equal(lockStale(`${dead} ${w.clock} x`, w.clock), true);
+    assert.equal(lockStale("garbage", w.clock), true);
+    assert.equal(lockStale(`${process.pid} ${w.clock} x`, w.clock), false);
   });
 
-  it("never removes a lock another tick took", () => {
+  it("lets only one of two stores take the lock, and never releases another's", () => {
     const s = tempStore();
+    const other = Store.open(s.dir);
     assert.equal(s.tryLock(T0), true);
-    writeFileSync(s.path("tick.lock"), "999999999 someone else\n");
+    assert.equal(other.tryLock(T0), false);
+    other.unlock();
+    assert.notEqual(s.getMeta(LOCK_KEY), null);
+    s.setMeta(LOCK_KEY, `${process.pid} ${T0} someone-else`);
     s.unlock();
-    assert.equal(readFileSync(s.path("tick.lock"), "utf8"), "999999999 someone else\n");
+    assert.equal(s.getMeta(LOCK_KEY), `${process.pid} ${T0} someone-else`);
+    other.close();
   });
 
   it("releases the lock after a failure", async () => {
     const s = tempStore();
     await tick(fakeTickDeps(world({ searchError: "x" })), s, cfg(), { dryRun: true });
-    assert.equal(existsSync(s.path("tick.lock")), false);
+    assert.equal(s.getMeta(LOCK_KEY), null);
   });
 
   it("marks expired dispatches stale and lists open ones as in flight", async () => {

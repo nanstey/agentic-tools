@@ -9,7 +9,6 @@ All state lives in one directory, `${XDG_STATE_HOME:-~/.local/state}/prflow/`
 | --- | --- |
 | `prflow.db` | SQLite: `items`, `dispatches`, `sessions`, `runs`, `ledger`, `meta` |
 | `paused` | Present while prflow is paused; holds the reason |
-| `tick.lock` | Held while a tick runs (pid and a unique token). Taken over when its process is gone, or after 6 hours (30 minutes when it names no pid). A tick removes only its own lock |
 | `events.jsonl` | Append-only event feed for the orchestration layer |
 | `watch-<name>.txt` | `prflow watch` state (unchanged from phase 1) |
 
@@ -24,7 +23,7 @@ Only prflow writes these files. Use `pause`, `resume`, and `import-legacy`.
 | `sessions` | Agent sessions tied to dispatches (filled from phase 4) |
 | `runs` | One row per tick: start, finish, ok, dry run, item and event counts, error |
 | `ledger` | Append-only outcomes: `started`, final dispatch states, and `legacy-dispatched` imports |
-| `meta` | Event feed offset, report fingerprint, failure count, next tick time, last scan time |
+| `meta` | Event feed offset, report fingerprint, failure count, next tick time, last scan time, and the tick lock (`tick_lock`: pid, time, token). The lock is checked and taken in one `BEGIN IMMEDIATE` transaction, taken over when its process is gone or after 6 hours, and released only by its holder |
 
 ## Events
 

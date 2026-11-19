@@ -1,9 +1,8 @@
 /**
  * prflow state in one directory (default `${XDG_STATE_HOME:-~/.local/state}/prflow/`):
  *
- * - `prflow.db` (SQLite): items, dispatches, sessions, runs, ledger, meta.
+ * - `prflow.db` (SQLite): items, dispatches, sessions, runs, ledger, meta (including the tick lock).
  * - `paused`: present while the whole system is paused (contains the reason).
- * - `tick.lock`: held while a tick runs.
  * - `events.jsonl`: append-only event feed for the orchestration layer.
  *
  * Every write that precedes an external side effect is committed before this
@@ -175,10 +174,10 @@ function toRun(r: Row): RunRow {
   };
 }
 
-/** A lock without a readable pid is taken over after this. */
-export const LOCK_STALE_MS = 30 * 60 * 1000;
 /** A lock whose process is still alive is taken over only after this (a hung tick). */
 export const LOCK_HUNG_MS = 6 * 60 * 60 * 1000;
+/** `meta` key of the tick lock: `<pid> <taken at ms> <uuid>`. */
+export const LOCK_KEY = "tick_lock";
 
 /** True when `pid` names a running process (EPERM: running, owned by someone else). */
 function pidAlive(pid: number): boolean {
@@ -190,11 +189,11 @@ function pidAlive(pid: number): boolean {
   }
 }
 
-/** Whether a lock with `content` and `age` belongs to a dead or hung tick. */
-export function lockStale(content: string, age: number): boolean {
-  const pid = Number(content.split(" ")[0]);
-  if (!Number.isInteger(pid) || pid <= 0) return age >= LOCK_STALE_MS;
-  return !pidAlive(pid) || age >= LOCK_HUNG_MS;
+/** Whether the lock `value` belongs to a dead or hung tick at `now`. */
+export function lockStale(value: string, now: number): boolean {
+  const [pid, at] = value.split(" ").map(Number);
+  if (!pid || !Number.isInteger(pid) || pid <= 0 || at === undefined || !Number.isFinite(at)) return true;
+  return !pidAlive(pid) || now - at >= LOCK_HUNG_MS;
 }
 
 export class Store {
@@ -219,7 +218,7 @@ export class Store {
     this.db.close();
   }
 
-  path(name: "paused" | "tick.lock" | "events.jsonl"): string {
+  path(name: "paused" | "events.jsonl"): string {
     return join(this.dir, name);
   }
 
@@ -236,52 +235,36 @@ export class Store {
 
   // ---- lock ----
 
-  /** Content of the lock this store holds, so `unlock` never removes another tick's lock. */
+  /** Value of the lock this store holds, so `unlock` never releases another tick's lock. */
   private lockToken: string | null = null;
 
   /**
-   * Take `tick.lock`; `false` if another live tick holds it. A lock is taken over
-   * when its process is gone, or after `LOCK_HUNG_MS` (`LOCK_STALE_MS` when it
-   * names no pid).
+   * Take the tick lock (`meta.tick_lock`); `false` if another live tick holds it.
+   * Check and take run in one `BEGIN IMMEDIATE` transaction, so two ticks can
+   * never both take it. A lock is taken over when its process is gone or after
+   * `LOCK_HUNG_MS`.
    */
   tryLock(now: number): boolean {
-    const path = this.path("tick.lock");
-    const token = `${process.pid} ${new Date(now).toISOString()} ${randomUUID()}\n`;
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        const fd = openSync(path, "wx");
-        writeFileSync(fd, token);
-        closeSync(fd);
-        this.lockToken = token;
-        return true;
-      } catch (e) {
-        if ((e as NodeJS.ErrnoException).code !== "EEXIST") throw e;
-        let content: string;
-        let age: number;
-        try {
-          content = readFileSync(path, "utf8");
-          age = now - statSync(path).mtimeMs;
-        } catch {
-          continue;
-        }
-        if (!lockStale(content, age)) return false;
-        // Remove only the lock judged stale, not one another tick took meanwhile.
-        if (this.readLock() === content) rmSync(path, { force: true });
-      }
-    }
-    return false;
-  }
-
-  private readLock(): string | null {
+    const token = `${process.pid} ${now} ${randomUUID()}`;
+    this.db.exec("BEGIN IMMEDIATE");
     try {
-      return readFileSync(this.path("tick.lock"), "utf8");
-    } catch {
-      return null;
+      const cur = this.getMeta(LOCK_KEY);
+      if (cur !== null && !lockStale(cur, now)) {
+        this.db.exec("COMMIT");
+        return false;
+      }
+      this.setMeta(LOCK_KEY, token);
+      this.db.exec("COMMIT");
+    } catch (e) {
+      this.db.exec("ROLLBACK");
+      throw e;
     }
+    this.lockToken = token;
+    return true;
   }
 
   unlock(): void {
-    if (this.lockToken !== null && this.readLock() === this.lockToken) rmSync(this.path("tick.lock"), { force: true });
+    if (this.lockToken !== null) this.db.prepare("DELETE FROM meta WHERE key = ? AND value = ?").run(LOCK_KEY, this.lockToken);
     this.lockToken = null;
   }
 
