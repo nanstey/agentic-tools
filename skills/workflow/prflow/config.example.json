@@ -28,10 +28,18 @@
     "childTimeoutSeconds": 60,
     "leaseMinutes": 45,
     "maxAttempts": 3,
-    "rerunsPerVersion": 2
+    "rerunsPerVersion": 2,
+    "busyWaitMinutes": 45
   },
   "actions": {
     "$comment": "tick actions (rerun cancelled CI, archive clean worktrees) are announced only while dryRun is true. Set false to act.",
     "dryRun": true
+  },
+  "dispatch": {
+    "$comment": "Pi dispatch for ci, comments, and behind. Briefs and targets are announced only while dryRun is true; set false to launch and message Pi sessions. Separate from actions.dryRun. A PR in a projectContext repo, or in any repo of one of its owners, gets a pointer to <path>/AGENTS.md and <path>/<folder>/AGENTS.md.",
+    "dryRun": true,
+    "projectContext": [
+      { "path": "/abs/path/to/shared-docs", "folder": "project", "owners": ["work-org"], "repos": ["partner-org/shared-app"] }
+    ]
   }
 }

@@ -140,7 +140,7 @@ describe("tick", () => {
     const w = world();
     const a = s.transition(s.createDispatch("Acme/a#1", "v1", "ci", T0).id, "launched", T0, { leaseUntil: leaseUntil(DEFAULT_RAILS, T0) });
     const out = (await tick(fakeTickDeps(w), s, cfg(), { dryRun: true })).stdout;
-    assert.match(out, /## In flight \(1\)\n- Acme\/a#1 ci #1 launched \| attempt 1 \| lease until 17:45Z/);
+    assert.match(out, /## In flight \(1\)\n- Acme\/a#1 ci #1 \| session none \| launched \| age 0m \| lease until 17:45Z \| attempt 1/);
     w.clock = T0 + 46 * MIN;
     const later = (await tick(fakeTickDeps(w), s, cfg(), { dryRun: true })).stdout;
     assert.equal(s.dispatch(a.id)?.state, "stale");

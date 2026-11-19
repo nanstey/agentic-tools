@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { DEFAULT_LIMIT, DEFAULT_ACTIONS, DEFAULT_RAILS, type Account, type Config } from "../scripts/core/config.ts";
+import { DEFAULT_LIMIT, DEFAULT_ACTIONS, DEFAULT_DISPATCH, DEFAULT_RAILS, type Account, type Config } from "../scripts/core/config.ts";
 import { plan, scan, scopes, type CmdResult, type Deps } from "../scripts/scan.ts";
 import { ME, prResponse } from "./fixtures.ts";
 
 const account = (login: string, owners: string[] = [], repos: string[] = []): Account => ({ login, owners, repos });
-const config = (accounts: Account[], worktrees = true): Config => ({ accounts, limit: DEFAULT_LIMIT, worktrees, rails: DEFAULT_RAILS, actions: DEFAULT_ACTIONS });
+const config = (accounts: Account[], worktrees = true): Config => ({ accounts, limit: DEFAULT_LIMIT, worktrees, rails: DEFAULT_RAILS, actions: DEFAULT_ACTIONS, dispatch: DEFAULT_DISPATCH });
 const DEFAULT_CONFIG = config([account(ME, ["Acme"])]);
 
 const okJson = (v: unknown): CmdResult => ({ ok: true, stdout: JSON.stringify(v), stderr: "" });

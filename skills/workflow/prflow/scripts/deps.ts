@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { assertReadOnly, assertRerun, rerunArgs } from "./adapters/gh.ts";
 import { assertDeleteBranch, deleteBranchArgs } from "./adapters/git.ts";
-import { archiveArgs, assertArchive } from "./adapters/orca.ts";
+import { agentListArgs, archiveArgs, assertArchive, assertOrca, closeArgs, interruptArgs, launchArgs, sendArgs, terminalListArgs, waitIdleArgs, worktreeListArgs } from "./adapters/orca.ts";
 import type { CmdResult } from "./scan.ts";
 import type { TickDeps } from "./tick.ts";
 
@@ -76,6 +76,12 @@ export function realDeps(): RealDeps {
     return p;
   };
 
+  /** Every `orca-ide` call passes the Orca allowlist first. `orca-ide`, never bare `orca` (the GNOME screen reader on some desktops). */
+  const orca = (args: string[]) => {
+    assertOrca(args);
+    return run("orca-ide", args, process.env);
+  };
+
   return {
     whoami,
     now: () => Date.now(),
@@ -88,11 +94,17 @@ export function realDeps(): RealDeps {
       return typeof env === "string" ? { ok: false, stdout: "", stderr: env } : run("gh", args, env);
     },
     async orcaWorktrees() {
-      // `orca-ide`, never bare `orca`: on some Linux desktops `orca` is the GNOME screen reader.
-      const r = await run("orca-ide", ["worktree", "list", "--limit", "1000", "--json"], process.env);
+      const r = await orca(worktreeListArgs());
       if (!r.ok) throw new Error(r.stderr.trim());
       return r.stdout;
     },
+    orcaAgents: () => orca(agentListArgs()),
+    orcaTerminals: (worktreeId) => orca(terminalListArgs(worktreeId)),
+    launchPi: (worktreeId, prompt) => orca(launchArgs(worktreeId, prompt)),
+    sendToAgent: (handle, subject, body) => orca(sendArgs(handle, subject, body)),
+    closeTerminal: (handle) => orca(closeArgs(handle)),
+    interruptTerminal: (handle) => orca(interruptArgs(handle)),
+    waitIdle: (handle) => orca(waitIdleArgs(handle)),
     async gitDirty(path) {
       const r = await run("git", ["status", "--porcelain"], process.env, path);
       return r.ok ? r.stdout.split("\n").filter(Boolean).length : null;
@@ -117,7 +129,7 @@ export function realDeps(): RealDeps {
     async archiveWorktree(path) {
       const args = archiveArgs(path);
       assertArchive(args);
-      return run("orca-ide", args, process.env);
+      return orca(args);
     },
     async branchInfo(path) {
       const dir = await run("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], process.env, path);

@@ -42,13 +42,13 @@ export function rerunTargets(pr: PrSnapshot): { runIds: string[]; unknown: strin
 const short = (s: string, n = 300) => (s.length > n ? `${s.slice(0, n)}...` : s);
 
 /** Ledger-backed "say it once": emit `event` only the first time `ref` is seen. */
-function once(store: Store, now: number, ref: string, outcome: string, ev: { type: "needs-decision" | "dry-run"; item: string; version: string; kind: Kind; detail: string }): void {
+export function once(store: Store, now: number, ref: string, outcome: string, ev: { type: "needs-decision" | "dry-run"; item: string; version: string; kind: Kind; detail: string }): void {
   if (store.addLedger({ at: now, item: ev.item, version: ev.version, kind: ev.kind, outcome, detail: ev.detail, source: "prflow", ref }))
     store.appendEvent(now, ev);
 }
 
 /** Why a dry run would not act, mirroring the checks `beginDispatch` makes before the rails. */
-function dryRunBlocked(store: Store, item: string, version: string, kind: Kind, trigger: string | null): string | null {
+export function dryRunBlocked(store: Store, item: string, version: string, kind: Kind, trigger: string | null): string | null {
   if (store.systemPaused() !== null) return "prflow paused";
   if (store.item(item)?.paused) return "item paused";
   const d = store.findDispatch(item, version, kind);
@@ -92,7 +92,7 @@ async function live(
  * do. An action announced in an earlier tick takes no slot, as a done dispatch
  * would not in a live tick.
  */
-function dryRunSlot(r: Run, ref: string): boolean {
+export function dryRunSlot(r: Pick<Run, "store" | "ctx">, ref: string): boolean {
   if (r.store.hasLedgerRef(ref)) return false;
   if (r.ctx.starts >= r.ctx.rails.startsPerTick) return false;
   r.ctx.starts++;

@@ -76,6 +76,8 @@ export interface PrSnapshot {
   state: string;
   isDraft: boolean;
   headSha: string;
+  /** Head branch name; `null` when unknown. */
+  branch?: string | null;
   headCommittedDate: string;
   mergeStateStatus: string;
   reviewDecision: string | null;

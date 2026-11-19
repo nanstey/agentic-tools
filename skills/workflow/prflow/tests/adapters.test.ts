@@ -83,7 +83,7 @@ describe("orca parsing", () => {
     result: {
       worktrees: [
         { path: "/m", branch: "refs/heads/main", projectId: "github:github.com-alt/acme/x", isMainWorktree: true },
-        { path: "/a", branch: "refs/heads/feat", projectId: "github:github.com-alt/acme/x", linkedPR: 12 },
+        { id: "r1::/a", path: "/a", branch: "refs/heads/feat", projectId: "github:github.com-alt/acme/x", linkedPR: 12 },
         { path: "/b", branch: "refs/heads/old", projectId: "github:Acme/y", isArchived: true },
         { path: "/c", branch: "refs/heads/z", projectId: "github:someone/tools" },
         { path: "/d", branch: null, projectId: "github:acme/x" },
@@ -94,7 +94,7 @@ describe("orca parsing", () => {
 
   it("keeps active non-main worktrees of in-scope owners", () => {
     assert.deepEqual(parseWorktrees(JSON.stringify(list), ["Acme"]), [
-      { path: "/a", branch: "feat", repo: "acme/x", linkedPr: 12 },
+      { id: "r1::/a", path: "/a", branch: "feat", repo: "acme/x", linkedPr: 12 },
     ]);
   });
 

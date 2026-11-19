@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import { defaultPaths, loadConfig, SKILL_DIR } from "../scripts/config.ts";
-import { accountFor, DEFAULT_ACTIONS, DEFAULT_RAILS, parseConfig } from "../scripts/core/config.ts";
+import { accountFor, DEFAULT_ACTIONS, DEFAULT_DISPATCH, DEFAULT_RAILS, parseConfig, projectFor } from "../scripts/core/config.ts";
 
 const parse = (v: unknown) => parseConfig(JSON.stringify(v), "cfg.json");
 
@@ -22,7 +22,30 @@ describe("parseConfig", () => {
       worktrees: true,
       rails: DEFAULT_RAILS,
       actions: DEFAULT_ACTIONS,
+      dispatch: DEFAULT_DISPATCH,
     });
+  });
+
+  it("defaults dispatch to dry run, separately from actions", () => {
+    assert.equal(DEFAULT_DISPATCH.dryRun, true);
+    const cfg = parse({ accounts: [{ login: "a" }], actions: { dryRun: false } });
+    assert.equal(cfg.actions.dryRun, false);
+    assert.equal(cfg.dispatch.dryRun, true);
+    assert.equal(parse({ accounts: [{ login: "a" }], dispatch: { dryRun: false } }).dispatch.dryRun, false);
+  });
+
+  it("parses project context and matches repos case-insensitively", () => {
+    const cfg = parse({ accounts: [{ login: "a" }], dispatch: { projectContext: [{ path: "/docs/sync", folder: "proj", repos: ["Acme/Widgets"] }] } });
+    assert.deepEqual(projectFor(cfg.dispatch, "acme/widgets"), { path: "/docs/sync", folder: "proj", repos: ["Acme/Widgets"], owners: [] });
+    const byOwner = parse({
+      accounts: [{ login: "a" }],
+      dispatch: { projectContext: [{ path: "/docs/org", owners: ["Acme"] }, { path: "/docs/sync", repos: ["acme/special"] }] },
+    });
+    assert.equal(projectFor(byOwner.dispatch, "ACME/anything")?.path, "/docs/org");
+    // An exact repo entry wins over an owner entry.
+    assert.equal(projectFor(byOwner.dispatch, "acme/special")?.path, "/docs/sync");
+    assert.equal(projectFor(byOwner.dispatch, "other/x"), null);
+    assert.equal(projectFor(cfg.dispatch, "acme/other"), null);
   });
 
   it("defaults to dry run and accepts an explicit switch", () => {
@@ -56,6 +79,14 @@ describe("parseConfig", () => {
     ["actions not object", { accounts: [{ login: "a" }], actions: true }, /actions must be an object/],
     ["unknown action key", { accounts: [{ login: "a" }], actions: { merge: true } }, /actions: unknown key "merge"/],
     ["dryRun not boolean", { accounts: [{ login: "a" }], actions: { dryRun: "no" } }, /actions\.dryRun must be a boolean/],
+    ["dispatch not object", { accounts: [{ login: "a" }], dispatch: [] }, /dispatch must be an object/],
+    ["unknown dispatch key", { accounts: [{ login: "a" }], dispatch: { live: true } }, /dispatch: unknown key "live"/],
+    ["dispatch dryRun not boolean", { accounts: [{ login: "a" }], dispatch: { dryRun: 0 } }, /dispatch\.dryRun must be a boolean/],
+    ["relative project path", { accounts: [{ login: "a" }], dispatch: { projectContext: [{ path: "docs", repos: [] }] } }, /projectContext\[0\]\.path must be an absolute path/],
+    ["project folder escapes", { accounts: [{ login: "a" }], dispatch: { projectContext: [{ path: "/d", folder: "../x", repos: [] }] } }, /folder must be a relative folder name/],
+    ["bad project repo", { accounts: [{ login: "a" }], dispatch: { projectContext: [{ path: "/d", repos: ["x"] }] } }, /must be owner\/repo/],
+    ["bad project owner", { accounts: [{ login: "a" }], dispatch: { projectContext: [{ path: "/d", owners: ["a/b"] }] } }, /owners entry "a\/b" must be a GitHub user or org/],
+    ["project with no repos or owners", { accounts: [{ login: "a" }], dispatch: { projectContext: [{ path: "/d" }] } }, /needs repos or owners/],
     ["bad limit", { accounts: [{ login: "a" }], limit: 0 }, /limit/],
     ["bad worktrees", { accounts: [{ login: "a" }], worktrees: "yes" }, /worktrees/],
   ];

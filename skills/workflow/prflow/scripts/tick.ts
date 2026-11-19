@@ -36,11 +36,27 @@ export interface TickDeps extends Deps {
    * worktree has it checked out (`git update-ref -d`).
    */
   deleteBranch(gitDir: string, branch: string, sha: string): Promise<CmdResult>;
+  /** `orca-ide agent list --json` (read). */
+  orcaAgents(): Promise<CmdResult>;
+  /** `orca-ide terminal list --worktree id:<worktreeId> --json` (read). */
+  orcaTerminals(worktreeId: string): Promise<CmdResult>;
+  /** `orca-ide agent launch --agent pi --surface terminal --worktree id:<worktreeId> --prompt <brief> --json`. */
+  launchPi(worktreeId: string, prompt: string): Promise<CmdResult>;
+  /** `orca-ide orchestration send --to <handle> --subject <s> --body <b> --json`; never `terminal send`. */
+  sendToAgent(handle: string, subject: string, body: string): Promise<CmdResult>;
+  /** `orca-ide terminal close --terminal <handle> --json`. */
+  closeTerminal(handle: string): Promise<CmdResult>;
+  /** `orca-ide terminal send --terminal <handle> --text <Escape> --json`: stop a busy Pi turn. */
+  interruptTerminal(handle: string): Promise<CmdResult>;
+  /** `orca-ide terminal wait --terminal <handle> --for tui-idle --timeout-ms <n> --json`. */
+  waitIdle(handle: string): Promise<CmdResult>;
 }
 
 export interface TickOptions {
-  /** No external side effects; actions are only announced. */
+  /** No external side effects for the safe actions (rerun, cleanup); they are only announced. */
   dryRun: boolean;
+  /** No Pi session is launched, messaged, nudged, or closed; briefs are only announced. Default `true`. */
+  dispatchDryRun?: boolean;
 }
 
 export interface TickOutput {
@@ -69,10 +85,16 @@ export function withBudget<T>(p: Promise<T>, ms: number, what: string): Promise<
 
 const hhmm = (ms: number) => new Date(ms).toISOString().slice(11, 16) + "Z";
 
-export function inFlightRow(d: Dispatch): string {
-  const lease = d.leaseUntil !== null ? ` | lease until ${hhmm(d.leaseUntil)}` : "";
-  const session = d.sessionHandle ? ` | session ${d.sessionHandle}` : "";
-  return `- ${d.item} ${d.kind} #${d.id} ${d.state} | attempt ${d.attempts}${lease}${session}`;
+/** `95` -> `1h35m`. */
+export function age(ms: number): string {
+  const m = Math.max(0, Math.floor(ms / 60_000));
+  return m < 60 ? `${m}m` : `${Math.floor(m / 60)}h${String(m % 60).padStart(2, "0")}m`;
+}
+
+/** In flight row: item, kind, session handle, state, age, lease, attempt. */
+export function inFlightRow(d: Dispatch, now: number): string {
+  const lease = d.leaseUntil !== null ? `lease until ${hhmm(d.leaseUntil)}` : "no lease";
+  return `- ${d.item} ${d.kind} #${d.id} | session ${d.sessionHandle ?? "none"} | ${d.state} | age ${age(now - d.createdAt)} | ${lease} | attempt ${d.attempts}`;
 }
 
 export function pausedRow(i: ItemRow): string {
@@ -80,14 +102,14 @@ export function pausedRow(i: ItemRow): string {
 }
 
 /** Report text and its change fingerprint. Lease times are left out of the fingerprint. */
-export function tickReport(actionable: Classification[], open: Dispatch[], paused: ItemRow[]) {
+export function tickReport(actionable: Classification[], open: Dispatch[], paused: ItemRow[], now: number) {
   const text = renderTickReport(actionable, {
-    inFlight: open.map(inFlightRow),
+    inFlight: open.map((d) => inFlightRow(d, now)),
     paused: paused.map(pausedRow),
   });
   const fp = [
     fingerprint(actionable),
-    ...open.map((d) => `dispatch ${d.id} ${d.state} ${d.attempts}`),
+    ...open.map((d) => `dispatch ${d.id} ${d.state} ${d.attempts} ${d.sessionHandle ?? ""}`),
     ...paused.map((i) => `paused ${i.key.toLowerCase()} ${i.pausedReason ?? ""}`),
   ]
     .filter(Boolean)
@@ -101,12 +123,15 @@ export type Act = (ctx: TickContext, result: ScanResult, items: Classification[]
 /** Settle open dispatches from fresh facts before leases are checked. */
 export type Verify = Parameters<typeof reconcile>[2];
 
+/** Watch open dispatches' sessions (renew leases, settle, recover). Runs before `reconcile`. */
+export type Monitor = Act;
+
 export async function tick(
   deps: TickDeps,
   store: Store,
   cfg: Config,
   opts: TickOptions,
-  hooks: { act?: Act; verify?: (result: ScanResult) => Verify } = {},
+  hooks: { act?: Act; verify?: (result: ScanResult) => Verify; monitor?: Monitor } = {},
 ): Promise<TickOutput> {
   const quiet: TickOutput = { stdout: "", stderr: "", exitCode: 0 };
   // A paused prflow does nothing: no scan, no run row, no output. Events wait
@@ -127,11 +152,12 @@ export async function tick(
     store.upsertItems(items, now);
     store.setMeta(META.lastScanAt, String(now));
     const ctx: TickContext = { now, tickId: runId, rails: cfg.rails, starts: 0 };
+    if (hooks.monitor) await hooks.monitor(ctx, result, items, opts);
     reconcile(store, ctx, hooks.verify?.(result));
     if (hooks.act) await hooks.act(ctx, result, items, opts);
 
     const actionable = sortItems(items).filter((c) => c.kind !== "waiting");
-    const report = tickReport(actionable, store.openDispatches(), store.pausedItems());
+    const report = tickReport(actionable, store.openDispatches(), store.pausedItems(), deps.now());
     const prevFp = store.getMeta(META.reportFp);
     const changed = report.fp !== (prevFp ?? "");
     const { events, offset } = store.readEventsFrom(Number(store.getMeta(META.eventsOffset) ?? 0));

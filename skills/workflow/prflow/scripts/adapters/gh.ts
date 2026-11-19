@@ -32,11 +32,18 @@ function isRunView(args: readonly string[]): boolean {
   );
 }
 
+/** `gh run view --job <id> -R <owner/repo> --log-failed`: the failed steps' log of one job. */
+export const jobLogArgs = (repo: string, jobId: string): string[] => ["run", "view", "--job", jobId, "-R", repo, "--log-failed"];
+
+function isJobLog(args: readonly string[]): boolean {
+  return args.length === 7 && RUN_ID.test(args[3] ?? "") && REPO.test(args[5] ?? "") && jobLogArgs(args[5] ?? "", args[3] ?? "").every((x, i) => x === args[i]);
+}
+
 /** Commands prflow may run. Anything else, or any write, throws. */
 export function assertReadOnly(args: readonly string[]): void {
   const [a, b] = args;
   if (a === "run") {
-    if (!isRunView(args)) throw new Error(`prflow: gh ${args.join(" ")} is not an allowed read call`);
+    if (!isRunView(args) && !isJobLog(args)) throw new Error(`prflow: gh ${args.join(" ")} is not an allowed read call`);
     return;
   }
   const ok =
@@ -101,6 +108,7 @@ interface RawPr {
   state: string;
   isDraft: boolean;
   headRefOid: string;
+  headRefName?: string | null;
   mergeStateStatus: string;
   reviewDecision: string | null;
   commits: { nodes: { commit: { committedDate: string; statusCheckRollup: { contexts: { nodes: RawContext[] } } | null } }[] };
@@ -142,6 +150,7 @@ export function parsePr(json: string, repo: string, number: number, role: Role, 
     state: pr.state,
     isDraft: pr.isDraft,
     headSha: pr.headRefOid,
+    branch: pr.headRefName ?? null,
     headCommittedDate: commit.committedDate,
     mergeStateStatus: pr.mergeStateStatus,
     reviewDecision: pr.reviewDecision,
@@ -178,4 +187,63 @@ export interface PrRef {
 export function parsePrRefs(json: string): PrRef[] {
   const v = JSON.parse(json) as PrRef | PrRef[];
   return Array.isArray(v) ? v : [v];
+}
+
+/**
+ * Feedback detail for a comments brief: bodies, URLs, and thread locations.
+ * Read-only; fetched only when prflow writes a brief.
+ */
+export const BRIEF_QUERY = `query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){
+baseRefName headRefName
+comments(last:50){nodes{createdAt url body author{login __typename}}}
+reviews(last:50){nodes{submittedAt state url body author{login __typename}}}
+reviewThreads(first:100){nodes{isResolved path line originalLine comments(last:20){nodes{createdAt url body author{login __typename}}}}}}}}`;
+
+export function briefArgs(repo: string, number: number): string[] {
+  const [o, r] = repo.split("/");
+  return ["api", "graphql", "-f", `query=${BRIEF_QUERY}`, "-F", `o=${o}`, "-F", `r=${r}`, "-F", `n=${number}`];
+}
+
+export interface FeedbackNote {
+  at: string;
+  author: Actor;
+  url: string;
+  body: string;
+}
+
+export interface BriefFacts {
+  baseRef: string;
+  headRef: string;
+  comments: FeedbackNote[];
+  reviews: (FeedbackNote & { state: string })[];
+  threads: { isResolved: boolean; path: string | null; line: number | null; comments: FeedbackNote[] }[];
+}
+
+type RawNote = { createdAt?: string; submittedAt?: string | null; url: string; body: string | null; author: RawActor };
+const note = (n: RawNote): FeedbackNote => ({ at: n.createdAt ?? n.submittedAt ?? "", author: actor(n.author), url: n.url, body: n.body ?? "" });
+
+/** Parse the `BRIEF_QUERY` response. Returns `null` when the PR is missing. */
+export function parseBriefFacts(json: string): BriefFacts | null {
+  const out = JSON.parse(json) as {
+    data?: {
+      repository?: {
+        pullRequest?: {
+          baseRefName: string;
+          headRefName: string;
+          comments: { nodes: RawNote[] };
+          reviews: { nodes: (RawNote & { state: string })[] };
+          reviewThreads: { nodes: { isResolved: boolean; path: string | null; line: number | null; originalLine: number | null; comments: { nodes: RawNote[] } }[] };
+        } | null;
+      } | null;
+    };
+  };
+  const pr = out.data?.repository?.pullRequest;
+  if (!pr) return null;
+  return {
+    baseRef: pr.baseRefName,
+    headRef: pr.headRefName,
+    comments: pr.comments.nodes.map(note),
+    reviews: pr.reviews.nodes.filter((r) => r.submittedAt).map((r) => ({ ...note(r), state: r.state })),
+    threads: pr.reviewThreads.nodes.map((t) => ({ isResolved: t.isResolved, path: t.path, line: t.line ?? t.originalLine, comments: t.comments.nodes.map(note) })),
+  };
 }

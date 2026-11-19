@@ -34,8 +34,10 @@ node <skill-dir>/scripts/prflow.ts tick [--state-dir <path>] [--config <path>] [
 ```
 
 `tick` is a superset of `watch`: the same scan and report, plus state, rails,
-an event feed, and the safe actions (see `references/state.md`). Actions stay
-dry runs until the config sets `"actions": {"dryRun": false}`.
+an event feed, the safe actions (see `references/state.md`), and Pi dispatch
+(see `references/dispatch.md`). Actions stay dry runs until the config sets
+`"actions": {"dryRun": false}`, and dispatch until it sets
+`"dispatch": {"dryRun": false}`.
 
 | Result | stdout | Exit |
 | --- | --- | --- |
@@ -76,8 +78,10 @@ you want the state and feed.
    two GitHub searches per account scope plus one call per PR.
 7. **Verify** with the scheduler's run history after the first scheduled run.
 
-Never schedule anything that merges, approves, or comments. Turn off dry run
-for `tick` only when the user asks.
+Never schedule anything that merges, approves, or comments. Turn off either
+dry run for `tick` only when the user asks. A Pi dispatch can take longer than
+one tick: the next tick watches it through its lease, so a 15-minute schedule
+needs no change.
 
 ## Examples
 
