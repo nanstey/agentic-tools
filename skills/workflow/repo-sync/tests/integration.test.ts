@@ -11,7 +11,7 @@ const root = mkdtempSync(join(tmpdir(), "repo-sync-it-"));
 writeFileSync(join(root, "prflow.json"), JSON.stringify({ accounts: [] }));
 after(() => rmSync(root, { recursive: true, force: true }));
 
-/** Setup git (not subject to the allowlist). */
+/** Setup git directly for the integration fixture. */
 const git = (cwd: string, ...args: string[]) =>
   execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", "-c", "init.defaultBranch=main", ...args], { cwd, encoding: "utf8" }).trim();
 
@@ -42,7 +42,7 @@ function snapshot(dir: string) {
   };
 }
 
-const NAMES = ["clean", "tiger-team-sync", "dirty", "untracked", "diverged", "other-branch", "ahead"] as const;
+const NAMES = ["clean", "reported", "dirty", "untracked", "diverged", "other-branch", "ahead"] as const;
 const before_: Record<string, ReturnType<typeof snapshot>> = {};
 let newHead = "";
 
@@ -53,7 +53,7 @@ before(() => {
   git(seed, "push", "-q", "origin", "HEAD:main");
   git(remote, "symbolic-ref", "HEAD", "refs/heads/main");
 
-  for (const n of ["clean", "tiger-team-sync", "dirty", "untracked", "diverged", "other-branch"]) clone(n);
+  for (const n of ["clean", "reported", "dirty", "untracked", "diverged", "other-branch"]) clone(n);
   writeFileSync(join(path("dirty"), "a.txt"), "local edit\n");
   writeFileSync(join(path("untracked"), "new.txt"), "untracked\n");
   commit(path("diverged"), "local.txt", "mine\n", "local work");
@@ -76,7 +76,8 @@ describe("real git: run against temporary clones", () => {
   it("fast-forwards clean checkouts and leaves every other checkout untouched", async () => {
     const list = JSON.stringify({ ok: true, result: { repos: NAMES.map((n) => ({ id: n, path: path(n), displayName: n, kind: "git", executionHostId: "local", gitRemoteIdentity: { remoteName: "origin", remoteUrl: remote } })) } });
     const deps: Deps = { ...realDeps(), orcaRepos: async () => ({ ok: true, stdout: list, stderr: "" }) };
-    const env = { XDG_STATE_HOME: join(root, "state"), XDG_CONFIG_HOME: join(root, "config"), PRFLOW_CONFIG: join(root, "prflow.json") };
+    const env = { REPO_SYNC_CONFIG: join(root, "report.json"), XDG_STATE_HOME: join(root, "state"), XDG_CONFIG_HOME: join(root, "config"), PRFLOW_CONFIG: join(root, "prflow.json") };
+    writeFileSync(join(root, "report.json"), JSON.stringify({ reportChanges: ["reported"] }));
     let out = "";
     const io = { deps, env, now: () => Date.now(), out: (s: string) => (out += s), err: (s: string) => assert.fail(s) };
 
@@ -88,7 +89,7 @@ describe("real git: run against temporary clones", () => {
 
     assert.equal(await main(["run"], io), 0);
 
-    for (const n of ["clean", "tiger-team-sync"]) {
+    for (const n of ["clean", "reported"]) {
       const s = snapshot(path(n));
       assert.equal(s.head, newHead, `${n} fast-forwarded`);
       assert.equal(s.branch, "main");
@@ -98,7 +99,7 @@ describe("real git: run against temporary clones", () => {
     for (const n of ["dirty", "untracked", "diverged", "other-branch", "ahead"]) assert.deepEqual(snapshot(path(n)), before_[n], `${n} untouched`);
 
     const short = (sha: string) => sha.slice(0, 7);
-    assert.match(out, new RegExp(`^tiger-team-sync: pulled 2 commits on main \\(${short(before_.clean!.head)}\\.\\.${short(newHead)}\\)\\n  [0-9a-f]+ add b\\n  [0-9a-f]+ two\\n  changed paths \\(2\\):\\n    a.txt\\n    b.txt\\n$`));
+    assert.match(out, new RegExp(`^reported: pulled 2 commits on main \\(${short(before_.clean!.head)}\\.\\.${short(newHead)}\\)\\n  [0-9a-f]+ add b\\n  [0-9a-f]+ two\\n  changed paths \\(2\\):\\n    a.txt\\n    b.txt\\n$`));
 
     const last = JSON.parse(readFileSync(join(root, "state", "repo-sync", "last-run.json"), "utf8")).repos;
     const reason = (n: string) => last[path(n)].reason ?? last[path(n)].status;

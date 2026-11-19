@@ -1,5 +1,4 @@
 import { execFile } from "node:child_process";
-import { assertGit } from "./git.ts";
 
 export interface CmdResult {
   ok: boolean;
@@ -11,7 +10,7 @@ export interface CmdResult {
 export interface Deps {
   /** `orca-ide repo list --json`. */
   orcaRepos(): Promise<CmdResult>;
-  /** Run one allowlisted git command in `cwd`. Throws before spawning when `args` is not allowed. */
+  /** Run a git command built by `scripts/git.ts` in `cwd`. */
   git(cwd: string, args: string[], env?: Record<string, string>): Promise<CmdResult>;
   /** Token of a gh account, or `null`. Never switches the active account. */
   ghToken(login: string): Promise<string | null>;
@@ -49,7 +48,6 @@ export function realDeps(): Deps {
   return {
     orcaRepos: () => run("orca-ide", ["repo", "list", "--json"], process.env),
     async git(cwd, args, extra) {
-      assertGit(args);
       const env: NodeJS.ProcessEnv = { ...process.env, GIT_TERMINAL_PROMPT: "0", GH_PROMPT_DISABLED: "1", LC_ALL: "C", ...extra };
       return run("git", args, env, cwd);
     },

@@ -1,7 +1,7 @@
 /** Per-repo fast-forward. All I/O goes through `Deps`; every git call uses a builder from `git.ts`. */
-import { accountFor, reportsChanges, type Config } from "./core/config.ts";
-import { baseBranch, transport } from "./core/repos.ts";
-import type { Repo, RepoResult, SkipReason, FailReason } from "./core/types.ts";
+import { accountFor, reportsChanges, type Config } from "./config.ts";
+import { baseBranch, transport } from "./repos.ts";
+import type { Repo, RepoResult, SkipReason, FailReason } from "./types.ts";
 import type { CmdResult, Deps } from "./deps.ts";
 import { gitArgs, safeBranch, safeSha } from "./git.ts";
 
@@ -70,10 +70,10 @@ export async function syncRepo(deps: Deps, repo: Repo, opts: SyncOptions, tokens
     if (!f.ok) return NO_REMOTE.test(f.stderr) ? skip("no-remote", firstLine(f.stderr)) : skip("fetch-failed", firstLine(f.stderr) || "git fetch failed");
   }
 
-  if (!(await git(gitArgs.verifyRemote(def))).ok) return skip("no-remote", `origin/${def} missing`);
   const count = await git(gitArgs.count(def));
+  if (!count.ok) return skip("no-remote", firstLine(count.stderr) || `origin/${def} missing`);
   const [ahead, behind] = count.stdout.trim().split(/\s+/).map(Number);
-  if (!count.ok || !Number.isInteger(ahead) || !Number.isInteger(behind)) return failed("error", firstLine(count.stderr) || "cannot compare with origin");
+  if (!Number.isInteger(ahead) || !Number.isInteger(behind)) return failed("error", firstLine(count.stderr) || "cannot compare with origin");
   if (ahead! > 0 && behind! > 0) return skip("diverged", `${ahead} ahead, ${behind} behind origin/${def}`);
   if (ahead! > 0) return skip("ahead", `${ahead} ahead of origin/${def}`);
   if (behind === 0) return base;

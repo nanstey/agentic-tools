@@ -17,7 +17,7 @@ function setup() {
   const dir = join(root, String(n++));
   const env = { XDG_STATE_HOME: join(dir, "state"), XDG_CONFIG_HOME: join(dir, "config"), REPO_SYNC_CONFIG: join(dir, "config.json"), PRFLOW_CONFIG: join(dir, "prflow.json") };
   mkdirSync(dir, { recursive: true });
-  writeFileSync(env.REPO_SYNC_CONFIG, JSON.stringify({ reportChanges: ["tiger-team-sync"] }));
+  writeFileSync(env.REPO_SYNC_CONFIG, JSON.stringify({ reportChanges: ["reported"] }));
   writeFileSync(env.PRFLOW_CONFIG, JSON.stringify({ accounts: [], rails: {} }));
   return { dir, env, state: join(env.XDG_STATE_HOME, "repo-sync") };
 }
@@ -35,6 +35,8 @@ async function cli(args: string[], deps: Deps, env: NodeJS.ProcessEnv, extra: Pa
 describe("repo-sync run", () => {
   it("prints nothing on quiet success, then reports a stuck checkout on its second run, and writes state", async () => {
     const { env, state } = setup();
+    mkdirSync(state, { recursive: true });
+    writeFileSync(join(state, "last-run.json"), "{");
     const script = { ...scriptRepo("/r/clean", { counts: [0, 1] }), ...scriptRepo("/r/dirty", { status: " M a\n" }) };
     const { deps } = fakeDeps(script, { list: ok(LIST(["/r/clean", "/r/dirty"])) });
     const first = await cli(["run"], deps, env);
@@ -55,9 +57,9 @@ describe("repo-sync run", () => {
 
   it("reports pulls in reportChanges repos", async () => {
     const { env } = setup();
-    const { deps } = fakeDeps(scriptRepo("/r/tiger-team-sync"), { list: ok(LIST(["/r/tiger-team-sync"])) });
+    const { deps } = fakeDeps(scriptRepo("/r/reported"), { list: ok(LIST(["/r/reported"])) });
     const r = await cli(["run"], deps, env);
-    assert.equal(r.out, "tiger-team-sync: pulled 2 commits on main (aaaaaaa..bbbbbbb)\n  b1 two\n  b0 one\n  changed paths (2):\n    README.md\n    src/a.ts\n");
+    assert.equal(r.out, "reported: pulled 2 commits on main (aaaaaaa..bbbbbbb)\n  b1 two\n  b0 one\n  changed paths (2):\n    README.md\n    src/a.ts\n");
   });
 
   it("exits 0 silently while another live run holds the lock", async () => {
@@ -153,6 +155,28 @@ describe("repo-sync entrypoint", () => {
 });
 
 describe("lock", () => {
+  it("unlock preserves a lock whose content changed after acquisition", async () => {
+    const { Store } = await import("../scripts/store.ts");
+    const { state } = setup();
+    const store = new Store(state);
+    store.ensureDir();
+    assert.equal(store.tryLock(Date.parse("2026-01-01T00:00:00Z")), true);
+    const lock = join(state, "lock");
+    const owner = JSON.stringify({ pid: 4343 });
+    writeFileSync(lock, owner);
+    store.unlock();
+    assert.equal(readFileSync(lock, "utf8"), owner);
+  });
+
+  it("corrupt last-run state reads as empty", async () => {
+    const { Store } = await import("../scripts/store.ts");
+    const { state } = setup();
+    const store = new Store(state);
+    store.ensureDir();
+    writeFileSync(join(state, "last-run.json"), "{");
+    assert.equal(store.readLast(), null);
+  });
+
   it("does not remove a lock that another run replaced after the stale check", async () => {
     const { Store } = await import("../scripts/store.ts");
     const { state } = setup();

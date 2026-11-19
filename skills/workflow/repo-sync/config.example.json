@@ -1,6 +1,6 @@
 {
-  "$comment": "Copy to config.json in this directory (git-ignored) or to ${XDG_CONFIG_HOME:-~/.config}/repo-sync/config.json. reportChanges lists repos (Orca display name, folder name, or owner/repo) whose pulls print the new commits and changed paths; default tiger-team-sync. GitHub accounts are not set here: repo-sync reads them from prflow's config (PRFLOW_CONFIG, prflow's skill-dir config.json, then ${XDG_CONFIG_HOME:-~/.config}/prflow/config.json). They matter only for HTTPS remotes.",
+  "$comment": "Copy to config.json in this directory (git-ignored) or to ${XDG_CONFIG_HOME:-~/.config}/repo-sync/config.json. reportChanges lists repos (Orca display name, folder name, or owner/repo) whose pulls print the new commits and changed paths; default []. GitHub accounts are not set here: repo-sync reads them from prflow's config (PRFLOW_CONFIG, prflow's skill-dir config.json, then ${XDG_CONFIG_HOME:-~/.config}/prflow/config.json). They matter only for HTTPS remotes.",
   "reportChanges": [
-    "tiger-team-sync"
+    "my-repo"
   ]
 }

@@ -1,7 +1,6 @@
-import { defaultConfig, type Config } from "../scripts/core/config.ts";
-import type { Repo } from "../scripts/core/types.ts";
+import { defaultConfig, type Config } from "../scripts/config.ts";
+import type { Repo } from "../scripts/types.ts";
 import type { CmdResult, Deps } from "../scripts/deps.ts";
-import { assertGit } from "../scripts/git.ts";
 
 /** `orca-ide repo list --json` with every entry kind repo-sync must handle. */
 export const ORCA_LIST = {
@@ -42,8 +41,8 @@ export interface Call {
 type Reply = CmdResult | ((env?: Record<string, string>) => CmdResult);
 
 /**
- * Fake deps. `git` answers from `script` keyed by `<cwd>|<args>`, runs the real
- * allowlist first, and throws on any unscripted call so a test fails if sync
+ * Fake deps. `git` answers from `script` keyed by `<cwd>|<args>`, uses scripted
+ * replies and throws on any unscripted call so a test fails if sync
  * runs a command it did not expect.
  */
 export function fakeDeps(script: Record<string, Reply>, opts: { list?: CmdResult; tokens?: Record<string, string> } = {}) {
@@ -54,7 +53,6 @@ export function fakeDeps(script: Record<string, Reply>, opts: { list?: CmdResult
       return opts.list ?? ok(JSON.stringify(ORCA_LIST));
     },
     async git(cwd, args, env) {
-      assertGit(args);
       calls.push(env ? { cwd, args, env } : { cwd, args });
       const reply = script[`${cwd}|${args.join(" ")}`];
       if (reply === undefined) throw new Error(`unexpected git call: ${cwd} ${args.join(" ")}`);
@@ -73,9 +71,9 @@ export interface RepoScript {
   originHead?: CmdResult;
   status?: string;
   fetch?: Reply;
-  verify?: boolean;
   /** [ahead, behind] */
   counts?: [number, number];
+  count?: CmdResult;
   merge?: CmdResult;
   log?: string;
   diff?: string;
@@ -90,8 +88,7 @@ export function scriptRepo(path: string, s: RepoScript = {}, branch = "main"): R
     [`${path}|rev-parse --abbrev-ref origin/HEAD`]: s.originHead ?? ok(`origin/${branch}\n`),
     [`${path}|status --porcelain`]: ok(s.status ?? ""),
     [`${path}|fetch origin ${branch}`]: s.fetch ?? ok(),
-    [`${path}|rev-parse --verify --quiet refs/remotes/origin/${branch}`]: s.verify === false ? err("") : ok(`${SHA_B}\n`),
-    [`${path}|rev-list --left-right --count HEAD...origin/${branch}`]: ok(`${ahead}\t${behind}\n`),
+    [`${path}|rev-list --left-right --count HEAD...origin/${branch}`]: s.count ?? ok(`${ahead}\t${behind}\n`),
     [`${path}|rev-parse HEAD`]: () => ok(`${merged ? SHA_B : SHA_A}\n`),
     [`${path}|merge --ff-only origin/${branch}`]: () => {
       const r = s.merge ?? ok("Fast-forward\n");

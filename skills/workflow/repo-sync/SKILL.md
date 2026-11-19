@@ -11,8 +11,7 @@ disable-model-invocation: false
 ## Core Contract
 
 Run the `repo-sync` CLI and relay its output. It updates the main checkout (the repo `path` Orca tracks, never other worktrees) of each local git repo from `orca-ide repo list --json`. It skips folder workspaces, hidden repos, and repos on another execution host.
-The only change it makes to a checkout is `git fetch origin <default>` then `git merge --ff-only origin/<default>`. Every git command passes the allowlist in `scripts/git.ts` before a process starts.
-Decisions and output are pure TypeScript in `scripts/core/`. All I/O sits behind the `Deps` interface in `scripts/deps.ts`.
+The only change it makes to a checkout is `git fetch origin <default>` then `git merge --ff-only origin/<default>`. Every git command is built in `scripts/git.ts`, whose builders reject unsafe branch names and SHAs. All I/O sits behind the `Deps` interface in `scripts/deps.ts`.
 Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 ## Required Inputs
@@ -23,7 +22,7 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 ## Configuration
 
 - **Accounts:** read from prflow's config, the same file prflow uses: `PRFLOW_CONFIG` (must exist), prflow's `<skill-dir>/config.json`, then `${XDG_CONFIG_HOME:-~/.config}/prflow/config.json`. Only `accounts` is read. A repo maps to an exact `repos` entry, then an `owners` entry, then the one unscoped account. Only HTTPS remotes use it: their fetch gets `GH_TOKEN` from `gh auth token -u <login>`. SSH remotes, including host aliases such as `github.com-work`, use the user's ssh config and get no token.
-- **`reportChanges`:** repos (Orca display name, folder name, or `owner/repo`) whose pulls print their new commits. Default `["tiger-team-sync"]`. Set it in repo-sync's own config: `--config <path>` or `REPO_SYNC_CONFIG` (must exist), `<skill-dir>/config.json` (git-ignored), then `${XDG_CONFIG_HOME:-~/.config}/repo-sync/config.json`. Copy `config.example.json` to start.
+- **`reportChanges`:** repos (Orca display name, folder name, or `owner/repo`) whose pulls print their new commits. Default `[]`. Set it in repo-sync's own config: `--config <path>` or `REPO_SYNC_CONFIG` (must exist), `<skill-dir>/config.json` (git-ignored), then `${XDG_CONFIG_HOME:-~/.config}/repo-sync/config.json`. Copy `config.example.json` to start.
 
 ## Workflow
 
@@ -33,14 +32,14 @@ For each repo, in order (Node 22.18+ runs `.ts` directly):
 2. Require an `origin` remote (`no-remote`) and a default branch: `origin/HEAD`, else the Orca base ref (`no-default-branch`). If origin's default branch changed, the local `origin/HEAD` stays stale until `git remote set-head origin --auto`; the stuck notice says so.
 3. Require the default branch to be checked out (`not-on-default`) and `git status --porcelain` to be empty, untracked files included (`dirty`).
 4. `git fetch origin <default>` (`fetch-failed`).
-5. Compare with `origin/<default>`: `diverged`, `ahead`, or up to date.
+5. Compare with `origin/<default>`: `diverged`, `ahead`, or up to date (`no-remote` if it cannot be resolved).
 6. When behind, re-check the branch and `git status --porcelain` (the checkout may change during the fetch), then `git merge --ff-only origin/<default>` (`failed (merge-failed)`). For `reportChanges` repos, collect `git log --oneline` (10 max) and `git diff --name-only` (15 max).
 
 `run --dry-run` stops before steps 4 and 6. It compares with the last fetched `origin/<default>`, prints one line per repo with its auth mode, and writes nothing.
 
 ## Scheduling
 
-`run` is built for a scheduler that delivers stdout verbatim, sends nothing for empty stdout, and alerts on a non-zero exit (for example a Hermes cron job with `no_agent`). It prints only:
+`run` is built for a scheduler that delivers stdout verbatim, sends nothing for empty stdout, and alerts on a non-zero exit. It prints only:
 
 1. A skip that persists for 2 consecutive runs, once per reason.
 2. A fetch failure, failed merge, or unreadable checkout, once when it starts.
@@ -60,7 +59,7 @@ Quiet successes print nothing. A paused or overlapping run exits 0 with no outpu
 
 ## Safety Rules
 
-- Never run a git command outside the allowlist: `rev-parse`, `status --porcelain`, `fetch origin <branch>`, `merge --ff-only origin/<branch>`, `rev-list --left-right --count`, `log --oneline`, `diff --name-only`.
+- Git commands are limited to: `rev-parse`, `status --porcelain`, `fetch origin <branch>`, `merge --ff-only origin/<branch>`, `rev-list --left-right --count`, `log --oneline`, `diff --name-only`.
 - Never reset, stash, rebase, check out, clean, push, force, or fetch other branches or remotes.
 - Never run `gh auth switch` or write credentials.
 - Use `orca-ide`, never bare `orca` (the GNOME screen reader on some desktops).

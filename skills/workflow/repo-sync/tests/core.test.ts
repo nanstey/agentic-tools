@@ -3,16 +3,16 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import { loadConfig } from "../scripts/config.ts";
-import { accountFor, parseAccounts, parseConfig, reportsChanges } from "../scripts/core/config.ts";
-import { changeBlock, nextState, renderDryRun, renderRun, renderStatus, runEvents } from "../scripts/core/report.ts";
-import { baseBranch, parseRemote, parseRepoList, transport } from "../scripts/core/repos.ts";
-import type { LastRun, RepoResult } from "../scripts/core/types.ts";
+import { accountFor, parseAccounts, parseConfig, reportsChanges } from "../scripts/config.ts";
+import { changeBlock, nextState, renderDryRun, renderRun, renderStatus, runEvents } from "../scripts/report.ts";
+import { baseBranch, parseRemote, parseRepoList, transport } from "../scripts/repos.ts";
+import type { LastRun, RepoResult } from "../scripts/types.ts";
 import { config, ORCA_LIST, SHA_A, SHA_B } from "./fixtures.ts";
 
 describe("config", () => {
   it("parses reportChanges, defaulting it, and accounts from a prflow config", () => {
     const c = parseConfig(JSON.stringify({ $comment: "x" }), "c.json");
-    assert.deepEqual(c.reportChanges, ["tiger-team-sync"]);
+    assert.deepEqual(c.reportChanges, []);
     const prflow = { accounts: [{ login: "noel-work", owners: ["WorkOrg"] }, { login: "me", $comment: "rest" }], rails: { maxActions: 1 }, dispatch: {} };
     assert.deepEqual(parseAccounts(JSON.stringify(prflow), "p.json"), [{ login: "noel-work", owners: ["WorkOrg"], repos: [] }, { login: "me", owners: [], repos: [] }]);
     assert.deepEqual(parseAccounts("{}", "p.json"), []);
@@ -49,16 +49,16 @@ describe("config", () => {
   });
 
   it("matches reportChanges by display name, folder name, or owner/repo", () => {
-    const c = config({ reportChanges: ["Tiger-Team-Sync", "org/docs"] });
-    assert.ok(reportsChanges(c, { name: "tiger-team-sync", path: "/x/y", slug: null }));
-    assert.ok(reportsChanges(c, { name: "renamed", path: "/x/tiger-team-sync", slug: null }));
+    const c = config({ reportChanges: ["Reported", "org/docs"] });
+    assert.ok(reportsChanges(c, { name: "reported", path: "/x/y", slug: null }));
+    assert.ok(reportsChanges(c, { name: "renamed", path: "/x/reported", slug: null }));
     assert.ok(reportsChanges(c, { name: "d", path: "/x/d", slug: "Org/Docs" }));
     assert.ok(!reportsChanges(c, { name: "other", path: "/x/other", slug: "org/other" }));
   });
 
   it("accepts the shipped config.example.json", () => {
     const text = readFileSync(join(import.meta.dirname, "..", "config.example.json"), "utf8");
-    assert.deepEqual(parseConfig(text, "config.example.json").reportChanges, ["tiger-team-sync"]);
+    assert.deepEqual(parseConfig(text, "config.example.json").reportChanges, ["my-repo"]);
   });
 
   it("loads an explicit file, then the first default path, then defaults", () => {
@@ -169,14 +169,14 @@ describe("streaks and scheduler output", () => {
     const results = [
       res({ path: "/r/q", name: "quiet", status: "updated", commits: 3, from: SHA_A, to: SHA_B }),
       res({ path: "/r/s", name: "stuck", status: "skipped", reason: "ahead", detail: "1 ahead of origin/main" }),
-      res({ path: "/r/t", name: "tiger", status: "updated", branch: "main", commits: 1, from: SHA_A, to: SHA_B, log: ["bbbbbbb add notes"], paths: ["notes.md"], totalPaths: 1 }),
+      res({ path: "/r/t", name: "reported", status: "updated", branch: "main", commits: 1, from: SHA_A, to: SHA_B, log: ["bbbbbbb add notes"], paths: ["notes.md"], totalPaths: 1 }),
       res({ path: "/r/f", name: "flaky", status: "skipped", reason: "fetch-failed", detail: "timed out after 60s" }),
       res({ path: "/r/u", name: "fine" }),
     ];
     const { notices } = nextState(prev, results, at(2));
     assert.equal(
       renderRun(notices, results),
-      "flaky: fetch failed: timed out after 60s\n\nstuck: skipped (ahead) for 2 runs: 1 ahead of origin/main\n\ntiger: pulled 1 commit on main (aaaaaaa..bbbbbbb)\n  bbbbbbb add notes\n  changed paths (1):\n    notes.md\n",
+      "flaky: fetch failed: timed out after 60s\n\nstuck: skipped (ahead) for 2 runs: 1 ahead of origin/main\n\nreported: pulled 1 commit on main (aaaaaaa..bbbbbbb)\n  bbbbbbb add notes\n  changed paths (1):\n    notes.md\n",
     );
     assert.equal(renderRun([], [res({ status: "updated", commits: 2 })]), "");
   });

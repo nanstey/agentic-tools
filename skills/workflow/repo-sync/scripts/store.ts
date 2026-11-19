@@ -2,7 +2,7 @@
 import { appendFileSync, closeSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, statSync, writeFileSync, writeSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import type { Event, LastRun } from "./core/types.ts";
+import type { Event, LastRun } from "./types.ts";
 
 /** A lock older than this belongs to a crashed or hung run. */
 export const LOCK_STALE_MS = 30 * 60 * 1000;
@@ -11,7 +11,9 @@ export function defaultStateDir(env: NodeJS.ProcessEnv = process.env, home = hom
   return join(env.XDG_STATE_HOME || join(home, ".local", "state"), "repo-sync");
 }
 
-function readOrNull(path: string): string | null {
+export type Read = (path: string) => string | null;
+
+export const readOrNull: Read = (path) => {
   try {
     return readFileSync(path, "utf8");
   } catch (e) {
@@ -39,6 +41,7 @@ export function pidAlive(pid: number): boolean {
 
 export class Store {
   readonly dir: string;
+  private lockContent: string | null = null;
   constructor(dir: string) {
     this.dir = dir;
   }
@@ -60,8 +63,10 @@ export class Store {
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
         const fd = openSync(path, "wx");
-        writeSync(fd, JSON.stringify({ pid: process.pid, at: new Date(now).toISOString() }));
+        const content = JSON.stringify({ pid: process.pid, at: new Date(now).toISOString() });
+        writeSync(fd, content);
         closeSync(fd);
+        this.lockContent = content;
         return true;
       } catch (e) {
         if ((e as NodeJS.ErrnoException).code !== "EEXIST") throw e;
@@ -93,7 +98,8 @@ export class Store {
   }
 
   unlock(): void {
-    rmSync(this.file("lock"), { force: true });
+    if (this.lockContent !== null && readOrNull(this.file("lock")) === this.lockContent) rmSync(this.file("lock"), { force: true });
+    this.lockContent = null;
   }
 
   /** Pause reason (`""` when none was given), or `null` when not paused. */
@@ -117,8 +123,12 @@ export class Store {
   readLast(): LastRun | null {
     const text = readOrNull(this.file("last-run.json"));
     if (text === null) return null;
-    const v = JSON.parse(text) as LastRun;
-    return v && v.version === 1 && typeof v.repos === "object" ? v : null;
+    try {
+      const v = JSON.parse(text) as LastRun;
+      return v && v.version === 1 && typeof v.repos === "object" ? v : null;
+    } catch {
+      return null;
+    }
   }
 
   writeLast(state: LastRun): void {

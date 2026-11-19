@@ -1,8 +1,8 @@
 import { parseArgs } from "node:util";
 import { defaultPaths, loadConfig, prflowPaths } from "./config.ts";
-import { nextState, renderDryRun, renderRun, renderStatus, runEvents } from "./core/report.ts";
-import { parseRepoList } from "./core/repos.ts";
-import type { Repo } from "./core/types.ts";
+import { nextState, renderDryRun, renderRun, renderStatus, runEvents } from "./report.ts";
+import { parseRepoList } from "./repos.ts";
+import type { Repo } from "./types.ts";
 import type { Deps } from "./deps.ts";
 import { defaultStateDir, pidAlive, Store } from "./store.ts";
 import { syncAll } from "./sync.ts";

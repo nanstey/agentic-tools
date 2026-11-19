@@ -4,7 +4,7 @@ import { syncAll, syncRepo } from "../scripts/sync.ts";
 import { config, err, fakeDeps, ok, ranArgs, repo, scriptRepo, SHA_A, SHA_B } from "./fixtures.ts";
 
 const P = "/repos/app";
-const live = { config: config(), dryRun: false };
+const live = { config: config({ reportChanges: ["reported"] }), dryRun: false };
 const writes = (args: string[]) => args.filter((a) => a.startsWith("fetch") || a.startsWith("merge"));
 
 describe("syncRepo skips", () => {
@@ -49,8 +49,8 @@ describe("syncRepo skips", () => {
     assert.deepEqual([upstream.reason, upstream.detail], ["no-remote", "remote is upstream, not origin"]);
     const gone = await syncRepo(fakeDeps(scriptRepo(P, { fetch: err("fatal: 'origin' does not appear to be a git repository\nfatal: Could not read") })).deps, repo(), live);
     assert.deepEqual([gone.reason, gone.detail], ["no-remote", "'origin' does not appear to be a git repository"]);
-    const missing = await syncRepo(fakeDeps(scriptRepo(P, { verify: false })).deps, repo(), live);
-    assert.deepEqual([missing.reason, missing.detail], ["no-remote", "origin/main missing"]);
+    const missing = await syncRepo(fakeDeps(scriptRepo(P, { count: err("fatal: bad revision 'origin/main'\n") })).deps, repo(), live);
+    assert.deepEqual([missing.reason, missing.detail], ["no-remote", "bad revision 'origin/main'"]);
   });
 
   it("fetch-failed: network errors and timeouts, without merging", async () => {
@@ -126,7 +126,6 @@ describe("syncRepo success", () => {
       "rev-parse --abbrev-ref origin/HEAD",
       "status --porcelain",
       "fetch origin main",
-      "rev-parse --verify --quiet refs/remotes/origin/main",
       "rev-list --left-right --count HEAD...origin/main",
       "rev-parse --abbrev-ref HEAD",
       "status --porcelain",
@@ -141,7 +140,7 @@ describe("syncRepo success", () => {
     const log = Array.from({ length: 12 }, (_, i) => `c${i} commit ${i}`).join("\n");
     const diff = Array.from({ length: 20 }, (_, i) => `f${i}`).join("\n");
     const { deps } = fakeDeps(scriptRepo(P, { counts: [0, 12], log, diff }));
-    const r = await syncRepo(deps, repo({ name: "tiger-team-sync" }), live);
+    const r = await syncRepo(deps, repo({ name: "reported" }), live);
     assert.equal(r.log?.length, 10);
     assert.equal(r.paths?.length, 15);
     assert.equal(r.totalPaths, 20);
