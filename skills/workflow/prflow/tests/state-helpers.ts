@@ -3,7 +3,10 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after } from "node:test";
-import { DEFAULT_LIMIT, DEFAULT_RAILS, type Config, type Rails } from "../scripts/core/config.ts";
+import { assertReadOnly, assertRerun, rerunArgs } from "../scripts/adapters/gh.ts";
+import { assertDeleteBranch, deleteBranchArgs } from "../scripts/adapters/git.ts";
+import { archiveArgs, assertArchive } from "../scripts/adapters/orca.ts";
+import { DEFAULT_ACTIONS, DEFAULT_LIMIT, DEFAULT_RAILS, type Config, type Rails } from "../scripts/core/config.ts";
 import type { CmdResult } from "../scripts/scan.ts";
 import { Store } from "../scripts/store.ts";
 import type { TickDeps } from "../scripts/tick.ts";
@@ -29,6 +32,7 @@ export const cfg = (rails: Partial<Rails> = {}, worktrees = false): Config => ({
   limit: DEFAULT_LIMIT,
   worktrees,
   rails: { ...DEFAULT_RAILS, ...rails },
+  actions: { ...DEFAULT_ACTIONS },
 });
 
 export const okJson = (v: unknown): CmdResult => ({ ok: true, stdout: JSON.stringify(v), stderr: "" });
@@ -46,11 +50,23 @@ export interface World {
   /** `gh pr list/view` responses by `-R repo` and head/number. */
   refs: Record<string, CmdResult>;
   dirty: Record<string, number | null>;
+  /** Unpushed commit counts by worktree path (default 0). */
+  unpushed: Record<string, number | null>;
+  /** `gh run view` status by run id (default "completed"); `null` fails the call. */
+  runs: Record<string, string | null>;
+  /** Failing rerun or archive results by run id or path. */
+  rerunFails: Record<string, string>;
+  archiveFails: Record<string, string>;
+  /** Branch checked out per worktree path (default from the worktree row); `null` for detached. */
+  heads: Record<string, string | null>;
+  branchFails: Record<string, string>;
+  /** Side effects performed, e.g. `rerun Acme/x 42`, `archive /w/a`. */
+  effects: string[];
   calls: string[][];
 }
 
 export function world(over: Partial<World> = {}): World {
-  return { clock: T0, prs: {}, worktrees: [], refs: {}, dirty: {}, calls: [], ...over };
+  return { clock: T0, prs: {}, worktrees: [], refs: {}, dirty: {}, unpushed: {}, runs: {}, rerunFails: {}, archiveFails: {}, heads: {}, branchFails: {}, effects: [], calls: [], ...over };
 }
 
 export function fakeTickDeps(w: World): TickDeps {
@@ -75,6 +91,11 @@ export function fakeTickDeps(w: World): TickDeps {
         return pr ? okJson(pr) : fail("Could not resolve");
       }
       if (args[0] === "pr") return w.refs[args.join(" ")] ?? okJson([]);
+      if (args[0] === "run" && args[1] === "view") {
+        assertReadOnly(args);
+        const st = w.runs[args[2] ?? ""];
+        return st === null ? fail("run not found") : okJson({ status: st ?? "completed", conclusion: "cancelled" });
+      }
       return fail(`unexpected gh ${args.join(" ")}`);
     },
     async orcaWorktrees() {
@@ -82,6 +103,32 @@ export function fakeTickDeps(w: World): TickDeps {
     },
     async gitDirty(path) {
       return path in w.dirty ? (w.dirty[path] ?? null) : 0;
+    },
+    async gitUnpushed(path) {
+      return path in w.unpushed ? (w.unpushed[path] ?? null) : 0;
+    },
+    async rerunFailed(_login, repo, runId) {
+      assertRerun(rerunArgs(repo, runId));
+      w.effects.push(`rerun ${repo} ${runId}`);
+      const err = w.rerunFails[runId];
+      return err ? fail(err) : { ok: true, stdout: "", stderr: "" };
+    },
+    async archiveWorktree(path) {
+      assertArchive(archiveArgs(path));
+      w.effects.push(`archive ${path}`);
+      const err = w.archiveFails[path];
+      return err ? fail(err) : okJson({ result: { removed: true } });
+    },
+    async branchInfo(path) {
+      const row = (w.worktrees as { path?: string; branch?: string }[]).find((r) => r.path === path);
+      const branch = path in w.heads ? (w.heads[path] ?? null) : (row?.branch?.replace(/^refs\/heads\//, "") ?? null);
+      return { gitDir: "/repo/.git", branch, sha: "a".repeat(40) };
+    },
+    async deleteBranch(gitDir, branch, sha) {
+      assertDeleteBranch(deleteBranchArgs(gitDir, branch, sha));
+      w.effects.push(`delete-branch ${branch}`);
+      const err = w.branchFails[branch];
+      return err ? fail(err) : { ok: true, stdout: "", stderr: "" };
     },
   };
 }

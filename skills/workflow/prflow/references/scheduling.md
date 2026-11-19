@@ -34,7 +34,8 @@ node <skill-dir>/scripts/prflow.ts tick [--state-dir <path>] [--config <path>] [
 ```
 
 `tick` is a superset of `watch`: the same scan and report, plus state, rails,
-and an event feed (see `references/state.md`).
+an event feed, and the safe actions (see `references/state.md`). Actions stay
+dry runs until the config sets `"actions": {"dryRun": false}`.
 
 | Result | stdout | Exit |
 | --- | --- | --- |
@@ -75,8 +76,8 @@ you want the state and feed.
    two GitHub searches per account scope plus one call per PR.
 7. **Verify** with the scheduler's run history after the first scheduled run.
 
-Never schedule anything that merges, approves, comments, or reruns: prflow
-reports only.
+Never schedule anything that merges, approves, or comments. Turn off dry run
+for `tick` only when the user asks.
 
 ## Examples
 

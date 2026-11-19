@@ -13,9 +13,32 @@ reviews(last:50){nodes{submittedAt state body commit{oid} author{login __typenam
 reviewThreads(first:100){nodes{isResolved comments(last:50){nodes{createdAt author{login __typename}}}}}
 reviewRequests(first:50){nodes{requestedReviewer{__typename ... on User{login} ... on Team{slug}}}}}}}`;
 
+const REPO = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
+const RUN_ID = /^[1-9]\d{0,19}$/;
+
+/** `gh run view <id> -R <owner/repo> --json <fields>`, exactly; nothing else. */
+export const runViewArgs = (repo: string, runId: string): string[] => ["run", "view", runId, "-R", repo, "--json", "status,conclusion"];
+
+function isRunView(args: readonly string[]): boolean {
+  return (
+    args.length === 7 &&
+    args[0] === "run" &&
+    args[1] === "view" &&
+    RUN_ID.test(args[2] ?? "") &&
+    args[3] === "-R" &&
+    REPO.test(args[4] ?? "") &&
+    args[5] === "--json" &&
+    /^[a-zA-Z]+(,[a-zA-Z]+)*$/.test(args[6] ?? "")
+  );
+}
+
 /** Commands prflow may run. Anything else, or any write, throws. */
 export function assertReadOnly(args: readonly string[]): void {
   const [a, b] = args;
+  if (a === "run") {
+    if (!isRunView(args)) throw new Error(`prflow: gh ${args.join(" ")} is not an allowed read call`);
+    return;
+  }
   const ok =
     (a === "search" && b === "prs") ||
     (a === "pr" && (b === "list" || b === "view")) ||
@@ -38,6 +61,22 @@ export function assertReadOnly(args: readonly string[]): void {
         throw new Error("prflow: file-valued fields are not allowed");
     }
   }
+}
+
+/** The one GitHub write prflow makes: rerun the failed and cancelled jobs of one workflow run. */
+export const rerunArgs = (repo: string, runId: string): string[] => ["run", "rerun", runId, "--failed", "-R", repo];
+
+/** Throws unless `args` is exactly `run rerun <id> --failed -R <owner/repo>`. */
+export function assertRerun(args: readonly string[]): void {
+  const ok =
+    args.length === 6 &&
+    args[0] === "run" &&
+    args[1] === "rerun" &&
+    RUN_ID.test(args[2] ?? "") &&
+    args[3] === "--failed" &&
+    args[4] === "-R" &&
+    REPO.test(args[5] ?? "");
+  if (!ok) throw new Error(`prflow: gh ${args.join(" ")} is not the allowed rerun call`);
 }
 
 export interface SearchHit {
@@ -131,9 +170,11 @@ export interface PrRef {
   state: string;
   title: string;
   url: string;
+  /** Head commit sha, when requested. */
+  headRefOid?: string;
 }
 
-/** `gh pr list/view --json number,state,title,url` output (object or array). */
+/** `gh pr list/view --json number,state,title,url,headRefOid` output (object or array). */
 export function parsePrRefs(json: string): PrRef[] {
   const v = JSON.parse(json) as PrRef | PrRef[];
   return Array.isArray(v) ? v : [v];

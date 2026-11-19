@@ -18,6 +18,28 @@ export interface Config {
   worktrees: boolean;
   /** Safety limits for `prflow tick`. */
   rails: Rails;
+  /** Side-effect switches for `prflow tick`. */
+  actions: Actions;
+}
+
+export interface Actions {
+  /** Announce actions without running them. Defaults to `true`; set `false` to act. */
+  dryRun: boolean;
+}
+
+export const DEFAULT_ACTIONS: Actions = { dryRun: true };
+
+function parseActions(v: unknown, fail: (msg: string) => never): Actions {
+  if (v === undefined) return { ...DEFAULT_ACTIONS };
+  if (typeof v !== "object" || v === null || Array.isArray(v)) return fail("actions must be an object");
+  const out: Actions = { ...DEFAULT_ACTIONS };
+  for (const [k, x] of Object.entries(v)) {
+    if (k === "$comment") continue;
+    if (k !== "dryRun") fail(`actions: unknown key "${k}"`);
+    if (typeof x !== "boolean") fail("actions.dryRun must be a boolean");
+    out.dryRun = x as boolean;
+  }
+  return out;
 }
 
 export const DEFAULT_LIMIT = 50;
@@ -47,6 +69,8 @@ export interface Rails {
   leaseMinutes: number;
   /** Starts of one dispatch (item, version, kind) before it is abandoned. */
   maxAttempts: number;
+  /** Reruns of one item version's cancelled checks; then the item is paused. */
+  rerunsPerVersion: number;
 }
 
 export const DEFAULT_RAILS: Rails = {
@@ -62,6 +86,7 @@ export const DEFAULT_RAILS: Rails = {
   childTimeoutSeconds: 60,
   leaseMinutes: 45,
   maxAttempts: 3,
+  rerunsPerVersion: 2,
 };
 
 /** Validate a `rails` object: known keys only, positive integers. Missing keys use defaults. */
@@ -123,7 +148,7 @@ export function parseConfig(text: string, source: string): Config {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return fail("top level must be an object");
   const o = raw as Record<string, unknown>;
   for (const k of Object.keys(o))
-    if (!["$comment", "accounts", "limit", "worktrees", "rails"].includes(k)) fail(`unknown key "${k}"`);
+    if (!["$comment", "accounts", "limit", "worktrees", "rails", "actions"].includes(k)) fail(`unknown key "${k}"`);
   if (!Array.isArray(o.accounts) || o.accounts.length === 0) fail("accounts must be a non-empty array");
   const accounts = (o.accounts as unknown[]).map((a, i): Account => {
     const where = `accounts[${i}]`;
@@ -167,5 +192,6 @@ export function parseConfig(text: string, source: string): Config {
     limit: (o.limit as number | undefined) ?? DEFAULT_LIMIT,
     worktrees: (o.worktrees as boolean | undefined) ?? true,
     rails: parseRails(o.rails, fail),
+    actions: parseActions(o.actions, fail),
   };
 }

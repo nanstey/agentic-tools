@@ -12,7 +12,13 @@ export type EventType =
   | "docs-committed"
   | "paused"
   | "resumed"
-  | "rail-tripped";
+  | "rail-tripped"
+  /** An action failed; the dispatch is `failed`. */
+  | "action-failed"
+  /** prflow will not act and asks the user to decide (for example a dirty worktree). */
+  | "needs-decision"
+  /** Dry run: the action prflow would take. */
+  | "dry-run";
 
 export interface PrflowEvent {
   /** ISO timestamp. */

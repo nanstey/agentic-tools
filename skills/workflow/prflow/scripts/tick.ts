@@ -11,12 +11,31 @@ import { sortItems } from "./core/report.ts";
 import type { Classification } from "./core/types.ts";
 import { fingerprint } from "./core/watch.ts";
 import { reconcile, type TickContext } from "./dispatch.ts";
-import { plan, scan, type Deps, type ScanResult } from "./scan.ts";
+import { plan, scan, type CmdResult, type Deps, type ScanResult } from "./scan.ts";
 import type { Dispatch, ItemRow, Store } from "./store.ts";
 
 export interface TickDeps extends Deps {
   /** Milliseconds since the epoch. */
   now(): number;
+  /** `gh run rerun <runId> --failed -R <repo>` as `login`; the only GitHub write. */
+  rerunFailed(login: string, repo: string, runId: string): Promise<CmdResult>;
+  /**
+   * Commits in the worktree at `path` that are on no remote, `0` when HEAD is the
+   * PR head (`prHeadSha`) or an ancestor of it, `null` when unknown.
+   */
+  gitUnpushed(path: string, prHeadSha: string | null): Promise<number | null>;
+  /** `orca-ide worktree rm --worktree path:<path> --json`; never forced. */
+  archiveWorktree(path: string): Promise<CmdResult>;
+  /**
+   * The repository's common git dir, the branch checked out in the worktree at
+   * `path`, and its commit. `branch` is `null` for a detached HEAD; `null` when unknown.
+   */
+  branchInfo(path: string): Promise<{ gitDir: string; branch: string | null; sha: string } | null>;
+  /**
+   * Delete local `refs/heads/<branch>` only while it points at `sha` and no
+   * worktree has it checked out (`git update-ref -d`).
+   */
+  deleteBranch(gitDir: string, branch: string, sha: string): Promise<CmdResult>;
 }
 
 export interface TickOptions {

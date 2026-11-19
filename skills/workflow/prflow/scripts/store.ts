@@ -438,6 +438,10 @@ export class Store {
     return Number(r.changes) > 0;
   }
 
+  hasLedgerRef(ref: string): boolean {
+    return this.db.prepare("SELECT 1 FROM ledger WHERE ref = ?").get(ref) !== undefined;
+  }
+
   ledger(item?: string): (LedgerInput & { id: number })[] {
     const rows = (item
       ? this.db.prepare("SELECT * FROM ledger WHERE item = ? ORDER BY id").all(item)

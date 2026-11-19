@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { assertReadOnly, parsePr, parsePrRefs, parseSearch, prArgs, PR_QUERY } from "../scripts/adapters/gh.ts";
-import { parseWorktrees, repoFromPrUrl, repoFromProjectId } from "../scripts/adapters/orca.ts";
+import { assertReadOnly, assertRerun, parsePr, parsePrRefs, parseSearch, prArgs, PR_QUERY, rerunArgs, runViewArgs } from "../scripts/adapters/gh.ts";
+import { assertDeleteBranch, deleteBranchArgs } from "../scripts/adapters/git.ts";
+import { archiveArgs, assertArchive, parseWorktrees, repoFromPrUrl, repoFromProjectId } from "../scripts/adapters/orca.ts";
 import { HEAD, prResponse, status } from "./fixtures.ts";
 
 describe("assertReadOnly", () => {
@@ -109,5 +110,93 @@ describe("orca parsing", () => {
     assert.equal(repoFromProjectId("folder:/x"), null);
     assert.equal(repoFromPrUrl("https://github.com/Acme/x/pull/5"), "Acme/x");
     assert.equal(repoFromPrUrl("nope"), null);
+  });
+});
+
+describe("phase 3 allowlist", () => {
+  const writes: string[][] = [
+    ["run", "rerun", "42", "--failed", "-R", "Acme/x"],
+    ["run", "rerun", "42", "-R", "Acme/x"],
+    ["run", "cancel", "42", "-R", "Acme/x"],
+    ["run", "delete", "42", "-R", "Acme/x"],
+    ["run", "watch", "42", "-R", "Acme/x"],
+    ["run", "download", "42", "-R", "Acme/x"],
+    ["run", "list", "-R", "Acme/x"],
+    ["run", "view", "42", "-R", "Acme/x", "--log"],
+    ["run", "view", "42", "-R", "Acme/x", "--json", "status", "--web"],
+    ["run", "view", "42", "--json", "status"],
+    ["run", "view", "abc", "-R", "Acme/x", "--json", "status"],
+    ["run", "view", "42", "-R", "Acme/x", "--json", "status;rm"],
+    ["workflow", "run", "ci.yml"],
+    ["pr", "merge", "1"],
+    ["pr", "review", "1", "--approve"],
+    ["pr", "comment", "1", "--body", "x"],
+    ["auth", "switch"],
+  ];
+
+  it("lets gh run view through only in its exact read shape", () => {
+    assert.doesNotThrow(() => assertReadOnly(runViewArgs("Acme/x", "42")));
+    for (const a of writes) assert.throws(() => assertReadOnly(a), /prflow/, a.join(" "));
+  });
+
+  it("allows exactly one write: gh run rerun <id> --failed -R <owner/repo>", () => {
+    assert.deepEqual(rerunArgs("Acme/x", "42"), ["run", "rerun", "42", "--failed", "-R", "Acme/x"]);
+    assert.doesNotThrow(() => assertRerun(rerunArgs("Acme/x", "42")));
+    const others = [
+      ...writes.slice(1),
+      ["run", "rerun", "42", "--failed"],
+      ["run", "rerun", "42", "--failed", "-R", "Acme/x", "--debug"],
+      ["run", "rerun", "--job", "7", "-R", "Acme/x"],
+      ["run", "rerun", "42", "--failed", "-R", "Acme"],
+      ["run", "rerun", "0", "--failed", "-R", "Acme/x"],
+      ["run", "rerun", "-1", "--failed", "-R", "Acme/x"],
+      ["run", "rerun", "42", "--failed", "-R", "Acme/x;rm"],
+      ["run", "rerun", "42", "-R", "Acme/x", "--failed"],
+      ["api", "graphql", "-f", "query=query{viewer{login}}"],
+    ];
+    for (const a of others) assert.throws(() => assertRerun(a), /not the allowed rerun call/, a.join(" "));
+  });
+
+  it("allows exactly one Orca write: worktree rm by absolute path, never forced", () => {
+    assert.deepEqual(archiveArgs("/w/a"), ["worktree", "rm", "--worktree", "path:/w/a", "--json"]);
+    assert.doesNotThrow(() => assertArchive(archiveArgs("/w/a b")));
+    const bad = [
+      ["worktree", "rm", "--worktree", "path:/w/a", "--json", "--force"],
+      ["worktree", "rm", "--worktree", "path:/w/a", "--force"],
+      ["worktree", "rm", "--worktree", "path:/w/a", "--delete-branch"],
+      ["worktree", "rm", "--worktree", "path:/w/a", "--json", "--run-hooks"],
+      ["worktree", "rm", "--worktree", "active", "--json"],
+      ["worktree", "rm", "--worktree", "path:w/a", "--json"],
+      ["worktree", "rm", "--worktree", "path:/w/../etc", "--json"],
+      ["worktree", "rm", "--worktree", "branch:main", "--json"],
+      ["worktree", "create", "--worktree", "path:/w/a", "--json"],
+      ["worktree", "set", "--worktree", "path:/w/a", "--json"],
+    ];
+    for (const a of bad) assert.throws(() => assertArchive(a), /not the allowed archive call/, a.join(" "));
+  });
+});
+
+describe("branch deletion allowlist", () => {
+  const sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  it("allows exactly git --git-dir <abs> update-ref -d refs/heads/<branch> <sha>", () => {
+    assert.deepEqual(deleteBranchArgs("/r/.git", "feat/x", sha), ["--git-dir", "/r/.git", "update-ref", "-d", "refs/heads/feat/x", sha]);
+    assert.doesNotThrow(() => assertDeleteBranch(deleteBranchArgs("/r/.git", "feat/x-1.2", sha)));
+    const bad = [
+      deleteBranchArgs("r/.git", "x", sha),
+      deleteBranchArgs("/r/../.git", "x", sha),
+      deleteBranchArgs("/r/.git", "-x", sha),
+      deleteBranchArgs("/r/.git", "a..b", sha),
+      deleteBranchArgs("/r/.git", "a b", sha),
+      deleteBranchArgs("/r/.git", "x*", sha),
+      deleteBranchArgs("/r/.git", "x.lock", sha),
+      deleteBranchArgs("/r/.git", "x", "abc"),
+      deleteBranchArgs("/r/.git", "x", ""),
+      ["--git-dir", "/r/.git", "update-ref", "-d", "refs/tags/x", sha],
+      ["--git-dir", "/r/.git", "update-ref", "-d", "refs/heads/x"],
+      ["--git-dir", "/r/.git", "branch", "-D", "x"],
+      ["--git-dir", "/r/.git", "push", "origin", ":x"],
+      ["--git-dir", "/r/.git", "update-ref", "-d", "refs/heads/x", sha, "--no-deref"],
+    ];
+    for (const a of bad) assert.throws(() => assertDeleteBranch(a), /not the allowed branch deletion/, a.join(" "));
   });
 });
