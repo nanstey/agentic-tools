@@ -48,7 +48,7 @@ prflow is scheduler- and agent-agnostic. `prflow watch` prints the actionable re
 State lives in `${XDG_STATE_HOME:-~/.local/state}/prflow/` (`--state-dir` overrides). See `references/state.md` for the files, tables, event format, dispatch lifecycle, and rails.
 
 - `prflow status [--format json]`: items from the last scan, open dispatches with leases, pauses, backoff, and the last tick.
-- `prflow pause [--all] [--reason <text>]` pauses prflow; `prflow pause --item <owner/repo#N>` pauses one item.
+- `prflow pause [--all] [--reason <text>]` pauses prflow: `tick` stops completely until `prflow resume`. `prflow pause --item <owner/repo#N>` pauses one item.
 - `prflow resume` resumes prflow, `--item` one item, `--all` prflow and every paused item.
 - `prflow import-legacy` copies the legacy `pr-comment-watch` and `pr-watch` `dispatched.txt` entries into the ledger once. It only reads those files.
 - Run these on the user's request. Never edit state files by hand.

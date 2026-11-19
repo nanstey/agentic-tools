@@ -43,10 +43,23 @@ describe("tick", () => {
     assert.equal((await tick(fakeTickDeps(w), s, cfg(), { dryRun: true })).stdout, "");
   });
 
+  it("does nothing while prflow is paused, then reports the held events after resume", async () => {
+    const s = tempStore();
+    const w = world({ prs: { "Acme/x#1": BEHIND } });
+    pause(s, T0, {}, "maintenance");
+    assert.deepEqual(await tick(fakeTickDeps(w), s, cfg(), { dryRun: true }), { stdout: "", stderr: "", exitCode: 0 });
+    assert.equal(w.calls.length, 0);
+    assert.equal(s.lastRun(), null);
+    resume(s, T0 + MIN, {});
+    const out = (await tick(fakeTickDeps(w), s, cfg(), { dryRun: true })).stdout;
+    assert.match(out, /^## New events \(2\)\n- .* paused prflow: maintenance\n- .* resumed prflow/);
+    assert.equal(w.calls.length > 0, true);
+  });
+
   it("fails on scan errors without advancing events or the report, and backs off", async () => {
     const s = tempStore();
     const w = world({ prs: { "Acme/x#1": BEHIND }, searchError: "HTTP 502" });
-    pause(s, T0, {}, "test");
+    pause(s, T0, { item: "Acme/x#1" }, "test");
     const r = await tick(fakeTickDeps(w), s, cfg(), { dryRun: true });
     assert.equal(r.exitCode, 1);
     assert.equal(r.stdout, "");
@@ -71,8 +84,8 @@ describe("tick", () => {
     w.clock = T0 + 47 * MIN;
     const ok = await tick(fakeTickDeps(w), s, cfg(), { dryRun: true });
     assert.equal(ok.exitCode, 0);
-    assert.match(ok.stdout, /paused prflow: test/);
-    assert.match(ok.stdout, /prflow is paused \(test\)/);
+    assert.match(ok.stdout, /paused Acme\/x#1: test/);
+    assert.match(ok.stdout, /- Acme\/x#1 paused: test/);
     assert.equal(s.getMeta(META.failures), "0");
   });
 

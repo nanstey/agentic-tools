@@ -61,9 +61,8 @@ export function pausedRow(i: ItemRow): string {
 }
 
 /** Report text and its change fingerprint. Lease times are left out of the fingerprint. */
-export function tickReport(actionable: Classification[], open: Dispatch[], paused: ItemRow[], systemPaused: string | null) {
+export function tickReport(actionable: Classification[], open: Dispatch[], paused: ItemRow[]) {
   const text = renderTickReport(actionable, {
-    systemPaused,
     inFlight: open.map(inFlightRow),
     paused: paused.map(pausedRow),
   });
@@ -71,7 +70,6 @@ export function tickReport(actionable: Classification[], open: Dispatch[], pause
     fingerprint(actionable),
     ...open.map((d) => `dispatch ${d.id} ${d.state} ${d.attempts}`),
     ...paused.map((i) => `paused ${i.key.toLowerCase()} ${i.pausedReason ?? ""}`),
-    systemPaused !== null ? `system-paused ${systemPaused}` : "",
   ]
     .filter(Boolean)
     .join("\n");
@@ -92,6 +90,9 @@ export async function tick(
   hooks: { act?: Act; verify?: (result: ScanResult) => Verify } = {},
 ): Promise<TickOutput> {
   const quiet: TickOutput = { stdout: "", stderr: "", exitCode: 0 };
+  // A paused prflow does nothing: no scan, no run row, no output. Events wait
+  // for the first tick after `prflow resume`.
+  if (store.systemPaused() !== null) return quiet;
   const start = deps.now();
   const nextAt = Number(store.getMeta(META.nextTickAt) ?? 0);
   // Backing off after failed ticks: the failure was already reported.
@@ -111,7 +112,7 @@ export async function tick(
     if (hooks.act) await hooks.act(ctx, result, items, opts);
 
     const actionable = sortItems(items).filter((c) => c.kind !== "waiting");
-    const report = tickReport(actionable, store.openDispatches(), store.pausedItems(), store.systemPaused());
+    const report = tickReport(actionable, store.openDispatches(), store.pausedItems());
     const prevFp = store.getMeta(META.reportFp);
     const changed = report.fp !== (prevFp ?? "");
     const { events, offset } = store.readEventsFrom(Number(store.getMeta(META.eventsOffset) ?? 0));

@@ -35,8 +35,6 @@ export function renderReport(items: Classification[]): string {
 
 /** Extra tick rows: open dispatches and paused items, already rendered. */
 export interface TickExtras {
-  /** Reason the whole system is paused, or `null`. */
-  systemPaused: string | null;
   inFlight: string[];
   paused: string[];
 }
@@ -57,7 +55,7 @@ export function renderTickReport(items: Classification[], x: TickExtras): string
     ["Blocked on others", rows(["waiting"])],
     ["Cleanup", rows(["cleanup"])],
   ];
-  const out: string[] = x.systemPaused !== null ? [`prflow is paused (${x.systemPaused}); no actions run until \`prflow resume\`.`, ""] : [];
+  const out: string[] = [];
   for (const [title, lines] of sections) if (lines.length) out.push(`## ${title} (${lines.length})`, ...lines, "");
   return out.join("\n").trimEnd();
 }

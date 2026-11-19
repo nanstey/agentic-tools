@@ -72,7 +72,7 @@ All limits come from the config `rails` object; see `SKILL.md` for defaults.
 | Backoff: `backoffBaseMinutes`, doubling to `backoffMaxMinutes` | After a failed tick, ticks before the next allowed time exit 0 with no output |
 | Poll budget: `pollBudgetSeconds` | A scan that takes longer fails the tick |
 | Child timeout: `childTimeoutSeconds` | Each `gh`, `git`, or `orca-ide` process is killed after this and counts as failed |
-| Pause | A paused prflow still scans and reports but starts nothing. A paused item starts nothing |
+| Pause | While prflow is paused, `tick` does nothing: no scan, no actions, no output. Its events print on the first tick after `prflow resume`. A paused item is still scanned and reported but starts nothing |
 
 ## Tick
 
