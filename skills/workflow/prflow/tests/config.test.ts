@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import { defaultPaths, loadConfig, SKILL_DIR } from "../scripts/config.ts";
-import { accountFor, DEFAULT_RAILS, parseConfig } from "../scripts/core/config.ts";
+import { accountFor, DEFAULT_ACTIONS, DEFAULT_RAILS, parseConfig } from "../scripts/core/config.ts";
 
 const parse = (v: unknown) => parseConfig(JSON.stringify(v), "cfg.json");
 
@@ -21,7 +21,13 @@ describe("parseConfig", () => {
       limit: 50,
       worktrees: true,
       rails: DEFAULT_RAILS,
+      actions: DEFAULT_ACTIONS,
     });
+  });
+
+  it("defaults to dry run and accepts an explicit switch", () => {
+    assert.equal(DEFAULT_ACTIONS.dryRun, true);
+    assert.equal(parse({ accounts: [{ login: "a" }], actions: { dryRun: false } }).actions.dryRun, false);
   });
 
   it("overrides single rails and keeps the other defaults", () => {
@@ -47,6 +53,9 @@ describe("parseConfig", () => {
     ["unknown rail", { accounts: [{ login: "a" }], rails: { turbo: 1 } }, /rails: unknown key "turbo"/],
     ["zero rail", { accounts: [{ login: "a" }], rails: { perDay: 0 } }, /rails\.perDay must be an integer/],
     ["fractional rail", { accounts: [{ login: "a" }], rails: { perDay: 1.5 } }, /rails\.perDay/],
+    ["actions not object", { accounts: [{ login: "a" }], actions: true }, /actions must be an object/],
+    ["unknown action key", { accounts: [{ login: "a" }], actions: { merge: true } }, /actions: unknown key "merge"/],
+    ["dryRun not boolean", { accounts: [{ login: "a" }], actions: { dryRun: "no" } }, /actions\.dryRun must be a boolean/],
     ["bad limit", { accounts: [{ login: "a" }], limit: 0 }, /limit/],
     ["bad worktrees", { accounts: [{ login: "a" }], worktrees: "yes" }, /worktrees/],
   ];

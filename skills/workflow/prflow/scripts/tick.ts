@@ -11,12 +11,21 @@ import { sortItems } from "./core/report.ts";
 import type { Classification } from "./core/types.ts";
 import { fingerprint } from "./core/watch.ts";
 import { reconcile, type TickContext } from "./dispatch.ts";
-import { plan, scan, type Deps, type ScanResult } from "./scan.ts";
+import { plan, scan, type CmdResult, type Deps, type ScanResult } from "./scan.ts";
 import type { Dispatch, ItemRow, Store } from "./store.ts";
 
 export interface TickDeps extends Deps {
   /** Milliseconds since the epoch. */
   now(): number;
+  /** `gh run rerun <runId> --failed -R <repo>` as `login`; the only GitHub write. */
+  rerunFailed(login: string, repo: string, runId: string): Promise<CmdResult>;
+  /**
+   * Commits in the worktree at `path` that are on no remote, `0` when HEAD is the
+   * PR head (`prHeadSha`) or an ancestor of it, `null` when unknown.
+   */
+  gitUnpushed(path: string, prHeadSha: string | null): Promise<number | null>;
+  /** `orca-ide worktree rm --worktree path:<path> --json`; never forced. */
+  archiveWorktree(path: string): Promise<CmdResult>;
 }
 
 export interface TickOptions {

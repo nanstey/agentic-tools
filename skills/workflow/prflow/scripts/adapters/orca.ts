@@ -52,3 +52,25 @@ export function repoFromPrUrl(url: string): string | null {
   const m = /github\.com\/([^/]+\/[^/]+)\/pull\/\d+/.exec(url);
   return m?.[1] ?? null;
 }
+
+/**
+ * The one Orca write prflow makes: remove (archive) a Git worktree by path. Orca
+ * keeps the branch by default. Never `--force`, never `--delete-branch`.
+ */
+export const archiveArgs = (path: string): string[] => ["worktree", "rm", "--worktree", `path:${path}`, "--json"];
+
+/** Throws unless `args` is exactly `worktree rm --worktree path:<absolute path> --json`. */
+export function assertArchive(args: readonly string[]): void {
+  const sel = args[3] ?? "";
+  const path = sel.slice("path:".length);
+  const ok =
+    args.length === 5 &&
+    args[0] === "worktree" &&
+    args[1] === "rm" &&
+    args[2] === "--worktree" &&
+    sel.startsWith("path:/") &&
+    !path.split("/").includes("..") &&
+    !/[\n\0]/.test(path) &&
+    args[4] === "--json";
+  if (!ok) throw new Error(`prflow: orca-ide ${args.join(" ")} is not the allowed archive call`);
+}

@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { DEFAULT_LIMIT, DEFAULT_RAILS, type Account, type Config } from "../scripts/core/config.ts";
+import { DEFAULT_LIMIT, DEFAULT_ACTIONS, DEFAULT_RAILS, type Account, type Config } from "../scripts/core/config.ts";
 import { plan, scan, scopes, type CmdResult, type Deps } from "../scripts/scan.ts";
 import { ME, prResponse } from "./fixtures.ts";
 
 const account = (login: string, owners: string[] = [], repos: string[] = []): Account => ({ login, owners, repos });
-const config = (accounts: Account[], worktrees = true): Config => ({ accounts, limit: DEFAULT_LIMIT, worktrees, rails: DEFAULT_RAILS });
+const config = (accounts: Account[], worktrees = true): Config => ({ accounts, limit: DEFAULT_LIMIT, worktrees, rails: DEFAULT_RAILS, actions: DEFAULT_ACTIONS });
 const DEFAULT_CONFIG = config([account(ME, ["Acme"])]);
 
 const okJson = (v: unknown): CmdResult => ({ ok: true, stdout: JSON.stringify(v), stderr: "" });
@@ -134,8 +134,8 @@ describe("scan", () => {
       projectId: `github:${project}`,
       linkedPR,
     });
-    const ref = (number: number, state: string) => ({ number, state, title: `t${number}`, url: `https://github.com/Acme/x/pull/${number}` });
-    const list = (b: string) => `pr list -R acme/x --head ${b} --state all --limit 10 --json number,state,title,url`;
+    const ref = (number: number, state: string) => ({ number, state, title: `t${number}`, url: `https://github.com/Acme/x/pull/${number}`, headRefOid: `sha${number}` });
+    const list = (b: string) => `pr list -R acme/x --head ${b} --state all --limit 10 --json number,state,title,url,headRefOid`;
     const { deps, calls } = fakeDeps({
       worktrees: [
         wt("/linked", "a", 5),
@@ -147,7 +147,7 @@ describe("scan", () => {
         wt("/other", "f", 1, "someone/else"),
       ],
       refs: {
-        "pr view 5 -R acme/x --json number,state,title,url": okJson(ref(5, "CLOSED")),
+        "pr view 5 -R acme/x --json number,state,title,url,headRefOid": okJson(ref(5, "CLOSED")),
         [list("b")]: okJson([ref(6, "CLOSED"), ref(8, "MERGED")]),
         [list("c")]: okJson([ref(7, "CLOSED"), ref(9, "OPEN")]),
         [list("e")]: fail("boom"),
@@ -157,10 +157,10 @@ describe("scan", () => {
     });
     const r = await scan(deps, DEFAULT_CONFIG);
     assert.deepEqual(
-      r.worktrees.map((w) => [w.path, w.repo, w.account, w.pr.number, w.pr.state, w.dirtyFiles]),
+      r.worktrees.map((w) => [w.path, w.repo, w.account, w.pr.number, w.pr.state, w.pr.headSha, w.dirtyFiles]),
       [
-        ["/linked", "Acme/x", ME, 5, "CLOSED", 2],
-        ["/merged", "Acme/x", ME, 8, "MERGED", 2],
+        ["/linked", "Acme/x", ME, 5, "CLOSED", "sha5", 2],
+        ["/merged", "Acme/x", ME, 8, "MERGED", "sha8", 2],
       ],
     );
     assert.ok(!calls.some(([, a]) => a.includes("someone/else")));

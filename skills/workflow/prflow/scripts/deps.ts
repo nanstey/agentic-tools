@@ -1,6 +1,8 @@
 import { execFile } from "node:child_process";
-import { assertReadOnly } from "./adapters/gh.ts";
-import type { CmdResult, Deps } from "./scan.ts";
+import { assertReadOnly, assertRerun, rerunArgs } from "./adapters/gh.ts";
+import { archiveArgs, assertArchive } from "./adapters/orca.ts";
+import type { CmdResult } from "./scan.ts";
+import type { TickDeps } from "./tick.ts";
 
 /** Default limit for one child process; `setChildTimeout` overrides it from config. */
 let childTimeoutMs = 60_000;
@@ -24,11 +26,9 @@ function withoutTokens(): NodeJS.ProcessEnv {
   return env;
 }
 
-export interface RealDeps extends Deps {
+export interface RealDeps extends TickDeps {
   /** Login of the active gh account (ambient auth). */
   whoami(): Promise<string>;
-  /** Milliseconds since the epoch. */
-  now(): number;
   /** Limit every later child process to `ms`. */
   setChildTimeout(ms: number): void;
 }
@@ -95,6 +95,28 @@ export function realDeps(): RealDeps {
     async gitDirty(path) {
       const r = await run("git", ["status", "--porcelain"], process.env, path);
       return r.ok ? r.stdout.split("\n").filter(Boolean).length : null;
+    },
+    async rerunFailed(login, repo, runId) {
+      const args = rerunArgs(repo, runId);
+      assertRerun(args);
+      const env = await envFor(login);
+      return typeof env === "string" ? { ok: false, stdout: "", stderr: env } : run("gh", args, env);
+    },
+    async gitUnpushed(path, prHeadSha) {
+      const head = await run("git", ["rev-parse", "HEAD"], process.env, path);
+      if (!head.ok) return null;
+      const sha = head.stdout.trim();
+      if (prHeadSha && sha === prHeadSha) return 0;
+      // HEAD is part of what the PR pushed (the PR head may be gone after a squash merge).
+      if (prHeadSha && (await run("git", ["merge-base", "--is-ancestor", "HEAD", prHeadSha], process.env, path)).ok) return 0;
+      const r = await run("git", ["rev-list", "--count", "HEAD", "--not", "--remotes"], process.env, path);
+      const n = Number(r.stdout.trim());
+      return r.ok && Number.isInteger(n) ? n : null;
+    },
+    async archiveWorktree(path) {
+      const args = archiveArgs(path);
+      assertArchive(args);
+      return run("orca-ide", args, process.env);
     },
   };
 }

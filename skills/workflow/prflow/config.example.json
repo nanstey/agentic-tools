@@ -28,5 +28,9 @@
     "childTimeoutSeconds": 60,
     "leaseMinutes": 45,
     "maxAttempts": 3
+  },
+  "actions": {
+    "$comment": "tick actions (rerun cancelled CI, archive clean worktrees) are announced only while dryRun is true. Set false to act.",
+    "dryRun": true
   }
 }

@@ -13,6 +13,7 @@ import { decideWatch, fingerprint } from "./core/watch.ts";
 import { importLegacy, pause, renderStatus, resume, status, type LegacyFile } from "./commands.ts";
 import { defaultStateDir, Store } from "./store.ts";
 import { tick } from "./tick.ts";
+import { makeAct, makeVerify } from "./actions.ts";
 
 /** Default watch state file: ${XDG_STATE_HOME:-~/.local/state}/prflow/watch-<name>.txt. */
 function watchStatePath(name: string): string {
@@ -67,9 +68,11 @@ const USAGE = `Usage: prflow <command> [options]
   watch          For schedulers: print the actionable report only when it
                  changed since the last watch run; print nothing otherwise.
                  Exit 1 on scan errors without saving state.
-  tick           For schedulers: scan, reconcile, and report. Prints new
+  tick           For schedulers: scan, reconcile, act, and report. Prints new
                  events since the last tick, then the report when it changed;
-                 nothing when nothing happened. Exit 1 on failure.
+                 nothing when nothing happened. Exit 1 on failure. Actions
+                 (rerun, worktree cleanup) run only when the config sets
+                 "actions": {"dryRun": false}; otherwise they are announced.
   status         Print items, open dispatches, pauses, and the last tick.
   pause          Pause prflow (default, or --all) or one item (--item).
   resume         Resume prflow, one item (--item), or prflow and every
@@ -98,6 +101,8 @@ Options:
   --item <owner/repo#N>      pause, resume: one item
   --all                      pause: the whole system; resume: the system and every item
   --reason <text>            pause: reason recorded in the event
+  --dry-run                  tick: announce actions without running them, even
+                             when the config enables them
   -h, --help                 Show this help`;
 
 function scanLine(p: PrSnapshot): string {
@@ -155,6 +160,7 @@ async function main(argv: string[]): Promise<number> {
       item: { type: "string" },
       all: { type: "boolean", default: false },
       reason: { type: "string" },
+      "dry-run": { type: "boolean", default: false },
       help: { type: "boolean", short: "h", default: false },
     },
   });
@@ -224,7 +230,8 @@ async function main(argv: string[]): Promise<number> {
   if (cmd === "tick") {
     const store = Store.open(stateDir);
     try {
-      const out = await tick(deps, store, cfg, { dryRun: true });
+      const dryRun = values["dry-run"] || cfg.actions.dryRun;
+      const out = await tick(deps, store, cfg, { dryRun }, { act: makeAct(deps, store), verify: makeVerify(cfg.worktrees) });
       process.stdout.write(out.stdout);
       process.stderr.write(out.stderr);
       return out.exitCode;

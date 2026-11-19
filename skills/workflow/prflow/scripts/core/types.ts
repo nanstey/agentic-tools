@@ -94,7 +94,8 @@ export interface WorktreeItem {
   repo: string;
   /** Configured account that covers the repo. */
   account: string;
-  pr: { number: number; state: string; title: string; url: string };
+  /** `headSha` is the PR's head commit, `null` when unknown. */
+  pr: { number: number; state: string; title: string; url: string; headSha: string | null };
   /** Count of `git status --porcelain` lines, `null` when unknown. */
   dirtyFiles: number | null;
 }

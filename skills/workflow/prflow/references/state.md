@@ -36,7 +36,13 @@ One JSON object per line:
 Every key is always present; unknown values are `null`. `item` is `null` for
 events about prflow itself. Types: `dispatched`, `nudged`, `recovered`,
 `session-finished`, `session-stale`, `abandoned`, `rerun`, `archived`,
-`docs-committed`, `paused`, `resumed`, `rail-tripped`.
+`docs-committed`, `paused`, `resumed`, `rail-tripped`, `action-failed` (an
+action failed; its dispatch is `failed`), `needs-decision` (prflow will not act
+and asks the user), and `dry-run` (the action prflow would take).
+
+Action events: a live action emits `dispatched` before its command, then
+`rerun` or `archived` on success, or `action-failed`. `needs-decision` and
+`dry-run` are emitted once per item version (tracked by unique ledger refs).
 
 ## Dispatch lifecycle
 
@@ -72,13 +78,17 @@ All limits come from the config `rails` object; see `SKILL.md` for defaults.
 | Poll budget: `pollBudgetSeconds` | A scan that takes longer fails the tick |
 | Child timeout: `childTimeoutSeconds` | Each `gh`, `git`, or `orca-ide` process is killed after this and counts as failed |
 | Pause | While prflow is paused, `tick` does nothing: no scan, no actions, no output. Its events print on the first tick after `prflow resume`. A paused item is still scanned and reported but starts nothing |
+| Dry run | Config `actions.dryRun` (default `true`) or `tick --dry-run`: no side effects; dry-run announcements honour `startsPerTick` |
 
 ## Tick
 
 1. Skip silently while backing off or while another tick holds the lock.
 2. Scan within the poll budget. Any scan error fails the tick: no state
    besides the failed run and the backoff is written, and the exit code is 1.
-3. Record items, then reconcile open dispatches (leases, recovery).
-4. Print new events since the last successful tick, then the grouped report
+3. Record items, then reconcile open dispatches: a `rerun` is done when the
+   same head has checks running again, a `cleanup` when its worktree is no
+   longer listed; others go `stale` when their lease runs out.
+4. Act: reruns first, then worktree cleanups (see `SKILL.md`, Actions).
+5. Print new events since the last successful tick, then the grouped report
    when its fingerprint changed (lease times are not part of it). A report
    that becomes empty prints `Nothing to report.`

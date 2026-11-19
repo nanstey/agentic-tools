@@ -122,7 +122,7 @@ describe("worktree classifier", () => {
     branch: "x",
     repo: "Acme/widgets",
     account: ME,
-    pr: { number: 7, state, title: "t", url: "u" },
+    pr: { number: 7, state, title: "t", url: "u", headSha: null },
     dirtyFiles,
   });
 

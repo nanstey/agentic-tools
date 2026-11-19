@@ -1,7 +1,7 @@
 ---
 name: prflow
-description: Scans open PRs, review requests, and leftover worktrees, records them in local state behind safety rails, and reports each item grouped by status and next action. Use when checking which PRs need a merge decision, a rerun, a CI or comment fix, a rebase, a review, or worktree cleanup, when pausing or inspecting prflow, or when scheduling a recurring PR watch or tick.
-argument-hint: "[scan|plan|watch|tick|status|pause|resume|import-legacy|config] [--config <path>] [--user <login>] [--owner <login>] [--repo <owner/repo>] [--format text|json] [--no-worktrees] [--item <owner/repo#N>] [--all]"
+description: Scans open PRs, review requests, and leftover worktrees, records them in local state behind safety rails, optionally reruns cancelled CI and archives clean worktrees, and reports each item grouped by status and next action. Use when checking which PRs need a merge decision, a rerun, a CI or comment fix, a rebase, a review, or worktree cleanup, when pausing or inspecting prflow, or when scheduling a recurring PR watch or tick.
+argument-hint: "[scan|plan|watch|tick|status|pause|resume|import-legacy|config] [--config <path>] [--user <login>] [--owner <login>] [--repo <owner/repo>] [--format text|json] [--no-worktrees] [--item <owner/repo#N>] [--all] [--dry-run]"
 user-invocable: true
 disable-model-invocation: false
 ---
@@ -10,7 +10,7 @@ disable-model-invocation: false
 
 ## Core Contract
 
-Run the `prflow` CLI and relay its output. prflow fetches and classifies PRs, records them in its own state, and enforces rails. It never dispatches sessions, writes to GitHub, or changes Orca.
+Run the `prflow` CLI and relay its output. prflow fetches and classifies PRs, records them in its own state, and enforces rails. Its only side effects are the two safe actions in [Actions](#actions), and only when the config enables them. It never dispatches sessions.
 Classification, rails, and report logic are pure TypeScript in `scripts/core/`. All I/O sits behind the `Deps` interface in `scripts/scan.ts` (`TickDeps` in `scripts/tick.ts`).
 Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
@@ -42,6 +42,17 @@ An optional `rails` object sets tick limits; missing keys keep their defaults: `
 ## Scheduling
 
 prflow is scheduler- and agent-agnostic. `prflow watch` prints the actionable report only when it changed since the last run, prints nothing otherwise, and exits 1 on scan errors without saving state. `prflow tick` does the same scan, records state, applies the rails, and prints new events before the report. To set up a recurring job on cron, systemd, Hermes, or any other scheduler, follow `references/scheduling.md`.
+
+## Actions
+
+`prflow tick` takes two actions. Both are dry runs unless the config sets `"actions": {"dryRun": false}`; `tick --dry-run` forces a dry run either way. A dry run makes the same read-only checks and announces each action once per item version as a `dry-run` event.
+
+| Kind | Action | Preconditions | Otherwise |
+| --- | --- | --- | --- |
+| `rerun` | `gh run rerun <run-id> --failed -R <owner/repo>` for each GitHub Actions run behind a cancelled job | No PR check pending, and `gh run view` reports every run `completed` | Waits; asks you (`needs-decision`) when no Actions run can be found |
+| `cleanup` | `orca-ide worktree rm --worktree path:<path> --json` (Orca keeps the branch) | PR merged or closed, `git status --porcelain` empty, and no commits outside the remotes unless HEAD is the PR head or its ancestor | Asks you (`needs-decision`) once; never archives |
+
+Each live action writes its dispatch row and a `dispatched` event before the command, then records `done` with a `rerun` or `archived` event, or `failed` with `action-failed`. An interrupted action is settled or marked stale on the next tick. All rails apply.
 
 ## State and Rails
 
@@ -81,8 +92,11 @@ Pending reviews with no timestamp are ignored, and a PR with no commits is skipp
 
 - Never call `gh auth switch`. Each account's `gh` calls use `GH_TOKEN` from `gh auth token -u <login>`. Only the active account may fall back to ambient auth.
 - Never commit `config.json`. Only `config.example.json` is tracked.
-- Never run a `gh` command outside the read-only allowlist in `assertReadOnly` (`scripts/adapters/gh.ts`).
-- Never merge, approve, comment, rerun, or archive. Report the next action only.
+- Never run a `gh` command outside the read-only allowlist in `assertReadOnly` and the rerun allowlist in `assertRerun` (`scripts/adapters/gh.ts`).
+- Never merge, approve, comment, force-push, or dismiss reviews.
+- Never run a GitHub write other than `gh run rerun <id> --failed -R <owner/repo>` (`assertRerun`), and never while any check is running.
+- Never run an Orca write other than `orca-ide worktree rm --worktree path:<path> --json` (`assertArchive`): no `--force`, no `--delete-branch`. Never archive a worktree with uncommitted files or unpushed commits.
+- Never turn off dry run (`actions.dryRun`) without the user's request.
 - Never edit files in the prflow state directory by hand; use `pause`, `resume`, and `import-legacy`.
 - Never write to the legacy `pr-comment-watch` or `pr-watch` state directories.
 - Run Orca as `orca-ide`, never bare `orca` (on some Linux desktops that is the GNOME screen reader).

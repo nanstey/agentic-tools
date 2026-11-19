@@ -88,7 +88,7 @@ async function scanWorktrees(deps: Deps, cfg: Config, errors: string[]): Promise
     rows.map(async (w): Promise<WorktreeItem | null> => {
       const account = accountFor(cfg, w.repo);
       if (!account) return null;
-      const fields = ["--json", "number,state,title,url"];
+      const fields = ["--json", "number,state,title,url,headRefOid"];
       const args =
         w.linkedPr !== null
           ? ["pr", "view", String(w.linkedPr), "-R", w.repo, ...fields]
@@ -102,7 +102,8 @@ async function scanWorktrees(deps: Deps, cfg: Config, errors: string[]): Promise
       }
       const refs = parsePrRefs(r.stdout);
       if (refs.length === 0 || refs.some((p) => p.state === "OPEN")) return null;
-      const pr = refs.reduce((a, b) => (b.number > a.number ? b : a));
+      const ref = refs.reduce((a, b) => (b.number > a.number ? b : a));
+      const pr = { number: ref.number, state: ref.state, title: ref.title, url: ref.url, headSha: ref.headRefOid ?? null };
       return {
         path: w.path,
         branch: w.branch,
