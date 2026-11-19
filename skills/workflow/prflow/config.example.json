@@ -13,5 +13,20 @@
     }
   ],
   "limit": 50,
-  "worktrees": true
+  "worktrees": true,
+  "rails": {
+    "$comment": "Optional tick limits. Missing keys keep their defaults (shown here).",
+    "startsPerTick": 2,
+    "maxOpen": 5,
+    "perHour": 6,
+    "perDay": 30,
+    "loopSameVersion": 3,
+    "loopAcrossVersions": 8,
+    "backoffBaseMinutes": 15,
+    "backoffMaxMinutes": 240,
+    "pollBudgetSeconds": 120,
+    "childTimeoutSeconds": 60,
+    "leaseMinutes": 45,
+    "maxAttempts": 3
+  }
 }

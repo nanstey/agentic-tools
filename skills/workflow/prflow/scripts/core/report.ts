@@ -32,3 +32,32 @@ export function renderReport(items: Classification[]): string {
   }
   return out.length ? out.join("\n").trimEnd() : "Nothing to report.";
 }
+
+/** Extra tick rows: open dispatches and paused items, already rendered. */
+export interface TickExtras {
+  /** Reason the whole system is paused, or `null`. */
+  systemPaused: string | null;
+  inFlight: string[];
+  paused: string[];
+}
+
+/**
+ * `prflow tick` report: the watch report plus paused items (under Needs your
+ * decision) and open dispatches (In flight). Group order: Needs your decision,
+ * Ready to act, In flight, Blocked on others, Cleanup. Empty string when there is
+ * nothing to show.
+ */
+export function renderTickReport(items: Classification[], x: TickExtras): string {
+  const showAccount = new Set(items.map((c) => c.account)).size > 1;
+  const rows = (kinds: readonly Kind[]) => sortItems(items.filter((c) => kinds.includes(c.kind))).map((c) => row(c, showAccount));
+  const sections: [string, string[]][] = [
+    ["Needs your decision", [...rows(["merge-ready"]), ...x.paused]],
+    ["Ready to act", rows(["rerun", "ci", "comments", "behind", "review-requested"])],
+    ["In flight", x.inFlight],
+    ["Blocked on others", rows(["waiting"])],
+    ["Cleanup", rows(["cleanup"])],
+  ];
+  const out: string[] = x.systemPaused !== null ? [`prflow is paused (${x.systemPaused}); no actions run until \`prflow resume\`.`, ""] : [];
+  for (const [title, lines] of sections) if (lines.length) out.push(`## ${title} (${lines.length})`, ...lines, "");
+  return out.join("\n").trimEnd();
+}
