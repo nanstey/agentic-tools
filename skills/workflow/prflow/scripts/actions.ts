@@ -67,14 +67,14 @@ interface Run {
 /** Start a live dispatch (row and event first), run `effect`, and record the outcome. */
 async function live(
   r: Run,
-  req: { item: string; version: string; kind: Kind; trigger: string | null; command: string },
+  req: { item: string; version: string; kind: Kind; trigger: string | null; command: string; target?: string },
   effect: () => Promise<{ ok: boolean; detail: string }>,
   success: "rerun" | "archived",
 ): Promise<void> {
   const { store, ctx } = r;
   const start = beginDispatch(store, ctx, { item: req.item, version: req.version, kind: req.kind, trigger: req.trigger, event: { type: "dispatched", detail: req.command } });
   if (!start.ok) return;
-  const d = store.transition(start.dispatch.id, "launched", ctx.now, { leaseUntil: leaseUntil(ctx.rails, ctx.now) });
+  const d = store.transition(start.dispatch.id, "launched", ctx.now, { leaseUntil: leaseUntil(ctx.rails, ctx.now), detail: req.target ?? null });
   const out = await effect();
   const ev = { item: d.item, version: d.version, kind: d.kind, dispatchId: d.id };
   const now = r.deps.now();
@@ -160,7 +160,7 @@ async function rerun(r: Run, c: Classification, pr: PrSnapshot): Promise<void> {
   }
   await live(
     r,
-    { item: c.key, version, kind: "rerun", trigger, command },
+    { item: c.key, version, kind: "rerun", trigger, command, target: `runs ${runIds.join(",")}` },
     async () => {
       const failed: string[] = [];
       for (const id of runIds) {
@@ -252,8 +252,12 @@ export function makeVerify(worktreesScanned: boolean): (result: ScanResult) => V
   return (result) => (d: Dispatch) => {
     if (d.kind === "rerun") {
       const pr = result.prs.find((p) => `${p.repo}#${p.number}`.toLowerCase() === d.item.toLowerCase());
-      if (pr && pr.headSha.slice(0, 8) === d.version.slice(0, 8) && summarizeChecks(pr.checks).pending)
-        return { state: "done", detail: "checks are running again on the same head" };
+      if (!pr || pr.headSha.slice(0, 8) !== d.version.slice(0, 8)) return null;
+      // Every targeted run must be running again; a crash may have rerun only some.
+      const ids = /^runs (\d+(?:,\d+)*)$/.exec(d.detail ?? "")?.[1]?.split(",");
+      const running = (id: string) => pr.checks.some((c) => c.typename === "CheckRun" && c.status !== "COMPLETED" && RUN_URL.exec(c.url ?? "")?.[2] === id);
+      if (ids ? ids.every(running) : summarizeChecks(pr.checks).pending)
+        return { state: "done", detail: ids ? `run ${ids.join(", ")} running again on the same head` : "checks are running again on the same head" };
       return null;
     }
     if (d.kind === "cleanup" && worktreesScanned) {

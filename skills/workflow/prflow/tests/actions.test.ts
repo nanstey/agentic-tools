@@ -306,6 +306,19 @@ describe("reconcile after a crash", () => {
     assert.match(out, /recovered Acme\/x#1 rerun #1: done: checks are running again on the same head/);
   });
 
+  it("settles an interrupted multi-run rerun only when every targeted run is running again", async () => {
+    const s = tempStore();
+    const v = `${HEAD.slice(0, 8)}-x`;
+    const d = s.createDispatch("Acme/x#1", v, "rerun", T0);
+    s.transition(d.id, "launched", T0, { leaseUntil: T0 + 45 * MIN, detail: "runs 42,7" });
+    const w = world({ prs: { "Acme/x#1": prResponse({ decision: null, checks: [run("a", "IN_PROGRESS", null, RUN_URL(42)), cancelled("b", 7)] }) } });
+    await runTick(w, s);
+    assert.equal(s.dispatch(1)?.state, "launched", "run 7 was never rerun");
+    w.prs["Acme/x#1"] = prResponse({ decision: null, checks: [run("a", "IN_PROGRESS", null, RUN_URL(42)), run("b", "QUEUED", null, RUN_URL(7))] });
+    w.clock += 15 * MIN;
+    assert.match((await runTick(w, s)).stdout, /recovered Acme\/x#1 rerun #1: done: run 42, 7 running again/);
+  });
+
   it("settles an interrupted cleanup when the worktree is gone", async () => {
     const s = tempStore();
     s.createDispatch("Acme/x#5", "MERGED:/w/a", "cleanup", T0);
