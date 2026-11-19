@@ -203,6 +203,8 @@ describe("agent dispatch: live", () => {
     assert.deepEqual(chooseTarget([], null), { do: "launch", close: null });
     // A retry replaces the earlier session even when it is idle.
     assert.deepEqual(chooseTarget([s("done")], "term_a"), { do: "launch", close: s("done") });
+    // ...but never when it is busy: wait, then interrupt it.
+    assert.equal(chooseTarget([s("working")], "term_a").do, "wait");
     // After the busy wait: a lone busy terminal is interrupted; two are not; a chat is not.
     const M = 60_000;
     assert.equal(chooseTarget([s("working")], null, { waitedMs: 44 * M, busyWaitMs: 45 * M }).do, "wait");
@@ -401,6 +403,7 @@ describe("agent dispatch: live", () => {
   it("prflow recover replaces the session of an open dispatch next tick", async () => {
     const { w, s } = setup(CI_PR);
     await runTick(w, s, { live: true });
+    w.agents = [agent("s9", "tab1", "done", w.clock)];
     assert.match(recover(s, w.clock, 1), /was launched/);
     assert.equal(s.dispatch(1)?.state, "stale");
     assert.equal(s.dispatch(1)?.attempts, 0);
@@ -409,6 +412,24 @@ describe("agent dispatch: live", () => {
     assert.deepEqual(w.effects, [`launch ${WT}`, "close term_new1", `launch ${WT}`]);
     assert.equal(s.dispatch(1)?.attempts, 1);
     assert.throws(() => recover(s, w.clock, 99), /dispatch #99 not found/);
+  });
+
+  it("never closes a busy session on retry: waits, then interrupts and restarts it in place", async () => {
+    const { w, s } = setup(CI_PR);
+    await runTick(w, s, { live: true });
+    w.terminals[WT] = [term("term_new1", "tab1", w.clock)];
+    w.agents = [agent("s9", "tab1", "working", w.clock, "Doing what Noel asked")];
+    recover(s, w.clock, 1);
+    // The retry plans at the first tick, then waits busyWaitMinutes from there.
+    for (let i = 1; i <= 4; i++) {
+      w.clock += 15 * MIN;
+      w.agents = [agent("s9", "tab1", "working", w.clock - MIN, "Doing what Noel asked")];
+      await runTick(w, s, { live: true });
+      if (i < 4) assert.deepEqual(w.effects, [`launch ${WT}`], `tick ${i}`);
+    }
+    assert.deepEqual(w.effects, [`launch ${WT}`, "interrupt term_new1", "send term_new1"]);
+    assert.match(events(s).join("\n"), /interrupted #1 term_new1: this session was working for 45m \(limit 45m\) while a retry waited, so prflow stopped its turn; last message: Doing what Noel asked/);
+    assert.match(w.sent.at(-1) ?? "", /immediate update/);
   });
 
   it("prflow recover leaves an unrelated pause alone", async () => {

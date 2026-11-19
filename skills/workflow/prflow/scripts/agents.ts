@@ -167,6 +167,11 @@ export function chooseTarget(sessions: PiSession[], prior: string | null, o: Tar
     return { do: "interrupt", session: first, restart: `this session was ${first.state} for ${Math.round(waited / MINUTE_MS)}m (limit ${limitText}) while a brief waited, so prflow stopped its turn` };
   }
   if (old && old.kind !== "terminal") return { do: "wait", why: `earlier session ${old.handle} is a chat prflow cannot ${o.reuse ? "interrupt" : "close"}` };
+  // A busy session is never closed: wait, then interrupt and restart it in place.
+  if (!o.reuse && old && isBusy(old)) {
+    if (waited < limit) return { do: "wait", why: `earlier session ${old.handle} is ${old.state} again` };
+    return { do: "interrupt", session: old, restart: `this session was ${old.state} for ${Math.round(waited / MINUTE_MS)}m (limit ${limitText}) while a retry waited, so prflow stopped its turn` };
+  }
   if (o.reuse && old)
     return isBusy(old)
       ? { do: "interrupt", session: old, restart: `the previous attempt was still ${old.state} after the ${limitText} limit, so prflow stopped its turn` }

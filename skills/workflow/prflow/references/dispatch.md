@@ -99,7 +99,9 @@ Rules that hold throughout:
   a lone busy Pi terminal is stopped with Escape, and messaged only once
   `terminal wait` shows its prompt. A briefed session in `unknown` state with
   no activity is left to the lease rather than the busy limit.
-- Only the session an earlier attempt of the same dispatch used is ever closed.
+- Only the session an earlier attempt of the same dispatch used is ever closed,
+  and never while it is busy (including `unknown`): the retry waits
+  `busyWaitMinutes`, then interrupts and restarts it in place.
   If closing fails, the attempt fails rather than launching a second session.
 - No worktree, or several matches: `needs-decision` once per item version.
 - `ci` and `behind` briefs wait for running checks to finish.
