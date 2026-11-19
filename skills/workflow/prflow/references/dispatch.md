@@ -127,7 +127,7 @@ anything (`recovered`); otherwise the lease decides.
 
 `dispatches` rows for agent kinds also hold `worktree` (Orca worktree id),
 `sent_at`, `seen_at` (last activity seen), `nudged_at`, `brief`,
-`last_message`, and `known_sessions` (handles present before a launch). `sessions` holds one row per session handle prflow used, with
-its dispatch, last activity, and state. `prflow status` and the report's
-In flight group show each open dispatch's session handle, state, age, lease,
-and attempt.
+`last_message`, and `known_sessions` (handles present before a launch).
+`sessions` holds one row per session handle prflow used, with its dispatch,
+last activity, and state. `prflow status` and the report's In flight group
+show each open dispatch's session handle, state, age, lease, and attempt.
