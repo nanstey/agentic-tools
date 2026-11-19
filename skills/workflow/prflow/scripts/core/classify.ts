@@ -6,6 +6,7 @@ import {
   type Classification,
   type Kind,
   type PrSnapshot,
+  type Review,
   type Trigger,
   type WorktreeItem,
 } from "./types.ts";
@@ -70,6 +71,56 @@ const mine = (a: Actor, me: string): boolean => a !== null && a.login === me;
 
 const maxOf = (xs: string[]): string => xs.reduce((m, x) => (x > m ? x : m));
 
+/** Words in a review body that ask for changes, even under an approval. */
+const CHANGES_ASKED = /\bchanges?\s+(?:needed|requested|required)\b|\brequest(?:ed|ing)?\s+changes\b|\bplease\s+(?:fix|change|address)\b/i;
+
+/**
+ * An approval whose body asks for no changes is informational: it never
+ * triggers `comments`. Its body is shown on the report row instead
+ * (`approvalNotes`). Unresolved threads still trigger on their own.
+ */
+export function informationalApproval(r: Review): boolean {
+  return r.state === "APPROVED" && !CHANGES_ASKED.test(r.body);
+}
+
+/** Review body as one line: no HTML comments, no GitHub alert blocks (`> [!NOTE]`), collapsed whitespace. */
+export function cleanBody(body: string): string {
+  const out: string[] = [];
+  let inAlert = false;
+  for (const line of body.replace(/<!--[\s\S]*?-->/g, "").split("\n")) {
+    if (/^\s*>\s*\[!\w+\]/.test(line)) {
+      inAlert = true;
+      continue;
+    }
+    if (inAlert && /^\s*>/.test(line)) continue;
+    inAlert = false;
+    out.push(line);
+  }
+  return out.join(" ").replace(/\s+/g, " ").trim();
+}
+
+const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 3)}...` : s);
+
+/**
+ * Bodies of informational approvals to show on the report row: each human
+ * reviewer's latest submitted review, when it is such an approval with text.
+ */
+export function approvalNotes(pr: PrSnapshot, me: string): string[] {
+  const latest = new Map<string, Review>();
+  for (const r of pr.reviews) {
+    if (r.at === null || r.state === "PENDING" || !human(r.author, me)) continue;
+    const login = r.author?.login ?? "";
+    const prev = latest.get(login);
+    if (!prev || (prev.at ?? "") <= r.at) latest.set(login, r);
+  }
+  const notes: string[] = [];
+  for (const [login, r] of latest) {
+    const text = cleanBody(r.body);
+    if (informationalApproval(r) && text) notes.push(`approved by ${login} ${(r.at ?? "").slice(0, 16).replace("T", " ")}Z: ${clip(text, 400)}`);
+  }
+  return notes.sort();
+}
+
 /**
  * Latest unanswered human feedback newer than the head commit, or `null`.
  * Timestamps compare as ISO strings. Pending reviews (null timestamp) are ignored.
@@ -83,7 +134,7 @@ export function unansweredFeedback(pr: PrSnapshot, me: string): string | null {
   }
   for (const r of pr.reviews) {
     if (r.at === null) continue;
-    if (human(r.author, me) && (r.body !== "" || r.state === "CHANGES_REQUESTED"))
+    if (human(r.author, me) && !informationalApproval(r) && (r.body !== "" || r.state === "CHANGES_REQUESTED"))
       theirs.push(r.at);
     else if (mine(r.author, me)) ours.push(r.at);
   }
@@ -198,7 +249,8 @@ export function classifyAuthored(pr: PrSnapshot, me: string): Classification {
     kind === "waiting"
       ? `${waitingReason(pr)}; ${checkStatus(pr)}`
       : `${checkStatus(pr)}${others.length ? ` also: ${others.join(", ")}` : ""}`;
-  return { ...base(pr), kind, triggers, status, ...plan };
+  const notes = approvalNotes(pr, me);
+  return { ...base(pr), kind, triggers, status, ...plan, ...(notes.length ? { notes } : {}) };
 }
 
 /** True when `me` submitted a review on the current head commit. */

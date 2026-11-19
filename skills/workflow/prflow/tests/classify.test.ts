@@ -12,7 +12,7 @@ import {
 import { renderReport } from "../scripts/core/report.ts";
 import type { PrSnapshot, Role, WorktreeItem } from "../scripts/core/types.ts";
 import { parsePr } from "../scripts/adapters/gh.ts";
-import { AFTER, alice, CASES, comment, HEAD, LATER, ME, me, ok, prResponse, review, run, type PrSpec } from "./fixtures.ts";
+import { AFTER, alice, bot, CASES, comment, HEAD, LATER, ME, me, ok, prResponse, review, run, thread, user, type PrSpec } from "./fixtures.ts";
 
 function snap(spec: PrSpec, role: Role = "author", number = 1): PrSnapshot {
   const p = parsePr(JSON.stringify(prResponse(spec)), "Acme/widgets", number, role, ME);
@@ -166,4 +166,52 @@ describe("report", () => {
   });
 
   it("says so when there is nothing", () => assert.equal(renderReport([]), "Nothing to report."));
+});
+
+describe("informational approvals (real case, anonymized)", () => {
+  // Modelled on a real PR: two COMMENTED reviews asking for changes, the author's
+  // reply, then an APPROVED review whose body only states a merge condition. The
+  // only unresolved thread ends with the author's reply. The approval used to
+  // trigger `comments`.
+  const reviewer = user("reviewer-b");
+  const spec: PrSpec = {
+    head: "d21247b93c0cd7583fb7c38a0dbe333920159aea",
+    committedDate: "2026-11-18T16:01:16Z",
+    comments: [comment(bot("github-actions"), "2026-11-16T18:22:51Z"), comment(me, "2026-11-16T21:19:18Z"), comment(bot("github-actions"), "2026-11-18T16:15:29Z")],
+    reviews: [
+      review(reviewer, "COMMENTED", "2026-11-16T19:08:38Z", "> [!NOTE]\n> Written by an agent\n\n## Changes needed\n\n1. **Typed regions fail checkout** (inline).\n\n<!-- agent head=4e6dbbde -->", "4e6dbbdedb80e5db9659a33080d1705a56c74dba"),
+      review(me, "COMMENTED", "2026-11-16T19:18:04Z", "", "36a65ddefae9be9ada0f2e4982cc7c7ea9918461"),
+      review(reviewer, "COMMENTED", "2026-11-16T19:40:45Z", "## Changes needed\n\n- Still open: typed regions.", "36a65ddefae9be9ada0f2e4982cc7c7ea9918461"),
+      review(
+        reviewer,
+        "APPROVED",
+        "2026-11-18T19:11:14Z",
+        "> [!NOTE]\n> Written by an agent\n\nLooks good to me. The docs and promo-code changes landed.\n\nMerge only after a release that includes #393 is in production.\n\nOptional: the sandbox still uses the old path.\n\n<!-- agent head=d21247b9 -->",
+        "d21247b93c0cd7583fb7c38a0dbe333920159aea",
+      ),
+    ],
+    threads: [thread(false, comment(reviewer, "2026-11-16T19:08:38Z"), comment(me, "2026-11-16T19:18:04Z"))],
+  };
+
+  it("is not a comments trigger; the PR is merge-ready with the approval body as a note", () => {
+    const pr = snap(spec);
+    assert.deepEqual(authorTriggers(pr, ME), [{ kind: "merge" }]);
+    const c = classifyAuthored(pr, ME);
+    assert.equal(c.kind, "merge-ready");
+    assert.deepEqual(c.notes, [
+      "approved by reviewer-b 2026-11-18 19:11Z: Looks good to me. The docs and promo-code changes landed. Merge only after a release that includes #393 is in production. Optional: the sandbox still uses the old path.",
+    ]);
+    assert.match(renderReport([c]), /merge-ready: .* \| note: approved by reviewer-b 2026-11-18 19:11Z: Looks good to me\./);
+  });
+
+  it("still counts an approval that asks for changes, and drops the note", () => {
+    const pr = snap({ ...spec, reviews: [review(reviewer, "APPROVED", "2026-11-18T19:11:14Z", "Approving, but changes requested: rename x.")] });
+    assert.deepEqual(authorTriggers(pr, ME), [{ kind: "comments", detail: "2026-11-18T19:11:14Z" }, { kind: "merge" }]);
+    assert.equal(classifyAuthored(pr, ME).notes, undefined);
+  });
+
+  it("drops the note once the reviewer's latest review is not an approval", () => {
+    const pr = snap({ ...spec, reviews: [...(spec.reviews ?? []), review(reviewer, "COMMENTED", "2026-11-18T20:00:00Z", "one more thing")] });
+    assert.equal(classifyAuthored(pr, ME).notes, undefined);
+  });
 });

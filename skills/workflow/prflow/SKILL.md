@@ -81,6 +81,8 @@ One kind per PR, in priority order:
 
 Author PRs list every trigger that fired in `triggers`. prflow encodes no repo-specific rules: every check counts the same, and caveats such as a job that only needs a rerun belong in that repo's own docs.
 
+An approval whose body asks for no changes (no "changes needed", "changes requested", "request changes", or "please fix") is informational: it never triggers `comments`, and the report row shows its body as a `note:`. Unresolved threads still trigger on their own.
+
 Pending reviews with no timestamp are ignored, and a PR with no commits is skipped.
 
 ## Development

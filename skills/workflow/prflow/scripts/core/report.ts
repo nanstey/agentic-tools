@@ -18,7 +18,8 @@ export function sortItems(items: Classification[]): Classification[] {
 /** One report row. `showAccount` adds the GitHub account when several are configured. */
 export function row(c: Classification, showAccount = false): string {
   const acct = showAccount ? ` | account: ${c.account}` : "";
-  return `- ${c.repo}#${c.number} ${JSON.stringify(c.title)} | ${c.kind}: ${c.status} | next: ${c.nextAction} | owner: ${c.owner}${acct}`;
+  const notes = (c.notes ?? []).map((n) => ` | note: ${n}`).join("");
+  return `- ${c.repo}#${c.number} ${JSON.stringify(c.title)} | ${c.kind}: ${c.status} | next: ${c.nextAction} | owner: ${c.owner}${acct}${notes}`;
 }
 
 /** Text report grouped by status and next action. Empty groups are omitted. */

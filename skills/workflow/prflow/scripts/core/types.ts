@@ -123,4 +123,6 @@ export interface Classification {
   status: string;
   nextAction: string;
   owner: Owner;
+  /** Informational text shown on the report row, such as an approval's body. */
+  notes?: string[];
 }
