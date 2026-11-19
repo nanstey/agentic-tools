@@ -22,10 +22,21 @@ describe("brief templates", () => {
     for (const k of ["ci", "comments", "behind"] as const) {
       const b = T[k].body;
       assert.match(b, /Never check out, commit to, or push any other branch\./, k);
-      assert.match(b, /Never merge(?: the PR)?, enable auto-merge, approve, dismiss reviews, or force-push\./, k);
       assert.match(b, /Stop after pushing/, k);
       assert.match(b, /\{\{pr_url\}\}/, k);
     }
+    for (const k of ["ci", "comments"] as const) {
+      assert.match(T[k].body, /Never merge, enable auto-merge, approve, dismiss reviews, or force-push\./, k);
+      assert.doesNotMatch(T[k].body, /--force/, k);
+    }
+    // behind rebases onto the PR's current base and may force-push only with a lease.
+    const b = T.behind.body;
+    assert.match(b, /gh pr view \{\{pr_url\}\} --json baseRefName/);
+    assert.match(b, /rebase `\{\{branch\}\}` onto `origin\/<base>`/);
+    assert.match(b, /git push --force-with-lease origin \{\{branch\}\}/);
+    assert.match(b, /Never force-push except `--force-with-lease` to `\{\{branch\}\}` after the rebase above\./);
+    assert.doesNotMatch(b.replace(/--force-with-lease/g, ""), /--force/);
+    assert.doesNotMatch(b, /origin\/main/);
     assert.match(T.comments.body, /Reply to each item you addressed.*Resolve a review thread/s);
   });
 

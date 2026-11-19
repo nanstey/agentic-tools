@@ -71,8 +71,10 @@ describe("agent dispatch: dry run", () => {
     w.agents = [agent("s1", "t1", "done", T0 - MIN, "all done")];
     w.clock += 15 * MIN;
     const out = (await runTick(w, s)).stdout;
-    assert.match(out, /dry-run Acme\/x#1 behind: would message idle Pi session term_a in \/w\/x1 with orchestration send; brief behind v1/);
-    assert.match(out, /merge `origin\/main` into `feature`\. Do not rebase/);
+    assert.match(out, /dry-run Acme\/x#1 behind: would message idle Pi session term_a in \/w\/x1 with orchestration send; brief behind v2/);
+    assert.match(out, /It was `main` when this brief was written/);
+    assert.match(out, /rebase `feature` onto `origin\/<base>`/);
+    assert.match(out, /git push --force-with-lease origin feature/);
     assert.deepEqual(w.effects, []);
   });
 

@@ -45,7 +45,7 @@ instead of sending it half-filled.
 | --- | --- |
 | `ci` | Each failed check: name, log URL, and up to 20 error lines from `gh run view --job <id> --log-failed` (first 5 Actions jobs) |
 | `comments` | Human comments and reviews newer than the head commit and the author's last reply, and unresolved threads whose last comment is a human's: author, `file:line`, URL, text. Informational approvals are left out |
-| `behind` | BEHIND or DIRTY. The brief merges the base in; it never rebases, because a rebase of a pushed branch needs a force-push |
+| `behind` | BEHIND or DIRTY. The brief has the agent read the PR's current base (`gh pr view --json baseRefName`), rebase onto `origin/<base>` (dropping merged parent commits in a stack), and push with `--force-with-lease`, the only force-push any brief allows |
 | `nudge` | Sent once to an idle session whose work is unfinished |
 
 Each brief also carries the branch, base, head, worktree, other open triggers,

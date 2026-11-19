@@ -91,7 +91,7 @@ One kind per PR, in priority order:
 | `rerun` | Cancelled jobs, no failures, nothing pending | `gh run rerun --failed` | prflow |
 | `ci` | Any check failed, nothing pending | CI fix brief; the session follows the repo's CI docs | agent |
 | `comments` | Human comment, review body, changes request, or unresolved thread newer than the head commit, with no later reply from `me` | Fix-and-reply brief | agent |
-| `behind` | BEHIND or DIRTY, nothing pending | Brief to merge the base in (no rebase, so no force-push) | agent |
+| `behind` | BEHIND or DIRTY, nothing pending | Brief to rebase onto the PR's current base and push with `--force-with-lease` | agent |
 | `review-requested` | `me` is requested, not draft, required checks finished, head not yet reviewed by `me` | Reviewer session, draft only | agent reviewer |
 | `cleanup` | Orca worktree whose PR is merged or closed | Archive if clean, else you check | prflow or you |
 | `waiting` | Anything else | None | others |
@@ -112,7 +112,7 @@ Pending reviews with no timestamp are ignored, and a PR with no commits is skipp
 - Never call `gh auth switch`. Each account's `gh` calls use `GH_TOKEN` from `gh auth token -u <login>`. Only the active account may fall back to ambient auth.
 - Never commit `config.json`. Only `config.example.json` is tracked.
 - Never run a `gh` command outside the read-only allowlist in `assertReadOnly` and the rerun allowlist in `assertRerun` (`scripts/adapters/gh.ts`).
-- Never merge, approve, comment, force-push, or dismiss reviews.
+- Never merge, approve, comment, force-push, or dismiss reviews. The one exception: a `behind` brief tells its agent to push its own rebased branch with `--force-with-lease`.
 - Never run a GitHub write other than `gh run rerun <id> --failed -R <owner/repo>` (`assertRerun`), and never while any check is running.
 - Never run an `orca-ide` call outside `assertOrca` (`scripts/adapters/orca.ts`): `worktree list`, `agent list`, and `terminal list` reads; `worktree rm --worktree path:<path> --json` (no `--force`, no `--delete-branch`); `agent launch --agent pi --surface terminal --worktree id:<id> --prompt <brief> --json`; `orchestration send --to <term_ handle or orca_session_id:> --subject --body --json`; and `terminal close --terminal <term_ handle> --json`. Never archive a worktree with uncommitted files or unpushed commits.
 - Never use `orca-ide terminal send` to reach an agent, never create a worktree, and never edit or disable Orca automations.
