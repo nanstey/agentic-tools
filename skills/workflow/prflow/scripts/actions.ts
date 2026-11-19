@@ -1,7 +1,7 @@
 /**
  * Safe actions for `prflow tick`: `rerun` (gh run rerun --failed) and `cleanup`
- * (archive a clean Orca worktree of a merged or closed PR, and delete a merged
- * PR's local branch).
+ * (archive a clean Orca worktree of a merged or closed PR, and delete eligible
+ * local branches, including review branches after either close or merge).
  *
  * Live actions go through `beginDispatch`, which writes the dispatch row, a
  * `started` ledger row, and a `dispatched` event before the side effect. The
@@ -14,7 +14,7 @@
  */
 import { rerunArgs, runViewArgs } from "./adapters/gh.ts";
 import { deleteBranchArgs, safeBranch } from "./adapters/git.ts";
-import { archiveArgs } from "./adapters/orca.ts";
+import { archiveArgs, isBusy, isReviewBranch, parseAgents, parseTerminals, parseWorktrees, piSessions } from "./adapters/orca.ts";
 import { classifyWorktree, summarizeChecks } from "./core/classify.ts";
 import { leaseUntil } from "./core/rails.ts";
 import type { Classification, Kind, PrSnapshot, WorktreeItem } from "./core/types.ts";
@@ -182,9 +182,34 @@ async function cleanup(r: Run, w: WorktreeItem): Promise<void> {
   if (!c || (w.pr.state !== "MERGED" && w.pr.state !== "CLOSED")) return;
   const version = cleanupVersion(c, w);
   if (dryRunBlocked(store, c.key, version, "cleanup", null)) return;
+  // Review worktrees persist while the PR is open. Before archival, verify the
+  // Orca sessions so a closed PR cannot remove a worktree under a running Pi.
+  let reviewerSessions: ReturnType<typeof piSessions> = [];
+  if (w.branch.startsWith("prflow-review/")) {
+    let id: string | undefined;
+    try {
+      id = parseWorktrees(await deps.orcaWorktrees(), []).find((x) => x.path === w.path)?.id;
+      if (!id) throw new Error("worktree is no longer listed with an Orca id");
+      const [agents, terminals] = await Promise.all([deps.orcaAgents(), deps.orcaTerminals(id)]);
+      if (!agents.ok || !terminals.ok) throw new Error(agents.stderr || terminals.stderr || "Orca session read failed");
+      reviewerSessions = piSessions(id, parseAgents(agents.stdout), parseTerminals(terminals.stdout));
+      if (store.openDispatches().some((d) => d.worktree === id) || reviewerSessions.some(isBusy) || reviewerSessions.some((s) => store.openDispatches().some((d) => d.sessionHandle === s.handle))) {
+        once(store, ctx.now, `ask:cleanup-busy:${c.key}:${version}`, "needs-decision", { type: "needs-decision", item: c.key, version, kind: "cleanup", detail: `PR ${w.pr.state}; review worktree ${w.path} has a busy Pi session or an open dispatch. prflow will not archive it` });
+        return;
+      }
+      if (reviewerSessions.some((s) => !store.hasLedgerRef(`prflow-launched:${s.handle}`))) {
+        once(store, ctx.now, `ask:cleanup-owned:${c.key}:${version}`, "needs-decision", { type: "needs-decision", item: c.key, version, kind: "cleanup", detail: `PR ${w.pr.state}; review worktree ${w.path} has a Pi session prflow did not launch. Close or move it before archiving` });
+        return;
+      }
+    } catch (e) {
+      once(store, ctx.now, `ask:cleanup-sessions:${c.key}:${version}`, "needs-decision", { type: "needs-decision", item: c.key, version, kind: "cleanup", detail: `PR ${w.pr.state}; cannot verify sessions in review worktree ${w.path}: ${(e as Error).message}. prflow will not archive it` });
+      return;
+    }
+  }
   // Fresh checks right before acting; unknown counts as not clean.
   const dirty = await deps.gitDirty(w.path);
-  const unpushed = await deps.gitUnpushed(w.path, w.pr.headSha);
+  const reviewBranch = isReviewBranch(w.branch);
+  const unpushed = reviewBranch ? 0 : await deps.gitUnpushed(w.path, w.pr.headSha);
   if (dirty !== 0 || unpushed !== 0) {
     const why = [
       dirty === null ? "uncommitted state unknown" : dirty ? `${dirty} uncommitted file(s)` : null,
@@ -202,12 +227,13 @@ async function cleanup(r: Run, w: WorktreeItem): Promise<void> {
   // A merged PR's local branch goes too, pinned to the commit checked above.
   let target: { gitDir: string; branch: string; sha: string } | null = null;
   let keep = "branch kept";
-  if (w.pr.state === "MERGED") {
+  if (w.pr.state === "MERGED" || (w.pr.state === "CLOSED" && reviewBranch)) {
     const info = await deps.branchInfo(w.path);
     if (info?.branch && info.branch === w.branch && safeBranch(info.branch)) target = { gitDir: info.gitDir, branch: info.branch, sha: info.sha };
     else keep = `local branch ${w.branch} kept: ${!info ? "branch state unknown" : !info.branch ? "HEAD is detached" : info.branch !== w.branch ? `worktree is on ${info.branch}` : "unusual branch name"}`;
   }
-  const command = [`orca-ide ${archiveArgs(w.path).join(" ")}`, ...(target ? [`git ${deleteBranchArgs(target.gitDir, target.branch, target.sha).join(" ")}`] : [])].join("; ");
+  const closeSessions = reviewerSessions.filter((s) => s.kind === "terminal" && store.hasLedgerRef(`prflow-launched:${s.handle}`));
+  const command = [...closeSessions.map((s) => `orca-ide terminal close --terminal ${s.handle} --json`), `orca-ide ${archiveArgs(w.path).join(" ")}`, ...(target ? [`git ${deleteBranchArgs(target.gitDir, target.branch, target.sha).join(" ")}`] : [])].join("; ");
   if (r.dryRun) {
     const ref = `dry-run:cleanup:${c.key}:${version}`;
     if (!dryRunSlot(r, ref)) return;
@@ -218,6 +244,10 @@ async function cleanup(r: Run, w: WorktreeItem): Promise<void> {
     r,
     { item: c.key, version, kind: "cleanup", trigger: null, command },
     async () => {
+      for (const session of closeSessions) {
+        const closed = await deps.closeTerminal(session.handle);
+        if (!closed.ok) return { ok: false, detail: `could not close idle reviewer ${session.handle}: ${closed.stderr.trim() || closed.stdout.trim()}` };
+      }
       const res = await deps.archiveWorktree(w.path);
       if (!res.ok) return { ok: false, detail: `orca-ide worktree rm: ${res.stderr.trim() || res.stdout.trim()}` };
       if (target) {

@@ -43,8 +43,11 @@
     ]
   },
   "review": {
-    "$comment": "Reviewer sessions for review-requested PRs: one per PR head, in its own Orca worktree, drafting a review under the state directory. Announced only while dryRun is true; set false to create worktrees and launch reviewers. Separate from dispatch.dryRun and actions.dryRun. maxConcurrent caps open reviewers. Tick never posts; use prflow review post <draft-id> --yes.",
+    "$comment": "Reviewer sessions use one persistent Orca worktree per PR and save per-head drafts under the state directory. Announced only while dryRun is true; set false to create worktrees and launch reviewers. Tick never posts; use prflow review post <draft-id> --yes.",
     "dryRun": true,
-    "maxConcurrent": 2
+    "maxConcurrent": 2,
+    "sessionReviews": 5,
+    "idleCloseHours": 24,
+    "statuses": { "draft": "review-draft", "reviewing": "reviewing", "changes": "review-changes", "approved": "review-approved" }
   }
 }

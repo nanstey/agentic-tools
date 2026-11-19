@@ -28,10 +28,10 @@ describe("parseConfig", () => {
   });
 
   it("defaults review to dry run with 2 reviewers, separately from dispatch and actions", () => {
-    assert.deepEqual(DEFAULT_REVIEW, { dryRun: true, maxConcurrent: 2 });
+    assert.deepEqual(DEFAULT_REVIEW, { dryRun: true, maxConcurrent: 2, sessionReviews: 5, idleCloseHours: 24, statuses: { draft: "review-draft", reviewing: "reviewing", changes: "review-changes", approved: "review-approved" } });
     const cfg = parse({ accounts: [{ login: "a" }], actions: { dryRun: false }, dispatch: { dryRun: false } });
     assert.equal(cfg.review.dryRun, true);
-    assert.deepEqual(parse({ accounts: [{ login: "a" }], review: { dryRun: false, maxConcurrent: 1 } }).review, { dryRun: false, maxConcurrent: 1 });
+    assert.deepEqual(parse({ accounts: [{ login: "a" }], review: { dryRun: false, maxConcurrent: 1 } }).review, { ...DEFAULT_REVIEW, dryRun: false, maxConcurrent: 1 });
   });
 
   it("defaults dispatch to dry run, separately from actions", () => {
@@ -99,6 +99,9 @@ describe("parseConfig", () => {
     ["unknown review key", { accounts: [{ login: "a" }], review: { post: true } }, /review: unknown key "post"/],
     ["review dryRun not boolean", { accounts: [{ login: "a" }], review: { dryRun: "no" } }, /review\.dryRun must be a boolean/],
     ["review maxConcurrent zero", { accounts: [{ login: "a" }], review: { maxConcurrent: 0 } }, /review\.maxConcurrent must be an integer from 1 to 20/],
+    ["review sessionReviews zero", { accounts: [{ login: "a" }], review: { sessionReviews: 0 } }, /sessionReviews must be an integer/],
+    ["review idleCloseHours zero", { accounts: [{ login: "a" }], review: { idleCloseHours: 0 } }, /idleCloseHours must be a number/],
+    ["invalid review status id", { accounts: [{ login: "a" }], review: { statuses: { draft: "Invalid!" } } }, /review\.statuses\.draft/],
     ["bad limit", { accounts: [{ login: "a" }], limit: 0 }, /limit/],
     ["bad worktrees", { accounts: [{ login: "a" }], worktrees: "yes" }, /worktrees/],
   ];

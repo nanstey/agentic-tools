@@ -2,10 +2,10 @@
  * Orca adapter: parsing and the exact `orca-ide` calls prflow may make.
  *
  * Reads: `worktree list`, `agent list`, `terminal list`. Writes: archive a
- * worktree, create a review worktree for one PR head, launch Pi in an existing
- * worktree, mail a running agent with `orchestration send` (never `terminal
- * send`), and close a terminal prflow dispatched to. `assertOrca` rejects every
- * other call.
+ * worktree, create a review worktree for one PR, update its status, launch Pi
+ * in an existing worktree, mail a running agent with `orchestration send`
+ * (never `terminal send`), and close an idle prflow-launched terminal.
+ * `assertOrca` rejects every other call.
  */
 
 export interface OrcaWorktree {
@@ -17,6 +17,9 @@ export interface OrcaWorktree {
   /** `owner/repo`, lowercased, from the Orca project id. */
   repo: string;
   linkedPr: number | null;
+  workspaceStatus?: string | null;
+  comment?: string | null;
+  isUnread?: boolean | null;
 }
 
 interface RawWorktree {
@@ -28,6 +31,9 @@ interface RawWorktree {
   isArchived?: boolean;
   isBare?: boolean;
   linkedPR?: number | null;
+  workspaceStatus?: string | null;
+  comment?: string | null;
+  isUnread?: boolean;
 }
 
 /** Repo from an Orca project id such as `github:github.com-alt/acme/widgets`. */
@@ -54,6 +60,9 @@ export function parseWorktrees(json: string, owners: readonly string[]): OrcaWor
       branch: w.branch.replace(/^refs\/heads\//, ""),
       repo,
       linkedPr: typeof w.linkedPR === "number" ? w.linkedPR : null,
+      workspaceStatus: typeof w.workspaceStatus === "string" ? w.workspaceStatus : null,
+      comment: typeof w.comment === "string" ? w.comment : null,
+      isUnread: typeof w.isUnread === "boolean" ? w.isUnread : null,
     });
   }
   return rows;
@@ -66,10 +75,9 @@ export function repoFromPrUrl(url: string): string | null {
 }
 
 /**
- * The one Orca write prflow makes: remove (archive) a Git worktree by path. Orca
- * keeps the branch by default. Never `--force`, never `--delete-branch` (Orca
- * keeps squash-merged branches it cannot prove merged; prflow deletes a merged
- * PR's branch itself, see `adapters/git.ts`).
+ * Archive a Git worktree by path. Orca keeps the branch by default. Never
+ * `--force`, never `--delete-branch`; prflow deletes eligible local branches
+ * separately with the guarded Git adapter.
  */
 export const archiveArgs = (path: string): string[] => ["worktree", "rm", "--worktree", `path:${path}`, "--json"];
 
@@ -95,25 +103,24 @@ export function assertArchive(args: readonly string[]): void {
 export const REVIEW_BRANCH_PREFIX = "prflow-review/";
 export const isReviewBranch = (b: string): boolean => b.startsWith(REVIEW_BRANCH_PREFIX);
 
-/** `<repo name>-<n>-<head8>`, lowercase, safe for a worktree name and a branch. */
-export function reviewSlug(repo: string, number: number, head8: string): string {
+/** `<repo name>-<n>`, lowercase, safe for a persistent review worktree. */
+export function reviewSlug(repo: string, number: number, _head8?: string): string {
   const name = (repo.split("/")[1] ?? repo).toLowerCase().replace(/[^a-z0-9._-]/g, "-");
-  return `${name}-${number}-${head8.toLowerCase()}`;
+  return `${name}-${number}`;
 }
 export const reviewWorktreeName = (slug: string): string => `prflow-review-${slug}`;
 export const reviewBranch = (slug: string): string => `${REVIEW_BRANCH_PREFIX}${slug}`;
 
 /**
  * New Orca worktree for reviewing one PR head: own branch, linked to the PR,
- * no parent lineage, repo setup hooks skipped. Orca bases it on the repo
- * default branch; the reviewer brief moves it to the PR head.
+ * no parent lineage, repo setup hooks run.
  */
 export const reviewWorktreeArgs = (repoId: string, slug: string, pr: number): string[] => [
-  "worktree", "create", "--repo", `id:${repoId}`, "--name", reviewWorktreeName(slug), "--branch", reviewBranch(slug), "--pr", String(pr), "--no-parent", "--setup", "skip", "--json",
+  "worktree", "create", "--repo", `id:${repoId}`, "--name", reviewWorktreeName(slug), "--branch", reviewBranch(slug), "--pr", String(pr), "--no-parent", "--setup", "run", "--json",
 ];
 
 const REPO_ID = /^[A-Za-z0-9_-]+$/;
-const SLUG = /^[a-z0-9._-]+-[1-9]\d{0,9}-[0-9a-f]{8}$/;
+const SLUG = /^[a-z0-9._-]+-[1-9]\d{0,9}$/;
 
 /** Throws unless `args` is exactly the review worktree creation above. */
 export function assertReviewWorktree(args: readonly string[]): void {
@@ -128,7 +135,7 @@ export function assertReviewWorktree(args: readonly string[]): void {
     !slug.includes("..") &&
     Number.isSafeInteger(pr) &&
     pr > 0 &&
-    slug.split("-").at(-2) === String(pr) &&
+    slug.endsWith(`-${pr}`) &&
     reviewWorktreeArgs(repoId, slug, pr).every((x, i) => x === args[i]);
   if (!ok) throw new Error(`prflow: orca-ide ${args.slice(0, 2).join(" ")} is not the allowed review worktree creation`);
 }
@@ -154,6 +161,25 @@ export function findReviewWorktree(rows: OrcaWorktree[], repo: string, number: n
   const suffixed = (x: string) => x.startsWith(`${b}-`) && /^\d+$/.test(x.slice(b.length + 1));
   const hits = rows.filter((w) => w.repo === repo.toLowerCase() && w.id && (w.branch === b || suffixed(w.branch)) && (w.linkedPr === null || w.linkedPr === number));
   return hits.length === 1 ? (hits[0] ?? null) : (hits.find((w) => w.branch === b) ?? null);
+}
+
+/** `orca-ide worktree set` is limited to a status update for the expected review worktree. */
+export const worktreeSetArgs = (path: string, status: string, comment: string, unread?: "--unread" | "--read"): string[] => [
+  "worktree", "set", "--worktree", `path:${path}`, "--workspace-status", status, "--comment", comment,
+  ...(unread ? [unread] : []), "--json",
+];
+
+export function assertWorktreeSet(args: readonly string[], expectedPath?: string): void {
+  const path = args[3]?.slice("path:".length) ?? "";
+  const status = args[5] ?? "";
+  const comment = args[7] ?? "";
+  const extra = args.length === 10 ? args[8] : undefined;
+  const ok = args.length === (extra ? 10 : 9) && args[0] === "worktree" && args[1] === "set" && args[2] === "--worktree" &&
+    (expectedPath === undefined || args[3] === `path:${expectedPath}`) && path.startsWith("/") && !path.split("/").includes("..") &&
+    (path.split("/").at(-1)?.startsWith("prflow-review-") ?? false) && /^[a-z0-9][a-z0-9-]{0,40}$/.test(status) &&
+    comment.length <= 200 && !/[\x00-\x1f\x7f]/.test(comment) && (!extra || extra === "--unread" || extra === "--read") && args.at(-1) === "--json" &&
+    same(args, worktreeSetArgs(expectedPath ?? path, status, comment, extra as "--unread" | "--read" | undefined));
+  if (!ok) throw new Error(`prflow: orca-ide ${args.join(" ")} is not the allowed review worktree status call`);
 }
 
 /** `orca-ide worktree create --json`: the new worktree's id and path, when the reply has them. */
@@ -379,6 +405,7 @@ export function assertOrca(args: readonly string[]): void {
     (args.length === 9 && TERMINAL.test(args[3] ?? "") && same(args, waitIdleArgs(args[3] ?? "")));
   if (ok) return;
   if (args[0] === "worktree" && args[1] === "create") return assertReviewWorktree(args);
+  if (args[0] === "worktree" && args[1] === "set") return assertWorktreeSet(args);
   try {
     assertArchive(args);
   } catch {

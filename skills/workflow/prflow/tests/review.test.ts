@@ -16,7 +16,7 @@ import { cfg, fakeTickDeps, MIN, T0, tempStore, world, type World } from "./stat
 const TEMPLATES = loadTemplates(join(SKILL_DIR, "templates", "briefs"));
 const KEY = "Acme/x#5";
 const H8 = HEAD.slice(0, 8);
-const SLUG = `x-5-${H8}`;
+const SLUG = "x-5";
 const RWT = `rid1::/w/review/prflow-review-${SLUG}`;
 const RPATH = `/w/review/prflow-review-${SLUG}`;
 const NEW_HEAD = "beefbeef00112233445566778899aabbccddeeff";
@@ -84,10 +84,12 @@ describe("review dispatch: dry run", () => {
   it("is the default and announces the exact target and brief once, creating nothing", async () => {
     const { w, s } = setup();
     const out = (await runTick(w, s, { omitFlag: true })).stdout;
-    assert.match(out, new RegExp(`dry-run Acme/x#5 review-requested: would create Orca worktree prflow-review-${SLUG} on branch prflow-review/${SLUG} \\(orca-ide worktree create --repo id:rid1 --name prflow-review-${SLUG} --branch prflow-review/${SLUG} --pr 5 --no-parent --setup skip --json\\) for Acme/x, then launch a fresh Pi reviewer there; draft Acme-x-5-${H8} to ${s.dir.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/drafts/Acme-x-5/${H8}/review\\.md; brief review v1:\\n# Draft a review of Acme/x#5 at ${H8}`));
+    assert.match(out, new RegExp(`dry-run Acme/x#5 review-requested: would create Orca worktree prflow-review-${SLUG} on branch prflow-review/${SLUG} \\(orca-ide worktree create --repo id:rid1 --name prflow-review-${SLUG} --branch prflow-review/${SLUG} --pr 5 --no-parent --setup run --json\\) for Acme/x, then fetch origin pull/5/head, reset --hard ${HEAD}, verify HEAD, and launch a fresh Pi reviewer there; draft Acme-x-5-${H8} to ${s.dir.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/drafts/Acme-x-5/${H8}/review\\.md; brief review v2:\\n# Draft a review of Acme/x#5 at ${H8}`));
     assert.match(out, /run `\/pr review https:\/\/github\.com\/Acme\/widgets\/pull\/1 report`\. Report mode never publishes\./);
     assert.match(out, /Do not post anything to GitHub/);
-    assert.match(out, new RegExp(`git reset --hard ${HEAD}`));
+    assert.match(out, /orca-ide worktree set --worktree active --workspace-status <id> --comment/);
+    assert.match(out, /### path\/to\/other\.ext:10-14/);
+    assert.match(out, new RegExp(`reset --hard ${HEAD}`));
     assert.match(out, /Use `GH_TOKEN="\$\(gh auth token -u octocat\)"` on every `gh` call\. Never run `gh auth switch`\./);
     assert.match(out, /Do not change your own workflow, skills, prompts, or agent configuration/);
     assert.deepEqual(w.effects, []);
@@ -145,8 +147,8 @@ describe("review dispatch: live", () => {
       },
     };
     const out = (await runTick(w, s, { live: true, deps })).stdout;
-    assert.match(seen[0] ?? "", /^planned dispatched #1: brief review v1: create Orca worktree prflow-review-x-5-c0ffee11 .* meta=true$/);
-    assert.deepEqual(w.effects, [`create-worktree ${SLUG}`, `launch ${RWT}`]);
+    assert.match(seen[0] ?? "", /^planned dispatched #1: brief review v2: create Orca worktree prflow-review-x-5 .* meta=true$/);
+    assert.deepEqual(w.effects, [`create-worktree ${SLUG}`, `review-fetch ${RPATH} 5`, `review-reset ${RPATH} ${HEAD}`, `launch ${RWT}`]);
     const d = s.dispatch(1);
     assert.equal(d?.kind, "review-requested");
     assert.equal(d?.version, H8);
@@ -165,12 +167,15 @@ describe("review dispatch: live", () => {
     await runTick(w, s, { live: true });
     w.clock += 15 * MIN;
     await runTick(w, s, { live: true });
-    assert.deepEqual(w.effects, [`create-worktree ${SLUG}`, `launch ${RWT}`]);
+    assert.deepEqual(w.effects, [`create-worktree ${SLUG}`, `review-fetch ${RPATH} 5`, `review-reset ${RPATH} ${HEAD}`, `launch ${RWT}`, `status ${RPATH} reviewing reviewing ${H8} `]);
 
     w.reviewPrs[KEY] = REQ({ head: NEW_HEAD });
+    w.unpushed[RPATH] = 1; // Before fetch, the new head is not an ancestor in the realistic fake.
     w.clock += 15 * MIN;
     await runTick(w, s, { live: true });
-    assert.equal(w.effects.length, 2, "the newer head waits for the open reviewer");
+    assert.equal(w.effects.filter((e) => e.startsWith("launch ")).length, 1, "the newer head waits for the open reviewer");
+    assert.equal(w.effects.filter((e) => e.startsWith("review-fetch ")).length, 1, "no fetch or reset while the previous reviewer is busy");
+    assert.equal(w.effects.filter((e) => e.startsWith("review-reset ")).length, 1);
 
     // The first reviewer saves its draft and goes idle.
     session(w, RWT, "term_new1", "done", w.clock + MIN, "draft saved");
@@ -181,8 +186,34 @@ describe("review dispatch: live", () => {
     assert.equal(s.dispatch(1)?.state, "done");
     const second = s.findDispatch(KEY, "beefbeef", "review-requested");
     assert.equal(second?.state, "launched");
-    assert.deepEqual(w.effects.slice(2), ["close term_new1", `archive ${RPATH}`, "delete-branch prflow-review/x-5-c0ffee11", "create-worktree x-5-beefbeef", "launch rid1::/w/review/prflow-review-x-5-beefbeef"]);
+    assert.deepEqual(w.effects.slice(-3), [`review-fetch ${RPATH} 5`, `review-reset ${RPATH} ${NEW_HEAD}`, "send term_new1"]);
     assert.match(w.sent.at(-1) ?? "", new RegExp(`## Earlier draft\\n\\nprflow saved a draft for the earlier head \`${H8}\``));
+  });
+
+  it("does not close a user terminal when retrying a message-only dispatch", async () => {
+    const reviewRow = { id: RWT, path: RPATH, branch: `refs/heads/prflow-review/${SLUG}`, projectId: "github:Acme/x", linkedPR: 5 };
+    const { w, s } = setup({ worktrees: [MAIN, reviewRow], terminals: { [RWT]: [{ handle: "term_user", worktreeId: RWT, tabId: "tab-user", leafId: "l", agentIdentity: "pi", lastOutputAt: T0 }] }, agents: [{ orcaSessionId: "s-user", kind: "terminal", agent: "pi", state: "done", worktreeId: RWT, paneKey: "tab-user:l", lastAssistantMessage: null, updatedAt: T0 }], orcaFails: { send: "offline" } });
+    await runTick(w, s, { live: true });
+    w.orcaFails.send = "";
+    w.clock += 15 * MIN;
+    await runTick(w, s, { live: true });
+    assert.equal(w.effects.some((e) => e === "close term_user"), false);
+    assert.ok(w.effects.includes("send term_user"));
+  });
+
+  it("rotates only a prflow-launched session after sessionReviews saved drafts", async () => {
+    const { w, s } = setup();
+    const c = cfg();
+    c.review.sessionReviews = 1;
+    await runTick(w, s, { live: true, config: c });
+    session(w, RWT, "term_new1", "done", w.clock + MIN, "draft saved");
+    saveDraft(s);
+    w.reviewPrs[KEY] = REQ({ head: NEW_HEAD });
+    w.clock += 15 * MIN;
+    await runTick(w, s, { live: true, config: c });
+    assert.ok(w.effects.includes("close term_new1"));
+    assert.equal(w.effects.filter((e) => e.startsWith("launch ")).length, 2);
+    assert.ok(w.effects.includes(`review-reset ${RPATH} ${NEW_HEAD}`));
   });
 
   it("caps open reviewers at review.maxConcurrent and says so once per tick", async () => {
@@ -203,7 +234,7 @@ describe("review dispatch: live", () => {
     const c = cfg();
     c.review.maxConcurrent = 1;
     const out = (await runTick(w, s, { live: true, config: c })).stdout;
-    assert.deepEqual(w.effects.filter((e) => e.startsWith("create")), [`create-worktree x-6-${H8}`]);
+    assert.deepEqual(w.effects.filter((e) => e.startsWith("create")), [`create-worktree x-6`]);
     assert.match(out, /- Acme\/x#5 "Fixture PR" \| review-requested: low priority \(already approved by alice\); merge=CLEAN/);
   });
 
@@ -238,6 +269,59 @@ describe("review dispatch: live", () => {
     assert.equal(s.dispatch(1)?.attempts, 2);
   });
 
+  it("refuses to reset a dirty or unknown persistent review worktree", async () => {
+    const row = { id: RWT, path: RPATH, branch: `refs/heads/prflow-review/${SLUG}`, projectId: "github:Acme/x", linkedPR: 5 };
+    for (const state of [{ dirty: { [RPATH]: 1 } }, { dirty: { [RPATH]: null } }]) {
+      const { w, s } = setup({ worktrees: [MAIN, row], ...state });
+      const out = (await runTick(w, s, { live: true })).stdout;
+      assert.match(out, /will not reset it/);
+      assert.equal(w.effects.some((e) => e.startsWith("review-reset") || e.startsWith("launch ")), false);
+    }
+  });
+
+  it("does not hold the concurrency slot or repeat the wait event for a dirty planned tree", async () => {
+    const row = { id: RWT, path: RPATH, branch: `refs/heads/prflow-review/${SLUG}`, projectId: "github:Acme/x", linkedPR: 5 };
+    const prs = { [KEY]: REQ(), "Acme/x#6": REQ() };
+    const { w, s } = setup({ worktrees: [MAIN, row], dirty: { [RPATH]: 1 } }, prs);
+    const c = cfg();
+    c.review.maxConcurrent = 1;
+    await runTick(w, s, { live: true, config: c });
+    w.clock += 15 * MIN;
+    await runTick(w, s, { live: true, config: c });
+    w.clock += 15 * MIN;
+    await runTick(w, s, { live: true, config: c });
+    assert.equal(s.dispatchesOfKind("review-requested", ["planned"]).length, 1);
+    assert.equal(w.effects.filter((e) => e.startsWith("launch ")).length, 1, "the other PR launches while the dirty PR stays planned");
+    // The dirty row never resumes: its tree stays dirty, and the other reviewer holds the only slot.
+    assert.equal(s.readEventsFrom(0).events.filter((e) => e.type === "dispatched" && e.detail?.includes("(was waiting)")).length, 0);
+  });
+
+  it("announces a waiting row's resume once, however many ticks its tree stays dirty", async () => {
+    const row = { id: RWT, path: RPATH, branch: `refs/heads/prflow-review/${SLUG}`, projectId: "github:Acme/x", linkedPR: 5 };
+    const { w, s } = setup({ worktrees: [MAIN, row], dirty: { [RPATH]: 1 } });
+    for (let i = 0; i < 3; i++) {
+      await runTick(w, s, { live: true });
+      w.clock += 15 * MIN;
+    }
+    assert.equal(s.readEventsFrom(0).events.filter((e) => e.type === "dispatched" && e.detail?.includes("(was waiting)")).length, 1);
+    assert.equal(events(s).filter((e) => /will not reset it/.test(e)).length, 1);
+  });
+
+  it("a waiting row checks review.maxConcurrent again before it starts", async () => {
+    const row = { id: RWT, path: RPATH, branch: `refs/heads/prflow-review/${SLUG}`, projectId: "github:Acme/x", linkedPR: 5 };
+    const prs = { [KEY]: REQ(), "Acme/x#6": REQ() };
+    const { w, s } = setup({ worktrees: [MAIN, row], dirty: { [RPATH]: 1 } }, prs);
+    const c = cfg();
+    c.review.maxConcurrent = 1;
+    await runTick(w, s, { live: true, config: c });
+    assert.equal(w.effects.filter((e) => e.startsWith("launch ")).length, 1);
+    w.dirty = {};
+    w.clock += 15 * MIN;
+    await runTick(w, s, { live: true, config: c });
+    assert.equal(w.effects.filter((e) => e.startsWith("launch ")).length, 1, "the other reviewer is still open, so the cleaned PR waits");
+    assert.equal(w.effects.some((e) => e.startsWith(`review-reset ${RPATH} `)), false);
+  });
+
   it("finds a worktree created by a lost reply by its branch, and never creates a second one", async () => {
     const { w, s } = setup({ createReply: { ok: true, result: {} }, createLost: true });
     await runTick(w, s, { live: true });
@@ -247,7 +331,8 @@ describe("review dispatch: live", () => {
     w.worktrees.push({ id: RWT, path: RPATH, branch: `refs/heads/prflow-review/${SLUG}`, projectId: "github:Acme/x", linkedPR: 5 });
     w.clock += 15 * MIN;
     await runTick(w, s, { live: true });
-    assert.deepEqual(w.effects, [`create-worktree ${SLUG}`, `launch ${RWT}`]);
+    assert.equal(w.effects.filter((e) => e.startsWith("create-worktree")).length, 1);
+    assert.equal(w.effects.filter((e) => e.startsWith("launch ")).length, 1);
     assert.equal(s.dispatch(1)?.worktree, RWT);
   });
 });
@@ -267,7 +352,7 @@ describe("review dispatch: monitor and recovery", () => {
       await runTick(w, s, { live: true });
     }
     assert.equal(s.dispatch(1)?.state, "working");
-    assert.deepEqual(w.effects, [`create-worktree ${SLUG}`, `launch ${RWT}`]);
+    assert.deepEqual(w.effects.slice(0, 4), [`create-worktree ${SLUG}`, `review-fetch ${RPATH} 5`, `review-reset ${RPATH} ${HEAD}`, `launch ${RWT}`]);
   });
 
   it("nudges once when idle without a draft, then retries in the same worktree with a fresh session", async () => {
@@ -284,7 +369,9 @@ describe("review dispatch: monitor and recovery", () => {
     // Stale, then the same tick retries: close the idle session, launch a fresh one, no new worktree.
     assert.match(out, /session-stale Acme\/x#5 review-requested #1: idle again after a nudge/);
     assert.equal(s.dispatch(1)?.state, "launched");
-    assert.deepEqual(w.effects.slice(2), ["send term_new1", "close term_new1", `launch ${RWT}`]);
+    assert.ok(w.effects.includes("send term_new1"));
+    assert.ok(w.effects.includes("close term_new1"));
+    assert.equal(w.effects.filter((e) => e === `launch ${RWT}`).length, 2);
     assert.equal(s.dispatch(1)?.attempts, 2);
     assert.match(w.sent.at(-1) ?? "", /## Previous attempt\n\nThis is attempt 2\. Attempt 1 ended: idle again after a nudge/);
   });
@@ -361,7 +448,8 @@ describe("review dispatch: monitor and recovery", () => {
     w.clock += 15 * MIN;
     await runTick(w, s, { live: true });
     assert.equal(s.dispatch(1)?.state, "launched");
-    assert.deepEqual(w.effects.slice(2), ["close term_new1", `launch ${RWT}`]);
+    assert.ok(w.effects.includes("close term_new1"));
+    assert.equal(w.effects.filter((e) => e === `launch ${RWT}`).length, 2);
   });
 });
 
@@ -375,17 +463,17 @@ describe("review dispatch: draft and reap", () => {
     return { w, s };
   }
 
-  it("records review-drafted, then closes the session, archives the clean worktree, and deletes its branch", async () => {
+  it("records review-drafted and preserves the clean worktree while the PR is open", async () => {
     const { w, s } = await drafted();
     const out = (await runTick(w, s, { live: true })).stdout;
     const id = `Acme-x-5-${H8}`;
     assert.match(out, new RegExp(`review-drafted Acme/x#5 review-requested #1: draft ${id}: verdict suggestion request-changes, 2 inline comments, .*/drafts/Acme-x-5/${H8}/review\\.md`));
-    assert.match(out, new RegExp(`archived Acme/x#5 review-requested #1: review worktree ${RPATH} archived after draft ${id} was saved \\(deleted local branch prflow-review/${SLUG}\\)`));
-    assert.deepEqual(w.effects.slice(2), ["close term_new1", `archive ${RPATH}`, `delete-branch prflow-review/${SLUG}`]);
+    assert.doesNotMatch(out, /archived Acme\/x#5/);
+    assert.equal(w.effects.some((e) => e.startsWith("archive") || e.startsWith("delete-branch")), false);
     assert.match(out, new RegExp(`## Needs your decision \\(1\\)\\n- Acme/x#5 "Fixture PR" \\| review-requested: .* \\| next: review draft ready \\(verdict suggestion request-changes, 2 inline comments\\): \`prflow review show ${id}\`; nothing is posted until you ask for \`prflow review post ${id} --yes\` \\| owner: you`));
     w.clock += 15 * MIN;
     assert.equal((await runTick(w, s, { live: true })).stdout, "");
-    assert.equal(w.effects.length, 5);
+    assert.equal(w.effects.some((e) => e.startsWith("archive")), false);
   });
 
   it("never archives a worktree whose draft is missing", async () => {
@@ -397,20 +485,21 @@ describe("review dispatch: draft and reap", () => {
     session(w, RWT, "term_new1", "done", w.clock - MIN);
     const out = (await runTick(w, s, { live: true })).stdout;
     assert.equal(s.dispatch(1)?.state, "done");
-    assert.match(out, new RegExp(`needs-decision Acme/x#5 review-requested: reviewer #1 finished but saved no draft at .*review\\.md\\. prflow will not archive its worktree ${RPATH}`));
-    assert.equal(w.effects.some((e) => e.startsWith("archive") || e.startsWith("close")), false);
+    assert.doesNotMatch(out, /archived Acme\/x#5/);
+    assert.equal(w.effects.some((e) => e.startsWith("archive")), false);
+    assert.ok((w.worktrees as { path: string }[]).some((x) => x.path === RPATH));
   });
 
   it("never archives a dirty review worktree or one with unpushed commits", async () => {
     const { w, s } = await drafted();
     w.dirty[RPATH] = 2;
     let out = (await runTick(w, s, { live: true })).stdout;
-    assert.match(out, new RegExp(`needs-decision .*review worktree ${RPATH} has 2 uncommitted file\\(s\\); draft Acme-x-5-${H8} is saved\\. prflow will not archive it`));
+    assert.doesNotMatch(out, /archived Acme\/x#5/);
     w.dirty[RPATH] = 0;
     w.unpushed[RPATH] = 1;
     w.clock += 15 * MIN;
     out = (await runTick(w, s, { live: true })).stdout;
-    assert.match(out, /1 unpushed commit\(s\)/);
+    assert.doesNotMatch(out, /archived Acme\/x#5/);
     assert.equal(w.effects.some((e) => e.startsWith("archive")), false);
   });
 
@@ -425,7 +514,7 @@ describe("review dispatch: draft and reap", () => {
   it("only announces the reap in review dry run", async () => {
     const { w, s } = await drafted();
     const out = (await runTick(w, s)).stdout;
-    assert.match(out, new RegExp(`dry-run Acme/x#5 review-requested: would close term_new1, then archive ${RPATH}, then delete local branch prflow-review/${SLUG}`));
+    assert.doesNotMatch(out, /would archive/);
     assert.equal(w.effects.some((e) => e.startsWith("archive")), false);
   });
 
@@ -433,11 +522,167 @@ describe("review dispatch: draft and reap", () => {
     const { w, s } = await drafted();
     w.archiveFails[RPATH] = "busy";
     const out = (await runTick(w, s, { live: true })).stdout;
-    assert.match(out, /needs-decision .*could not archive review worktree .*: busy; prflow retries next tick/);
-    delete w.archiveFails[RPATH];
-    w.clock += 15 * MIN;
+    assert.doesNotMatch(out, /could not archive/);
+    assert.equal(w.effects.filter((e) => e.startsWith("archive")).length, 0);
+  });
+});
+
+describe("review worktree status sync", () => {
+  const row = (status: string | null = null, comment: string | null = null, isUnread: boolean | null = false) => ({ id: RWT, path: RPATH, branch: `refs/heads/prflow-review/${SLUG}`, projectId: "github:Acme/x", linkedPR: 5, workspaceStatus: status, comment, isUnread });
+
+  it("writes only status/comment differences and dry-run only announces", async () => {
+    const comment = `queued ${H8}`;
+    const { w, s } = setup({ worktrees: [MAIN, row("reviewing", comment)] });
     await runTick(w, s, { live: true });
-    assert.equal(w.effects.filter((e) => e.startsWith("archive")).length, 2);
+    assert.equal(w.effects.some((e) => e.startsWith("status ")), false);
+
+    const { w: dryWorld, s: dryStore } = setup({ worktrees: [MAIN, row()] });
+    const out = (await runTick(dryWorld, dryStore)).stdout;
+    assert.match(out, /would set .*status reviewing, comment queued c0ffee11/);
+    assert.equal(dryWorld.effects.some((e) => e.startsWith("status ")), false);
+  });
+
+  it("marks saved drafts unread and submitted reviews read once per head", async () => {
+    const draftWorld = world({ reviewPrs: { [KEY]: REQ() }, worktrees: [MAIN, row("reviewing", `draft: request-changes, 2 inline, not posted`)] });
+    const draftStore = tempStore();
+    saveDraft(draftStore);
+    await runTick(draftWorld, draftStore, { live: true });
+    assert.ok(draftWorld.effects.includes(`status ${RPATH} review-changes draft: request-changes, 2 inline, not posted --unread`));
+    draftWorld.clock += 15 * MIN;
+    await runTick(draftWorld, draftStore, { live: true });
+    assert.equal(draftWorld.effects.filter((e) => e.endsWith("--unread")).length, 1);
+
+    const posted = review(user(ME), "APPROVED", AFTER, "approved", HEAD);
+    const postedWorld = world({ reviewPrs: { [KEY]: REQ({ reviews: [posted] }) }, worktrees: [MAIN, row("review-approved", `approved at ${H8}`, true)] });
+    const postedStore = tempStore();
+    await runTick(postedWorld, postedStore, { live: true });
+    assert.ok(postedWorld.effects.includes(`status ${RPATH} review-approved approved at ${H8} --read`));
+    postedWorld.clock += 15 * MIN;
+    await runTick(postedWorld, postedStore, { live: true });
+    assert.equal(postedWorld.effects.filter((e) => e.endsWith("--read")).length, 1);
+  });
+
+  it("records one action-failed event for a repeated Orca status failure", async () => {
+    const { w, s } = setup({ worktrees: [MAIN, row()] });
+    const base = fakeTickDeps(w);
+    let attempted = 0;
+    const deps = { ...base, async setReviewWorktree() { attempted++; return { ok: false, stdout: "", stderr: "offline" }; } };
+    await runTick(w, s, { live: true, deps });
+    w.clock += 15 * MIN;
+    await runTick(w, s, { live: true, deps });
+    w.clock += 15 * MIN;
+    await runTick(w, s, { live: true, deps });
+    const failures = s.readEventsFrom(0).events.filter((x) => x.type === "action-failed");
+    assert.equal(failures.length, 2, "two distinct status/comment pairs each report one failure");
+    assert.equal(attempted, 3, "status writes retry on later ticks even after failure");
+  });
+
+  it("fetches a missing open-PR snapshot and uses linkedPr for Orca-suffixed branches", async () => {
+    const suffixRow = { ...row(), branch: `refs/heads/prflow-review/${SLUG}-2` };
+    const { w, s } = setup({ prs: { [KEY]: REQ() }, reviewPrs: {}, worktrees: [MAIN, suffixRow] });
+    await runTick(w, s, { live: true });
+    assert.ok(w.calls.some((c) => c[0] === "gh" && c.includes("api") && c.some((x) => x.includes("query=query"))));
+    assert.ok(w.effects.some((e) => e === `status ${RPATH} reviewing queued ${H8} `), JSON.stringify({ effects: w.effects, calls: w.calls }));
+  });
+});
+
+describe("review idle session closing", () => {
+  async function idleFixture() {
+    const { w, s } = setup();
+    const c = cfg();
+    c.review.idleCloseHours = 1;
+    await runTick(w, s, { live: true, config: c });
+    session(w, RWT, "term_new1", "done", w.clock + MIN, "draft saved");
+    saveDraft(s);
+    w.clock += 2 * 60 * MIN;
+    return { w, s, c };
+  }
+
+  it("closes only a prflow-launched terminal in live mode", async () => {
+    const { w, s, c } = await idleFixture();
+    const out = (await runTick(w, s, { live: true, config: c })).stdout;
+    assert.ok(w.effects.includes("close term_new1"), JSON.stringify({ effects: w.effects, events: s.readEventsFrom(0).events }));
+    assert.equal(out.includes("would close idle reviewer"), false);
+  });
+
+  it("announces idle close in dry-run mode without closing", async () => {
+    const { w, s, c } = await idleFixture();
+    const out = (await runTick(w, s, { config: c })).stdout;
+    assert.match(out, /would close idle reviewer term_new1/);
+    assert.equal(w.effects.some((e) => e.startsWith("close ")), false);
+  });
+
+  it("records an action failure and continues when closing a reviewer terminal throws", async () => {
+    const { w, s, c } = await idleFixture();
+    const base = fakeTickDeps(w);
+    const deps = { ...base, async closeTerminal() { throw new Error("offline"); } };
+    const out = (await runTick(w, s, { live: true, config: c, deps })).stdout;
+    assert.match(out, /could not close idle reviewer term_new1: offline/);
+    assert.equal(s.readEventsFrom(0).events.filter((e) => e.type === "action-failed").length, 1);
+  });
+
+  it("does not try to close a messaged chat session as a terminal", async () => {
+    const chat = { orcaSessionId: "chat-id", kind: "chat", agent: "pi", state: "done", worktreeId: RWT, paneKey: "chat", lastAssistantMessage: null, updatedAt: T0 };
+    const reviewRow = { id: RWT, path: RPATH, branch: `refs/heads/prflow-review/${SLUG}`, projectId: "github:Acme/x", linkedPR: 5 };
+    const { w, s } = setup({ worktrees: [MAIN, reviewRow], agents: [chat], terminals: { [RWT]: [] } });
+    const c = cfg();
+    c.review.idleCloseHours = 1;
+    await runTick(w, s, { live: true, config: c });
+    (w.agents[0] as { updatedAt: number }).updatedAt = T0 + MIN;
+    saveDraft(s);
+    w.clock += 2 * 60 * MIN;
+    await runTick(w, s, { live: true, config: c });
+    assert.equal(s.dispatch(1)?.state, "done");
+    assert.equal(w.effects.some((e) => e.startsWith("close ")), false);
+  });
+});
+
+describe("review worktree archive-on-close", () => {
+  async function closedReview(overrides: Partial<World> = {}) {
+    const { w, s } = setup(overrides);
+    await runTick(w, s, { live: true, config: cfg({}, true) });
+    session(w, RWT, "term_new1", "done", w.clock + MIN, "draft saved");
+    saveDraft(s);
+    w.clock += 15 * MIN;
+    await runTick(w, s, { live: true, config: cfg({}, true) });
+    w.reviewPrs[KEY] = REQ({ state: "CLOSED" });
+    w.refs["pr view 5 -R acme/x --json number,state,title,url,headRefOid"] = { ok: true, stdout: JSON.stringify({ number: 5, state: "CLOSED", title: "Fixture PR", url: "https://github.com/Acme/x/pull/5", headRefOid: HEAD }), stderr: "" };
+    w.clock += 15 * MIN;
+    return { w, s };
+  }
+
+  it("archives a clean review worktree only after PR close and closes its idle reviewer", async () => {
+    const { w, s } = await closedReview();
+    w.unpushed[RPATH] = 2; // Closed review worktrees skip the unfetched-PR-head ancestry check.
+    const before = w.effects.length;
+    const out = (await runTick(w, s, { live: true, actionsLive: true, config: cfg({}, true) })).stdout;
+    assert.match(out, /archived Acme\/x#5 cleanup/);
+    assert.deepEqual(w.effects.slice(before), ["close term_new1", `archive ${RPATH}`, "delete-branch prflow-review/x-5"]);
+  });
+
+  it("asks before archiving when an idle Pi terminal was not launched by prflow", async () => {
+    const { w, s } = await closedReview();
+    (w.terminals[RWT] ??= []).push({ handle: "term_user", worktreeId: RWT, tabId: "tab-user", leafId: "l", agentIdentity: "pi", lastOutputAt: w.clock });
+    w.agents.push({ orcaSessionId: "s-user", kind: "terminal", agent: "pi", state: "done", worktreeId: RWT, paneKey: "tab-user:l", lastAssistantMessage: null, updatedAt: w.clock });
+    const out = (await runTick(w, s, { live: true, actionsLive: true, config: cfg({}, true) })).stdout;
+    assert.match(out, /did not launch/);
+    assert.equal(w.effects.some((e) => e.startsWith("close ") || e.startsWith("archive ")), false);
+  });
+
+  it("keeps a closed-PR review worktree when a reviewer session is busy", async () => {
+    const { w, s } = await closedReview();
+    session(w, RWT, "term_new1", "working", w.clock);
+    const out = (await runTick(w, s, { live: true, config: cfg({}, true) })).stdout;
+    assert.match(out, /busy Pi session/);
+    assert.equal(w.effects.some((e) => e.startsWith("archive")), false);
+  });
+
+  it("keeps a closed-PR review worktree when the tree is dirty", async () => {
+    const { w, s } = await closedReview();
+    w.dirty[RPATH] = 1;
+    const out = (await runTick(w, s, { live: true, config: cfg({}, true) })).stdout;
+    assert.match(out, /1 uncommitted file/);
+    assert.equal(w.effects.some((e) => e.startsWith("archive")), false);
   });
 });
 

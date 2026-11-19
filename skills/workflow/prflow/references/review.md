@@ -9,8 +9,11 @@ payload), `templates/briefs/review.md` and `review-nudge.md` (briefs).
 
 | Config | Default | Effect |
 | --- | --- | --- |
-| `review.dryRun` | `true` | No worktree is created and no reviewer launched, nudged, closed, or archived. Each reviewer is announced once per head as a `dry-run` event with its exact target and brief |
-| `review.maxConcurrent` | `2` | Reviewer dispatches open at once. More wait; a live tick emits `rail-tripped` once |
+| `review.dryRun` | `true` | No reviewer dispatch or Orca status write; each target is announced once per head |
+| `review.maxConcurrent` | `2` | Reviewer dispatches open at once |
+| `review.sessionReviews` | `5` | Completed reviews per Pi session before replacing it |
+| `review.idleCloseHours` | `24` | Idle time before closing a prflow-launched reviewer session |
+| `review.statuses` | `review-draft`, `reviewing`, `review-changes`, `review-approved` | Orca workspace status ids |
 | `tick --dry-run` | off | Forces dry run for actions, Pi dispatch, and reviews |
 
 `review.dryRun` is separate from `dispatch.dryRun` and `actions.dryRun`. Keep it
@@ -18,8 +21,7 @@ on while the "Bryce PR review watch" Orca automation still launches reviewers.
 
 ## Posting gate
 
-Tick never posts. The reviewer brief forbids every GitHub write, and the
-reviewer runs the `pr` skill's review in `report` mode, which never publishes.
+Tick never posts. The reviewer brief forbids every GitHub write. Its only Orca write is the one-time worktree status/unread update after saving a draft. The reviewer runs the `pr` skill's review in `report` mode, which never publishes.
 The only review write is:
 
 ```
@@ -46,10 +48,9 @@ The default event is `comment`; the draft's verdict is only a suggestion.
   another reviewer of this PR open  -> wait (one reviewer per PR)
   maxConcurrent reviewers open      -> wait
   no Orca clone of the repo         -> needs-decision once
-  no review worktree yet            -> planned, meta.json, create worktree,
-                                       launch Pi with the review brief
-                                       (review-started)
-  review worktree exists (retry)    -> close the old idle session, launch fresh
+  no review worktree yet            -> create persistent worktree, reset cleanly,
+                                       reuse idle Pi or launch one (review-started)
+  existing worktree                 -> busy waits; idle Pi gets orchestration send
 launched|working:
   new activity                      -> working, lease renewed (no busy limit)
   parseable draft saved, idle/gone  -> done (session-finished)
@@ -59,31 +60,43 @@ launched|working:
   lease expired                     -> stale
 attempts = maxAttempts              -> abandoned, item paused
 done:
-  draft saved                       -> review-drafted once
-  draft missing or unparseable      -> needs-decision once; worktree kept
-  any Pi session there busy         -> wait
-  dirty or unpushed                 -> needs-decision once; worktree kept
-  otherwise                         -> close the reviewer, archive the
-                                       worktree (archived), delete its
-                                       prflow-review/ branch
+  draft saved                       -> review-drafted once; worktree kept
+  after idleCloseHours              -> close prflow-launched idle reviewer
+closed or merged PR:
+  clean and no open/busy session     -> close only idle prflow-launched terminals,
+                                       archive, delete local prflow-review/ branch
+  unowned Pi session, dirty or busy  -> needs-decision once
 ```
 
 The dispatch version is the head sha8, so new comments on the same head do not
 start another review, and a new head does. Legacy `pr-watch/dispatched.txt`
 entries for a head (`prflow import-legacy`) count as done.
 
-## Worktree
+## Worktree and status
 
 | Field | Value |
 | --- | --- |
-| Name | `prflow-review-<repo>-<n>-<head8>` |
-| Branch | `prflow-review/<repo>-<n>-<head8>` (local only, never pushed) |
-| Base | The repo default; the reviewer fetches `pull/<n>/head` and resets to the head sha |
-| Link | `--pr <n>`, `--no-parent`, `--setup skip` |
+| Name | `prflow-review-<repo>-<n>` |
+| Branch | `prflow-review/<repo>-<n>` (local only, never pushed) |
+| Base | Before each review, prflow fetches `pull/<n>/head`, resets to the exact PR SHA, and verifies HEAD |
+| Link | `--pr <n>`, `--no-parent`, `--setup run` |
 
 The repo id is the `repoId` of the repo's main worktree in `orca-ide worktree
 list`; with several clones, the one whose folder is named after the repo. A
-lost create reply is recovered by finding the worktree by its branch.
+lost create reply is recovered by finding the persistent worktree by its branch. Orca's numeric branch suffix is tolerated.
+
+After saving a draft, the reviewer makes one Orca write: `orca-ide worktree set --worktree active --workspace-status <id> --comment "draft: <verdict>, <n> inline, not posted" --unread --json`. It uses `review.statuses.changes` for request-changes, `review.statuses.approved` for approve, and `review.statuses.reviewing` for comment. This is the only Orca write the reviewer may make. Tick also synchronizes status and unread state.
+
+Status sync runs for open PR review worktrees, including those that drop out of search, and writes only when status, comment, or unread state differs. It fetches a missing PR snapshot read-only. Priority: draft PR; current head with neither posted review nor saved draft (reviewing/checks/queued); latest posted review on this head; saved draft verdict. A draft sets unread once per head, and a newly seen post sets read once. Manual status changes are overwritten on the next tick. Failed writes are retried while fields still differ; the `action-failed` event is deduplicated.
+
+| Current-head outcome | Status | Comment |
+| --- | --- | --- |
+| PR draft | configured `draft` | `PR in draft` |
+| No posted review or saved draft | `reviewing` | `reviewing`, `checks running on`, or `queued` plus head8 |
+| Submitted `APPROVED` | `approved` | `approved at <head8>` |
+| Submitted `CHANGES_REQUESTED` | `changes` | `changes requested at <head8>` |
+| Submitted `COMMENTED` | `reviewing` | `commented at <head8>` |
+| Saved draft | based on verdict | `draft: <verdict>, <n> inline, not posted` |
 
 ## Draft
 
@@ -117,7 +130,7 @@ Posted on that range.
 Never posted.
 ```
 
-`None.` under Inline comments means none.
+`None.` under Inline comments means none. Inline comments can target a line or range, for example `### path/to/other.ext:10-14`.
 
 ## Events
 
@@ -126,6 +139,6 @@ Never posted.
 | `dispatched` | A reviewer is planned (before the worktree is created) |
 | `review-started` | The reviewer launched: session, worktree, draft path |
 | `review-drafted` | The draft is saved: id, verdict suggestion, inline comment count, path |
-| `archived` | The review worktree is archived after its draft was saved |
+| `archived` | The PR is closed or merged and the review worktree is safe to archive |
 | `review-posted` | `prflow review post` published the draft: event, comment count, review URL |
 | `dry-run`, `needs-decision`, `nudged`, `session-finished`, `session-stale`, `action-failed`, `abandoned`, `paused`, `rail-tripped` | As for Pi dispatch (`references/dispatch.md`) |

@@ -71,6 +71,9 @@ describe("real git checks", () => {
     await assert.rejects(deps.archiveWorktree("relative/path"), /not the allowed archive call/);
     await assert.rejects(deps.archiveWorktree("/w/../etc"), /not the allowed archive call/);
     await assert.rejects(deps.deleteBranch("/r/.git", "--force", "a".repeat(40)), /not the allowed branch deletion/);
+    await assert.rejects(deps.reviewFetch("/w/prflow-review-x-5", 5, "feature"), /requires a prflow-review branch/);
+    await assert.rejects(deps.reviewReset("/w/prflow-review-x-5", "a".repeat(40), "feature"), /requires a prflow-review branch/);
+    await assert.rejects(deps.setReviewWorktree("/w/prflow-review-x-5", "feature", "reviewing", "queued"), /requires a prflow-review branch/);
   });
 });
 

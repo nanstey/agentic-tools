@@ -1,8 +1,8 @@
 import { execFile } from "node:child_process";
 import { resolve } from "node:path";
 import { assertReadOnly, assertRerun, assertReviewPost, rerunArgs, reviewPostArgs } from "./adapters/gh.ts";
-import { assertDeleteBranch, deleteBranchArgs } from "./adapters/git.ts";
-import { agentListArgs, archiveArgs, assertArchive, assertOrca, closeArgs, interruptArgs, launchArgs, reviewWorktreeArgs, sendArgs, terminalListArgs, waitIdleArgs, worktreeListArgs } from "./adapters/orca.ts";
+import { assertDeleteBranch, assertReviewFetch, assertReviewReset, deleteBranchArgs, reviewFetchArgs, reviewResetArgs } from "./adapters/git.ts";
+import { agentListArgs, archiveArgs, assertArchive, assertOrca, assertWorktreeSet, closeArgs, interruptArgs, launchArgs, reviewWorktreeArgs, sendArgs, terminalListArgs, waitIdleArgs, worktreeListArgs, worktreeSetArgs, isReviewBranch } from "./adapters/orca.ts";
 import type { CmdResult } from "./scan.ts";
 import type { TickDeps } from "./tick.ts";
 
@@ -144,6 +144,10 @@ export function realDeps(): RealDeps {
     interruptTerminal: (handle) => orca(interruptArgs(handle)),
     waitIdle: (handle) => orca(waitIdleArgs(handle)),
     createReviewWorktree: (repoId, slug, pr) => orca(reviewWorktreeArgs(repoId, slug, pr)),
+    async reviewFetch(path, number, branch) { if (!isReviewBranch(branch)) throw new Error("prflow: review fetch requires a prflow-review branch"); const args = reviewFetchArgs(path, number); assertReviewFetch(args); return run("git", args, process.env); },
+    async reviewReset(path, sha, branch) { if (!isReviewBranch(branch)) throw new Error("prflow: review reset requires a prflow-review branch"); const args = reviewResetArgs(path, sha); assertReviewReset(args); return run("git", args, process.env); },
+    async reviewHead(path) { const r = await run("git", ["-C", path, "rev-parse", "HEAD"], process.env); return r.ok ? r.stdout.trim() : null; },
+    async setReviewWorktree(path, branch, status, comment, unread) { if (!isReviewBranch(branch)) throw new Error("prflow: review status requires a prflow-review branch"); const args = worktreeSetArgs(path, status, comment, unread); assertWorktreeSet(args, path); return orca(args); },
     async gitDirty(path) {
       const r = await run("git", ["status", "--porcelain"], process.env, path);
       return r.ok ? r.stdout.split("\n").filter(Boolean).length : null;

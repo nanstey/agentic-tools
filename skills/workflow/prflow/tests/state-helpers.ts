@@ -63,6 +63,9 @@ export interface World {
   archiveFails: Record<string, string>;
   /** Branch checked out per worktree path (default from the worktree row); `null` for detached. */
   heads: Record<string, string | null>;
+  reviewHeads: Record<string, string | null>;
+  /** Head made available by the last simulated pull/<n>/head fetch. */
+  reviewFetchedHeads: Record<string, string>;
   branchFails: Record<string, string>;
   /** Raw `agent list` rows (`orcaSessionId`, `kind`, `agent`, `state`, `worktreeId`, `paneKey`, ...). */
   agents: Record<string, unknown>[];
@@ -118,7 +121,7 @@ export function briefFromPr(pr: unknown): unknown {
 
 export function world(over: Partial<World> = {}): World {
   return {
-    clock: T0, prs: {}, reviewPrs: {}, worktrees: [], refs: {}, dirty: {}, unpushed: {}, runs: {}, rerunFails: {}, archiveFails: {}, heads: {}, branchFails: {},
+    clock: T0, prs: {}, reviewPrs: {}, worktrees: [], refs: {}, dirty: {}, unpushed: {}, runs: {}, rerunFails: {}, archiveFails: {}, heads: {}, reviewHeads: {}, reviewFetchedHeads: {}, branchFails: {},
     agents: [], terminals: {}, orcaFails: {}, logs: {}, briefs: {}, sent: [], effects: [], calls: [], ...over,
   };
 }
@@ -132,7 +135,7 @@ export function fakeTickDeps(w: World): TickDeps {
         if (w.hang) return new Promise<CmdResult>(() => {});
         if (w.searchError) return fail(w.searchError);
         return okJson(
-          Object.keys(args.includes("--review-requested") ? w.reviewPrs : w.prs).map((k) => {
+          Object.keys(args.includes("--review-requested") || args.includes("--reviewed-by") ? w.reviewPrs : w.prs).map((k) => {
             const [repo, n] = k.split("#");
             return { number: Number(n), repository: { nameWithOwner: repo } };
           }),
@@ -142,8 +145,10 @@ export function fakeTickDeps(w: World): TickDeps {
         assertReadOnly(args);
         const v = (k: string) => args.find((a) => a.startsWith(`${k}=`))?.slice(k.length + 1);
         const key = `${v("o")}/${v("r")}#${v("n")}`;
-        const pr = w.prs[key] ?? w.reviewPrs[key];
-        if (v("query")?.includes("baseRefName")) return w.briefs[key] ? okJson(w.briefs[key]) : pr ? okJson(briefFromPr(pr)) : fail("Could not resolve");
+        const pr = Object.entries({ ...w.prs, ...w.reviewPrs }).find(([k]) => k.toLowerCase() === key.toLowerCase())?.[1];
+        const brief = Object.entries(w.briefs).find(([k]) => k.toLowerCase() === key.toLowerCase())?.[1];
+        if (v("query")?.includes("reviewDecision")) return pr ? okJson(pr) : fail("Could not resolve");
+        if (v("query")?.includes("baseRefName")) return brief ? okJson(brief) : pr ? okJson(briefFromPr(pr)) : fail("Could not resolve");
         return pr ? okJson(pr) : fail("Could not resolve");
       }
       if (args[0] === "run" && args[2] === "--job") {
@@ -165,8 +170,33 @@ export function fakeTickDeps(w: World): TickDeps {
     async gitDirty(path) {
       return path in w.dirty ? (w.dirty[path] ?? null) : 0;
     },
-    async gitUnpushed(path) {
+    async gitUnpushed(path, prHeadSha) {
+      if (path.split("/").at(-1)?.startsWith("prflow-review-")) {
+        if (w.reviewFetchedHeads[path] !== prHeadSha) return path in w.unpushed ? (w.unpushed[path] ?? null) : 1;
+        return 0;
+      }
       return path in w.unpushed ? (w.unpushed[path] ?? null) : 0;
+    },
+    async reviewFetch(path, number, _branch) {
+      w.effects.push(`review-fetch ${path} ${number}`);
+      const raw = Object.entries({ ...w.prs, ...w.reviewPrs }).find(([key]) => key.endsWith(`#${number}`))?.[1] as { data?: { repository?: { pullRequest?: { headRefOid?: string } } } } | undefined;
+      const sha = raw?.data?.repository?.pullRequest?.headRefOid;
+      if (!sha) return fail(`pull/${number}/head not found`);
+      w.reviewFetchedHeads[path] = sha;
+      return { ok: true, stdout: "", stderr: "" };
+    },
+    async reviewReset(path, sha, _branch) {
+      w.effects.push(`review-reset ${path} ${sha}`);
+      if (w.reviewFetchedHeads[path] !== sha) return fail("unknown revision; target has not been fetched");
+      w.reviewHeads[path] = sha;
+      return { ok: true, stdout: "", stderr: "" };
+    },
+    async reviewHead(path) { return w.reviewHeads[path] ?? null; },
+    async setReviewWorktree(path, _branch, status, comment, unread) {
+      w.effects.push(`status ${path} ${status} ${comment} ${unread ?? ""}`);
+      const row = (w.worktrees as { path?: string; workspaceStatus?: string; comment?: string; isUnread?: boolean }[]).find((x) => x.path === path);
+      if (row) { row.workspaceStatus = status; row.comment = comment; if (unread) row.isUnread = unread === "--unread"; }
+      return { ok: true, stdout: "", stderr: "" };
     },
     async rerunFailed(_login, repo, runId) {
       assertRerun(rerunArgs(repo, runId));

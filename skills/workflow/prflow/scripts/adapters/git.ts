@@ -1,9 +1,21 @@
 /**
- * The one git write prflow makes: delete the local branch of a merged PR after
- * its worktree is archived. `git update-ref -d <ref> <sha>` deletes the ref only
- * while it still points at the commit prflow checked, so a branch that moved
- * since the check is kept.
+ * Allowed Git writes: guarded review fetch/reset on clean review worktrees and
+ * local branch deletion after safe archival. `git update-ref -d <ref> <sha>`
+ * deletes the ref only while it still points at the checked commit.
  */
+export const reviewFetchArgs = (path: string, pr: number): string[] => ["-C", path, "fetch", "origin", `pull/${pr}/head`];
+export const reviewResetArgs = (path: string, sha: string): string[] => ["-C", path, "reset", "--hard", sha];
+
+function safeAbs(path: string): boolean { return path.startsWith("/") && !path.split("/").includes("..") && !/[\n\0]/.test(path); }
+export function assertReviewFetch(args: readonly string[]): void {
+  const ok = args.length === 5 && args[0] === "-C" && safeAbs(args[1] ?? "") && (args[1]?.split("/").at(-1)?.startsWith("prflow-review-") ?? false) && args[2] === "fetch" && args[3] === "origin" && /^pull\/[1-9]\d*\/head$/.test(args[4] ?? "");
+  if (!ok) throw new Error(`prflow: git ${args.join(" ")} is not the allowed review fetch`);
+}
+export function assertReviewReset(args: readonly string[]): void {
+  const ok = args.length === 5 && args[0] === "-C" && safeAbs(args[1] ?? "") && (args[1]?.split("/").at(-1)?.startsWith("prflow-review-") ?? false) && args[2] === "reset" && args[3] === "--hard" && /^[0-9a-f]{40}$/.test(args[4] ?? "");
+  if (!ok) throw new Error(`prflow: git ${args.join(" ")} is not the allowed review reset`);
+}
+
 export const deleteBranchArgs = (gitDir: string, branch: string, sha: string): string[] => [
   "--git-dir",
   gitDir,

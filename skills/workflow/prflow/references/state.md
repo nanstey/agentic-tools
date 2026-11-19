@@ -98,10 +98,10 @@ All limits come from the config `rails` object; see `SKILL.md` for defaults.
 2. Scan within the poll budget. Any scan error fails the tick: no state
    besides the failed run and the backoff is written, and the exit code is 1.
 3. Record items, watch open agent dispatches' and reviewers' Pi sessions
-   (`references/dispatch.md`, `references/review.md`), archive the worktrees
-   of finished reviewers whose drafts are saved, then reconcile open dispatches: a `rerun` is done when the
-   same head has checks running again, a `cleanup` when its worktree is no
-   longer listed; others go `stale` when their lease runs out.
+   (`references/dispatch.md`, `references/review.md`), record saved reviewer
+   drafts and sync review statuses, then reconcile open dispatches: a `rerun`
+   is done when the same head has checks running again, a `cleanup` when its
+   worktree is no longer listed; review worktrees remain until PR close/merge.
 4. Act: reruns first, then worktree cleanups (see `SKILL.md`, Actions), then
    Pi dispatch (see `SKILL.md`, Pi Dispatch), then reviewers (`SKILL.md`,
    Review Drafts).

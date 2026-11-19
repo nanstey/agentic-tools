@@ -16,7 +16,10 @@ interface Fake {
   /** Search hits for an account and role. */
   search?: (login: string, role: "author" | "reviewer") => unknown[];
   own?: unknown[];
+  ownAll?: unknown[];
   asked?: unknown[];
+  reviewed?: unknown[];
+  requested?: unknown[];
   prs?: Record<string, CmdResult>;
   refs?: Record<string, CmdResult>;
   worktrees?: unknown[];
@@ -31,7 +34,9 @@ function fakeDeps(f: Fake) {
       if (args[0] === "search") {
         const role = args.includes("--author") ? "author" : "reviewer";
         if (f.search) return okJson(f.search(login, role));
-        return okJson(role === "author" ? (f.own ?? []) : (f.asked ?? []));
+        if (args.includes("--reviewed-by")) return okJson(f.reviewed ?? f.asked ?? []);
+        if (args.includes("--review-requested")) return okJson(f.requested ?? f.asked ?? []);
+        return okJson(args.includes("--draft=false") ? (f.own ?? []) : (f.ownAll ?? f.own ?? []));
       }
       if (args[0] === "api") {
         const v = (k: string) => args.find((a) => a.startsWith(`${k}=`))?.slice(k.length + 1);
@@ -62,15 +67,17 @@ describe("scan", () => {
   it("searches own non-draft PRs and review requests scoped to owners", async () => {
     const { deps, calls } = fakeDeps({});
     await scan(deps, DEFAULT_CONFIG);
-    const [own, asked] = calls;
+    const [own, asked, reviewed, ownAll] = calls;
     assert.deepEqual(own, [ME, ["search", "prs", "--author", ME, "--draft=false", "--state", "open", "--limit", "50", "--json", "number,repository", "--owner", "Acme"]]);
     assert.deepEqual(asked, [ME, ["search", "prs", "--review-requested", ME, "--state", "open", "--limit", "50", "--json", "number,repository", "--owner", "Acme"]]);
+    assert.deepEqual(reviewed, [ME, ["search", "prs", "--reviewed-by", ME, "--state", "open", "--limit", "50", "--json", "number,repository", "--owner", "Acme"]]);
+    assert.deepEqual(ownAll, [ME, ["search", "prs", "--author", ME, "--state", "open", "--limit", "50", "--json", "number,repository", "--owner", "Acme"]]);
   });
 
   it("drops the owner filter for an unscoped account", async () => {
     const { deps, calls } = fakeDeps({});
     await scan(deps, config([account(ME)], false));
-    assert.equal(calls.length, 2);
+    assert.equal(calls.length, 4);
     assert.ok(calls.every(([, c]) => !c.includes("--owner") && !c.includes("--repo")));
   });
 
@@ -106,11 +113,17 @@ describe("scan", () => {
     const searches = calls.filter(([, a]) => a[0] === "search").map(([l, a]) => `${l} ${a.slice(2, 4).join(" ")} ${a.slice(-2).join(" ")}`);
     assert.deepEqual(searches.sort(), [
       "me --author me --json number,repository",
+      "me --author me --json number,repository",
       "me --review-requested me --json number,repository",
+      "me --reviewed-by me --json number,repository",
       "work --author work --owner Acme",
+      "work --author work --owner Acme",
+      "work --author work --repo Partner/shared",
       "work --author work --repo Partner/shared",
       "work --review-requested work --owner Acme",
       "work --review-requested work --repo Partner/shared",
+      "work --reviewed-by work --owner Acme",
+      "work --reviewed-by work --repo Partner/shared",
     ]);
     // Acme repos belong to `work`, so the personal account's Acme hits are dropped.
     assert.deepEqual(r.prs.map((p) => `${p.repo}#${p.number}:${p.account}`), ["Acme/x#1:work", "Partner/shared#2:work", "me/tool#3:me"]);
@@ -119,11 +132,17 @@ describe("scan", () => {
     assert.ok(plan(r).every((c) => c.account === (c.repo === "me/tool" ? "me" : "work")));
   });
 
+  it("excludes the account's own PRs from reviewed-by results", async () => {
+    const { deps } = fakeDeps({ ownAll: [hit("Acme/x", 9)], reviewed: [hit("Acme/x", 9)], prs: { "Acme/x#9": okJson(prResponse()) } });
+    const r = await scan(deps, config(DEFAULT_CONFIG.accounts, false));
+    assert.deepEqual(r.prs, []);
+  });
+
   it("reports a failed search as an error", async () => {
     const { deps } = fakeDeps({});
     const d: Deps = { ...deps, gh: async (l, a) => (a[0] === "search" ? fail("rate limited") : deps.gh(l, a)) };
     const r = await scan(d, config(DEFAULT_CONFIG.accounts, false));
-    assert.equal(r.errors.length, 2);
+    assert.equal(r.errors.length, 4);
     assert.match(r.errors[0] ?? "", /^octocat: .*rate limited/);
   });
 
@@ -145,7 +164,7 @@ describe("scan", () => {
         wt("/err", "e"),
         wt("/hidden", "g"),
         wt("/other", "f", 1, "someone/else"),
-        wt("/review", "prflow-review/x-5-c0ffee11", 5),
+        wt("/review", "prflow-review/x-5", 5),
       ],
       refs: {
         "pr view 5 -R acme/x --json number,state,title,url,headRefOid": okJson(ref(5, "CLOSED")),
@@ -162,13 +181,14 @@ describe("scan", () => {
       [
         ["/linked", "Acme/x", ME, 5, "CLOSED", "sha5", 2],
         ["/merged", "Acme/x", ME, 8, "MERGED", "sha8", 2],
+        ["/review", "Acme/x", ME, 5, "CLOSED", "sha5", 2],
       ],
     );
     assert.ok(!calls.some(([, a]) => a.includes("someone/else")));
-    // Review worktrees are the review flow's to archive, never cleanup candidates.
-    assert.ok(!r.worktrees.some((w) => w.path === "/review"));
+    // Persistent review worktrees become cleanup candidates only after PR close/merge.
+    assert.ok(r.worktrees.some((w) => w.path === "/review" && w.pr.number === 5));
     assert.deepEqual(r.errors, [`${ME}: acme/x e: boom`]);
-    assert.deepEqual(plan(r).map((c) => `${c.kind}:${c.owner}`), ["cleanup:you", "cleanup:you"]);
+    assert.deepEqual(plan(r).map((c) => `${c.kind}:${c.owner}`), ["cleanup:you", "cleanup:you", "cleanup:you"]);
   });
 
   it("survives an Orca failure", async () => {

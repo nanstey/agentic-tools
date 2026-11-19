@@ -53,6 +53,10 @@ export interface TickDeps extends Deps {
    * repo id, `<repo>-<n>-<head8>` slug, PR number. The only worktree prflow creates.
    */
   createReviewWorktree(repoId: string, slug: string, pr: number): Promise<CmdResult>;
+  reviewFetch(path: string, number: number, branch: string): Promise<CmdResult>;
+  reviewReset(path: string, sha: string, branch: string): Promise<CmdResult>;
+  reviewHead(path: string): Promise<string | null>;
+  setReviewWorktree(path: string, branch: string, status: string, comment: string, unread?: "--unread" | "--read"): Promise<CmdResult>;
 }
 
 export interface TickOptions {

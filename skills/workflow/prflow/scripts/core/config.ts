@@ -34,9 +34,12 @@ export interface ReviewConfig {
   dryRun: boolean;
   /** Reviewer dispatches open at once. */
   maxConcurrent: number;
+  sessionReviews: number;
+  idleCloseHours: number;
+  statuses: { draft: string; reviewing: string; changes: string; approved: string };
 }
 
-export const DEFAULT_REVIEW: ReviewConfig = { dryRun: true, maxConcurrent: 2 };
+export const DEFAULT_REVIEW: ReviewConfig = { dryRun: true, maxConcurrent: 2, sessionReviews: 5, idleCloseHours: 24, statuses: { draft: "review-draft", reviewing: "reviewing", changes: "review-changes", approved: "review-approved" } };
 
 function parseReview(v: unknown, fail: (msg: string) => never): ReviewConfig {
   if (v === undefined) return { ...DEFAULT_REVIEW };
@@ -50,6 +53,21 @@ function parseReview(v: unknown, fail: (msg: string) => never): ReviewConfig {
     } else if (k === "maxConcurrent") {
       if (typeof x !== "number" || !Number.isInteger(x) || x < 1 || x > 20) fail("review.maxConcurrent must be an integer from 1 to 20");
       out.maxConcurrent = x as number;
+    } else if (k === "sessionReviews") {
+      if (typeof x !== "number" || !Number.isInteger(x) || x < 1) fail("review.sessionReviews must be an integer >= 1");
+      out.sessionReviews = x as number;
+    } else if (k === "idleCloseHours") {
+      if (typeof x !== "number" || !Number.isFinite(x) || x <= 0) fail("review.idleCloseHours must be a number > 0");
+      out.idleCloseHours = x as number;
+    } else if (k === "statuses") {
+      if (typeof x !== "object" || x === null || Array.isArray(x)) fail("review.statuses must be an object");
+      const statuses = { ...DEFAULT_REVIEW.statuses };
+      for (const [name, id] of Object.entries(x)) {
+        if (!(name in statuses)) fail(`review.statuses: unknown key "${name}"`);
+        if (typeof id !== "string" || !/^[a-z0-9][a-z0-9-]{0,40}$/.test(id)) fail(`review.statuses.${name} must match ^[a-z0-9][a-z0-9-]{0,40}$`);
+        statuses[name as keyof typeof statuses] = id;
+      }
+      out.statuses = statuses;
     } else fail(`review: unknown key "${k}"`);
   }
   return out;

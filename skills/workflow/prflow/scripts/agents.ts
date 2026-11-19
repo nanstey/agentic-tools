@@ -349,6 +349,7 @@ export async function deliver(c: Ctx, d: Dispatch, wt: OrcaWorktree, target: Exc
     const r = await deps.launchPi(wt.id, brief);
     if (!r.ok) return fail(`orca-ide agent launch: ${r.stderr.trim() || r.stdout.trim()}`);
     const l = parseLaunch(r.stdout);
+    store.addLedger({ at: now, item: d.item, version: d.version, kind: d.kind, outcome: "launched", detail: wt.path, dispatchId: d.id, source: "prflow", ref: `prflow-launched:${l.handle}` });
     store.patchDispatch(d.id, { sessionHandle: l.handle, detail: `launched ${l.handle} in ${wt.path} (${l.detail})` }, now);
     store.upsertSession({ handle: l.handle, item: d.item, dispatchId: d.id, at: now, lastOutputAt: null, state: "launched" });
     if (!l.promptDelivered) store.appendEvent(deps.now(), { ...ev(cur), type: "needs-decision", sessionHandle: l.handle, detail: `Orca launched ${l.handle} but could not confirm the brief reached it (${l.detail}); prflow keeps watching` });
