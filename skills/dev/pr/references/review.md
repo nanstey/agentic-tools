@@ -105,7 +105,7 @@ If the chosen depth is `skip`, do not call `review-code`. Record the substitute 
 
 5. **Track review state.** Each call reviews within this invocation's current or reserved `round_state`. A report call on the same snapshot does not consume state.
    - PR owns later calls in this invocation. It passes the returned state without change. Require the `review-code` packet coverage table.
-   - A required row that is not done makes the verdict `incomplete`. Context engineering can instead be `skipped-inapplicable` when the packet records its reason.
+   - A required row that is not done makes the verdict `incomplete`. A failed, missing, or skipped validator does not (advisory); note it only in the review-process report. Context engineering can instead be `skipped-inapplicable` when the packet records its reason.
    - Failed prerequisites stop lifecycle and fix gates. Report-only and published findings remain diagnostic.
 
 ### 4. Present or perform the selected mode
@@ -231,12 +231,12 @@ invocation continues to publication.
 4. **Select the review event.** Select whether and how to publish.
    - Do not publish when the packet is blocked or unavailable, or when depth is `skip`.
    - `comment` selects `COMMENT`.
-   - Otherwise, select `APPROVE` only for a complete `clean` packet with observed acceptance outcomes
-     and independent required CI passing at `<headRefOid>`.
+   - Otherwise, select `APPROVE` only for a complete `clean` packet with independent required CI
+     passing at `<headRefOid>`. Validator results are advisory and never gate the event.
    - Select `REQUEST_CHANGES` for a complete `changes_required` packet.
    - Select `COMMENT` for an `incomplete` packet or any other state.
-   - Never approve or request changes when any required coverage row, validator, or candidate
-     verification is incomplete, failed, unknown, mixed, or missing.
+   - Never approve or request changes when any required coverage row or candidate verification is
+     incomplete, failed, unknown, mixed, or missing. A validator in that state does not apply.
    - An agent-published approval is not evidence of required human approval for readiness or merge.
 
 5. **Check publication preconditions.** Check the snapshot, policy, and existing reviews before publication.
