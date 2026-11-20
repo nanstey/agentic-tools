@@ -31,12 +31,16 @@ describe("config", () => {
     for (const [text, msg] of [
       ["{", /p.json: invalid JSON/],
       ['{"accounts": "x"}', /accounts must be an array/],
-      ['{"accounts": [{"login": "-bad"}]}', /login must be a GitHub login/],
       ['{"accounts": [{"login": "a", "token": "x"}]}', /unknown key "token"/],
       ['{"accounts": [{"login": "a", "repos": ["nope"]}]}', /must be owner\/repo/],
       ['{"accounts": [{"login": "a"}, {"login": "b"}]}', /at most one account/],
     ] as const)
       assert.throws(() => parseAccounts(text, "p.json"), msg, text);
+    assert.deepEqual(parseAccounts('{"accounts": []}', "p.json"), []);
+    assert.deepEqual(parseAccounts('{"accounts": [{"login": "-bad"}]}', "p.json"), [{ login: "-bad", owners: [], repos: [] }]);
+    assert.throws(() => parseAccounts('{"accounts": [{"login": "a", "owners": ["bad owner"]}]}', "p.json"), /p.json: accounts\[0\]\.owners entry "bad owner" must be a GitHub owner/);
+    assert.throws(() => parseAccounts('{"accounts": [{"login": "a"}, {"login": "A"}]}', "p.json"), /p.json: account "a" is listed twice/);
+    assert.throws(() => parseAccounts('{"accounts": [{"login": "a", "owners": ["org"]}, {"login": "b", "owners": ["org"]}]}', "p.json"), /p.json: owner org is assigned to both a and b/);
   });
 
   it("maps a repo to an account: repos entry, then owner, then unscoped", () => {

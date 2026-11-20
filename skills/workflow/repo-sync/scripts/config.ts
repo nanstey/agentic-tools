@@ -3,17 +3,12 @@
  * Accounts come from prflow's config (one source of truth for GitHub accounts);
  * repo-sync's own config only lists repos whose pulls are reported.
  */
-import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname } from "node:path";
+import { configPaths, siblingConfigPaths } from "../../../../lib/paths.ts";
+import { accountFor as selectAccount, parseAccounts as parseAccountList } from "../../../../lib/accounts.ts";
+import type { Account } from "../../../../lib/accounts.ts";
+export type { Account } from "../../../../lib/accounts.ts";
 import { readOrNull, type Read } from "./store.ts";
-
-export interface Account {
-  /** GitHub login. Its token comes from `gh auth token -u <login>`, only for HTTPS remotes. */
-  login: string;
-  owners: string[];
-  /** `owner/repo` entries. */
-  repos: string[];
-}
 
 export interface Config {
   accounts: Account[];
@@ -24,9 +19,6 @@ export interface Config {
 export const DEFAULT_REPORT_CHANGES: string[] = [];
 
 export const defaultConfig = (): Config => ({ accounts: [], reportChanges: [...DEFAULT_REPORT_CHANGES] });
-
-const NAME = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/;
-const REPO_PART = /^[A-Za-z0-9._-]+$/;
 
 function strings(v: unknown, where: string, fail: (m: string) => never): string[] {
   if (v === undefined) return [];
@@ -68,36 +60,12 @@ export function parseAccounts(text: string, source: string): Account[] {
   const v = parseObject(text, fail).accounts;
   if (v === undefined) return [];
   if (!Array.isArray(v)) return fail("accounts must be an array");
-  const accounts = v.map((a, i) => {
-    const where = `accounts[${i}]`;
-    if (typeof a !== "object" || a === null || Array.isArray(a)) return fail(`${where} must be an object`);
-    const r = a as Record<string, unknown>;
-    for (const key of Object.keys(r)) if (!["$comment", "login", "owners", "repos"].includes(key)) fail(`${where}: unknown key "${key}"`);
-    if (typeof r.login !== "string" || !NAME.test(r.login)) fail(`${where}.login must be a GitHub login`);
-    const owners = strings(r.owners, `${where}.owners`, fail);
-    const repos = strings(r.repos, `${where}.repos`, fail);
-    for (const o of owners) if (!NAME.test(o)) fail(`${where}.owners entry "${o}" must be a GitHub user or org`);
-    for (const repo of repos) {
-      const parts = repo.split("/");
-      if (parts.length !== 2 || !NAME.test(parts[0] ?? "") || !REPO_PART.test(parts[1] ?? "")) fail(`${where}.repos entry "${repo}" must be owner/repo`);
-    }
-    return { login: r.login as string, owners, repos };
-  });
-  if (accounts.filter((a) => !a.owners.length && !a.repos.length).length > 1) fail("at most one account may have no owners or repos");
-  return accounts;
+  return parseAccountList(v, fail);
 }
 
 /** The account for `owner/repo`: an exact `repos` entry, then an `owners` entry, then the unscoped account. */
 export function accountFor(cfg: Config, slug: string | null): Account | null {
-  const unscoped = cfg.accounts.find((a) => !a.owners.length && !a.repos.length) ?? null;
-  if (!slug) return unscoped;
-  const s = slug.toLowerCase();
-  const owner = s.split("/")[0] ?? "";
-  return (
-    cfg.accounts.find((a) => a.repos.some((r) => r.toLowerCase() === s)) ??
-    cfg.accounts.find((a) => a.owners.some((o) => o.toLowerCase() === owner)) ??
-    unscoped
-  );
+  return selectAccount(cfg.accounts, slug);
 }
 
 /** Whether a pull in this repo should print its new commits. */
@@ -110,15 +78,13 @@ export function reportsChanges(cfg: Config, repo: { name: string; path: string; 
 export const SKILL_DIR = dirname(import.meta.dirname);
 
 /** repo-sync config files tried in order when no explicit path is given. */
-export function defaultPaths(env: NodeJS.ProcessEnv = process.env, home = homedir()): string[] {
-  const xdg = env.XDG_CONFIG_HOME || join(home, ".config");
-  return [join(SKILL_DIR, "config.json"), join(xdg, "repo-sync", "config.json")];
+export function defaultPaths(env: NodeJS.ProcessEnv = process.env, home?: string): string[] {
+  return home === undefined ? configPaths(SKILL_DIR, "repo-sync", env) : configPaths(SKILL_DIR, "repo-sync", env, home);
 }
 
 /** prflow config files tried in order, matching prflow's own lookup (after `PRFLOW_CONFIG`). */
-export function prflowPaths(env: NodeJS.ProcessEnv = process.env, home = homedir()): string[] {
-  const xdg = env.XDG_CONFIG_HOME || join(home, ".config");
-  return [join(dirname(SKILL_DIR), "prflow", "config.json"), join(xdg, "prflow", "config.json")];
+export function prflowPaths(env: NodeJS.ProcessEnv = process.env, home?: string): string[] {
+  return home === undefined ? siblingConfigPaths(SKILL_DIR, "prflow", "prflow", env) : siblingConfigPaths(SKILL_DIR, "prflow", "prflow", env, home);
 }
 
 /** First file of an explicit path (must exist) or the first existing default path. */

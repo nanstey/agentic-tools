@@ -1,8 +1,9 @@
 #!/usr/bin/env node
-import { closeSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { closeSync, mkdirSync, openSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
+import { readOrNull } from "../../../../lib/runtime.ts";
 import { summarizeChecks, version } from "./core/classify.ts";
 import { renderReport, sortItems } from "./core/report.ts";
 import type { PrSnapshot } from "./core/types.ts";
@@ -54,15 +55,6 @@ function writeAtomic(path: string, text: string): void {
   const tmp = `${path}.${process.pid}.tmp`;
   writeFileSync(tmp, text);
   renameSync(tmp, path);
-}
-
-function readOrNull(path: string): string | null {
-  try {
-    return readFileSync(path, "utf8");
-  } catch (e) {
-    if ((e as NodeJS.ErrnoException).code === "ENOENT") return null;
-    throw e;
-  }
 }
 
 const USAGE = `Usage: prflow <command> [options]

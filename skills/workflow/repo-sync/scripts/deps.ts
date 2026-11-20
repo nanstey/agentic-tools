@@ -1,10 +1,6 @@
-import { execFile } from "node:child_process";
-
-export interface CmdResult {
-  ok: boolean;
-  stdout: string;
-  stderr: string;
-}
+import { run as runProcess, withoutTokens } from "../../../../lib/runtime.ts";
+import type { CmdResult } from "../../../../lib/runtime.ts";
+export type { CmdResult } from "../../../../lib/runtime.ts";
 
 /** Every side effect repo-sync has. Tests replace it with fakes. */
 export interface Deps {
@@ -20,27 +16,7 @@ export interface Deps {
 export const CHILD_TIMEOUT_MS = 60_000;
 
 function run(cmd: string, args: string[], env: NodeJS.ProcessEnv, cwd?: string): Promise<CmdResult> {
-  return new Promise((resolve) => {
-    const child = execFile(
-      cmd,
-      args,
-      { env, cwd, maxBuffer: 64 * 1024 * 1024, timeout: CHILD_TIMEOUT_MS, killSignal: "SIGKILL" },
-      (err, stdout, stderr) => {
-        const killed = err && (err as { killed?: boolean }).killed;
-        const msg = killed ? `${cmd} ${args.slice(0, 2).join(" ")} timed out after ${CHILD_TIMEOUT_MS / 1000}s` : err && !stderr ? err.message : String(stderr);
-        resolve({ ok: !err, stdout: String(stdout), stderr: msg });
-      },
-    );
-    child.stdin?.end();
-  });
-}
-
-/** Environment without ambient GitHub tokens. */
-function withoutTokens(): NodeJS.ProcessEnv {
-  const env = { ...process.env };
-  delete env.GH_TOKEN;
-  delete env.GITHUB_TOKEN;
-  return env;
+  return runProcess(cmd, args, env, cwd, CHILD_TIMEOUT_MS);
 }
 
 /** Real dependencies. `orca-ide`, never bare `orca` (the GNOME screen reader on some desktops). */

@@ -1,25 +1,17 @@
 /** State files under `${XDG_STATE_HOME:-~/.local/state}/repo-sync/`. */
-import { appendFileSync, closeSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, statSync, writeFileSync, writeSync } from "node:fs";
+import { appendFileSync, closeSync, mkdirSync, openSync, renameSync, rmSync, statSync, writeFileSync, writeSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { Event, LastRun } from "./types.ts";
+import { defaultStateDir as sharedStateDir, pidAlive, readOrNull } from "../../../../lib/runtime.ts";
+export { pidAlive, readOrNull } from "../../../../lib/runtime.ts";
+export type { Read } from "../../../../lib/runtime.ts";
 
 /** A lock older than this belongs to a crashed or hung run. */
 export const LOCK_STALE_MS = 30 * 60 * 1000;
 
 export function defaultStateDir(env: NodeJS.ProcessEnv = process.env, home = homedir()): string {
-  return join(env.XDG_STATE_HOME || join(home, ".local", "state"), "repo-sync");
-}
-
-export type Read = (path: string) => string | null;
-
-export const readOrNull: Read = (path) => {
-  try {
-    return readFileSync(path, "utf8");
-  } catch (e) {
-    if ((e as NodeJS.ErrnoException).code === "ENOENT") return null;
-    throw e;
-  }
+  return sharedStateDir("repo-sync", env, home);
 }
 
 /** Write via a temp file and rename, so a crash never leaves a truncated file. */
@@ -27,16 +19,6 @@ function writeAtomic(path: string, text: string): void {
   const tmp = `${path}.${process.pid}.tmp`;
   writeFileSync(tmp, text);
   renameSync(tmp, path);
-}
-
-/** Whether a process with this pid exists. */
-export function pidAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch (e) {
-    return (e as NodeJS.ErrnoException).code === "EPERM";
-  }
 }
 
 export class Store {

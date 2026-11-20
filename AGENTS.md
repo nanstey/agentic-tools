@@ -28,6 +28,7 @@ Scope by location:
 - `.agents/skills/`: repo-local helpers; follow this `AGENTS.md`.
 - `harness/`: portable harness configuration copied into harness-specific runtime
   directories.
+- Shared TypeScript used by skill scripts belongs in `lib/`; skills import it by relative path.
 
 ## Repository layout
 
@@ -35,6 +36,7 @@ Scope by location:
 .agents/skills/<skill-name>/SKILL.md      # repo-local authoring skill
 agents/[<group>/]<agent-name>.md          # Pi agent profiles
 skills/<category>/<skill-name>/SKILL.md   # global skill
+lib/                                      # shared TypeScript for skill scripts; not installed
 harness/pi/settings.json                   # portable pi configuration
 harness/omp/APPEND_SYSTEM.md               # portable omp system-prompt addition
 harness/<harness>/README.md                # managed-file table and behavior (not installed)

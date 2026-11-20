@@ -1,0 +1,12 @@
+{
+  "name": "agentic-tools",
+  "private": true,
+  "workspaces": ["skills/workflow/prflow", "skills/workflow/repo-sync"],
+  "scripts": {
+    "test:lib": "node --test lib/tests/*.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "typescript": "^7.0.2"
+  }
+}

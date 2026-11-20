@@ -1,6 +1,8 @@
-import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname } from "node:path";
+import { readOrNull } from "../../../../lib/runtime.ts";
+import { configPaths } from "../../../../lib/paths.ts";
+import type { Read } from "../../../../lib/runtime.ts";
 import { DEFAULT_ACTIONS, DEFAULT_DISPATCH, DEFAULT_LIMIT, DEFAULT_RAILS, DEFAULT_REVIEW, parseConfig, type Config } from "./core/config.ts";
 
 /** Skill directory, where an uncommitted `config.json` may sit beside `config.example.json`. */
@@ -17,8 +19,7 @@ export interface ConfigFlags {
 
 /** Config files tried in order when no explicit path is given. */
 export function defaultPaths(env: NodeJS.ProcessEnv = process.env, home = homedir()): string[] {
-  const xdg = env.XDG_CONFIG_HOME || join(home, ".config");
-  return [join(SKILL_DIR, "config.json"), join(xdg, "prflow", "config.json")];
+  return configPaths(SKILL_DIR, "prflow", env, home);
 }
 
 export interface Loaded {
@@ -26,17 +27,6 @@ export interface Loaded {
   /** File the config came from, or a description of the fallback. */
   source: string;
 }
-
-type Read = (path: string) => string | null;
-
-const readOrNull: Read = (path) => {
-  try {
-    return readFileSync(path, "utf8");
-  } catch (e) {
-    if ((e as NodeJS.ErrnoException).code === "ENOENT") return null;
-    throw e;
-  }
-};
 
 /**
  * Resolve the config. Precedence: `--user` (one account, built from flags), then an
