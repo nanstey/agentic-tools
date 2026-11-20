@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { after } from "node:test";
 import { assertReadOnly, assertRerun, rerunArgs } from "../scripts/adapters/gh.ts";
 import { assertDeleteBranch, deleteBranchArgs } from "../scripts/adapters/git.ts";
-import { agentListArgs, archiveArgs, assertArchive, assertOrca, closeArgs, interruptArgs, launchArgs, reviewWorktreeArgs, sendArgs, terminalListArgs, waitIdleArgs, worktreeNameArgs } from "../scripts/adapters/orca.ts";
+import { agentListArgs, archiveArgs, assertArchive, assertOrca, closeArgs, interruptArgs, launchArgs, reviewWorktreeArgs, sendArgs, terminalListArgs, waitIdleArgs, worktreeNameArgs, worktreeUnparentArgs } from "../scripts/adapters/orca.ts";
 import { DEFAULT_ACTIONS, DEFAULT_DISPATCH, DEFAULT_LIMIT, DEFAULT_RAILS, DEFAULT_REVIEW, type Config, type Rails } from "../scripts/core/config.ts";
 import type { CmdResult } from "../scripts/scan.ts";
 import { Store } from "../scripts/store.ts";
@@ -197,6 +197,11 @@ export function fakeTickDeps(w: World): TickDeps {
       const row = (w.worktrees as { path?: string; workspaceStatus?: string; comment?: string; isUnread?: boolean }[]).find((x) => x.path === path);
       if (row) { row.workspaceStatus = status; row.comment = comment; if (unread) row.isUnread = unread === "--unread"; }
       return { ok: true, stdout: "", stderr: "" };
+    },
+    async unparentReviewWorktree(path, _branch) {
+      assertOrca(worktreeUnparentArgs(path));
+      w.effects.push(`unparent ${path}`);
+      return w.orcaFails.unparent ? fail(w.orcaFails.unparent) : { ok: true, stdout: "", stderr: "" };
     },
     async nameReviewWorktree(path, _branch, name) {
       assertOrca(worktreeNameArgs(path, name));

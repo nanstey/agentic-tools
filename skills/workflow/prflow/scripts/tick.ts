@@ -50,9 +50,12 @@ export interface TickDeps extends Deps {
   waitIdle(handle: string): Promise<CmdResult>;
   /**
    * `orca-ide worktree create` for one review worktree (`reviewWorktreeArgs`):
-   * repo id, `<repo>-<n>-<head8>` slug, PR number. The only worktree prflow creates.
+   * repo id, `<repo>-<n>` slug, PR number. The only worktree prflow creates.
+   * Runs without the caller's Orca identity (`detachedEnv`) so it is top-level.
    */
   createReviewWorktree(repoId: string, slug: string, pr: number): Promise<CmdResult>;
+  /** `orca-ide worktree set --worktree path:<p> --no-parent --json` on a review worktree Orca still nested. */
+  unparentReviewWorktree(path: string, branch: string): Promise<CmdResult>;
   reviewFetch(path: string, number: number, branch: string): Promise<CmdResult>;
   reviewReset(path: string, sha: string, branch: string): Promise<CmdResult>;
   reviewHead(path: string): Promise<string | null>;

@@ -28,7 +28,7 @@ Every `orca-ide` call passes `assertOrca`; anything else throws before it runs.
 | Message | `orca-ide orchestration send --to <term_… or orca_session_id:…> --subject <s> --body <brief> --json` |
 | Close | `orca-ide terminal close --terminal <term_…> --json` |
 | Interrupt | `orca-ide terminal send --terminal <term_…> --text <Escape> --json`, then `orca-ide terminal wait --terminal <term_…> --for tui-idle --timeout-ms 30000 --json` |
-| Review worktree (reviewers only) | `orca-ide worktree create --repo id:<repoId> --name prflow-review-<repo>-<n> --branch prflow-review/<repo>-<n> --pr <n> --no-parent --setup run --json` (`assertReviewWorktree`) |
+| Review worktree (reviewers only) | `orca-ide worktree create --repo id:<repoId> --name prflow-review-<repo>-<n> --branch prflow-review/<repo>-<n> --pr <n> --no-parent --setup run --json` (`assertReviewWorktree`), without the caller's Orca identity (`detachedEnv`); `worktree set --worktree path:<review path> --no-parent --json` if Orca still nests it (`assertWorktreeUnparent`) |
 | Tick review status sync | `orca-ide worktree set --worktree path:<absolute review path> --workspace-status <id> --comment <single line> [--unread|--read] --json` (`assertWorktreeSet`) |
 | Reviewer draft status (reviewer only) | After saving a draft, one `orca-ide worktree set --worktree active --workspace-status <id> --comment "draft: <verdict>, <n> inline, not posted" --unread --json`; no other reviewer Orca writes |
 

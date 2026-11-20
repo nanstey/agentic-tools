@@ -35,11 +35,24 @@ prflow review post <draft-id> [--event comment|approve|request-changes] --yes
 | The post call is exactly `gh api --method POST repos/<o>/<r>/pulls/<n>/reviews --input <state>/drafts/.../post.json`, with the input under the active state directory | `assertReviewPost`, `scripts/adapters/gh.ts`; `realPostDeps`, `scripts/deps.ts` |
 | `--yes` is required; without it the command prints what it would post and exits 1 | `postDraft`, `scripts/review-cmd.ts` |
 | The review is posted as the draft's account (`GH_TOKEN` from `gh auth token -u <login>`), pinned to the reviewed commit (`commit_id`) | `realPostDeps`, `scripts/deps.ts` |
-| Refuses: a draft that does not parse or was already posted, a PR that is not open, a commit the account already reviewed, `approve` after the head moved | `postDraft` |
-| A crash after GitHub accepted the review but before prflow recorded it: the next `post` re-reads the PR and refuses, because the account already reviewed that commit | `postDraft` |
+| Refuses: a draft that does not parse, a revision already posted, a PR that is not open, a commit the account already reviewed (unless this is a later revision of a posted draft, saved after that review), `approve` after the head moved | `postDraft` |
+| A crash after GitHub accepted the review but before prflow recorded it: the next `post` re-reads the PR and refuses, because the account reviewed that commit after the revision was saved | `postDraft` |
 
 The orchestration layer runs `post` only on the user's explicit instruction.
 The default event is `comment`; the draft's verdict is only a suggestion.
+
+## Revisions
+
+A reviewer may rewrite its draft after it was posted, for example when told to
+approve after a comment review. Code: `scripts/revisions.ts`.
+
+| Rule | Behaviour |
+| --- | --- |
+| Revision | Each posted text is a revision, recorded in `posted.json` beside the draft: number, sha256 of the text, event, time, and inline comments. A saved text that matches no posted revision is the next, unposted revision (`r2`, `r3`, ...) |
+| Older posts | A draft posted before revisions were tracked has only the `review-posted:<id>` ledger row. It counts as `r1`: the draft is `r1` while its file is not newer than that row, and `r1`'s inline comments come from the `post.json` sent then. The first later post writes `posted.json` |
+| Event | Tick emits `review-drafted` with `revision r<n> (r<n-1> posted)` once per unposted revision of a finished dispatch |
+| Status | A revision that is not posted and was saved after the latest posted review on this head wins status sync: status from its verdict, comment `draft r<n>: <verdict>, not posted`, unread once per revision. Once it is posted, the posted review wins again |
+| Post | `prflow review post` posts a later revision on a head the account already reviewed when the revision was saved after that review. The review body is the summary plus only the inline comments that no earlier posted revision had (same path, lines, and text). Re-posting the same revision, posting when a newer review exists, and `approve` after the head moved are refused. Ledger ref: `review-posted:<id>` for `r1`, `review-posted:<id>:r<n>` after |
 
 ## Lifecycle
 
@@ -81,6 +94,27 @@ entries for a head (`prflow import-legacy`) count as done.
 | Branch | `prflow-review/<repo>-<n>` (local only, never pushed) |
 | Base | Before each review, prflow fetches `pull/<n>/head`, resets to the exact PR SHA, and verifies HEAD |
 | Link | `--pr <n>`, `--no-parent`, `--setup run` |
+| Lineage | Top-level in the repo, never under the caller (see below) |
+| Status at start | `prflow.review.statuses.reviewing`, `reviewing <head8>`, as soon as the reviewer is launched or messaged |
+
+Orca files a new worktree under the calling bot's folder when the create call
+carries the caller's terminal handle or agent session id, even with
+`--no-parent` (the host reads `ORCA_TERMINAL_HANDLE` and `ORCA_AGENT_SESSION_ID`
+from the CLI and re-parents creates from a bot chat). So prflow runs `worktree
+create` without the caller's Orca identity (`detachedEnv`, `scripts/adapters/orca.ts`:
+`ORCA_TERMINAL_HANDLE`, `ORCA_AGENT_SESSION_ID`, `ORCA_AGENT_SESSION_SPAWN_TOKEN`,
+`ORCA_BOT_TOOLS_TOKEN`, `ORCA_WORKSPACE_ID`, `ORCA_WORKTREE_ID`); the connection
+variables stay. If the create reply still reports a parent (`lineage`,
+`workspaceLineage`, or `crossStoreLineage`), prflow drops it with `orca-ide
+worktree set --worktree path:<review path> --no-parent --json`
+(`assertWorktreeUnparent`: a `prflow-review-` folder only). A failure is
+reported once and does not stop the review. prflow creates no other worktrees;
+Pi dispatch uses existing worktrees.
+
+Status sync runs before new reviewers start, so prflow sets a review worktree
+it just launched or messaged a reviewer in to `reviewing <head8>` itself,
+rather than leaving it in Orca's default column until the next tick. Review dry
+run includes this write in the announced plan.
 
 The repo id is the `repoId` of the repo's main worktree in `orca-ide worktree
 list`; with several clones, the one whose folder is named after the repo. A
@@ -98,7 +132,7 @@ failed rename does not stop the review; status sync retries it.
 
 After saving a draft, the reviewer makes one Orca write: `orca-ide worktree set --worktree active --workspace-status <id> --comment "draft: <verdict>, <n> inline, not posted" --unread --json`. It uses `prflow.review.statuses.changes` for request-changes, `prflow.review.statuses.approved` for approve, and `prflow.review.statuses.reviewing` for comment. This is the only Orca write the reviewer may make. Tick also synchronizes status and unread state.
 
-Status sync runs for open PR review worktrees, including those that drop out of search, and writes only when status, comment, or unread state differs. It fetches a missing PR snapshot read-only. Priority: draft PR; current head with neither posted review nor saved draft (reviewing/checks/queued); latest posted review on this head; saved draft verdict. A draft sets unread once per head, and a newly seen post sets read once. Manual status changes are overwritten on the next tick. Failed writes are retried while fields still differ; the `action-failed` event is deduplicated.
+Status sync runs for open PR review worktrees, including those that drop out of search, and writes only when status, comment, or unread state differs. It fetches a missing PR snapshot read-only. Priority: draft PR; current head with neither posted review nor saved draft (reviewing/checks/queued); an unposted draft revision saved after the latest posted review on this head; latest posted review on this head; saved draft verdict. A draft sets unread once per head, and a newly seen post sets read once. Manual status changes are overwritten on the next tick. Failed writes are retried while fields still differ; the `action-failed` event is deduplicated.
 
 Status sync also sets the display name to the PR's current `headRefName`
 when it differs (a new review worktree, a renamed head branch, or a manual
@@ -113,13 +147,15 @@ set <path> display name <branch>` once per worktree and name instead.
 | Submitted `CHANGES_REQUESTED` | `changes` | `changes requested at <head8>` |
 | Submitted `COMMENTED` | `reviewing` | `commented at <head8>` |
 | Saved draft | based on verdict | `draft: <verdict>, <n> inline, not posted` |
+| Draft revision `r<n>` saved after the latest posted review, not posted | based on verdict | `draft r<n>: <verdict>, not posted` |
 
 ## Draft
 
 Path: `${state}/drafts/<owner>-<repo>-<n>/<head8>/review.md`. Draft id:
 `<owner>-<repo>-<n>-<head8>`. prflow writes `meta.json` (item, URL, full head
-sha, account, dispatch id) beside it before the reviewer starts, and
-`post.json` (the exact payload) when posting.
+sha, account, dispatch id) beside it before the reviewer starts,
+`post.json` (the exact payload) when posting, and `posted.json` (posted
+revisions) after each successful post.
 
 ```
 <!-- prflow review draft v1 -->
@@ -154,7 +190,7 @@ Never posted.
 | --- | --- |
 | `dispatched` | A reviewer is planned (before the worktree is created) |
 | `review-started` | The reviewer launched: session, worktree, draft path |
-| `review-drafted` | The draft is saved: id, verdict suggestion, inline comment count, path |
+| `review-drafted` | The draft is saved: id, verdict suggestion, inline comment count, path; again with `revision r<n>` when a posted draft is rewritten |
 | `archived` | The PR is closed or merged and the review worktree is safe to archive |
-| `review-posted` | `prflow review post` published the draft: event, comment count, review URL |
+| `review-posted` | `prflow review post` published the draft (and revision, after `r1`): event, comment count, review URL |
 | `dry-run`, `needs-decision`, `nudged`, `session-finished`, `session-stale`, `action-failed`, `abandoned`, `paused`, `rail-tripped` | As for Pi dispatch (`references/dispatch.md`) |

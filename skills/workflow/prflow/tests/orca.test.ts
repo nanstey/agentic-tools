@@ -29,6 +29,10 @@ import {
   repoIdFor,
   reviewSlug,
   reviewWorktreeArgs,
+  assertWorktreeUnparent,
+  detachedEnv,
+  ORCA_CALLER_ENV,
+  worktreeUnparentArgs,
   type OrcaWorktree,
 } from "../scripts/adapters/orca.ts";
 
@@ -169,7 +173,8 @@ describe("review worktrees", () => {
   });
 
   it("reads the created worktree from the reply, and Orca errors", () => {
-    assert.deepEqual(parseCreatedWorktree(JSON.stringify({ ok: true, result: { worktree: { id: "r1::/w/a", path: "/w/a" } } })), { id: "r1::/w/a", path: "/w/a" });
+    assert.deepEqual(parseCreatedWorktree(JSON.stringify({ ok: true, result: { worktree: { id: "r1::/w/a", path: "/w/a" }, lineage: null, workspaceLineage: null } })), { id: "r1::/w/a", path: "/w/a", nested: false });
+    assert.equal(parseCreatedWorktree(JSON.stringify({ ok: true, result: { worktree: { id: "r1::/w/a", path: "/w/a" }, lineage: null, workspaceLineage: { parentWorkspaceKey: "folder:bot" } } }))?.nested, true);
     assert.equal(parseCreatedWorktree(JSON.stringify({ ok: true, result: { created: true } })), null);
     assert.throws(() => parseCreatedWorktree(JSON.stringify({ ok: false, error: { code: "exists", message: "taken" } })), /exists: taken/);
   });
@@ -257,5 +262,30 @@ describe("Pi sessions", () => {
     assert.equal(parseLaunch(JSON.stringify({ ok: true, result: { agentTerminalHandle: "term_old" } })).promptDelivered, false);
     assert.throws(() => parseLaunch(JSON.stringify({ ok: true, result: {} })), /no agent handle/);
     assert.equal(parseSend(JSON.stringify({ ok: true, result: { message: { id: "m1" } } })), "m1");
+  });
+});
+
+describe("top-level review worktrees", () => {
+  it("drops the caller's Orca identity from the create environment and keeps the connection", () => {
+    const env = { PATH: "/bin", ORCA_TERMINAL_HANDLE: "term_bot", ORCA_AGENT_SESSION_ID: "s1", ORCA_AGENT_SESSION_SPAWN_TOKEN: "t", ORCA_BOT_TOOLS_TOKEN: "b", ORCA_WORKSPACE_ID: "folder:bot", ORCA_WORKTREE_ID: "folder:bot", ORCA_ENVIRONMENT: "local", ORCA_PAIRING_CODE: "p", ORCA_USER_DATA_PATH: "/u", ORCA_CLI_COMMAND: "/c" };
+    const out = detachedEnv(env);
+    for (const k of ORCA_CALLER_ENV) assert.equal(k in out, false, k);
+    assert.deepEqual([out.PATH, out.ORCA_ENVIRONMENT, out.ORCA_PAIRING_CODE, out.ORCA_USER_DATA_PATH, out.ORCA_CLI_COMMAND], ["/bin", "local", "p", "/u", "/c"]);
+    assert.equal(env.ORCA_TERMINAL_HANDLE, "term_bot", "the caller's environment is not modified");
+  });
+
+  it("allows --no-parent only on a prflow-review- folder", () => {
+    const ok = worktreeUnparentArgs("/w/prflow-review-x-5");
+    assert.deepEqual(ok, ["worktree", "set", "--worktree", "path:/w/prflow-review-x-5", "--no-parent", "--json"]);
+    assert.doesNotThrow(() => assertOrca(ok));
+    assert.doesNotThrow(() => assertWorktreeUnparent(ok, "/w/prflow-review-x-5"));
+    assert.throws(() => assertWorktreeUnparent(ok, "/w/prflow-review-x-6"), /not the allowed review worktree unparent call/);
+    for (const bad of [
+      worktreeUnparentArgs("/w/other"),
+      worktreeUnparentArgs("/w/prflow-review-x/../other"),
+      worktreeUnparentArgs("relative/prflow-review-x-5"),
+      ["worktree", "set", "--worktree", "path:/w/prflow-review-x-5", "--no-parent", "--parent-worktree", "active", "--json"],
+      ["worktree", "set", "--worktree", "id:r::/w/prflow-review-x-5", "--no-parent", "--json"],
+    ]) assert.throws(() => assertOrca(bad), /prflow: orca-ide/, bad.join(" "));
   });
 });

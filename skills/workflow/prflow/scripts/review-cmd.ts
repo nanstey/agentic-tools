@@ -9,10 +9,19 @@ import { parsePr, prArgs, reviewPostArgs } from "./adapters/gh.ts";
 import { draftSummary, parseDraftId, reviewPayload, type Verdict } from "./core/draft.ts";
 import type { PostDeps } from "./deps.ts";
 import { loadDraft, type LoadedDraft } from "./review.ts";
+import { commentKey, draftRevision, materializeLegacy, postedRef, postedRevisions, recordPosted, type Revision } from "./revisions.ts";
 import type { Store } from "./store.ts";
 
-/** Ledger ref that marks a draft as posted. */
-const postedRef = (id: string) => `review-posted:${id}`;
+/** The saved text's revision, or `null` when nothing is saved. */
+const revisionOf = (store: Store, d: LoadedDraft): Revision | null => (d.text === null ? null : draftRevision(store, d.paths, d.text));
+
+/** `posted r1`, `r2 not posted (r1 posted)`, or `not posted`. */
+function postedText(store: Store, d: LoadedDraft): string {
+  const r = revisionOf(store, d);
+  if (!r) return postedRevisions(store, d.paths).length ? "earlier revision posted; no text saved" : "no";
+  if (r.posted) return `yes, revision r${r.rev}`;
+  return r.earlier.length ? `no, revision r${r.rev} (r${r.earlier.map((x) => x.rev).join(", r")} posted)` : "no";
+}
 
 function draftDir(store: Store, id: string): { id: string; dir: string } {
   const p = parseDraftId(id);
@@ -36,6 +45,8 @@ export interface DraftRow {
   comments: number;
   errors: string[];
   posted: boolean;
+  /** Revision of the saved text (1 until a posted draft is rewritten). */
+  revision: number;
   path: string;
 }
 
@@ -54,6 +65,7 @@ export function listDrafts(store: Store): DraftRow[] {
       const id = `${f}-${h}`;
       if (!parseDraftId(id)) continue;
       const d = load(store, id);
+      const r = revisionOf(store, d);
       rows.push({
         id,
         item: d.meta?.item ?? null,
@@ -62,7 +74,8 @@ export function listDrafts(store: Store): DraftRow[] {
         verdict: d.draft?.verdict ?? null,
         comments: d.draft?.comments.length ?? 0,
         errors: d.draft?.errors ?? [],
-        posted: store.hasLedgerRef(postedRef(id)),
+        posted: r ? r.posted !== null : postedRevisions(store, d.paths).length > 0,
+        revision: r?.rev ?? 1,
         path: d.paths.file,
       });
     }
@@ -73,7 +86,8 @@ export function renderDraftList(rows: DraftRow[]): string {
   if (!rows.length) return "No review drafts.";
   return rows
     .map((r) => {
-      const state = r.posted ? "posted" : !r.saved ? "not saved yet" : r.errors.length ? `not postable (${r.errors.join("; ")})` : "ready";
+      const rev = r.revision > 1 ? ` r${r.revision}` : "";
+      const state = r.posted ? `posted${rev}` : !r.saved ? "not saved yet" : r.errors.length ? `not postable${rev} (${r.errors.join("; ")})` : `ready${rev}${r.revision > 1 ? " (earlier revision posted)" : ""}`;
       return `- ${r.id} | ${r.item ?? "?"} at ${r.head} | ${state} | verdict suggestion ${r.verdict ?? "none"} | ${r.comments} inline comment(s) | ${r.path}`;
     })
     .join("\n");
@@ -87,7 +101,7 @@ export function showDraft(store: Store, id: string): string {
     `PR: ${d.meta?.item ?? "?"} ${d.meta?.url ?? ""}`.trimEnd(),
     `head: ${d.meta?.headSha ?? "?"}`,
     `account: ${d.meta?.account ?? "?"}`,
-    `posted: ${store.hasLedgerRef(postedRef(id)) ? "yes" : "no"}`,
+    `posted: ${postedText(store, d)}`,
     `file: ${d.paths.file}`,
   ];
   if (d.text === null) return [...lines, "", "The reviewer has not saved this draft yet."].join("\n");
@@ -102,11 +116,14 @@ export interface PostOptions {
 }
 
 /**
- * Post one draft as a GitHub review, as the draft's account, pinned to the
- * reviewed commit. Refuses without `yes`, when the draft does not parse, was
- * already posted (by prflow, or the account already reviewed that commit on
- * GitHub), when the PR is no longer open, or an approval when the head moved.
- * Records a `review-posted` event and ledger row on success.
+ * Post one draft revision as a GitHub review, as the draft's account, pinned to
+ * the reviewed commit. Refuses without `yes`, when the draft does not parse,
+ * when this revision was already posted, when the account already reviewed
+ * that commit on GitHub (unless this is a later revision of a posted draft,
+ * saved after that review), when the PR is no
+ * longer open, or an approval when the head moved. A later revision posts only
+ * the inline comments no earlier posted revision had. Records the revision in
+ * `posted.json`, a `review-posted` event, and a ledger row on success.
  */
 export async function postDraft(store: Store, deps: PostDeps, id: string, o: PostOptions): Promise<{ out: string; code: number }> {
   const d = load(store, id);
@@ -114,11 +131,17 @@ export async function postDraft(store: Store, deps: PostDeps, id: string, o: Pos
   if (!meta) return { out: `refusing: draft ${id} has no meta.json, so prflow does not know which commit and account it is for`, code: 1 };
   if (!d.draft || d.text === null) return { out: `refusing: draft ${id} is not saved yet (${d.paths.file})`, code: 1 };
   if (d.draft.errors.length) return { out: `refusing: draft ${id} does not parse: ${d.draft.errors.join("; ")}`, code: 1 };
-  if (store.hasLedgerRef(postedRef(id))) return { out: `refusing: draft ${id} was already posted`, code: 1 };
-  const payload = reviewPayload(d.draft, o.event, meta.headSha);
+  const revision = draftRevision(store, d.paths, d.text);
+  const rn = `r${revision.rev}`;
+  if (revision.posted) return { out: `refusing: draft ${id} revision ${rn} was already posted${revision.rev > 1 ? "" : " (a rewritten draft becomes a new revision)"}`, code: 1 };
+  const before = new Set(revision.earlier.flatMap((r) => r.comments));
+  const fresh = d.draft.comments.filter((c) => !before.has(commentKey(c)));
+  const skipped = d.draft.comments.length - fresh.length;
+  const payload = reviewPayload({ ...d.draft, comments: fresh }, o.event, meta.headSha);
   const input = join(d.paths.dir, "post.json");
   const command = `gh ${reviewPostArgs(meta.repo, meta.number, input).join(" ")} (as ${meta.account})`;
-  const preview = `${payload.event} review of ${meta.item} at ${meta.headSha.slice(0, 8)} with ${d.draft.comments.length} inline comment(s), as ${meta.account}`;
+  const what = `${fresh.length} inline comment(s)${skipped ? ` (${skipped} already posted with an earlier revision)` : ""}`;
+  const preview = `${payload.event} review of ${meta.item} at ${meta.headSha.slice(0, 8)}${revision.rev > 1 ? ` (draft revision ${rn})` : ""} with ${what}, as ${meta.account}`;
   if (!o.yes) return { out: `would post: ${preview}\nrefusing: add --yes to post (prflow posts only on your explicit instruction)`, code: 1 };
 
   const r = await deps.gh(meta.account, prArgs(meta.repo, meta.number));
@@ -126,11 +149,14 @@ export async function postDraft(store: Store, deps: PostDeps, id: string, o: Pos
   const pr = parsePr(r.stdout, meta.repo, meta.number, "reviewer", meta.account);
   if (!pr) return { out: `refusing: ${meta.item} not found`, code: 1 };
   if (pr.state !== "OPEN") return { out: `refusing: ${meta.item} is ${pr.state}`, code: 1 };
-  const mine = pr.reviews.find((x) => x.author?.login.toLowerCase() === meta.account.toLowerCase() && x.at !== null && x.state !== "PENDING" && x.commitOid === meta.headSha);
-  if (mine) return { out: `refusing: ${meta.account} already reviewed ${meta.item} at ${meta.headSha.slice(0, 8)} (${mine.state} ${mine.at})`, code: 1 };
+  // Only a later revision of a draft prflow already posted may follow an existing review of this commit, and only when it
+  // was saved after that review; a newer review means this revision was posted (perhaps by a post that crashed before recording it).
+  const mine = pr.reviews.filter((x) => x.author?.login.toLowerCase() === meta.account.toLowerCase() && x.at !== null && x.state !== "PENDING" && x.commitOid === meta.headSha).sort((a, b) => (b.at ?? "").localeCompare(a.at ?? ""))[0];
+  if (mine && !(revision.earlier.length > 0 && Date.parse(mine.at ?? "") < revision.mtime)) return { out: `refusing: ${meta.account} already reviewed ${meta.item} at ${meta.headSha.slice(0, 8)} (${mine.state} ${mine.at}) after draft revision ${rn} was saved; a rewritten draft becomes a new revision`, code: 1 };
   const moved = pr.headSha !== meta.headSha;
   if (moved && o.event === "approve") return { out: `refusing: the head moved to ${pr.headSha.slice(0, 8)} since the review of ${meta.headSha.slice(0, 8)}; approve only a current review (or post with --event comment)`, code: 1 };
 
+  materializeLegacy(store, d.paths);
   const tmp = `${input}.${process.pid}.tmp`;
   writeFileSync(tmp, `${JSON.stringify(payload, null, 2)}\n`);
   renameSync(tmp, input);
@@ -148,8 +174,9 @@ export async function postDraft(store: Store, deps: PostDeps, id: string, o: Pos
   } catch {
     url = "";
   }
-  const detail = `posted draft ${id} as ${meta.account}: ${payload.event} with ${d.draft.comments.length} inline comment(s) at ${meta.headSha.slice(0, 8)}${moved ? ` (head is now ${pr.headSha.slice(0, 8)})` : ""}${url ? ` ${url}` : ""}`;
-  store.addLedger({ at: t, item: meta.item, version: id.slice(-8), kind: "review-requested", outcome: "posted", detail, dispatchId: meta.dispatchId, source: "prflow", ref: postedRef(id) });
+  recordPosted(store, d.paths, { rev: revision.rev, hash: revision.hash, event: String(payload.event), at: t, comments: d.draft.comments.map(commentKey) });
+  const detail = `posted draft ${id}${revision.rev > 1 ? ` revision ${rn}` : ""} as ${meta.account}: ${payload.event} with ${what} at ${meta.headSha.slice(0, 8)}${moved ? ` (head is now ${pr.headSha.slice(0, 8)})` : ""}${url ? ` ${url}` : ""}`;
+  store.addLedger({ at: t, item: meta.item, version: id.slice(-8), kind: "review-requested", outcome: "posted", detail, dispatchId: meta.dispatchId, source: "prflow", ref: postedRef(id, revision.rev) });
   store.appendEvent(t, { type: "review-posted", item: meta.item, version: id.slice(-8), kind: "review-requested", dispatchId: meta.dispatchId, detail });
   return { out: detail, code: 0 };
 }
