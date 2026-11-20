@@ -25,10 +25,10 @@ type TokenCache = Map<string, Promise<string | null>>;
 /** How the fetch authenticates. Only HTTPS remotes with a mapped account get `GH_TOKEN`. */
 async function authFor(deps: Deps, remoteUrl: string, cfg: Config, tokens: TokenCache, dryRun: boolean) {
   const kind = transport(remoteUrl);
-  const remote = parseRemote(remoteUrl);
-  if (kind !== "https" || remote?.host.toLowerCase() !== "github.com")
-    return { label: kind === "https" ? "https (ambient)" : kind === "ssh" ? "ssh" : "local", env: undefined };
-  const login = accountFor(cfg, `${remote.owner}/${remote.repo}`)?.login;
+  if (kind !== "https") return { label: kind === "ssh" ? "ssh" : "local", env: undefined };
+  // Only plain https://github.com/<owner>/<repo> gets a token; any other host, scheme, or odd userinfo stays ambient.
+  const remote = /^https:\/\/(?:[^/@\\]*@)?github\.com(?::443)?\//i.test(remoteUrl) ? parseRemote(remoteUrl) : null;
+  const login = remote && accountFor(cfg, `${remote.owner}/${remote.repo}`)?.login;
   if (!login) return { label: "https (ambient)", env: undefined };
   if (dryRun) return { label: `https as ${login}`, env: undefined };
   let p = tokens.get(login);
@@ -53,10 +53,10 @@ export async function syncRepo(deps: Deps, repo: Repo, opts: SyncOptions, tokens
   if (repo.remoteName !== "origin") return skip("no-remote", `remote is ${repo.remoteName}, not origin`);
 
   const originUrl = await git(gitArgs.originUrl());
-  if (!originUrl.ok) return skip("no-remote", firstLine(originUrl.stderr));
+  if (!originUrl.ok) return NO_REMOTE.test(originUrl.stderr) ? skip("no-remote", firstLine(originUrl.stderr)) : failed("error", firstLine(originUrl.stderr));
   const remoteUrl = originUrl.stdout.trim();
   const kind = transport(remoteUrl);
-  base.auth = kind;
+  base.auth = kind === "other" ? "local" : kind;
 
   const head = await git(gitArgs.originHead());
   const fromOrigin = head.ok ? head.stdout.trim().replace(/^origin\//, "") : "";

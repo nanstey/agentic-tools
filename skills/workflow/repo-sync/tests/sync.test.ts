@@ -196,12 +196,27 @@ describe("auth", () => {
     assert.deepEqual(calls.find((c) => c.args[0] === "fetch")?.env, { GH_TOKEN: "tok-w" });
   });
 
-  it("does not attach tokens to HTTPS hosts other than github.com", async () => {
-    const { deps, calls, tokenCalls } = fakeDeps(scriptRepo(P, { originUrl: ok("https://github.example/WorkOrg/app.git\n") }), { tokens: { "work-login": "tok-w" } });
-    const r = await syncRepo(deps, repo(), { config: cfg, dryRun: false });
-    assert.equal(r.status, "updated");
-    assert.deepEqual(tokenCalls, []);
-    assert.ok(calls.every((c) => !c.env));
+  it("does not attach tokens to other hosts, plain http, or odd userinfo", async () => {
+    for (const url of ["https://github.example/WorkOrg/app.git", "http://github.com/WorkOrg/app.git", "https://github.com\\@evil.example/WorkOrg/app.git"]) {
+      const { deps, calls, tokenCalls } = fakeDeps(scriptRepo(P, { originUrl: ok(`${url}\n`) }), { tokens: { "work-login": "tok-w" } });
+      const r = await syncRepo(deps, repo(), { config: cfg, dryRun: false });
+      assert.equal(r.status, "updated", url);
+      assert.deepEqual(tokenCalls, [], url);
+      assert.ok(calls.every((c) => !c.env), url);
+    }
+  });
+
+  it("labels a local-path origin as local, even on an early skip", async () => {
+    const { deps } = fakeDeps(scriptRepo(P, { originUrl: ok("/srv/git/app.git\n"), current: "feature" }));
+    const r = await syncRepo(deps, repo(), { config: cfg, dryRun: true });
+    assert.deepEqual([r.status, r.auth], ["skipped", "local"]);
+  });
+
+  it("a failing get-url is a failure unless origin is missing", async () => {
+    const missing = await syncRepo(fakeDeps(scriptRepo(P, { originUrl: err("error: No such remote 'origin'") })).deps, repo(), { config: cfg, dryRun: false });
+    assert.deepEqual([missing.status, missing.reason], ["skipped", "no-remote"]);
+    const broken = await syncRepo(fakeDeps(scriptRepo(P, { originUrl: err("fatal: bad config line 3") })).deps, repo(), { config: cfg, dryRun: false });
+    assert.deepEqual([broken.status, broken.reason, broken.detail], ["failed", "error", "bad config line 3"]);
   });
 
   it("https with no token falls back to ambient auth", async () => {

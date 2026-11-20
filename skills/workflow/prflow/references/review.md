@@ -9,14 +9,14 @@ payload), `templates/briefs/review.md` and `review-nudge.md` (briefs).
 
 | Config | Default | Effect |
 | --- | --- | --- |
-| `review.dryRun` | `true` | No reviewer dispatch or Orca status write; each target is announced once per head |
-| `review.maxConcurrent` | `2` | Reviewer dispatches open at once |
-| `review.sessionReviews` | `5` | Completed reviews per Pi session before replacing it |
-| `review.idleCloseHours` | `24` | Idle time before closing a prflow-launched reviewer session |
-| `review.statuses` | `review-draft`, `reviewing`, `review-changes`, `review-approved` | Orca workspace status ids |
+| `prflow.review.dryRun` | `true` | No reviewer dispatch or Orca status write; each target is announced once per head |
+| `prflow.review.maxConcurrent` | `2` | Reviewer dispatches open at once |
+| `prflow.review.sessionReviews` | `5` | Completed reviews per Pi session before replacing it |
+| `prflow.review.idleCloseHours` | `24` | Idle time before closing a prflow-launched reviewer session |
+| `prflow.review.statuses` | `review-draft`, `reviewing`, `review-changes`, `review-approved` | Orca workspace status ids |
 | `tick --dry-run` | off | Forces dry run for actions, Pi dispatch, and reviews |
 
-`review.dryRun` is separate from `dispatch.dryRun` and `actions.dryRun`. Keep it
+`prflow.review.dryRun` is separate from `prflow.dispatch.dryRun` and `prflow.actions.dryRun`. Keep it
 on while the "Bryce PR review watch" Orca automation still launches reviewers.
 
 ## Posting gate
@@ -85,7 +85,7 @@ The repo id is the `repoId` of the repo's main worktree in `orca-ide worktree
 list`; with several clones, the one whose folder is named after the repo. A
 lost create reply is recovered by finding the persistent worktree by its branch. Orca's numeric branch suffix is tolerated.
 
-After saving a draft, the reviewer makes one Orca write: `orca-ide worktree set --worktree active --workspace-status <id> --comment "draft: <verdict>, <n> inline, not posted" --unread --json`. It uses `review.statuses.changes` for request-changes, `review.statuses.approved` for approve, and `review.statuses.reviewing` for comment. This is the only Orca write the reviewer may make. Tick also synchronizes status and unread state.
+After saving a draft, the reviewer makes one Orca write: `orca-ide worktree set --worktree active --workspace-status <id> --comment "draft: <verdict>, <n> inline, not posted" --unread --json`. It uses `prflow.review.statuses.changes` for request-changes, `prflow.review.statuses.approved` for approve, and `prflow.review.statuses.reviewing` for comment. This is the only Orca write the reviewer may make. Tick also synchronizes status and unread state.
 
 Status sync runs for open PR review worktrees, including those that drop out of search, and writes only when status, comment, or unread state differs. It fetches a missing PR snapshot read-only. Priority: draft PR; current head with neither posted review nor saved draft (reviewing/checks/queued); latest posted review on this head; saved draft verdict. A draft sets unread once per head, and a newly seen post sets read once. Manual status changes are overwritten on the next tick. Failed writes are retried while fields still differ; the `action-failed` event is deduplicated.
 

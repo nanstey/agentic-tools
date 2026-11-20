@@ -9,10 +9,10 @@ reuse this monitor and recovery; see `references/review.md`. Code: `scripts/agen
 
 | Config | Default | Effect |
 | --- | --- | --- |
-| `dispatch.dryRun` | `true` | No launch, message, nudge, or close. Each brief is announced once per item version as a `dry-run` event with its exact target and text |
+| `prflow.dispatch.dryRun` | `true` | No launch, message, nudge, or close. Each brief is announced once per item version as a `dry-run` event with its exact target and text |
 | `tick --dry-run` | off | Forces dry run for both the safe actions and dispatch |
 
-`dispatch.dryRun` is separate from `actions.dryRun`, so reruns and cleanup can
+`prflow.dispatch.dryRun` is separate from `prflow.actions.dryRun`, so reruns and cleanup can
 go live while dispatch stays announced. Keep dispatch in dry run while any
 other automation still sends the same briefs.
 
@@ -56,7 +56,7 @@ instead of sending it half-filled.
 | `restart` | Wraps a full brief for a session prflow restarts in place: why, then a request for an immediate update (what it was doing, what is done, what is left) before it starts again |
 
 Each brief also carries the branch, base, head, worktree, other open triggers,
-the project context pointer (config `dispatch.projectContext`), and, on a
+the project context pointer (config `prflow.dispatch.projectContext`), and, on a
 retry, the previous attempt's end reason and last message. Each ends with the
 no-self-edit note.
 

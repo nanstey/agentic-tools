@@ -75,16 +75,21 @@ export class Store {
           if ((e as NodeJS.ErrnoException).code === "ENOENT") continue;
           throw e;
         }
-        if (readOrNull(renamed) === content) {
-          rmSync(renamed, { force: true });
-          continue;
-        }
+        // If the renamed lock is not the one judged stale (or cannot be read), put it back.
+        let ours = false;
         try {
-          linkSync(renamed, path);
-        } catch (e) {
-          if ((e as NodeJS.ErrnoException).code !== "EEXIST") throw e;
+          ours = readOrNull(renamed) === content;
+        } finally {
+          if (!ours) {
+            try {
+              linkSync(renamed, path);
+            } catch (e) {
+              if ((e as NodeJS.ErrnoException).code !== "EEXIST") renameSync(renamed, path);
+            }
+          }
+          rmSync(renamed, { force: true });
         }
-        rmSync(renamed, { force: true });
+        if (ours) continue;
         return false;
       }
     }

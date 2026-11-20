@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, describe, it } from "node:test";
@@ -214,5 +214,22 @@ describe("lock", () => {
     });
     assert.equal(taken, false);
     assert.equal(JSON.parse(readFileSync(lock, "utf8")).pid, 4343, "the other run's lock is kept");
+  });
+
+  it("puts the lock back when the renamed lock cannot be read", async () => {
+    const { Store } = await import("../scripts/store.ts");
+    const { state } = setup();
+    const store = new Store(state);
+    store.ensureDir();
+    const lock = join(state, "lock");
+    writeFileSync(lock, JSON.stringify({ pid: 4242 }));
+    // The lock turns into something unreadable (a directory) during the liveness check.
+    assert.throws(() => store.tryLock(Date.parse("2026-01-01T00:00:00Z"), () => {
+      rmSync(lock);
+      mkdirSync(lock);
+      return false;
+    }), /EISDIR/);
+    assert.ok(statSync(lock).isDirectory(), "the lock is restored");
+    assert.deepEqual(readdirSync(state).filter((f) => f.startsWith("lock.stale")), []);
   });
 });
