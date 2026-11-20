@@ -8,7 +8,9 @@ export type Kind =
   | "behind"
   | "review-requested"
   | "cleanup"
-  | "waiting";
+  | "waiting"
+  /** Moving a Blocked Orca worktree out once its unblock conditions hold. Never a classification. */
+  | "unblock";
 
 /** Spec priority order, most urgent first. */
 export const KIND_PRIORITY: readonly Kind[] = [

@@ -5,7 +5,8 @@ import { join } from "node:path";
 import { after } from "node:test";
 import { assertReadOnly, assertRerun, rerunArgs } from "../scripts/adapters/gh.ts";
 import { assertDeleteBranch, deleteBranchArgs } from "../scripts/adapters/git.ts";
-import { agentListArgs, archiveArgs, assertArchive, assertOrca, closeArgs, interruptArgs, launchArgs, reviewWorktreeArgs, sendArgs, terminalListArgs, waitIdleArgs, worktreeNameArgs, worktreeUnparentArgs } from "../scripts/adapters/orca.ts";
+import { agentListArgs, archiveArgs, assertArchive, assertOrca, closeArgs, interruptArgs, launchArgs, reviewWorktreeArgs, sendArgs, taskStatusSetArgs, terminalListArgs, waitIdleArgs, worktreeNameArgs, worktreeUnparentArgs } from "../scripts/adapters/orca.ts";
+import type { BlockedFile } from "../../../../lib/blocked.ts";
 import { DEFAULT_ACTIONS, DEFAULT_DISPATCH, DEFAULT_LIMIT, DEFAULT_RAILS, DEFAULT_REVIEW, type Config, type Rails } from "../scripts/core/config.ts";
 import type { CmdResult } from "../scripts/scan.ts";
 import { Store } from "../scripts/store.ts";
@@ -35,6 +36,7 @@ export const cfg = (rails: Partial<Rails> = {}, worktrees = false): Config => ({
   actions: { ...DEFAULT_ACTIONS },
   dispatch: { ...DEFAULT_DISPATCH, projectContext: [] },
   review: { ...DEFAULT_REVIEW },
+  taskStatuses: {},
 });
 
 export const okJson = (v: unknown): CmdResult => ({ ok: true, stdout: JSON.stringify(v), stderr: "" });
@@ -85,6 +87,10 @@ export interface World {
   createReply?: unknown;
   /** `worktree create` succeeds but the worktree is not listed (yet). */
   createLost?: boolean;
+  /** Blocked records (orca-task-status's shared file); `null` makes reading it fail. */
+  blocked: BlockedFile | null;
+  /** `git rev-parse HEAD` per worktree path (default 40 x "a"); `null` when unknown. */
+  worktreeHeads: Record<string, string | null>;
   /** Messages sent with orchestration send: `to | subject | body`. */
   sent: string[];
   /** Side effects performed, e.g. `rerun Acme/x 42`, `archive /w/a`. */
@@ -122,7 +128,7 @@ export function briefFromPr(pr: unknown): unknown {
 export function world(over: Partial<World> = {}): World {
   return {
     clock: T0, prs: {}, reviewPrs: {}, worktrees: [], refs: {}, dirty: {}, unpushed: {}, runs: {}, rerunFails: {}, archiveFails: {}, heads: {}, reviewHeads: {}, reviewFetchedHeads: {}, branchFails: {},
-    agents: [], terminals: {}, orcaFails: {}, logs: {}, briefs: {}, sent: [], effects: [], calls: [], ...over,
+    agents: [], terminals: {}, orcaFails: {}, logs: {}, briefs: {}, blocked: { version: 1, records: {} }, worktreeHeads: {}, sent: [], effects: [], calls: [], ...over,
   };
 }
 
@@ -210,6 +216,28 @@ export function fakeTickDeps(w: World): TickDeps {
       const row = (w.worktrees as { path?: string; displayName?: string }[]).find((x) => x.path === path);
       if (row) row.displayName = name;
       return { ok: true, stdout: "", stderr: "" };
+    },
+    async worktreeHead(path) {
+      return path in w.worktreeHeads ? (w.worktreeHeads[path] ?? null) : "a".repeat(40);
+    },
+    async setTaskStatus(worktreeId, status, comment) {
+      assertOrca(taskStatusSetArgs(worktreeId, status, comment));
+      w.effects.push(`task-status ${worktreeId} ${status} ${comment}`);
+      if (w.orcaFails.status) return fail(w.orcaFails.status);
+      const row = (w.worktrees as { id?: string; workspaceStatus?: string; comment?: string; isUnread?: boolean }[]).find((x) => x.id === worktreeId);
+      if (row) { row.workspaceStatus = status; row.comment = comment; row.isUnread = true; }
+      return okJson({ ok: true, result: {} });
+    },
+    readBlocked() {
+      if (w.blocked === null) throw new Error("Unexpected end of JSON input");
+      return w.blocked;
+    },
+    clearBlocked(worktreeId, setAt) {
+      const r = w.blocked?.records[worktreeId];
+      if (!r || r.setAt !== setAt) return false;
+      delete w.blocked!.records[worktreeId];
+      w.effects.push(`clear-blocked ${worktreeId}`);
+      return true;
     },
     async rerunFailed(_login, repo, runId) {
       assertRerun(rerunArgs(repo, runId));

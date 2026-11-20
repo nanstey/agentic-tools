@@ -17,6 +17,7 @@ import { importLegacy, pause, recover, renderStatus, resume, status, type Legacy
 import { defaultStateDir, Store } from "./store.ts";
 import { tick } from "./tick.ts";
 import { makeAct, makeVerify } from "./actions.ts";
+import { makeUnblock } from "./unblock.ts";
 import { loadTemplates, makeAgentFlow } from "./agents.ts";
 import { loadConfig, SKILL_DIR } from "./config.ts";
 
@@ -284,6 +285,7 @@ async function main(argv: string[]): Promise<number> {
       const dispatchDryRun = values["dry-run"] || cfg.dispatch.dryRun;
       const reviewDryRun = values["dry-run"] || cfg.review.dryRun;
       const safe = makeAct(deps, store);
+      const unblock = makeUnblock(deps, store, cfg);
       const templates = loadTemplates(join(SKILL_DIR, "templates", "briefs"));
       const agents = makeAgentFlow(deps, store, cfg, templates);
       const reviews = makeReviewFlow(deps, store, cfg, templates);
@@ -295,6 +297,7 @@ async function main(argv: string[]): Promise<number> {
         verify: makeVerify(cfg.worktrees),
         act: async (...a) => {
           await safe(...a);
+          await unblock(a[0], a[3]);
           await agents.act(...a);
           await reviews.act(...a);
         },

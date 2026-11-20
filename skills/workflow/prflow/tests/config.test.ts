@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import { defaultPaths, loadConfig } from "../scripts/config.ts";
-import { accountFor, DEFAULT_ACTIONS, DEFAULT_DISPATCH, DEFAULT_RAILS, DEFAULT_REVIEW, parseConfig, projectFor } from "../scripts/core/config.ts";
+import { accountFor, DEFAULT_ACTIONS, DEFAULT_DISPATCH, DEFAULT_RAILS, DEFAULT_REVIEW, DEFAULT_STATUSES, parseConfig, projectFor } from "../scripts/core/config.ts";
 
 const prflowKeys = ["limit", "worktrees", "rails", "actions", "dispatch", "review"];
 const parse = (v: unknown) => {
@@ -32,6 +32,12 @@ describe("parseConfig", () => {
     assert.throws(() => parseConfig('{"accounts":[{"login":"a"}],"futureTool":{},"prflow":{"token":"x"}}', "cfg.json"), /cfg\.json: prflow\.unknown key "token"/);
   });
 
+  it("reads Orca status ids from the shared taskStatus section", () => {
+    const cfg = parseConfig('{"accounts":[{"login":"a"}],"taskStatus":{"statuses":{"blocked":"status-6","paused":"status-6-2"}}}', "cfg.json");
+    assert.deepEqual(cfg.taskStatuses, { ...DEFAULT_STATUSES, blocked: "status-6", paused: "status-6-2" });
+    assert.throws(() => parseConfig('{"accounts":[{"login":"a"}],"taskStatus":{"statuses":{"stuck":"x"}}}', "cfg.json"), /cfg\.json: taskStatus\.statuses has unknown state "stuck"/);
+  });
+
   it("ignores repoSync's section", () => {
     assert.equal(parseConfig('{"accounts":[{"login":"a"}],"repoSync":false}', "cfg.json").accounts[0]?.login, "a");
   });
@@ -50,6 +56,7 @@ describe("parseConfig", () => {
       actions: DEFAULT_ACTIONS,
       dispatch: DEFAULT_DISPATCH,
       review: DEFAULT_REVIEW,
+      taskStatuses: DEFAULT_STATUSES,
     });
   });
 

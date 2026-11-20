@@ -3,6 +3,7 @@
 import { accountFor as selectAccount, NAME, strings } from "../../../../../lib/accounts.ts";
 import type { Account } from "../../../../../lib/accounts.ts";
 import { parseSharedConfig, toolSection } from "../../../../../lib/config.ts";
+import { DEFAULT_STATUSES, parseTaskStatuses, type State } from "../../../../../lib/task-status.ts";
 export type { Account } from "../../../../../lib/accounts.ts";
 
 export interface Config {
@@ -20,7 +21,14 @@ export interface Config {
   dispatch: DispatchConfig;
   /** Reviewer sessions for `review-requested`. */
   review: ReviewConfig;
+  /**
+   * Orca board status ids per task state, from the shared `taskStatus` section
+   * (orca-task-status). Unblocking runs only when `blocked` is set.
+   */
+  taskStatuses: Partial<Record<State, string>>;
 }
+
+export { DEFAULT_STATUSES } from "../../../../../lib/task-status.ts";
 
 export interface ReviewConfig {
   /**
@@ -261,5 +269,6 @@ export function parseConfig(text: string, source: string): Config {
     actions: parseActions(o.actions, fail),
     dispatch: parseDispatch(o.dispatch, fail),
     review: parseReview(o.review, fail),
+    taskStatuses: parseTaskStatuses(toolSection(shared, "taskStatus", source), (msg) => top(`taskStatus.${msg}`)),
   };
 }
