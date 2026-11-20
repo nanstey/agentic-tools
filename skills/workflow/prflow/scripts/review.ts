@@ -10,8 +10,9 @@
  *    waits for the older reviewer to settle. At most `review.maxConcurrent`
  *    reviewers are open; the usual caps and loop breaker apply (`beginDispatch`).
  * 2. Create the review worktree (`orca-ide worktree create`, the only worktree
- *    prflow creates), record `meta.json` beside the draft, then launch Pi with
- *    the review brief (`templates/briefs/review.md`). Row and event first.
+ *    prflow creates) and set its Orca display name to the PR's head branch,
+ *    record `meta.json` beside the draft, then launch Pi with the review brief
+ *    (`templates/briefs/review.md`). Row and event first.
  *
  * Monitor (before reconcile): the agent monitor with review rules. Done once a
  * parseable draft is saved (or the review is no longer requested) and the
@@ -24,6 +25,9 @@
  * threshold. Cleanup archives after PR close/merge only when clean, no session
  * is busy or open, and every Pi session is prflow-launched.
  *
+ * Status sync (with monitor): each open PR's review worktree gets its board
+ * status and comment, and its display name follows the PR's head branch.
+ *
  * Review dry run (`review.dryRun`, default true) makes the same reads and
  * announces the exact target and brief once per head as a `dry-run` event.
  */
@@ -35,6 +39,7 @@ import { safeBranch } from "./adapters/git.ts";
 import {
   findReviewWorktree,
   isBusy,
+  isDisplayName,
   isReviewBranch,
   parseCreatedWorktree,
   repoIdFor,
@@ -138,9 +143,9 @@ export function earlierDraft(paths: DraftPaths): { head8: string; file: string }
 const head8 = (c: Classification) => c.version.slice(0, 8);
 
 /** Target text for a review dispatch. */
-function describeReview(target: ReturnType<typeof chooseTarget>, wt: OrcaWorktree | null, slug: string, repo: string, repoId: string | null, number: number, sha: string): string {
+function describeReview(target: ReturnType<typeof chooseTarget>, wt: OrcaWorktree | null, slug: string, repo: string, repoId: string | null, number: number, sha: string, headBranch: string | null): string {
   if (target.do === "wait") return `wait: ${target.why}`;
-  if (!wt) return `create Orca worktree ${reviewWorktreeName(slug)} on branch ${reviewBranch(slug)} (orca-ide ${reviewWorktreeArgs(repoId ?? "<repo id>", slug, number).join(" ")}) for ${repo}, then fetch origin pull/${number}/head, reset --hard ${sha}, verify HEAD, and launch a fresh Pi reviewer there`;
+  if (!wt) return `create Orca worktree ${reviewWorktreeName(slug)} on branch ${reviewBranch(slug)} (orca-ide ${reviewWorktreeArgs(repoId ?? "<repo id>", slug, number).join(" ")}) for ${repo}${headBranch && isDisplayName(headBranch) ? `, name it ${headBranch}` : ""}, then fetch origin pull/${number}/head, reset --hard ${sha}, verify HEAD, and launch a fresh Pi reviewer there`;
   if (target.do === "launch") return `git -C ${wt.path} fetch origin pull/${number}/head; git -C ${wt.path} reset --hard ${sha}; git -C ${wt.path} rev-parse HEAD; ${target.close ? `close ${target.close.handle}, then ` : ""}launch a fresh Pi reviewer in ${wt.path}`;
   if (target.do === "message") return `git -C ${wt.path} fetch origin pull/${number}/head; git -C ${wt.path} reset --hard ${sha}; git -C ${wt.path} rev-parse HEAD; message Pi session ${target.session.handle} in ${wt.path}${target.restart ? ` to restart it (${target.restart})` : ""}`;
   return `git -C ${wt.path} fetch origin pull/${number}/head; git -C ${wt.path} reset --hard ${sha}; git -C ${wt.path} rev-parse HEAD; interrupt Pi session ${target.session.handle} in ${wt.path}, then restart it (${target.restart})`;
@@ -210,6 +215,7 @@ async function startReviewer(c: ReviewCtx, d: Dispatch, item: Classification, pr
     wt = findReviewWorktree(await c.view.worktrees(), pr.repo, pr.number, slug) ?? (created ? { id: created.id, path: created.path, branch: reviewBranch(slug), repo: pr.repo.toLowerCase(), linkedPr: pr.number } : null);
     if (!wt) return fail(c, d, `Orca created ${reviewWorktreeName(slug)} but did not report or list it; the next attempt looks for it by branch`);
     d = c.store.patchDispatch(d.id, { worktree: wt.id }, c.ctx.now);
+    if (pr.branch && wt.displayName !== pr.branch) await nameWorktree(c, wt, pr.branch, d.item, d.version);
   }
   if (!isReviewBranch(wt.branch)) return fail(c, d, `refusing to reset non-review branch ${wt.branch}`);
   const sessions = await c.view.sessions(wt.id);
@@ -303,7 +309,7 @@ async function dispatchReview(c: ReviewCtx, item: Classification, pr: PrSnapshot
     if (used >= c.cfg.review.sessionReviews && reusable.kind === "terminal") target = { do: "launch", close: reusable };
   }
   const waitLease = (since: number) => since + busyWaitMs + ctx.rails.leaseMinutes * MINUTE_MS;
-  const plan = describeReview(target, wt, slug, pr.repo, repoId, pr.number, pr.headSha);
+  const plan = describeReview(target, wt, slug, pr.repo, repoId, pr.number, pr.headSha, pr.branch ?? null);
 
   if (mine) {
     if (target.do === "wait" && mine.waitSince === null && !c.dryRun) store.patchDispatch(mine.id, { waitSince: ctx.now, leaseUntil: waitLease(ctx.now) }, ctx.now);
@@ -413,6 +419,27 @@ async function reap(c: ReviewCtx): Promise<void> {
   }
 }
 
+/**
+ * Set a review worktree's Orca display name to the PR head branch. A failure is
+ * reported once and never blocks the review; status sync tries again next tick.
+ */
+async function nameWorktree(c: Ctx, wt: OrcaWorktree, name: string, item: string, version: string): Promise<void> {
+  if (!isDisplayName(name) || !isReviewBranch(wt.branch)) return;
+  let res;
+  try {
+    res = await c.deps.nameReviewWorktree(wt.path, wt.branch, name);
+  } catch (e) {
+    res = { ok: false, stdout: "", stderr: (e as Error).message };
+  }
+  if (res.ok) {
+    wt.displayName = name;
+    return;
+  }
+  const detail = `orca-ide worktree set ${wt.path} --display-name ${name}: ${short(res.stderr.trim() || res.stdout.trim(), 200)}`;
+  if (c.store.addLedger({ at: c.ctx.now, item, version, kind: REVIEW_KIND, outcome: "failed", detail, source: "prflow", ref: `failed:review-name:${wt.id}:${name}` }))
+    c.store.appendEvent(c.ctx.now, { type: "action-failed", item, version, kind: REVIEW_KIND, detail });
+}
+
 async function syncStatuses(c: ReviewCtx, result: ScanResult, items: Classification[]): Promise<void> {
   const prs = new Map(result.prs.filter((p) => p.role === "reviewer").map((p) => [`${p.repo}#${p.number}`.toLowerCase(), p]));
   const classifications = new Map(items.filter((i) => i.role === "reviewer").map((i) => [i.key.toLowerCase(), i]));
@@ -432,6 +459,10 @@ async function syncStatuses(c: ReviewCtx, result: ScanResult, items: Classificat
     const key = `${pr.repo}#${pr.number}`.toLowerCase();
     const item = classifications.get(key);
     const h8 = pr.headSha.slice(0, 8);
+    if (pr.branch && isDisplayName(pr.branch) && wt.displayName !== pr.branch) {
+      if (c.dryRun) once(c.store, c.ctx.now, `dry-run:review-name:${wt.id}:${pr.branch}`, "dry-run", { type: "dry-run", item: key, version: h8, kind: REVIEW_KIND, detail: `would set ${wt.path} display name ${pr.branch} (was ${wt.displayName ?? "unset"})` });
+      else await nameWorktree(c, wt, pr.branch, key, h8);
+    }
     const dispatch = c.store.findDispatch(`${pr.repo}#${pr.number}`, h8, REVIEW_KIND);
     const loaded = loadDraft(draftPaths(c.store.dir, pr.repo, pr.number, h8));
     const posted = pr.reviews.filter((r) => r.author?.login.toLowerCase() === pr.account.toLowerCase() && r.at !== null && r.state !== "PENDING" && r.commitOid === pr.headSha).sort((a, b) => (b.at ?? "").localeCompare(a.at ?? ""))[0];

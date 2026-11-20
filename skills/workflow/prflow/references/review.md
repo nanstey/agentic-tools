@@ -9,7 +9,7 @@ payload), `templates/briefs/review.md` and `review-nudge.md` (briefs).
 
 | Config | Default | Effect |
 | --- | --- | --- |
-| `prflow.review.dryRun` | `true` | No reviewer dispatch or Orca status write; each target is announced once per head |
+| `prflow.review.dryRun` | `true` | No reviewer dispatch or Orca status or display-name write; each target is announced once per head |
 | `prflow.review.maxConcurrent` | `2` | Reviewer dispatches open at once |
 | `prflow.review.sessionReviews` | `5` | Completed reviews per Pi session before replacing it |
 | `prflow.review.idleCloseHours` | `24` | Idle time before closing a prflow-launched reviewer session |
@@ -76,7 +76,8 @@ entries for a head (`prflow import-legacy`) count as done.
 
 | Field | Value |
 | --- | --- |
-| Name | `prflow-review-<repo>-<n>` |
+| Folder (`--name`) | `prflow-review-<repo>-<n>` |
+| Display name | The PR's head branch (`headRefName`, e.g. `c/t219-converted-giftcert-followup`) |
 | Branch | `prflow-review/<repo>-<n>` (local only, never pushed) |
 | Base | Before each review, prflow fetches `pull/<n>/head`, resets to the exact PR SHA, and verifies HEAD |
 | Link | `--pr <n>`, `--no-parent`, `--setup run` |
@@ -85,9 +86,24 @@ The repo id is the `repoId` of the repo's main worktree in `orca-ide worktree
 list`; with several clones, the one whose folder is named after the repo. A
 lost create reply is recovered by finding the persistent worktree by its branch. Orca's numeric branch suffix is tolerated.
 
+The display name shows the author's branch in Orca; it is the only part that
+follows the PR. The folder prefix `prflow-review-` gates the review `git fetch`
+and `reset --hard` and every review worktree write, and the local
+`prflow-review/` branch is how status sync, reap, and recovery find review
+worktrees, so neither changes. Right after `worktree create`, prflow sets the
+display name with `orca-ide worktree set --worktree path:<review path>
+--display-name <headRefName> --json` (`assertWorktreeName`: a `prflow-review-`
+folder, a name with no control characters or leading `-`, nothing else). A
+failed rename does not stop the review; status sync retries it.
+
 After saving a draft, the reviewer makes one Orca write: `orca-ide worktree set --worktree active --workspace-status <id> --comment "draft: <verdict>, <n> inline, not posted" --unread --json`. It uses `prflow.review.statuses.changes` for request-changes, `prflow.review.statuses.approved` for approve, and `prflow.review.statuses.reviewing` for comment. This is the only Orca write the reviewer may make. Tick also synchronizes status and unread state.
 
 Status sync runs for open PR review worktrees, including those that drop out of search, and writes only when status, comment, or unread state differs. It fetches a missing PR snapshot read-only. Priority: draft PR; current head with neither posted review nor saved draft (reviewing/checks/queued); latest posted review on this head; saved draft verdict. A draft sets unread once per head, and a newly seen post sets read once. Manual status changes are overwritten on the next tick. Failed writes are retried while fields still differ; the `action-failed` event is deduplicated.
+
+Status sync also sets the display name to the PR's current `headRefName`
+when it differs (a new review worktree, a renamed head branch, or a manual
+rename), as a separate `--display-name` write. Review dry run announces `would
+set <path> display name <branch>` once per worktree and name instead.
 
 | Current-head outcome | Status | Comment |
 | --- | --- | --- |

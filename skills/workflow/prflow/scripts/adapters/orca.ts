@@ -2,7 +2,8 @@
  * Orca adapter: parsing and the exact `orca-ide` calls prflow may make.
  *
  * Reads: `worktree list`, `agent list`, `terminal list`. Writes: archive a
- * worktree, create a review worktree for one PR, update its status, launch Pi
+ * worktree, create a review worktree for one PR, update its status or display
+ * name (review worktrees only), launch Pi
  * in an existing worktree, mail a running agent with `orchestration send`
  * (never `terminal send`), and close an idle prflow-launched terminal.
  * `assertOrca` rejects every other call.
@@ -20,6 +21,8 @@ export interface OrcaWorktree {
   workspaceStatus?: string | null;
   comment?: string | null;
   isUnread?: boolean | null;
+  /** Orca display name, when listed. */
+  displayName?: string | null;
 }
 
 interface RawWorktree {
@@ -34,6 +37,7 @@ interface RawWorktree {
   workspaceStatus?: string | null;
   comment?: string | null;
   isUnread?: boolean;
+  displayName?: string | null;
 }
 
 /** Repo from an Orca project id such as `github:github.com-alt/acme/widgets`. */
@@ -63,6 +67,7 @@ export function parseWorktrees(json: string, owners: readonly string[]): OrcaWor
       workspaceStatus: typeof w.workspaceStatus === "string" ? w.workspaceStatus : null,
       comment: typeof w.comment === "string" ? w.comment : null,
       isUnread: typeof w.isUnread === "boolean" ? w.isUnread : null,
+      displayName: typeof w.displayName === "string" ? w.displayName : null,
     });
   }
   return rows;
@@ -390,6 +395,26 @@ export function parseWaitIdle(stdout: string): boolean {
 
 const same = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((x, i) => x === b[i]);
 
+/**
+ * `orca-ide worktree set` limited to the display name of a review worktree:
+ * the PR's head branch name, so the author's branch shows in Orca. Only the
+ * display name changes; the folder and the local `prflow-review/` branch stay.
+ */
+export const worktreeNameArgs = (path: string, name: string): string[] => ["worktree", "set", "--worktree", `path:${path}`, "--display-name", name, "--json"];
+
+/** A head branch name usable as a display name: no control characters, no leading `-`. */
+export const isDisplayName = (name: string): boolean => name.length > 0 && name.length <= 255 && !name.startsWith("-") && !/[\x00-\x1f\x7f]/.test(name);
+
+/** Throws unless `args` is exactly `worktreeNameArgs` for a `prflow-review-` folder (and `expectedPath`, when given). */
+export function assertWorktreeName(args: readonly string[], expectedPath?: string): void {
+  const path = args[3]?.slice("path:".length) ?? "";
+  const name = args[5] ?? "";
+  const ok = args.length === 7 && (args[3] ?? "").startsWith("path:") && (expectedPath === undefined || path === expectedPath) &&
+    path.startsWith("/") && !path.split("/").includes("..") && !/[\n\0]/.test(path) &&
+    (path.split("/").at(-1)?.startsWith("prflow-review-") ?? false) && isDisplayName(name) && same(args, worktreeNameArgs(path, name));
+  if (!ok) throw new Error(`prflow: orca-ide ${args.join(" ")} is not the allowed review worktree rename`);
+}
+
 /** Throws unless `args` is one of the exact calls above, the review worktree creation, or the archive call. */
 export function assertOrca(args: readonly string[]): void {
   const sel = (args[2] === "--worktree" ? args[3] : args[7]) ?? "";
@@ -405,7 +430,7 @@ export function assertOrca(args: readonly string[]): void {
     (args.length === 9 && TERMINAL.test(args[3] ?? "") && same(args, waitIdleArgs(args[3] ?? "")));
   if (ok) return;
   if (args[0] === "worktree" && args[1] === "create") return assertReviewWorktree(args);
-  if (args[0] === "worktree" && args[1] === "set") return assertWorktreeSet(args);
+  if (args[0] === "worktree" && args[1] === "set") return args[4] === "--display-name" ? assertWorktreeName(args) : assertWorktreeSet(args);
   try {
     assertArchive(args);
   } catch {

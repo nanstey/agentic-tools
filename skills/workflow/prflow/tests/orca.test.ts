@@ -20,7 +20,9 @@ import {
   sendArgs,
   terminalListArgs,
   worktreeListArgs,
+  assertWorktreeName,
   assertWorktreeSet,
+  worktreeNameArgs,
   worktreeSetArgs,
   findReviewWorktree,
   parseCreatedWorktree,
@@ -85,6 +87,28 @@ describe("assertOrca", () => {
       worktreeSetArgs("/w/prflow-review-x-5", "reviewing", "line\nbreak"),
       [...args.slice(0, -1), "--force", "--json"],
     ]) assert.throws(() => assertWorktreeSet(bad, "/w/prflow-review-x-5"));
+  });
+
+  it("allows only an exact display-name write on a review worktree folder", () => {
+    const args = worktreeNameArgs("/w/prflow-review-x-5", "c/t219-converted-giftcert-followup");
+    assert.deepEqual(args, ["worktree", "set", "--worktree", "path:/w/prflow-review-x-5", "--display-name", "c/t219-converted-giftcert-followup", "--json"]);
+    assert.doesNotThrow(() => assertWorktreeName(args, "/w/prflow-review-x-5"));
+    assert.doesNotThrow(() => assertOrca(args));
+    for (const bad of [
+      worktreeNameArgs("/w/other", "feature"),
+      worktreeNameArgs("/w/prflow-review-parent/other", "feature"),
+      worktreeNameArgs("/w/../prflow-review-x-5", "feature"),
+      worktreeNameArgs("relative/prflow-review-x-5", "feature"),
+      worktreeNameArgs("/w/prflow-review-x-5", ""),
+      worktreeNameArgs("/w/prflow-review-x-5", "--force"),
+      worktreeNameArgs("/w/prflow-review-x-5", "line\nbreak"),
+      [...args.slice(0, -1), "--workspace-status", "done", "--json"],
+      ["worktree", "set", "--worktree", "path:/w/prflow-review-x-5", "--display-name", "feature", "--pr", "null", "--json"],
+    ]) {
+      assert.throws(() => assertWorktreeName(bad), bad.join(" "));
+      assert.throws(() => assertOrca(bad), bad.join(" "));
+    }
+    assert.throws(() => assertWorktreeName(args, "/w/prflow-review-x-6"));
   });
 
   it("rejects terminal send, other agents, worktree creation, and anything malformed", () => {
