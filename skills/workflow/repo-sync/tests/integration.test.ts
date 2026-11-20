@@ -8,7 +8,7 @@ import { main } from "../scripts/cli.ts";
 import { gitEnv, realDeps, type Deps } from "../scripts/deps.ts";
 import { syncRepo } from "../scripts/sync.ts";
 import { defaultConfig } from "../scripts/config.ts";
-import { run as runProcess } from "../../../../lib/runtime.ts";
+import { spawn } from "node:child_process";
 import { gitArgs } from "../scripts/git.ts";
 
 const root = mkdtempSync(join(tmpdir(), "repo-sync-it-"));
@@ -173,43 +173,66 @@ describe("real git: merge safety", () => {
     assert.equal(last.reason, "merge-failed");
   });
 
-  /** A clone one commit behind, whose checkout of `z.slow` blocks in a slow smudge filter after `a-new.txt` is written. */
+  /**
+   * A clone one commit behind. Its checkout writes `a-new.txt`, then blocks in the smudge filter
+   * for `z.slow`, which first creates `marker`. The test stops the merge only after `marker` exists.
+   */
   function slowCheckout(name: string) {
+    const marker = join(root, `${name}-marker`);
     const up = join(root, `${name}-up`);
     git(root, "init", "-q", up);
     commit(up, "a.txt", "one\n", "one");
     const local = join(root, `${name}-local`);
     git(root, "clone", "-q", up, local);
-    git(local, "config", "filter.slow.smudge", "sleep 5; cat");
+    git(local, "config", "filter.slow.smudge", `touch '${marker}'; sleep 30; cat`);
     writeFileSync(join(up, ".gitattributes"), "*.slow filter=slow\n");
     writeFileSync(join(up, "a-new.txt"), "new\n");
     writeFileSync(join(up, "z.slow"), "z\n");
     git(up, "add", ".");
     git(up, "commit", "-qm", "two");
     git(local, "fetch", "-q", "origin");
-    return { up, local, head: git(local, "rev-parse", "HEAD") };
+    return { up, local, marker, head: git(local, "rev-parse", "HEAD") };
   }
 
-  /** Real git, but the merge is stopped after 1 second with `signal`, as a timeout would. */
-  const stopMerge = (signal: NodeJS.Signals): Deps => ({
+  /** Real git, but the merge gets `signal` once the smudge filter has started, as a timeout would. */
+  const stopMerge = (signal: NodeJS.Signals, marker: string): Deps => ({
     ...realDeps(),
-    git: (cwd, args, extra) => (args[0] === "merge" ? runProcess("git", args, gitEnv(process.env, extra), cwd, 1000, signal) : realDeps().git(cwd, args, extra)),
+    git: (cwd, args, extra) => {
+      if (args[0] !== "merge") return realDeps().git(cwd, args, extra);
+      return new Promise((done) => {
+        const child = spawn("git", args, { cwd, env: gitEnv(process.env, extra), stdio: ["ignore", "pipe", "pipe"] });
+        let stderr = "";
+        child.stderr.on("data", (d) => (stderr += d));
+        const started = Date.now();
+        const poll = setInterval(() => {
+          if (existsSync(marker) || Date.now() - started > 20_000) {
+            clearInterval(poll);
+            child.kill(signal);
+          }
+        }, 20);
+        child.on("close", (code) => {
+          clearInterval(poll);
+          done({ ok: code === 0, stdout: "", stderr });
+        });
+      });
+    },
   });
   const repoAt = (dir: string, url: string) => ({ id: dir, path: dir, name: "slow", slug: null, remoteName: "origin", remoteUrl: url, baseRef: null });
 
   it("reports a merge stopped by SIGTERM as merge-interrupted with the partial files it left", async () => {
-    const { up, local, head } = slowCheckout("term");
-    const r = await syncRepo(stopMerge("SIGTERM"), repoAt(local, up), syncOpts);
+    const { up, local, head, marker } = slowCheckout("term");
+    const r = await syncRepo(stopMerge("SIGTERM", marker), repoAt(local, up), syncOpts);
     assert.deepEqual([r.status, r.reason], ["failed", "merge-interrupted"]);
-    assert.match(r.detail ?? "", /timed out after 1s; checkout may be half-updated \(\d+ changed paths?\)\. HEAD is still [0-9a-f]{7}/);
+    assert.match(r.detail ?? "", /; checkout may be half-updated \(\d+ changed paths?\)\. HEAD is still [0-9a-f]{7}/);
+    assert.ok(existsSync(join(local, "a-new.txt")), "the checkout stopped partway");
     assert.ok(!existsSync(join(local, ".git", "index.lock")), "SIGTERM lets git remove its lock");
     assert.equal(git(local, "rev-parse", "HEAD"), head);
   });
 
   it("reports a merge stopped by SIGKILL as merge-interrupted, then skips the checkout as locked", async () => {
-    const { up, local, head } = slowCheckout("kill");
+    const { up, local, head, marker } = slowCheckout("kill");
     const lock = join(local, ".git", "index.lock");
-    const r = await syncRepo(stopMerge("SIGKILL"), repoAt(local, up), syncOpts);
+    const r = await syncRepo(stopMerge("SIGKILL", marker), repoAt(local, up), syncOpts);
     assert.deepEqual([r.status, r.reason], ["failed", "merge-interrupted"]);
     assert.match(r.detail ?? "", new RegExp(`${lock.replace(/[.]/g, "\\.")} left behind`));
     const next = await syncRepo(realDeps(), repoAt(local, up), syncOpts);

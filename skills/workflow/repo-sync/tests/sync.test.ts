@@ -136,6 +136,23 @@ describe("syncRepo failures", () => {
     assert.equal(r.detail, `git merge --ff-only timed out after 1800s; checkout may be half-updated (${lock} left behind, 2 changed paths). HEAD is still aaaaaaa: inspect with git status before cleaning up`);
   });
 
+  it("merge-failed, not interrupted: git refuses because of a local edit made after the last status check", async () => {
+    let tried = false;
+    const fake = fakeDeps({
+      ...scriptRepo(P, { merge: () => ((tried = true), err("error: Your local changes to the following files would be overwritten by merge:\n\ta.txt\nPlease commit your changes or stash them before you merge.\nAborting\n")) }),
+      [`${P}|--no-optional-locks status --porcelain`]: () => ok(tried ? " M a.txt\n" : ""),
+    });
+    const r = await syncRepo(fake.deps, repo(), live);
+    assert.deepEqual([r.status, r.reason, r.detail], ["failed", "merge-failed", "Your local changes to the following files would be overwritten by merge: a.txt"]);
+  });
+
+  it("locked, not interrupted: the merge found another git process's index.lock", async () => {
+    const lock = `${P}/.git/index.lock`;
+    const fake = fakeDeps(scriptRepo(P, { merge: () => (fake.files.add(lock), err(`fatal: Unable to create '${lock}': File exists.\n\nAnother git process seems to be running in this repository\n`)) }));
+    const r = await syncRepo(fake.deps, repo(), live);
+    assert.deepEqual([r.status, r.reason], ["skipped", "locked"]);
+  });
+
   it("merge-failed: the fast-forward is refused and the checkout is unchanged", async () => {
     const r = await syncRepo(fakeDeps(scriptRepo(P, { merge: err("fatal: Not possible to fast-forward, aborting.") })).deps, repo(), live);
     assert.deepEqual([r.status, r.reason, r.detail], ["failed", "merge-failed", "Not possible to fast-forward, aborting."]);

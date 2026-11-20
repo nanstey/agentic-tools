@@ -60,6 +60,36 @@ async function indexLock(deps: Deps, cwd: string): Promise<string | null> {
 
 const LOCKED = (path: string) => `${path} exists: a git command is running, or one was interrupted. If none is running, run git status, clean up, then remove the lock`;
 
+/** Git refused the fast-forward before writing anything. */
+const REFUSED = /would be overwritten by merge|Not possible to fast-forward|not something we can merge|refusing to merge|Please commit your changes or stash them/i;
+/** Another git process held the index lock, so the merge never started. */
+const LOCK_BUSY = /index\.lock'?: File exists/i;
+
+/**
+ * Classify a failed merge. A refusal or a busy lock changed nothing. Any other failure
+ * (killed, timed out, disk full) that leaves index.lock or changed paths may have
+ * stopped partway through the checkout: `merge-interrupted`.
+ */
+async function mergeFailure(
+  deps: Deps,
+  cwd: string,
+  stderr: string,
+  from: string,
+  r: { skip: (reason: SkipReason, detail?: string) => RepoResult; failed: (reason: FailReason, detail: string) => RepoResult },
+): Promise<RepoResult> {
+  const why = mergeError(stderr);
+  const lock = await indexLock(deps, cwd);
+  if (LOCK_BUSY.test(stderr)) return r.skip("locked", LOCKED(lock ?? "index.lock"));
+  if (REFUSED.test(stderr)) return r.failed("merge-failed", why);
+  const after = await deps.git(cwd, gitArgs.status());
+  const left = after.ok ? after.stdout.split("\n").filter(Boolean).length : 0;
+  if (!lock && !left && after.ok) return r.failed("merge-failed", why);
+  const state = [lock ? `${lock} left behind` : "", left ? `${left} changed path${left === 1 ? "" : "s"}` : "", after.ok ? "" : "git status failed"].filter(Boolean).join(", ");
+  const head = (await deps.git(cwd, gitArgs.headSha())).stdout.trim();
+  const where = !head ? `HEAD was ${from.slice(0, 7)} before the merge` : head === from ? `HEAD is still ${from.slice(0, 7)}` : `HEAD moved ${from.slice(0, 7)}..${head.slice(0, 7)}`;
+  return r.failed("merge-interrupted", `${why}; checkout may be half-updated (${state}). ${where}: inspect with git status before cleaning up`);
+}
+
 /** Sync one main checkout. Never throws for git failures; they become a result. */
 export async function syncRepo(deps: Deps, repo: Repo, opts: SyncOptions, tokens: TokenCache = new Map()): Promise<RepoResult> {
   const base: RepoResult = { path: repo.path, name: repo.name, slug: repo.slug, status: "up-to-date", auth: "local" };
@@ -126,19 +156,7 @@ export async function syncRepo(deps: Deps, repo: Repo, opts: SyncOptions, tokens
 
   const from = (await git(gitArgs.headSha())).stdout.trim();
   const m = await git(gitArgs.merge(def));
-  if (!m.ok) {
-    const why = mergeError(m.stderr);
-    // A refused fast-forward changes nothing. A merge that stopped partway (killed, timed out,
-    // disk full) can leave index.lock or partly written files: report that as its own failure.
-    const leftLock = await indexLock(deps, repo.path);
-    const after = await git(gitArgs.status());
-    const left = after.ok ? after.stdout.split("\n").filter(Boolean).length : 0;
-    if (leftLock || left || !after.ok) {
-      const state = [leftLock ? `${leftLock} left behind` : "", left ? `${left} changed path${left === 1 ? "" : "s"}` : "", after.ok ? "" : "git status failed"].filter(Boolean).join(", ");
-      return failed("merge-interrupted", `${why}; checkout may be half-updated (${state}). HEAD is still ${from.slice(0, 7)}: inspect with git status before cleaning up`);
-    }
-    return failed("merge-failed", why);
-  }
+  if (!m.ok) return mergeFailure(deps, repo.path, m.stderr, from, { skip, failed });
   const to = (await git(gitArgs.headSha())).stdout.trim();
   const out: RepoResult = { ...base, status: "updated", commits: behind!, from, to };
 
