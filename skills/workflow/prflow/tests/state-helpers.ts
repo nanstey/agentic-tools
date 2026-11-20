@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { after } from "node:test";
 import { assertReadOnly, assertRerun, rerunArgs } from "../scripts/adapters/gh.ts";
 import { assertDeleteBranch, deleteBranchArgs } from "../scripts/adapters/git.ts";
-import { agentListArgs, archiveArgs, assertArchive, assertOrca, closeArgs, interruptArgs, launchArgs, reviewWorktreeArgs, sendArgs, terminalListArgs, waitIdleArgs } from "../scripts/adapters/orca.ts";
+import { agentListArgs, archiveArgs, assertArchive, assertOrca, closeArgs, interruptArgs, launchArgs, reviewWorktreeArgs, sendArgs, terminalListArgs, waitIdleArgs, worktreeNameArgs } from "../scripts/adapters/orca.ts";
 import { DEFAULT_ACTIONS, DEFAULT_DISPATCH, DEFAULT_LIMIT, DEFAULT_RAILS, DEFAULT_REVIEW, type Config, type Rails } from "../scripts/core/config.ts";
 import type { CmdResult } from "../scripts/scan.ts";
 import { Store } from "../scripts/store.ts";
@@ -198,6 +198,14 @@ export function fakeTickDeps(w: World): TickDeps {
       if (row) { row.workspaceStatus = status; row.comment = comment; if (unread) row.isUnread = unread === "--unread"; }
       return { ok: true, stdout: "", stderr: "" };
     },
+    async nameReviewWorktree(path, _branch, name) {
+      assertOrca(worktreeNameArgs(path, name));
+      w.effects.push(`name ${path} ${name}`);
+      if (w.orcaFails.name) return fail(w.orcaFails.name);
+      const row = (w.worktrees as { path?: string; displayName?: string }[]).find((x) => x.path === path);
+      if (row) row.displayName = name;
+      return { ok: true, stdout: "", stderr: "" };
+    },
     async rerunFailed(_login, repo, runId) {
       assertRerun(rerunArgs(repo, runId));
       w.effects.push(`rerun ${repo} ${runId}`);
@@ -268,7 +276,7 @@ export function fakeTickDeps(w: World): TickDeps {
       if (w.orcaFails.create) return fail(w.orcaFails.create);
       const main = (w.worktrees as { repoId?: string; projectId?: string; isMainWorktree?: boolean }[]).find((r) => r.isMainWorktree && r.repoId === repoId);
       const path = `/w/review/prflow-review-${slug}`;
-      const row = { id: `${repoId}::${path}`, path, branch: `refs/heads/prflow-review/${slug}`, projectId: main?.projectId, linkedPR: pr };
+      const row = { id: `${repoId}::${path}`, path, branch: `refs/heads/prflow-review/${slug}`, projectId: main?.projectId, linkedPR: pr, displayName: `prflow-review-${slug}` };
       if (!w.createLost) w.worktrees.push(row);
       return okJson(w.createReply ?? { ok: true, result: { worktree: { id: row.id, path } } });
     },

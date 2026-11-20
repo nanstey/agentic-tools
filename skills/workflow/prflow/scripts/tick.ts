@@ -57,6 +57,8 @@ export interface TickDeps extends Deps {
   reviewReset(path: string, sha: string, branch: string): Promise<CmdResult>;
   reviewHead(path: string): Promise<string | null>;
   setReviewWorktree(path: string, branch: string, status: string, comment: string, unread?: "--unread" | "--read"): Promise<CmdResult>;
+  /** `orca-ide worktree set --display-name` on a review worktree (`worktreeNameArgs`): the PR's head branch name. */
+  nameReviewWorktree(path: string, branch: string, name: string): Promise<CmdResult>;
 }
 
 export interface TickOptions {

@@ -94,7 +94,7 @@ describe("orca parsing", () => {
 
   it("keeps active non-main worktrees of in-scope owners", () => {
     assert.deepEqual(parseWorktrees(JSON.stringify(list), ["Acme"]), [
-      { id: "r1::/a", path: "/a", branch: "feat", repo: "acme/x", linkedPr: 12, workspaceStatus: null, comment: null, isUnread: null },
+      { id: "r1::/a", path: "/a", branch: "feat", repo: "acme/x", linkedPr: 12, workspaceStatus: null, comment: null, isUnread: null, displayName: null },
     ]);
   });
 
