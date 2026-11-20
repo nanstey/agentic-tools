@@ -186,7 +186,7 @@ async function one(c: Ctx, w: OrcaWorktree, rec: BlockedRecord | undefined): Pro
     store.appendEvent(deps.now(), { ...evt, type: "action-failed", detail: clip(`blocked records: ${(e as Error).message}`, 300) });
     return;
   }
-  if (current?.setAt !== rec.setAt) {
+  if (!current || JSON.stringify(current) !== JSON.stringify(rec)) {
     finishDispatch(store, deps.now(), d, "done", `${w.path} was re-blocked with new conditions`);
     return;
   }
