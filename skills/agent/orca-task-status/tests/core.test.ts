@@ -82,6 +82,7 @@ test("config maps states to Orca status ids over the built-in defaults", () => {
   const cfg = parseConfig('{"taskStatus":{"statuses":{"paused":"status-6-2","needs-attention":"status-7"}}}', "c");
   assert.deepEqual(cfg.statuses, { ...DEFAULT_STATUSES, paused: "status-6-2", "needs-attention": "status-7" });
   assert.throws(() => parseConfig('{"taskStatus":{"statuses":{"todo":"x"}}}', "c"), /unknown state/);
-  assert.throws(() => parseConfig('{"taskStatus":{"other":1}}', "c"), /unknown key/);
+  assert.throws(() => parseConfig('{"taskStatus":{"other":1}}', "c"), /taskStatus\.unknown key "other"/);
+  assert.deepEqual(parseConfig('{"prflow":{"limit":1},"futureTool":true,"taskStatus":{"statuses":{"done":"d"}}}', "c").statuses.done, "d");
   assert.throws(() => parseConfig('{"taskStatus":{"statuses":{"done":""}}}', "c"), /non-empty/);
 });

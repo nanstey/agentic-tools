@@ -1,5 +1,5 @@
 /** orca-task-status configuration, read from the shared agentic-tools config file. */
-import { configPaths, parseSharedConfig } from "../../../../lib/config.ts";
+import { configPaths, parseSharedConfig, toolSection } from "../../../../lib/config.ts";
 import type { Account } from "../../../../lib/accounts.ts";
 import { readOrNull, type Read } from "../../../../lib/runtime.ts";
 import { isState, STATES, type State } from "./core.ts";
@@ -16,9 +16,7 @@ export const DEFAULT_STATUSES: Partial<Record<State, string>> = { "in-progress":
 export function parseConfig(text: string, source: string): Config {
   const shared = parseSharedConfig(text, source);
   const fail = (msg: string): never => { throw new Error(`${source}: taskStatus.${msg}`); };
-  const raw = shared.taskStatus;
-  if (raw !== undefined && (typeof raw !== "object" || raw === null || Array.isArray(raw))) throw new Error(`${source}: taskStatus must be an object`);
-  const section = (raw ?? {}) as Record<string, unknown>;
+  const section = toolSection(shared, "taskStatus", source);
   const statuses: Partial<Record<State, string>> = { ...DEFAULT_STATUSES };
   for (const [key, value] of Object.entries(section)) {
     if (key === "$comment") continue;

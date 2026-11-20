@@ -9,11 +9,15 @@ export function configPaths(env: NodeJS.ProcessEnv = process.env, home?: string)
   return [join(REPO_ROOT, "config.json"), join(xdg, "agentic-tools", "config.json")];
 }
 
+/**
+ * The shared file holds one top-level section per tool plus `accounts`. Each tool
+ * reads its own section with `toolSection` and ignores sections it does not own,
+ * so adding a section for a new tool never breaks the others.
+ */
 export interface SharedConfig {
   accounts: Account[];
-  prflow: unknown;
-  repoSync: unknown;
-  taskStatus: unknown;
+  /** Every top-level value except `accounts`, keyed by section name. */
+  sections: Record<string, unknown>;
 }
 
 export function parseSharedConfig(text: string, source: string): SharedConfig {
@@ -21,13 +25,19 @@ export function parseSharedConfig(text: string, source: string): SharedConfig {
   let raw: unknown;
   try { raw = JSON.parse(text); } catch (e) { return fail(`invalid JSON: ${(e as Error).message}`); }
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return fail("must be a JSON object");
-  const value = raw as Record<string, unknown>;
-  for (const key of Object.keys(value))
-    if (!["$comment", "accounts", "prflow", "repoSync", "taskStatus"].includes(key)) fail(`unknown key "${key}"`);
+  const { accounts: rawAccounts, ...sections } = raw as Record<string, unknown>;
   let accounts: Account[] = [];
-  if (value.accounts !== undefined) {
-    if (!Array.isArray(value.accounts)) fail("accounts must be an array");
-    accounts = parseAccounts(value.accounts, fail);
+  if (rawAccounts !== undefined) {
+    if (!Array.isArray(rawAccounts)) fail("accounts must be an array");
+    accounts = parseAccounts(rawAccounts, fail);
   }
-  return { accounts, prflow: value.prflow, repoSync: value.repoSync, taskStatus: value.taskStatus };
+  return { accounts, sections };
+}
+
+/** A tool's own section as an object (`{}` when absent). The caller stays strict about keys inside it. */
+export function toolSection(shared: SharedConfig, name: string, source: string): Record<string, unknown> {
+  const section = Object.hasOwn(shared.sections, name) ? shared.sections[name] : undefined;
+  if (section === undefined) return {};
+  if (typeof section !== "object" || section === null || Array.isArray(section)) throw new Error(`${source}: ${name} must be an object`);
+  return section as Record<string, unknown>;
 }
