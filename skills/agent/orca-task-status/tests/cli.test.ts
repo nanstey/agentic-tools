@@ -208,12 +208,21 @@ test("blocked refuses without a reason or an unblock condition", async () => {
     ["set", "blocked", "--reason", "two\nlines", "--until", "manual"],
     ["start", "--reason", "x"],
     ["end", "--until", "checks-pass"],
+    ["set", "blocked", "--reason", "waiting for CI", "--until", "checks-pass"],
   ];
   for (const argv of cases) {
     const h = harness({ status: "in-progress" });
     assert.equal(await main(argv, h.io), 2, argv.join(" "));
     assert.deepEqual(h.calls, [], argv.join(" "));
   }
+});
+
+test("end --outcome blocked that only waits for CI derives In Review from the PR and records nothing", async () => {
+  const h = harness({ status: "in-progress", pr: { statusCheckRollup: [{ __typename: "CheckRun", status: "QUEUED", conclusion: "" }] } });
+  assert.equal(await main(["end", "--outcome", "blocked", "--reason", "waiting for CI", "--until", "checks-pass"], h.io), 0, h.err());
+  assert.deepEqual(sets(h.calls), ["in-review"]);
+  assert.match(h.out(), /waiting for CI is In Review, not Blocked/);
+  assert.deepEqual(h.records(), {});
 });
 
 test("blocked writes the record and the card comment in one status write", async () => {

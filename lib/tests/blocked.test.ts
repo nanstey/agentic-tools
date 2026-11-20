@@ -5,8 +5,7 @@ import { join } from "node:path";
 import test, { after } from "node:test";
 import {
   blockedComment, blockedStatePath, clearBlocked, evaluate, formatCondition, isBlockedComment, parseBlockedFile, parseCondition, parseConditions,
-  parseReason, putBlocked, readBlocked, type BlockedRecord, type Facts, type OwnPrFacts,
-} from "../blocked.ts";
+  parseReason, putBlocked, readBlocked, type BlockedRecord, type Facts, type OwnPrFacts, waitsOnlyOnCi } from "../blocked.ts";
 
 const dirs: string[] = [];
 after(() => { for (const d of dirs) rmSync(d, { recursive: true, force: true }); });
@@ -77,13 +76,25 @@ const facts = (pr: OwnPrFacts | null, others: Record<string, string> = {}): Fact
 const ev = (conds: string[], f: Facts) => evaluate(parseConditions(conds), f);
 
 test("checks-pass holds when no required check is pending or failing", () => {
-  assert.deepEqual(ev(["checks-pass"], facts(own())), { holds: true, met: ["checks passed at 1a2b3c4d"], unmet: [], stuck: null });
+  const dep = (pr: OwnPrFacts | null) => ev(["pr-merged acme/api#3", "checks-pass"], facts(pr, { "acme/api#3": "MERGED" }));
+  assert.deepEqual(dep(own()), { holds: true, met: ["acme/api#3 merged", "checks passed at 1a2b3c4d"], unmet: [], stuck: null });
   // Required checks decide; an optional failure does not block.
-  assert.equal(ev(["checks-pass"], facts(own({ checks: ["pass", "fail"], required: ["pass"] }))).holds, true);
-  assert.deepEqual(ev(["checks-pass"], facts(own({ checks: ["pending"], required: ["pending"] }))).unmet, ["PR #1 has pending required checks"]);
+  assert.equal(dep(own({ checks: ["pass", "fail"], required: ["pass"] })).holds, true);
+  assert.deepEqual(dep(own({ checks: ["pending"], required: ["pending"] })).unmet, ["PR #1 has pending required checks"]);
   // With no required checks, every check counts.
-  assert.deepEqual(ev(["checks-pass"], facts(own({ checks: ["pass", "fail"] }))).unmet, ["PR #1 has failing checks"]);
-  assert.deepEqual(ev(["checks-pass"], facts(null)).unmet, ["checks-pass: no PR for this branch"]);
+  assert.deepEqual(dep(own({ checks: ["pass", "fail"] })).unmet, ["PR #1 has failing checks"]);
+  assert.deepEqual(dep(null).unmet, ["checks-pass: no PR for this branch"]);
+  assert.equal(dep(own({ state: "CLOSED" })).stuck, "PR #1 closed without merging");
+});
+
+test("waiting only for CI is In Review, not Blocked: checks-pass alone always holds on an open PR", () => {
+  assert.equal(waitsOnlyOnCi(parseConditions(["checks-pass"])), true);
+  assert.equal(waitsOnlyOnCi(parseConditions(["checks-pass", "pr-approved"])), false);
+  assert.equal(waitsOnlyOnCi(parseConditions(["manual"])), false);
+  assert.deepEqual(ev(["checks-pass"], facts(own())), { holds: true, met: ["checks passed at 1a2b3c4d"], unmet: [], stuck: null });
+  assert.deepEqual(ev(["checks-pass"], facts(own({ checks: ["pending"], required: ["pending"] }))).met, ["PR #1 checks pending; waiting for CI is In Review, not Blocked"]);
+  assert.deepEqual(ev(["checks-pass"], facts(own({ checks: ["fail"] }))).met, ["PR #1 checks failing; waiting for CI is In Review, not Blocked"]);
+  assert.equal(ev(["checks-pass"], facts(null)).holds, false);
   assert.equal(ev(["checks-pass"], facts(own({ state: "CLOSED" }))).stuck, "PR #1 closed without merging");
 });
 

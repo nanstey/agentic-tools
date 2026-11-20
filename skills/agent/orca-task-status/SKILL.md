@@ -35,7 +35,7 @@ Command: `node <skill-dir>/scripts/task-status.ts <command>` (Node 22.18+). Test
 3. **End of every response:** run `end` as the last command before the final report (only `cleanup` may follow it), with the outcome that matches how the response ends:
    - `finished` (default): the requested work is complete and nothing is asked of the user. The CLI derives the state from the PR (table below).
    - `needs-input`: the response asks the user a question, needs a decision, or stops on a failure the agent cannot resolve.
-   - `blocked`: the task waits for other work, such as another PR or task, before it can continue. Add `--reason` and `--until` ([Blocked](#blocked)).
+   - `blocked`: the task waits for other work, such as another PR or task, before it can continue. Add `--reason` and `--until` ([Blocked](#blocked)). A PR that only waits for its CI to finish is not blocked: use `finished`, which gives In Review.
    - `paused`: the user asked to stop this task indefinitely.
    Pass `--resume` again when step 1 used it.
 4. **Cleanup:** when `end` prints `cleanup: eligible`, follow [Cleanup](#cleanup).
@@ -63,12 +63,14 @@ A `gh` failure other than "no pull requests found" exits 1 and writes nothing. T
 
 | Condition | Holds when |
 | --- | --- |
-| `checks-pass` | This branch's PR has no pending or failing required checks. When the repo marks no check required, every check counts. |
+| `checks-pass` | This branch's PR has no pending or failing required checks. When the repo marks no check required, every check counts. Use it only with another condition. |
 | `pr-approved` | This branch's PR is approved (`reviewDecision` `APPROVED`). |
 | `pr-merged <owner/repo#n>` | That PR merged. Also written `pr-merged=<owner/repo#n>`. |
 | `manual` | Never. Only a person unblocks it. It cannot be combined with other conditions. |
 
 The set stays small on purpose: each condition is one read-only `gh` call and covers one common wait (CI, a review, a dependency PR). There is no `pr-review` condition: "someone reviewed another PR" does not say whether this task can continue. Use `pr-merged` for a dependency, or `manual`.
+
+Waiting only for this PR's CI is In Review, not Blocked. `end --outcome blocked` whose only condition is `checks-pass` acts as `end --outcome finished`, prints why, and writes no record. `set blocked` with only `checks-pass` exits 2. prflow moves an existing card blocked only on `checks-pass` out at once.
 
 Choose the condition that ends the wait. Use `manual` only when no check fits, such as a decision by a person.
 

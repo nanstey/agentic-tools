@@ -65,6 +65,14 @@ export function parseConditions(values: readonly string[]): Condition[] {
   return out;
 }
 
+/**
+ * True when the conditions only wait for this branch's CI (`checks-pass` alone).
+ * Waiting for CI is In Review, not Blocked: orca-task-status `end` derives the
+ * state from the PR instead, and prflow moves such a card out at once.
+ */
+export const waitsOnlyOnCi = (conditions: readonly Condition[]): boolean =>
+  conditions.length > 0 && conditions.every((c) => c.kind === "checks-pass");
+
 /** Longest accepted reason: it must fit one board comment line. */
 export const MAX_REASON = 160;
 
@@ -234,6 +242,12 @@ export function evaluate(conditions: readonly Condition[], facts: Facts): Evalua
   const unmet: string[] = [];
   let stuck: string | null = null;
   const pr = facts.pr;
+  if (pr && pr.state !== "CLOSED" && waitsOnlyOnCi(conditions)) {
+    const set = pr.required.length ? pr.required : pr.checks;
+    const ci = set.includes("fail") ? "failing" : set.includes("pending") ? "pending" : "passed";
+    const what = ci === "passed" ? `checks passed at ${pr.headSha.slice(0, 8)}` : `PR #${pr.number} checks ${ci}; waiting for CI is In Review, not Blocked`;
+    return { holds: true, met: [what], unmet: [], stuck: null };
+  }
   for (const c of conditions) {
     if (c.kind === "manual") {
       unmet.push("manual: only a person unblocks it");

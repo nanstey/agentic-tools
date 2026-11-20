@@ -14,12 +14,12 @@ import { pathToFileURL } from "node:url";
 import { accountFor } from "../../../../lib/accounts.ts";
 import { run as runCmd, type CmdResult } from "../../../../lib/runtime.ts";
 import {
-  blockedComment, blockedStatePath, clearBlocked, formatCondition, isBlockedComment, parseConditions, parseReason, putBlocked, readBlocked,
+  blockedComment, blockedStatePath, clearBlocked, formatCondition, isBlockedComment, parseConditions, parseReason, putBlocked, readBlocked, waitsOnlyOnCi,
   type BlockedRecord, type Condition,
 } from "../../../../lib/blocked.ts";
 import { loadConfig, type Config } from "./config.ts";
 import {
-  cleanupBlocker, endDecision, isOutcome, isState, OUTCOMES, parsePr, parseWorktree, skipReason, STATES,
+  cleanupBlocker, endDecision, isOutcome, type Outcome, isState, OUTCOMES, parsePr, parseWorktree, skipReason, STATES,
   type Decision, type Local, type Pr, type State, type Worktree,
 } from "./core.ts";
 
@@ -256,11 +256,12 @@ export async function main(argv: string[], io: Io): Promise<number> {
     io.out(USAGE);
     return values.help ? 0 : 2;
   }
-  const outcome = values.outcome ?? "finished";
-  if (!isOutcome(outcome)) {
+  const given = values.outcome ?? "finished";
+  if (!isOutcome(given)) {
     io.err(`orca-task-status: --outcome must be one of ${OUTCOMES.join(", ")}\n`);
     return 2;
   }
+  let outcome: Outcome = given;
   if (command === "set" && (!arg || !isState(arg))) {
     io.err(`orca-task-status: set needs one of ${STATES.join(", ")}\n`);
     return 2;
@@ -277,6 +278,15 @@ export async function main(argv: string[], io: Io): Promise<number> {
     } catch (e) {
       io.err(`orca-task-status: blocked needs --reason "<why>" and one or more --until <condition>: ${(e as Error).message}\n`);
       return 2;
+    }
+    if (block && waitsOnlyOnCi(block.conditions)) {
+      if (command === "set") {
+        io.err("orca-task-status: waiting for CI is In Review, not Blocked; run set in-review or end --outcome finished\n");
+        return 2;
+      }
+      io.out("waiting for CI is In Review, not Blocked: deriving the state from the PR (end --outcome finished)\n");
+      outcome = "finished";
+      block = undefined;
     }
   } else if (values.reason !== undefined || values.until !== undefined) {
     io.err("orca-task-status: --reason and --until apply only to end --outcome blocked and set blocked\n");

@@ -62,14 +62,24 @@ describe("unblock", () => {
     assert.deepEqual(w.effects, []);
   });
 
-  it("waits while a required check is pending or failing, and ignores optional failures", async () => {
+  it("moves a card that only waits for CI to In Review at once: waiting for CI is not Blocked", async () => {
     const pending = blockedWorld(["checks-pass"], { prs: { "Acme/widgets#1": prResponse({ checks: [run("build", "IN_PROGRESS", null, undefined, true)] }) } });
     await runTick(pending, tempStore());
-    assert.deepEqual(statusWrites(pending), []);
+    assert.deepEqual(statusWrites(pending), [`task-status ${ID} in-review unblocked: PR #1 checks pending; waiting for CI is In Review, not Blocked`]);
     const optional = blockedWorld(["checks-pass"], { prs: { "Acme/widgets#1": prResponse({ checks: [ok("build", true), run("lint", "COMPLETED", "FAILURE")] }) } });
     await runTick(optional, tempStore());
-    // Unblocked, but the PR-derived rules see the failing check: Needs Attention.
+    // Required checks passed, but the PR-derived rules see the failing check: Needs Attention.
     assert.deepEqual(statusWrites(optional), [`task-status ${ID} status-7 unblocked: checks passed at c0ffee11`]);
+  });
+
+  it("waits on checks-pass while another condition is unmet", async () => {
+    const view = "pr view 3 -R Acme/api --json state";
+    const w = blockedWorld(["pr-merged Acme/api#3", "checks-pass"], {
+      prs: { "Acme/widgets#1": prResponse({ checks: [run("build", "IN_PROGRESS", null, undefined, true)] }) },
+      refs: { [view]: okJson({ state: "MERGED" }) },
+    });
+    await runTick(w, tempStore());
+    assert.deepEqual(statusWrites(w), []);
   });
 
   it("uses the PR-derived rules for the target: a local HEAD that differs gives Needs Attention", async () => {
