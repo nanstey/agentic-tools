@@ -10,7 +10,7 @@ disable-model-invocation: false
 
 ## Core Contract
 
-Run the `repo-sync` CLI and relay its output. It updates the main checkout (the repo `path` Orca tracks, never other worktrees) of each local git repo from `orca-ide repo list --json`. It skips folder workspaces, hidden repos, and repos on another execution host.
+Run the `repo-sync` CLI and relay its output. It updates the main checkout (the repo `path` Orca tracks, never other worktrees) of each local git repo from `orca-ide repo list --json`. It skips folder workspaces, hidden repos, repos on another execution host, and repos in `repoSync.ignore`.
 The only change it makes to a checkout is `git fetch origin <default>` then `git merge --ff-only --no-overwrite-ignore refs/remotes/origin/<default>`. Every git command is built in `scripts/git.ts`, whose builders reject unsafe branch names and SHAs. All I/O sits behind the `Deps` interface in `scripts/deps.ts`.
 Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
@@ -21,7 +21,7 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 ## Configuration
 
-repo-sync, prflow, and orca-task-status read one shared file, selected by `--config <path>` or `AGENTIC_TOOLS_CONFIG` (the file must exist), then `<repo-root>/config.json`, then `${XDG_CONFIG_HOME:-~/.config}/agentic-tools/config.json`. Copy the repository's `config.example.json` to `<repo-root>/config.json` or the XDG path to start. Accounts are top-level and shared; besides them, repo-sync reads only `repoSync.reportChanges`. Each tool ignores top-level sections it does not own but rejects unknown keys inside its own section and in `accounts`. A repo maps to an exact `repos` entry, then an `owners` entry, then the one unscoped account. Only `https://github.com/...` remotes use an account, judged from the checkout's `git remote get-url origin`: their fetch gets `GH_TOKEN` from `gh auth token -u <login>`. Other HTTPS hosts and `http://` use ambient credentials. SSH remotes, including host aliases such as `github.com-work`, use the user's ssh config and get no token.
+repo-sync, prflow, and orca-task-status read one shared file, selected by `--config <path>` or `AGENTIC_TOOLS_CONFIG` (the file must exist), then `<repo-root>/config.json`, then `${XDG_CONFIG_HOME:-~/.config}/agentic-tools/config.json`. Copy the repository's `config.example.json` to `<repo-root>/config.json` or the XDG path to start. Accounts are top-level and shared; besides them, repo-sync reads only `repoSync.reportChanges` and `repoSync.ignore`. Both list repos by Orca display name, folder name, or `owner/repo`, case-insensitively. An `ignore` repo gets no git command, no result, and no output, including `--dry-run`; its saved skip or failure streak drops on the next `run`. Each tool ignores top-level sections it does not own but rejects unknown keys inside its own section and in `accounts`. A repo maps to an exact `repos` entry, then an `owners` entry, then the one unscoped account. Only `https://github.com/...` remotes use an account, judged from the checkout's `git remote get-url origin`: their fetch gets `GH_TOKEN` from `gh auth token -u <login>`. Other HTTPS hosts and `http://` use ambient credentials. SSH remotes, including host aliases such as `github.com-work`, use the user's ssh config and get no token.
 
 ## Workflow
 

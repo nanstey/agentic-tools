@@ -53,8 +53,9 @@
     }
   },
   "repoSync": {
-    "$comment": "Repos (Orca display name, folder name, or owner/repo) whose pulls print their new commits and changed paths. Default [].",
-    "reportChanges": ["my-repo"]
+    "$comment": "Repos are named by Orca display name, folder name, or owner/repo. reportChanges: repos whose pulls print their new commits and changed paths. ignore: repos never fetched, merged, or reported. Both default [].",
+    "reportChanges": ["my-repo"],
+    "ignore": ["my-archived-repo"]
   },
   "taskStatus": {
     "$comment": "orca-task-status: Orca board status id per task state. in-progress, in-review, and done default to Orca's built-in in-progress, in-review, and completed. Custom columns (paused, blocked, needs-attention) have generated ids; read one with orca-ide worktree current --json from a worktree in that column.",

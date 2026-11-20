@@ -71,6 +71,22 @@ describe("repo-sync run", () => {
     assert.equal(r.out, "reported: pulled 2 commits on main (aaaaaaa..bbbbbbb)\n  b1 two\n  b0 one\n  changed paths (2):\n    README.md\n    src/a.ts\n");
   });
 
+  it("never fetches, merges, or reports ignored repos, and drops their saved skip state", async () => {
+    const { env, state } = setup();
+    const list = ok(LIST(["/r/clean", "/r/dirty"]));
+    const dirty = () => ({ ...scriptRepo("/r/clean", { counts: [0, 0] }), ...scriptRepo("/r/dirty", { status: " M a\n" }) });
+    await cli(["run"], fakeDeps(dirty(), { list }).deps, env);
+    assert.equal(JSON.parse(readFileSync(join(state, "last-run.json"), "utf8")).repos["/r/dirty"].streak, 1);
+    writeFileSync(env.AGENTIC_TOOLS_CONFIG, JSON.stringify({ accounts: [], repoSync: { ignore: ["me/dirty"] } }));
+    const { deps, calls } = fakeDeps(dirty(), { list });
+    const r = await cli(["run"], deps, env);
+    assert.deepEqual([r.code, r.out, r.err], [0, "", ""]);
+    assert.ok(!calls.some((c) => c.cwd === "/r/dirty"), "no git command in an ignored repo");
+    assert.deepEqual(Object.keys(JSON.parse(readFileSync(join(state, "last-run.json"), "utf8")).repos), ["/r/clean"]);
+    const dry = await cli(["run", "--dry-run"], fakeDeps(dirty(), { list }).deps, env);
+    assert.doesNotMatch(dry.out, /dirty/);
+  });
+
   it("exits 0 silently while another live run holds the lock", async () => {
     const { env, state } = setup();
     mkdirSync(state, { recursive: true });

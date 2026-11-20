@@ -9,10 +9,12 @@ export interface Config {
   accounts: Account[];
   /** Repos (display name, folder name, or `owner/repo`) whose pulls print their new commits. */
   reportChanges: string[];
+  /** Repos (display name, folder name, or `owner/repo`) that are never fetched, merged, or reported. */
+  ignore: string[];
 }
 
 export const DEFAULT_REPORT_CHANGES: string[] = [];
-export const defaultConfig = (): Config => ({ accounts: [], reportChanges: [...DEFAULT_REPORT_CHANGES] });
+export const defaultConfig = (): Config => ({ accounts: [], reportChanges: [...DEFAULT_REPORT_CHANGES], ignore: [] });
 
 function strings(v: unknown, where: string, fail: (m: string) => never): string[] {
   if (v === undefined) return [];
@@ -30,6 +32,7 @@ export function parseConfig(text: string, source: string): Config {
   for (const [key, value] of Object.entries(section)) {
     if (key === "$comment") continue;
     if (key === "reportChanges") out.reportChanges = strings(value, "reportChanges", fail);
+    else if (key === "ignore") out.ignore = strings(value, "ignore", fail);
     else fail(`unknown key "${key}"`);
   }
   out.accounts = shared.accounts;
@@ -41,10 +44,22 @@ export function accountFor(cfg: Config, slug: string | null): Account | null {
   return selectAccount(cfg.accounts, slug);
 }
 
-/** Whether a pull in this repo should print its new commits. */
-export function reportsChanges(cfg: Config, repo: { name: string; path: string; slug: string | null }): boolean {
+type RepoKeys = { name: string; path: string; slug: string | null };
+
+/** Whether `list` names the repo by display name, folder name, or `owner/repo` (case-insensitive). */
+function listed(list: string[], repo: RepoKeys): boolean {
   const keys = [repo.name, repo.path.split("/").at(-1) ?? "", repo.slug ?? ""].map((k) => k.toLowerCase());
-  return cfg.reportChanges.some((r) => keys.includes(r.toLowerCase()));
+  return list.some((r) => keys.includes(r.toLowerCase()));
+}
+
+/** Whether a pull in this repo should print its new commits. */
+export function reportsChanges(cfg: Config, repo: RepoKeys): boolean {
+  return listed(cfg.reportChanges, repo);
+}
+
+/** Whether repo-sync must leave this repo alone: no fetch, no merge, no report. */
+export function isIgnored(cfg: Config, repo: RepoKeys): boolean {
+  return listed(cfg.ignore, repo);
 }
 
 export function defaultPaths(env: NodeJS.ProcessEnv = process.env, home?: string): string[] {

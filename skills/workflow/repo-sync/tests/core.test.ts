@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import { loadConfig } from "../scripts/config.ts";
-import { accountFor, parseConfig, reportsChanges } from "../scripts/config.ts";
+import { accountFor, isIgnored, parseConfig, reportsChanges } from "../scripts/config.ts";
 import { changeBlock, nextState, renderDryRun, renderRun, renderStatus, runEvents } from "../scripts/report.ts";
 import { baseBranch, parseRemote, parseRepoList, transport } from "../scripts/repos.ts";
 import type { LastRun, RepoResult } from "../scripts/types.ts";
@@ -28,6 +28,8 @@ describe("config", () => {
       ['{"repoSync": null}', /: repoSync must be an object/],
       ['{"accounts": "x"}', /accounts must be an array/],
       ['{"repoSync": {"reportChanges": "x"}}', /repoSync.reportChanges must be an array of strings/],
+      ['{"repoSync": {"ignore": "x"}}', /repoSync.ignore must be an array of strings/],
+      ['{"repoSync": {"ignore": [""]}}', /repoSync.ignore must be an array of strings/],
       ['{"accounts": [{"login": "a", "token": "x"}]}', /unknown key "token"/],
       ['{"accounts": [{"login": "a", "repos": ["nope"]}]}', /must be owner\/repo/],
       ['{"accounts": [{"login": "a"}, {"login": "b"}]}', /at most one account/],
@@ -51,9 +53,20 @@ describe("config", () => {
     assert.ok(!reportsChanges(c, { name: "other", path: "/x/other", slug: "org/other" }));
   });
 
+  it("parses repoSync.ignore and matches it like reportChanges", () => {
+    assert.deepEqual(parseConfig('{"repoSync": {"ignore": ["a", "org/b"]}}', "c").ignore, ["a", "org/b"]);
+    assert.deepEqual(parseConfig('{"repoSync": {}}', "c").ignore, []);
+    const c = config({ ignore: ["Skip", "org/docs"] });
+    assert.ok(isIgnored(c, { name: "skip", path: "/x/y", slug: null }));
+    assert.ok(isIgnored(c, { name: "renamed", path: "/x/skip", slug: null }));
+    assert.ok(isIgnored(c, { name: "d", path: "/x/d", slug: "Org/Docs" }));
+    assert.ok(!isIgnored(c, { name: "other", path: "/x/other", slug: "org/other" }));
+  });
+
   it("accepts the shipped config.example.json", () => {
     const text = readFileSync(join(import.meta.dirname, "../../../../config.example.json"), "utf8");
     assert.deepEqual(parseConfig(text, "config.example.json").reportChanges, ["my-repo"]);
+    assert.deepEqual(parseConfig(text, "config.example.json").ignore, ["my-archived-repo"]);
   });
 
   it("loads an explicit file, then the first default path, then defaults", () => {

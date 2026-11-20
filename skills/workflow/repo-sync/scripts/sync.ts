@@ -1,5 +1,5 @@
 /** Per-repo fast-forward. All I/O goes through `Deps`; every git call uses a builder from `git.ts`. */
-import { accountFor, reportsChanges, type Config } from "./config.ts";
+import { accountFor, isIgnored, reportsChanges, type Config } from "./config.ts";
 import { baseBranch, parseRemote, transport } from "./repos.ts";
 import { resolve } from "node:path";
 import type { Repo, RepoResult, SkipReason, FailReason } from "./types.ts";
@@ -171,8 +171,12 @@ export async function syncRepo(deps: Deps, repo: Repo, opts: SyncOptions, tokens
   return out;
 }
 
-/** Sync every repo with a small worker pool. One repo's failure never stops the others. */
-export async function syncAll(deps: Deps, repos: Repo[], opts: SyncOptions): Promise<RepoResult[]> {
+/**
+ * Sync every repo with a small worker pool. One repo's failure never stops the others.
+ * Ignored repos get no git command and no result, so their saved state drops on the next run.
+ */
+export async function syncAll(deps: Deps, all: Repo[], opts: SyncOptions): Promise<RepoResult[]> {
+  const repos = all.filter((r) => !isIgnored(opts.config, r));
   const results: RepoResult[] = new Array(repos.length);
   const tokens: TokenCache = new Map();
   let next = 0;
