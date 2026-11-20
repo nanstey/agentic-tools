@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
@@ -165,6 +165,17 @@ test("a tick does not remove a lock replaced while its tools run", async () => {
   w.opts.env.FAKE_STATUS_REPLACE_LOCK = lock;
   assert.equal(await w.go(), EXIT.feed);
   assert.equal(readFileSync(lock, "utf8"), replacement);
+});
+
+test("a lock without content is judged by its file age", async () => {
+  const w = world({ FAKE_WATCH_OUT: "x\n" });
+  const lock = join(w.opts.stateDir, "lock");
+  await w.go();
+  writeFileSync(lock, "");
+  assert.equal(await w.go({ now: Date.now }), EXIT.busy, "a just-created empty lock belongs to a tick still writing it");
+  const old = new Date(Date.now() - 31 * 60 * 1000);
+  utimesSync(lock, old, old);
+  assert.equal(await w.go({ now: Date.now }), EXIT.feed);
 });
 
 test("only the newest feeds and run outputs are kept", async () => {

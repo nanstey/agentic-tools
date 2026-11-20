@@ -14,7 +14,7 @@
  * bot's run executes `prflow tick` itself.
  */
 import { spawn } from "node:child_process";
-import { closeSync, linkSync, mkdirSync, openSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync, writeSync } from "node:fs";
+import { closeSync, linkSync, mkdirSync, openSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync, writeSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
@@ -115,9 +115,17 @@ function lock(dir: string, now: number): string | null {
         content = readFileSync(path, "utf8");
         held = JSON.parse(content) as typeof held;
       } catch {
-        /* unreadable: judge by age below */
+        /* empty, corrupt, or unreadable: judged by file age below */
       }
-      const fresh = typeof held.at === "number" && now - held.at < STALE_LOCK_MS;
+      let at = held.at;
+      if (typeof at !== "number") {
+        try {
+          at = statSync(path).mtimeMs;
+        } catch {
+          continue; // Released between open and stat; retry.
+        }
+      }
+      const fresh = now - at < STALE_LOCK_MS;
       if (typeof held.pid === "number" && pidAlive(held.pid) && fresh) return null;
       if (typeof held.pid !== "number" && fresh) return null;
       const renamed = `${path}.stale.${process.pid}`;
