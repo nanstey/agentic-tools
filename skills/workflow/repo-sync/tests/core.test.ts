@@ -16,13 +16,14 @@ describe("config", () => {
     assert.deepEqual(c.accounts, [{ login: "work", owners: ["WorkOrg"], repos: [] }]);
     assert.deepEqual(parseConfig('{"accounts": []}', "c").accounts, []);
     assert.deepEqual(parseConfig('{"prflow": false}', "c").reportChanges, []);
+    assert.deepEqual(parseConfig('{"taskStatus": {}, "futureTool": [1], "repoSync": {"reportChanges": ["r"]}}', "c").reportChanges, ["r"]);
   });
 
   it("rejects bad shared and repoSync input with the source in the message", () => {
     for (const [text, msg] of [
       ["{", /c.json: invalid JSON/],
       ["[]", /must be a JSON object/],
-      ['{"other": 1}', /unknown key "other"/],
+      ['{"repoSync": {"other": 1}}', /repoSync.unknown key "other"/],
       ['{"repoSync": []}', /: repoSync must be an object/],
       ['{"repoSync": null}', /: repoSync must be an object/],
       ['{"accounts": "x"}', /accounts must be an array/],

@@ -2,7 +2,7 @@
 
 import { accountFor as selectAccount, NAME, strings } from "../../../../../lib/accounts.ts";
 import type { Account } from "../../../../../lib/accounts.ts";
-import { parseSharedConfig } from "../../../../../lib/config.ts";
+import { parseSharedConfig, toolSection } from "../../../../../lib/config.ts";
 export type { Account } from "../../../../../lib/accounts.ts";
 
 export interface Config {
@@ -245,9 +245,7 @@ export function parseConfig(text: string, source: string): Config {
   const shared = parseSharedConfig(text, source);
   const top = (msg: string): never => { throw new Error(`${source}: ${msg}`); };
   const fail = (msg: string): never => top(`prflow.${msg}`);
-  const section = shared.prflow;
-  if (section !== undefined && (typeof section !== "object" || section === null || Array.isArray(section))) top("prflow must be an object");
-  const o = (section ?? {}) as Record<string, unknown>;
+  const o = toolSection(shared, "prflow", source);
   if (shared.accounts.length === 0) top("accounts must be a non-empty array");
   for (const k of Object.keys(o))
     if (!["$comment", "limit", "worktrees", "rails", "actions", "dispatch", "review"].includes(k)) fail(`unknown key "${k}"`);

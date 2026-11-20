@@ -26,6 +26,12 @@ describe("parseConfig", () => {
     assert.equal(cfg.limit, 50);
   });
 
+  it("ignores top-level sections it does not own", () => {
+    const cfg = parseConfig('{"accounts":[{"login":"a"}],"taskStatus":{"statuses":{}},"futureTool":{"anything":1},"prflow":{"limit":5}}', "cfg.json");
+    assert.equal(cfg.limit, 5);
+    assert.throws(() => parseConfig('{"accounts":[{"login":"a"}],"futureTool":{},"prflow":{"token":"x"}}', "cfg.json"), /cfg\.json: prflow\.unknown key "token"/);
+  });
+
   it("ignores repoSync's section", () => {
     assert.equal(parseConfig('{"accounts":[{"login":"a"}],"repoSync":false}', "cfg.json").accounts[0]?.login, "a");
   });
@@ -89,7 +95,6 @@ describe("parseConfig", () => {
   const bad: [string, unknown, RegExp][] = [
     ["invalid JSON", undefined, /invalid JSON/],
     ["no accounts", { accounts: [] }, /non-empty array/],
-    ["unknown top key", { accounts: [{ login: "a" }], token: "x" }, /unknown key "token"/],
     ["unknown account key", { accounts: [{ login: "a", token: "x" }] }, /accounts\[0\]: unknown key "token"/],
     ["missing login", { accounts: [{ owners: ["o"] }] }, /accounts\[0\]\.login/],
     ["owners not strings", { accounts: [{ login: "a", owners: [1] }] }, /accounts\[0\]\.owners/],

@@ -1,5 +1,5 @@
 /** repo-sync configuration, read from the shared agentic-tools config file. */
-import { configPaths as sharedConfigPaths, parseSharedConfig } from "../../../../lib/config.ts";
+import { configPaths as sharedConfigPaths, parseSharedConfig, toolSection } from "../../../../lib/config.ts";
 import { accountFor as selectAccount } from "../../../../lib/accounts.ts";
 import type { Account } from "../../../../lib/accounts.ts";
 export type { Account } from "../../../../lib/accounts.ts";
@@ -25,9 +25,7 @@ const failer = (source: string) => (msg: string): never => { throw new Error(`${
 export function parseConfig(text: string, source: string): Config {
   const shared = parseSharedConfig(text, source);
   const fail = failer(source);
-  const rawSection = shared.repoSync;
-  if (rawSection !== undefined && (typeof rawSection !== "object" || rawSection === null || Array.isArray(rawSection))) throw new Error(`${source}: repoSync must be an object`);
-  const section = (rawSection ?? {}) as Record<string, unknown>;
+  const section = toolSection(shared, "repoSync", source);
   const out = defaultConfig();
   for (const [key, value] of Object.entries(section)) {
     if (key === "$comment") continue;
