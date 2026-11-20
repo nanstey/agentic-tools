@@ -38,6 +38,8 @@ jobs:
             run: npm ci && npm test --workspace=skills/workflow/prflow
           - name: repo-sync
             run: npm ci && npm test --workspace=skills/workflow/repo-sync
+          - name: orca-task-status
+            run: npm ci && npm test --workspace=skills/agent/orca-task-status
     steps:
       - uses: actions/checkout@v4
       # package-patches.test.sh uses node:module stripTypeScriptTypes (Node 22.13+).
