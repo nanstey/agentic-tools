@@ -15,6 +15,8 @@ All state lives in one directory, `${XDG_STATE_HOME:-~/.local/state}/prflow/`
 
 Only prflow writes these files, except each `review.md`, which its reviewer session writes. Use `pause`, `resume`, `recover`, `review`, and `import-legacy`.
 
+prflow also reads `${XDG_STATE_HOME:-~/.local/state}/agentic-tools/blocked.json`, the Blocked records orca-task-status writes. prflow only removes the record of a card it just moved out of Blocked. A live unblock is a dispatch of kind `unblock` whose item is the branch PR key (`owner/repo#N`), or `<owner/repo>@<branch>` when the branch has no PR, and whose version is `blocked@<record set time>`.
+
 ## Tables
 
 | Table | Rows |
@@ -41,10 +43,12 @@ events about prflow itself. Types: `dispatched`, `nudged`, `interrupted`, `recov
 action failed; its dispatch is `failed`), `needs-decision` (prflow will not act
 and asks the user), `dry-run` (the action prflow would take), and the review
 events `review-started`, `review-drafted`, and `review-posted`
-(`references/review.md`).
+(`references/review.md`), and `unblocked` (a Blocked worktree's conditions held
+and prflow moved its card out; detail: path, old and new state, reason, and the
+new comment).
 
 Action events: a live action emits `dispatched` before its command, then
-`rerun` or `archived` on success, or `action-failed`. `needs-decision` and
+`rerun`, `archived`, or `unblocked` on success, or `action-failed`. `needs-decision` and
 `dry-run` are emitted once per item version (tracked by unique ledger refs).
 
 ## Dispatch lifecycle

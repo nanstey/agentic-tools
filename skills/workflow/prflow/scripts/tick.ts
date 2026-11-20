@@ -3,6 +3,7 @@
  * delivers: new events since the last tick, then the grouped report when it
  * changed. Empty when nothing happened. Exit 1 on failure.
  */
+import type { BlockedFile } from "../../../../lib/blocked.ts";
 import type { Config } from "./core/config.ts";
 import { renderEvent } from "./core/events.ts";
 import { backoffMs } from "./core/rails.ts";
@@ -62,6 +63,17 @@ export interface TickDeps extends Deps {
   setReviewWorktree(path: string, branch: string, status: string, comment: string, unread?: "--unread" | "--read"): Promise<CmdResult>;
   /** `orca-ide worktree set --display-name` on a review worktree (`worktreeNameArgs`): the PR's head branch name. */
   nameReviewWorktree(path: string, branch: string, name: string): Promise<CmdResult>;
+  /** `git rev-parse HEAD` in the worktree at `path`; `null` when unknown. */
+  worktreeHead(path: string): Promise<string | null>;
+  /**
+   * Move a Blocked worktree's card out (`taskStatusSetArgs`): status id, a
+   * comment saying what changed, and `--unread`. Never a review worktree.
+   */
+  setTaskStatus(worktreeId: string, status: string, comment: string): Promise<CmdResult>;
+  /** Blocked records written by orca-task-status (`lib/blocked.ts`). */
+  readBlocked(): BlockedFile;
+  /** Remove one Blocked record, only while it is still the one set at `setAt`. */
+  clearBlocked(worktreeId: string, setAt: string): boolean;
 }
 
 export interface TickOptions {

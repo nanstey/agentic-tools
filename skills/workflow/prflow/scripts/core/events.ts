@@ -26,7 +26,9 @@ export type EventType =
   /** A reviewer session saved its draft review (draft id, verdict suggestion, comment count, path). */
   | "review-drafted"
   /** `prflow review post` published a draft to GitHub (never from tick). */
-  | "review-posted";
+  | "review-posted"
+  /** A Blocked worktree's unblock conditions held and prflow moved its card out. */
+  | "unblocked";
 
 export interface PrflowEvent {
   /** ISO timestamp. */

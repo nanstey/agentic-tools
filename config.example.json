@@ -58,7 +58,7 @@
     "ignore": ["my-archived-repo"]
   },
   "taskStatus": {
-    "$comment": "orca-task-status: Orca board status id per task state. in-progress, in-review, and done default to Orca's built-in in-progress, in-review, and completed. Custom columns (paused, blocked, needs-attention) have generated ids; read one with orca-ide worktree current --json from a worktree in that column.",
+    "$comment": "orca-task-status: Orca board status id per task state. in-progress, in-review, and done default to Orca's built-in in-progress, in-review, and completed. Custom columns (paused, blocked, needs-attention) have generated ids; read one with orca-ide worktree current --json from a worktree in that column. prflow reads the same ids: with blocked set, prflow tick moves a Blocked worktree out once its recorded unblock conditions hold.",
     "statuses": { "paused": "status-6-2", "blocked": "status-6", "needs-attention": "status-7" }
   }
 }

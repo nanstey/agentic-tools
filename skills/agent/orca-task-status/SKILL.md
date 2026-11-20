@@ -1,7 +1,7 @@
 ---
 name: orca-task-status
 description: Keeps the agent's own Orca worktree board status current (In Progress, Needs Attention, Blocked, Paused, In Review, Done) at the start and end of every response, and removes the worktree after its PR merges once no work remains. Use when starting or ending a response inside an Orca worktree, or when the user asks to set, check, or clean up this task's status.
-argument-hint: "[start|end [--outcome finished|needs-input|blocked|paused]|set <state>|show|cleanup] [--resume]"
+argument-hint: "[start|end [--outcome finished|needs-input|blocked|paused]|set <state>|show|cleanup] [--resume] [--reason <why> --until <condition>...]"
 user-invocable: true
 disable-model-invocation: false
 ---
@@ -23,7 +23,7 @@ Command: `node <skill-dir>/scripts/task-status.ts <command>` (Node 22.18+). Test
 | --- | --- | --- |
 | `in-progress` | The agent is working on the task. | `start` |
 | `needs-attention` | The agent needs input or a further instruction. | `end --outcome needs-input`, or `end` when the PR needs action, has no PR, or local changes are not on the PR |
-| `blocked` | The task depends on other work that is not done. | `end --outcome blocked` |
+| `blocked` | The task depends on other work that is not done. Records why and what unblocks it. | `end --outcome blocked --reason <why> --until <condition>` |
 | `paused` | Work stopped indefinitely. Usually set by the user. | `end --outcome paused`, only when the user asks to pause |
 | `in-review` | The PR waits for CI, reviewers, or merge. | `end` |
 | `done` | The PR is ready to merge or has merged. | `end` |
@@ -35,12 +35,12 @@ Command: `node <skill-dir>/scripts/task-status.ts <command>` (Node 22.18+). Test
 3. **End of every response:** run `end` as the last command before the final report (only `cleanup` may follow it), with the outcome that matches how the response ends:
    - `finished` (default): the requested work is complete and nothing is asked of the user. The CLI derives the state from the PR (table below).
    - `needs-input`: the response asks the user a question, needs a decision, or stops on a failure the agent cannot resolve.
-   - `blocked`: the task waits for other work, such as another PR or task, before it can continue.
+   - `blocked`: the task waits for other work, such as another PR or task, before it can continue. Add `--reason` and `--until` ([Blocked](#blocked)). A PR that only waits for its CI to finish is not blocked: use `finished`, which gives In Review.
    - `paused`: the user asked to stop this task indefinitely.
    Pass `--resume` again when step 1 used it.
 4. **Cleanup:** when `end` prints `cleanup: eligible`, follow [Cleanup](#cleanup).
 
-`set <state>` writes one state directly when the user asks for it. `show` prints the current state, what `end` would set, and cleanup eligibility, and writes nothing.
+`set <state>` writes one state directly when the user asks for it. `set blocked` also needs `--reason` and `--until`. `show` prints the current state, what `end` would set, and cleanup eligibility, and writes nothing.
 
 ### PR-derived state for `finished`
 
@@ -56,6 +56,32 @@ The CLI reads `gh pr view <branch> --repo <owner/repo>` with the shared-config a
 | Otherwise (review required, branch behind, unknown) | `in-review` |
 
 A `gh` failure other than "no pull requests found" exits 1 and writes nothing. Then choose the state yourself and run `set <state>`.
+
+## Blocked
+
+`end --outcome blocked` and `set blocked` need `--reason "<why>"` (one line, at most 160 characters) and one or more `--until <condition>`. Without them the command exits 2 and writes nothing. `--reason` and `--until` with any other state also exit 2. Every condition must hold before the card leaves Blocked:
+
+| Condition | Holds when |
+| --- | --- |
+| `checks-pass` | This branch's PR has no pending or failing required checks. When the repo marks no check required, every check counts. Use it only with another condition. |
+| `pr-approved` | This branch's PR is approved (`reviewDecision` `APPROVED`). |
+| `pr-merged <owner/repo#n>` | That PR merged. Also written `pr-merged=<owner/repo#n>`. |
+| `manual` | Never. Only a person unblocks it. It cannot be combined with other conditions. |
+
+The set stays small on purpose: each condition is one read-only `gh` call and covers one common wait (CI, a review, a dependency PR). There is no `pr-review` condition: "someone reviewed another PR" does not say whether this task can continue. Use `pr-merged` for a dependency, or `manual`.
+
+Waiting only for this PR's CI is In Review, not Blocked. `end --outcome blocked` whose only condition is `checks-pass` acts as `end --outcome finished`, prints why, and writes no record. `set blocked` with only `checks-pass` exits 2. prflow moves an existing card blocked only on `checks-pass` out at once.
+
+Choose the condition that ends the wait. Use `manual` only when no check fits, such as a decision by a person.
+
+The command writes:
+
+- A record in `${XDG_STATE_HOME:-~/.local/state}/agentic-tools/blocked.json`, keyed by the Orca worktree id: reason, conditions, set time, worktree path, branch, repo, and PR number when the branch has one.
+- The card comment `Blocked: <reason> · until: <conditions>`, in the same `worktree set` call as the status.
+
+Running it on a card that is already Blocked replaces the record and comment. Any other state removes the record and clears a comment that starts with `Blocked: `. Other comments stay. A failed status write removes the new record again.
+
+`prflow tick` reads the records. When every condition holds, it moves the card to the state that `finished` would give (the table above, from the same shared code in `lib/task-status.ts`), sets the comment to what changed, and marks the card unread. A Blocked card with no record or with only `manual` is reported once and is never moved. `show` prints the record.
 
 ## Cleanup
 
@@ -77,6 +103,7 @@ The board status ids come from the shared agentic-tools config (`--config <path>
 ## Safety Rules
 
 - Never change another worktree's status. Write only through `id:<id>` of the current worktree.
+- Never set Blocked without a reason and a condition that ends the wait. Prefer a checkable condition to `manual`.
 - Never set Paused unless the user asked. Never leave Paused without `--resume`, and use `--resume` only when the user asked for work on this task.
 - Never run `cleanup` while instructions for this task remain, after a refusal, or in a subagent.
 - Never remove a worktree with `--force`, `--delete-branch`, or a selector other than the captured `id:`.

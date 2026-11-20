@@ -9,7 +9,7 @@ const pr = (over: Partial<Pr> = {}): Pr => ({
 });
 const clean = { dirty: false, head: HEAD };
 const wt = (over: Partial<Worktree> = {}): Worktree => ({
-  id: "r::/w/t", path: "/w/t", branch: "feat/x", isMainWorktree: false, workspaceStatus: "in-progress", childWorktreeIds: [], ...over,
+  id: "r::/w/t", path: "/w/t", branch: "feat/x", isMainWorktree: false, workspaceStatus: "in-progress", comment: "", childWorktreeIds: [], ...over,
 });
 
 test("check rollup entries map to pass, fail, and pending", () => {

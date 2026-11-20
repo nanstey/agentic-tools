@@ -33,7 +33,10 @@ Inside an Orca worktree, the main agent keeps its own board card current with th
 first in every response, and `... end --outcome <finished|needs-input|blocked|paused>` as the
 last command before the final report (only `cleanup`, below, may follow it).
 Choose the outcome from how the response ends: `needs-input` when it asks the user anything or
-stops on an unresolved failure, `blocked` when it waits on other work, `paused` only when the
+stops on an unresolved failure, `blocked` when it waits on other work (with `--reason "<why>"`
+and one or more `--until <condition>`: one prflow can check, or `manual` when only a person can
+unblock it; see the skill. A PR that only waits for CI is `finished`, which gives In Review,
+not `blocked`), `paused` only when the
 user asked to stop the task, else `finished`, which derives In Review or Done from the PR.
 Add `--resume` to both only when the card is Paused and the user asked for work on this task.
 When `end` prints `cleanup: eligible` and no instructions for this task remain, including

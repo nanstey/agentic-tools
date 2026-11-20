@@ -451,6 +451,27 @@ export function assertWorktreeName(args: readonly string[], expectedPath?: strin
   if (!ok) throw new Error(`prflow: orca-ide ${args.join(" ")} is not the allowed review worktree rename`);
 }
 
+/**
+ * `orca-ide worktree set` that moves an ordinary (non-review) worktree's card
+ * out of Blocked once its unblock conditions hold: by id, with the status the
+ * PR-derived rules give, a comment saying what changed, and `--unread`.
+ */
+export const taskStatusSetArgs = (worktreeId: string, status: string, comment: string): string[] => [
+  "worktree", "set", "--worktree", `id:${worktreeId}`, "--workspace-status", status, "--comment", comment, "--unread", "--json",
+];
+
+/** Throws unless `args` is exactly `taskStatusSetArgs` for a non-review worktree id. */
+export function assertTaskStatusSet(args: readonly string[]): void {
+  const sel = args[3] ?? "";
+  const id = sel.startsWith("id:") ? sel.slice(3) : "";
+  const folder = id.split("::")[1]?.split("/").at(-1) ?? "";
+  const status = args[5] ?? "";
+  const comment = args[7] ?? "";
+  const ok = args.length === 10 && safePath(id) && !folder.startsWith("prflow-review-") && /^[a-z0-9][a-z0-9-]{0,40}$/.test(status) &&
+    comment.length > 0 && comment.length <= 200 && !/[\x00-\x1f\x7f]/.test(comment) && same(args, taskStatusSetArgs(id, status, comment));
+  if (!ok) throw new Error(`prflow: orca-ide ${args.join(" ")} is not the allowed unblock status call`);
+}
+
 /** Throws unless `args` is one of the exact calls above, the review worktree creation, or the archive call. */
 export function assertOrca(args: readonly string[]): void {
   const sel = (args[2] === "--worktree" ? args[3] : args[7]) ?? "";
@@ -466,7 +487,11 @@ export function assertOrca(args: readonly string[]): void {
     (args.length === 9 && TERMINAL.test(args[3] ?? "") && same(args, waitIdleArgs(args[3] ?? "")));
   if (ok) return;
   if (args[0] === "worktree" && args[1] === "create") return assertReviewWorktree(args);
-  if (args[0] === "worktree" && args[1] === "set") return args[4] === "--display-name" ? assertWorktreeName(args) : args[4] === "--no-parent" ? assertWorktreeUnparent(args) : assertWorktreeSet(args);
+  if (args[0] === "worktree" && args[1] === "set") {
+    if (args[4] === "--display-name") return assertWorktreeName(args);
+    if (args[4] === "--no-parent") return assertWorktreeUnparent(args);
+    return (args[3] ?? "").startsWith("id:") ? assertTaskStatusSet(args) : assertWorktreeSet(args);
+  }
   try {
     assertArchive(args);
   } catch {
