@@ -152,6 +152,17 @@ describe("streaks and scheduler output", () => {
     ]);
   });
 
+  it("prints an interrupted merge on its first run and a lock once it persists", () => {
+    const cut = res({ status: "failed", reason: "merge-interrupted", detail: "timed out; checkout may be half-updated (1 changed path)" });
+    const locked = res({ status: "skipped", reason: "locked", detail: "/r/.git/index.lock exists" });
+    assert.deepEqual(runs([cut], [locked], [locked], [locked]), [
+      "app: merge interrupted: timed out; checkout may be half-updated (1 changed path)\n",
+      "",
+      "app: skipped (locked) for 2 runs: /r/.git/index.lock exists\n",
+      "",
+    ]);
+  });
+
   it("drops repos that are no longer tracked", () => {
     const first = nextState(null, [dirty], at(1)).state;
     assert.deepEqual(Object.keys(nextState(first, [], at(2)).state.repos), []);

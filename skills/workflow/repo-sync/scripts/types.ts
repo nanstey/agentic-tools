@@ -1,10 +1,13 @@
 /** Shared types. Pure, no I/O. */
 
 /** Why a checkout was left alone. */
-export type SkipReason = "dirty" | "not-on-default" | "ahead" | "diverged" | "no-remote" | "no-default-branch" | "fetch-failed";
+export type SkipReason = "dirty" | "not-on-default" | "ahead" | "diverged" | "no-remote" | "no-default-branch" | "fetch-failed" | "locked";
 
-/** Why an attempted step failed. `error` covers a checkout git cannot read. */
-export type FailReason = "merge-failed" | "error";
+/**
+ * Why an attempted step failed. `merge-failed`: the fast-forward was refused and changed nothing.
+ * `merge-interrupted`: the merge stopped partway and left a lock or changed paths. `error`: git cannot read the checkout.
+ */
+export type FailReason = "merge-failed" | "merge-interrupted" | "error";
 
 export type Status = "up-to-date" | "updated" | "would-update" | "skipped" | "failed";
 

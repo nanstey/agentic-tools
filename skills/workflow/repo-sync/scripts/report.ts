@@ -74,6 +74,7 @@ function noticeLine(n: Notice): string {
   }
   if (r.reason === "fetch-failed") return `${r.name}: fetch failed${detail}`;
   if (r.reason === "merge-failed") return `${r.name}: merge failed${detail}`;
+  if (r.reason === "merge-interrupted") return `${r.name}: merge interrupted${detail}`;
   return `${r.name}: error${detail}`;
 }
 

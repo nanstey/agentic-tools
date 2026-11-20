@@ -45,8 +45,10 @@ type Reply = CmdResult | ((env?: Record<string, string>) => CmdResult);
  * replies and throws on any unscripted call so a test fails if sync
  * runs a command it did not expect.
  */
-export function fakeDeps(script: Record<string, Reply>, opts: { list?: CmdResult; tokens?: Record<string, string> } = {}) {
+export function fakeDeps(script: Record<string, Reply>, opts: { list?: CmdResult; tokens?: Record<string, string>; files?: string[] } = {}) {
   const calls: Call[] = [];
+  /** Paths `exists` reports as present. Tests may add or remove entries mid-run. */
+  const files = new Set(opts.files ?? []);
   const tokenCalls: string[] = [];
   const deps: Deps = {
     async orcaRepos() {
@@ -62,8 +64,9 @@ export function fakeDeps(script: Record<string, Reply>, opts: { list?: CmdResult
       tokenCalls.push(login);
       return opts.tokens?.[login] ?? null;
     },
+    exists: (path) => files.has(path),
   };
-  return { deps, calls, tokenCalls };
+  return { deps, calls, tokenCalls, files };
 }
 
 export interface RepoScript {
@@ -75,7 +78,7 @@ export interface RepoScript {
   /** [ahead, behind] */
   counts?: [number, number];
   count?: CmdResult;
-  merge?: CmdResult;
+  merge?: Reply;
   log?: string;
   diff?: string;
 }
@@ -86,14 +89,16 @@ export function scriptRepo(path: string, s: RepoScript = {}, branch = "main"): R
   const [ahead, behind] = s.counts ?? [0, 2];
   return {
     [`${path}|rev-parse --abbrev-ref HEAD`]: ok(`${s.current ?? branch}\n`),
-    [`${path}|rev-parse --abbrev-ref origin/HEAD`]: s.originHead ?? ok(`origin/${branch}\n`),
+    [`${path}|rev-parse --abbrev-ref refs/remotes/origin/HEAD`]: s.originHead ?? ok(`origin/${branch}\n`),
+    [`${path}|rev-parse --git-path index.lock`]: ok(".git/index.lock\n"),
     [`${path}|--no-optional-locks status --porcelain`]: ok(s.status ?? ""),
     [`${path}|remote get-url origin`]: s.originUrl ?? ok("git@github.com:me/app.git\n"),
     [`${path}|fetch origin ${branch}`]: s.fetch ?? ok(),
-    [`${path}|rev-list --left-right --count HEAD...origin/${branch}`]: s.count ?? ok(`${ahead}\t${behind}\n`),
+    [`${path}|rev-list --left-right --count HEAD...refs/remotes/origin/${branch}`]: s.count ?? ok(`${ahead}\t${behind}\n`),
     [`${path}|rev-parse HEAD`]: () => ok(`${merged ? SHA_B : SHA_A}\n`),
-    [`${path}|merge --ff-only --no-overwrite-ignore origin/${branch}`]: () => {
-      const r = s.merge ?? ok("Fast-forward\n");
+    [`${path}|merge --ff-only --no-overwrite-ignore refs/remotes/origin/${branch}`]: () => {
+      const m = s.merge ?? ok("Fast-forward\n");
+      const r = typeof m === "function" ? m() : m;
       if (r.ok) merged = true;
       return r;
     },

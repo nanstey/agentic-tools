@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
 import { main } from "../scripts/cli.ts";
-import { realDeps, type Deps } from "../scripts/deps.ts";
+import { gitEnv, realDeps, type Deps } from "../scripts/deps.ts";
+import { syncRepo } from "../scripts/sync.ts";
+import { defaultConfig } from "../scripts/config.ts";
+import { spawn } from "node:child_process";
 import { gitArgs } from "../scripts/git.ts";
 
 const root = mkdtempSync(join(tmpdir(), "repo-sync-it-"));
@@ -138,7 +141,15 @@ describe("real git: run against temporary clones", () => {
 });
 
 describe("real git: merge safety", () => {
-  it("refuses to overwrite an ignored local file that upstream starts tracking", async () => {
+  const listOf = (name: string, dir: string, url: string) => JSON.stringify({ ok: true, result: { repos: [{ id: name, path: dir, displayName: name, kind: "git", executionHostId: "local", gitRemoteIdentity: { remoteName: "origin", remoteUrl: url } }] } });
+  const runOnce = async (deps: Deps, state: string) => {
+    let out = "";
+    const code = await main(["run"], { deps, env: { XDG_STATE_HOME: join(root, state), XDG_CONFIG_HOME: join(root, "config") }, now: () => Date.now(), out: (t) => (out += t), err: (t) => assert.fail(t) });
+    return { code, out };
+  };
+  const syncOpts = { config: defaultConfig(), dryRun: false };
+
+  it("refuses to overwrite an ignored local file that upstream starts tracking, and reports merge-failed", async () => {
     const up = join(root, "ignored-seed");
     git(root, "init", "-q", up);
     commit(up, ".gitignore", ".env\n", "ignore env");
@@ -149,11 +160,91 @@ describe("real git: merge safety", () => {
     writeFileSync(join(up, ".env"), "SECRET=upstream\n");
     git(up, "add", ".gitignore", ".env");
     git(up, "commit", "-qm", "track env");
-    git(local, "fetch", "-q", "origin");
     const before = git(local, "rev-parse", "HEAD");
-    const m = await realDeps().git(local, gitArgs.merge("main"));
-    assert.equal(m.ok, false);
+    assert.equal(git(local, "status", "--porcelain"), "", "the ignored file does not make the checkout dirty");
+
+    const deps: Deps = { ...realDeps(), orcaRepos: async () => ({ ok: true, stdout: listOf("ignored", local, up), stderr: "" }) };
+    const r = await runOnce(deps, "state-ignored");
+    assert.equal(r.code, 0);
+    assert.match(r.out, /^ignored: merge failed: The following untracked working tree files would be overwritten by merge: \.env\n/);
     assert.equal(readFileSync(join(local, ".env"), "utf8"), "SECRET=local\n");
     assert.equal(git(local, "rev-parse", "HEAD"), before);
+    const last = JSON.parse(readFileSync(join(root, "state-ignored", "repo-sync", "last-run.json"), "utf8")).repos[local];
+    assert.equal(last.reason, "merge-failed");
+  });
+
+  /**
+   * A clone one commit behind. Its checkout writes `a-new.txt`, then blocks in the smudge filter
+   * for `z.slow`, which first creates `marker`. The test stops the merge only after `marker` exists.
+   */
+  function slowCheckout(name: string) {
+    const marker = join(root, `${name}-marker`);
+    const up = join(root, `${name}-up`);
+    git(root, "init", "-q", up);
+    commit(up, "a.txt", "one\n", "one");
+    const local = join(root, `${name}-local`);
+    git(root, "clone", "-q", up, local);
+    git(local, "config", "filter.slow.smudge", `touch '${marker}'; sleep 30; cat`);
+    writeFileSync(join(up, ".gitattributes"), "*.slow filter=slow\n");
+    writeFileSync(join(up, "a-new.txt"), "new\n");
+    writeFileSync(join(up, "z.slow"), "z\n");
+    git(up, "add", ".");
+    git(up, "commit", "-qm", "two");
+    git(local, "fetch", "-q", "origin");
+    return { up, local, marker, head: git(local, "rev-parse", "HEAD") };
+  }
+
+  /** Real git, but the merge gets `signal` once the smudge filter has started, as a timeout would. */
+  const stopMerge = (signal: NodeJS.Signals, marker: string): Deps => ({
+    ...realDeps(),
+    git: (cwd, args, extra) => {
+      if (args[0] !== "merge") return realDeps().git(cwd, args, extra);
+      return new Promise((done) => {
+        const child = spawn("git", args, { cwd, env: gitEnv(process.env, extra), stdio: ["ignore", "pipe", "pipe"], detached: true });
+        let stderr = "";
+        child.stderr.on("data", (d) => (stderr += d));
+        const started = Date.now();
+        const poll = setInterval(() => {
+          if (existsSync(marker) || Date.now() - started > 20_000) {
+            clearInterval(poll);
+            child.kill(signal);
+          }
+        }, 20);
+        // "exit", not "close": the orphaned filter keeps the stderr pipe open until its sleep ends.
+        child.on("exit", (code) => {
+          clearInterval(poll);
+          try {
+            process.kill(-child.pid!, "SIGKILL"); // the filter left behind in git's process group
+          } catch {
+            // Already gone.
+          }
+          child.stderr.destroy();
+          done({ ok: code === 0, stdout: "", stderr });
+        });
+      });
+    },
+  });
+  const repoAt = (dir: string, url: string) => ({ id: dir, path: dir, name: "slow", slug: null, remoteName: "origin", remoteUrl: url, baseRef: null });
+
+  it("reports a merge stopped by SIGTERM as merge-interrupted with the partial files it left", async () => {
+    const { up, local, head, marker } = slowCheckout("term");
+    const r = await syncRepo(stopMerge("SIGTERM", marker), repoAt(local, up), syncOpts);
+    assert.deepEqual([r.status, r.reason], ["failed", "merge-interrupted"]);
+    assert.match(r.detail ?? "", /; checkout may be half-updated \(\d+ changed paths?\)\. HEAD is still [0-9a-f]{7}/);
+    assert.ok(existsSync(join(local, "a-new.txt")), "the checkout stopped partway");
+    assert.ok(!existsSync(join(local, ".git", "index.lock")), "SIGTERM lets git remove its lock");
+    assert.equal(git(local, "rev-parse", "HEAD"), head);
+  });
+
+  it("reports a merge stopped by SIGKILL as merge-interrupted, then skips the checkout as locked", async () => {
+    const { up, local, head, marker } = slowCheckout("kill");
+    const lock = join(local, ".git", "index.lock");
+    const r = await syncRepo(stopMerge("SIGKILL", marker), repoAt(local, up), syncOpts);
+    assert.deepEqual([r.status, r.reason], ["failed", "merge-interrupted"]);
+    assert.match(r.detail ?? "", new RegExp(`${lock.replace(/[.]/g, "\\.")} left behind`));
+    const next = await syncRepo(realDeps(), repoAt(local, up), syncOpts);
+    assert.deepEqual([next.status, next.reason], ["skipped", "locked"]);
+    assert.equal(git(local, "rev-parse", "HEAD"), head);
+    assert.ok(existsSync(lock), "repo-sync never removes a git lock");
   });
 });

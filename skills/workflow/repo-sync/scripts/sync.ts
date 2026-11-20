@@ -1,6 +1,7 @@
 /** Per-repo fast-forward. All I/O goes through `Deps`; every git call uses a builder from `git.ts`. */
 import { accountFor, reportsChanges, type Config } from "./config.ts";
 import { baseBranch, parseRemote, transport } from "./repos.ts";
+import { resolve } from "node:path";
 import type { Repo, RepoResult, SkipReason, FailReason } from "./types.ts";
 import type { CmdResult, Deps } from "./deps.ts";
 import { gitArgs, safeBranch, safeSha } from "./git.ts";
@@ -15,6 +16,17 @@ export interface SyncOptions {
 const printable = (s: string) => s.replace(/[\x00-\x08\x0b-\x1f\x7f-\x9f]/g, "?");
 const firstLine = (s: string) =>
   printable((s.split("\n").map((l) => l.trim()).find(Boolean) ?? "").replace(/^(fatal|error): /, "").slice(0, 200));
+
+/** First line of a merge error, plus up to 3 of the paths git lists under it (for example the ignored files it refused to overwrite). */
+function mergeError(stderr: string): string {
+  const lines = stderr.split("\n");
+  const i = lines.findIndex((l) => l.trim());
+  if (i < 0) return "git merge --ff-only failed";
+  const head = firstLine(lines[i]!);
+  if (!head.endsWith(":")) return head;
+  const paths = lines.slice(i + 1).filter((l) => /^\s+\S/.test(l)).map((l) => printable(l.trim()));
+  return `${head} ${paths.slice(0, 3).join(", ")}${paths.length > 3 ? `, and ${paths.length - 3} more` : ""}`.slice(0, 300);
+}
 
 /** The repo has no `origin` remote (as opposed to an unreachable one). */
 const NO_REMOTE = /'origin' does not appear to be a git repository|No such remote 'origin'/i;
@@ -35,6 +47,47 @@ async function authFor(deps: Deps, remoteUrl: string, cfg: Config, tokens: Token
   if (!p) tokens.set(login, (p = deps.ghToken(login).catch(() => null)));
   const token = await p;
   return token ? { label: `https as ${login}`, env: { GH_TOKEN: token } } : { label: `https (ambient, no token for ${login})`, env: undefined };
+}
+
+/** Absolute path of the checkout's `index.lock` when it exists, else `null`. */
+async function indexLock(deps: Deps, cwd: string): Promise<string | null> {
+  const r = await deps.git(cwd, gitArgs.indexLock());
+  const rel = r.stdout.trim();
+  if (!r.ok || !rel) return null;
+  const path = resolve(cwd, rel);
+  return deps.exists(path) ? path : null;
+}
+
+const LOCKED = (path: string) => `${path} exists: a git command is running, or one was interrupted. If none is running, run git status, clean up, then remove the lock`;
+
+/** Git refused the fast-forward before writing anything. */
+const REFUSED = /would be overwritten by merge|Not possible to fast-forward|not something we can merge|refusing to merge|Please commit your changes or stash them/i;
+/** Another git process held the index lock, so the merge never started. */
+const LOCK_BUSY = /index\.lock'?: File exists/i;
+
+/**
+ * Classify a failed merge. A refusal or a busy lock changed nothing. Any other failure
+ * (killed, timed out, disk full) that leaves index.lock or changed paths may have
+ * stopped partway through the checkout: `merge-interrupted`.
+ */
+async function mergeFailure(
+  deps: Deps,
+  cwd: string,
+  stderr: string,
+  from: string,
+  r: { skip: (reason: SkipReason, detail?: string) => RepoResult; failed: (reason: FailReason, detail: string) => RepoResult },
+): Promise<RepoResult> {
+  const why = mergeError(stderr);
+  const lock = await indexLock(deps, cwd);
+  if (LOCK_BUSY.test(stderr)) return r.skip("locked", LOCKED(lock ?? "index.lock"));
+  if (REFUSED.test(stderr)) return r.failed("merge-failed", why);
+  const after = await deps.git(cwd, gitArgs.status());
+  const left = after.ok ? after.stdout.split("\n").filter(Boolean).length : 0;
+  if (!lock && !left && after.ok) return r.failed("merge-failed", why);
+  const state = [lock ? `${lock} left behind` : "", left ? `${left} changed path${left === 1 ? "" : "s"}` : "", after.ok ? "" : "git status failed"].filter(Boolean).join(", ");
+  const head = (await deps.git(cwd, gitArgs.headSha())).stdout.trim();
+  const where = !head ? `HEAD was ${from.slice(0, 7)} before the merge` : head === from ? `HEAD is still ${from.slice(0, 7)}` : `HEAD moved ${from.slice(0, 7)}..${head.slice(0, 7)}`;
+  return r.failed("merge-interrupted", `${why}; checkout may be half-updated (${state}). ${where}: inspect with git status before cleaning up`);
 }
 
 /** Sync one main checkout. Never throws for git failures; they become a result. */
@@ -59,12 +112,15 @@ export async function syncRepo(deps: Deps, repo: Repo, opts: SyncOptions, tokens
   base.auth = kind === "other" ? "local" : kind;
 
   const head = await git(gitArgs.originHead());
-  const fromOrigin = head.ok ? head.stdout.trim().replace(/^origin\//, "") : "";
+  const fromOrigin = head.ok ? head.stdout.trim().replace(/^(?:remotes\/)?origin\//, "") : "";
   const def = safeBranch(fromOrigin) ? fromOrigin : baseBranch(repo.baseRef);
   if (!def || !safeBranch(def)) return skip("no-default-branch", "no origin/HEAD and no Orca base ref");
   base.defaultBranch = def;
 
   if (current !== def) return skip("not-on-default", current === "HEAD" ? `detached HEAD, default ${def}` : `on ${current}, default ${def}`);
+
+  const lock = await indexLock(deps, repo.path);
+  if (lock) return skip("locked", LOCKED(lock));
 
   const status = await git(gitArgs.status());
   if (!status.ok) return failed("error", firstLine(status.stderr));
@@ -90,14 +146,17 @@ export async function syncRepo(deps: Deps, repo: Repo, opts: SyncOptions, tokens
   // The fetch can take a while: re-check the branch and the working tree right before merging.
   const again = await git(gitArgs.currentBranch());
   if (!again.ok || again.stdout.trim() !== def) return skip("not-on-default", `switched to ${again.stdout.trim() || "unknown"} during sync`);
+  const lockNow = await indexLock(deps, repo.path);
+  if (lockNow) return skip("locked", LOCKED(lockNow));
+
   const recheck = await git(gitArgs.status());
-  if (!recheck.ok) return failed("error", firstLine(recheck.stderr));
+  if (!recheck.ok) return failed("error", firstLine(recheck.stderr) || "git status failed");
   const nowChanged = recheck.stdout.split("\n").filter(Boolean).length;
   if (nowChanged) return skip("dirty", `${nowChanged} changed path${nowChanged === 1 ? "" : "s"} appeared during sync`);
 
   const from = (await git(gitArgs.headSha())).stdout.trim();
   const m = await git(gitArgs.merge(def));
-  if (!m.ok) return failed("merge-failed", firstLine(m.stderr) || "git merge --ff-only failed");
+  if (!m.ok) return mergeFailure(deps, repo.path, m.stderr, from, { skip, failed });
   const to = (await git(gitArgs.headSha())).stdout.trim();
   const out: RepoResult = { ...base, status: "updated", commits: behind!, from, to };
 

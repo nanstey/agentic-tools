@@ -75,7 +75,12 @@ describe("syncRepo skips", () => {
     const r = await syncRepo(deps, repo({ baseRef: "origin/trunk" }), live);
     assert.equal(r.status, "updated");
     assert.equal(r.defaultBranch, "trunk");
-    assert.ok(ranArgs(calls).includes("merge --ff-only --no-overwrite-ignore origin/trunk"));
+    assert.ok(ranArgs(calls).includes("merge --ff-only --no-overwrite-ignore refs/remotes/origin/trunk"));
+  });
+
+  it("reads the default branch when a ref named origin/<b> makes the abbreviation ambiguous", async () => {
+    const r = await syncRepo(fakeDeps(scriptRepo(P, { originHead: ok("remotes/origin/main\n") })).deps, repo(), live);
+    assert.deepEqual([r.status, r.defaultBranch], ["updated", "main"]);
   });
 });
 
@@ -103,7 +108,52 @@ describe("syncRepo failures", () => {
     const r = await syncRepo(fakeDeps(script).deps, repo(), live);
     assert.deepEqual([r.status, r.reason, r.detail], ["failed", "error", "index? unavailable"]);
   });
-  it("merge-failed: the fast-forward is refused", async () => {
+  it("locked: an index.lock from a running or interrupted git command blocks the sync", async () => {
+    const { deps, calls } = fakeDeps(scriptRepo(P), { files: [`${P}/.git/index.lock`] });
+    const r = await syncRepo(deps, repo(), live);
+    assert.deepEqual([r.status, r.reason], ["skipped", "locked"]);
+    assert.match(r.detail ?? "", /^\/repos\/app\/\.git\/index\.lock exists: a git command is running, or one was interrupted/);
+    assert.deepEqual(writes(ranArgs(calls)), [], "no fetch or merge");
+  });
+
+  it("locked: a lock that appears during the fetch stops the merge", async () => {
+    const lock = `${P}/.git/index.lock`;
+    const { deps, calls, files } = fakeDeps({ ...scriptRepo(P), [`${P}|fetch origin main`]: () => (files.add(lock), ok()) });
+    const r = await syncRepo(deps, repo(), live);
+    assert.deepEqual([r.status, r.reason], ["skipped", "locked"]);
+    assert.deepEqual(writes(ranArgs(calls)), ["fetch origin main"]);
+  });
+
+  it("merge-interrupted: a merge that stops partway is reported with what it left", async () => {
+    const lock = `${P}/.git/index.lock`;
+    let tried = false;
+    const fake = fakeDeps({
+      ...scriptRepo(P, { merge: () => ((tried = true), fake.files.add(lock), err("git merge --ff-only timed out after 1800s")) }),
+      [`${P}|--no-optional-locks status --porcelain`]: () => ok(tried ? "?? b.txt\n?? c.txt\n" : ""),
+    });
+    const r = await syncRepo(fake.deps, repo(), live);
+    assert.deepEqual([r.status, r.reason], ["failed", "merge-interrupted"]);
+    assert.equal(r.detail, `git merge --ff-only timed out after 1800s; checkout may be half-updated (${lock} left behind, 2 changed paths). HEAD is still aaaaaaa: inspect with git status before cleaning up`);
+  });
+
+  it("merge-failed, not interrupted: git refuses because of a local edit made after the last status check", async () => {
+    let tried = false;
+    const fake = fakeDeps({
+      ...scriptRepo(P, { merge: () => ((tried = true), err("error: Your local changes to the following files would be overwritten by merge:\n\ta.txt\nPlease commit your changes or stash them before you merge.\nAborting\n")) }),
+      [`${P}|--no-optional-locks status --porcelain`]: () => ok(tried ? " M a.txt\n" : ""),
+    });
+    const r = await syncRepo(fake.deps, repo(), live);
+    assert.deepEqual([r.status, r.reason, r.detail], ["failed", "merge-failed", "Your local changes to the following files would be overwritten by merge: a.txt"]);
+  });
+
+  it("locked, not interrupted: the merge found another git process's index.lock", async () => {
+    const lock = `${P}/.git/index.lock`;
+    const fake = fakeDeps(scriptRepo(P, { merge: () => (fake.files.add(lock), err(`fatal: Unable to create '${lock}': File exists.\n\nAnother git process seems to be running in this repository\n`)) }));
+    const r = await syncRepo(fake.deps, repo(), live);
+    assert.deepEqual([r.status, r.reason], ["skipped", "locked"]);
+  });
+
+  it("merge-failed: the fast-forward is refused and the checkout is unchanged", async () => {
     const r = await syncRepo(fakeDeps(scriptRepo(P, { merge: err("fatal: Not possible to fast-forward, aborting.") })).deps, repo(), live);
     assert.deepEqual([r.status, r.reason, r.detail], ["failed", "merge-failed", "Not possible to fast-forward, aborting."]);
   });
@@ -130,14 +180,16 @@ describe("syncRepo success", () => {
     assert.deepEqual(ranArgs(calls), [
       "rev-parse --abbrev-ref HEAD",
       "remote get-url origin",
-      "rev-parse --abbrev-ref origin/HEAD",
+      "rev-parse --abbrev-ref refs/remotes/origin/HEAD",
+      "rev-parse --git-path index.lock",
       "--no-optional-locks status --porcelain",
       "fetch origin main",
-      "rev-list --left-right --count HEAD...origin/main",
+      "rev-list --left-right --count HEAD...refs/remotes/origin/main",
       "rev-parse --abbrev-ref HEAD",
+      "rev-parse --git-path index.lock",
       "--no-optional-locks status --porcelain",
       "rev-parse HEAD",
-      "merge --ff-only --no-overwrite-ignore origin/main",
+      "merge --ff-only --no-overwrite-ignore refs/remotes/origin/main",
       "rev-parse HEAD",
     ]);
     assert.equal(r.log, undefined, "no log for repos outside reportChanges");
