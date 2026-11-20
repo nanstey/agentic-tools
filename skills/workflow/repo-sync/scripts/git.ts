@@ -23,7 +23,8 @@ const sha = (s: string): void => { if (!safeSha(s)) throw new Error(`repo-sync: 
 const currentBranchArgs = (): string[] => ["rev-parse", "--abbrev-ref", "HEAD"];
 const originHeadArgs = (): string[] => ["rev-parse", "--abbrev-ref", "origin/HEAD"];
 const headShaArgs = (): string[] => ["rev-parse", "HEAD"];
-const statusArgs = (): string[] => ["status", "--porcelain"];
+const statusArgs = (): string[] => ["--no-optional-locks", "status", "--porcelain"];
+const originUrlArgs = (): string[] => ["remote", "get-url", "origin"];
 const fetchArgs = (b: string): string[] => { branch(b); return ["fetch", "origin", b]; };
 const mergeArgs = (b: string): string[] => { branch(b); return ["merge", "--ff-only", "--no-overwrite-ignore", `origin/${b}`]; };
 const countArgs = (b: string): string[] => { branch(b); return ["rev-list", "--left-right", "--count", `HEAD...origin/${b}`]; };
@@ -35,6 +36,7 @@ export const gitArgs = {
   originHead: originHeadArgs,
   headSha: headShaArgs,
   status: statusArgs,
+  originUrl: originUrlArgs,
   fetch: fetchArgs,
   merge: mergeArgs,
   count: countArgs,

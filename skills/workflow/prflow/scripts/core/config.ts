@@ -250,7 +250,7 @@ export function parseConfig(text: string, source: string): Config {
   const o = (section ?? {}) as Record<string, unknown>;
   if (shared.accounts.length === 0) top("accounts must be a non-empty array");
   for (const k of Object.keys(o))
-    if (!["limit", "worktrees", "rails", "actions", "dispatch", "review"].includes(k)) fail(`unknown key "${k}"`);
+    if (!["$comment", "limit", "worktrees", "rails", "actions", "dispatch", "review"].includes(k)) fail(`unknown key "${k}"`);
   const accounts = shared.accounts;
   if (o.limit !== undefined && (typeof o.limit !== "number" || !Number.isInteger(o.limit) || o.limit < 1 || o.limit > 1000))
     fail("limit must be an integer from 1 to 1000");

@@ -21,6 +21,11 @@ describe("parseConfig", () => {
     assert.equal(cfg.worktrees, true);
   });
 
+  it("accepts a comment in the prflow section", () => {
+    const cfg = parseConfig('{"accounts":[{"login":"a"}],"prflow":{"$comment":"options below"}}', "cfg.json");
+    assert.equal(cfg.limit, 50);
+  });
+
   it("ignores repoSync's section", () => {
     assert.equal(parseConfig('{"accounts":[{"login":"a"}],"repoSync":false}', "cfg.json").accounts[0]?.login, "a");
   });

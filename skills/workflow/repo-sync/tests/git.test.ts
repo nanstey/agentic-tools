@@ -4,6 +4,11 @@ import { gitArgs, safeBranch, safeSha } from "../scripts/git.ts";
 import { SHA_A, SHA_B } from "./fixtures.ts";
 
 describe("git input builders", () => {
+  it("builds status without optional index locks and reads origin URL", () => {
+    assert.deepEqual(gitArgs.status(), ["--no-optional-locks", "status", "--porcelain"]);
+    assert.deepEqual(gitArgs.originUrl(), ["remote", "get-url", "origin"]);
+  });
+
   it("accepts safe branches and full object names", () => {
     assert.equal(safeBranch("main"), true);
     assert.equal(safeBranch("release/v2"), true);

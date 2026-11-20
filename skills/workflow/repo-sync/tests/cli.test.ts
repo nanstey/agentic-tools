@@ -54,6 +54,16 @@ describe("repo-sync run", () => {
     assert.match(status.out, /dirty  skipped \(dirty\)  1 changed path  \(2 runs\)/);
   });
 
+  it("prints pull reports before a state persistence failure", async () => {
+    const { env, state } = setup();
+    mkdirSync(join(state, "events.jsonl"), { recursive: true });
+    const { deps } = fakeDeps(scriptRepo("/r/reported"), { list: ok(LIST(["/r/reported"])) });
+    const r = await cli(["run"], deps, env);
+    assert.equal(r.code, 1);
+    assert.match(r.out, /reported: pulled 2 commits/);
+    assert.match(r.err, /repo-sync:/);
+  });
+
   it("reports pulls in reportChanges repos", async () => {
     const { env } = setup();
     const { deps } = fakeDeps(scriptRepo("/r/reported"), { list: ok(LIST(["/r/reported"])) });
@@ -71,19 +81,31 @@ describe("repo-sync run", () => {
     assert.ok(existsSync(join(state, "lock")), "the other run's lock is kept");
   });
 
-  it("takes over a stale lock: dead pid or older than 30 minutes", async () => {
-    for (const kind of ["dead", "old"]) {
+  it("takes over dead-pid locks and aged unreadable locks, but never an aged live lock", async () => {
+    for (const kind of ["dead", "garbage"]) {
       const { env, state } = setup();
       mkdirSync(state, { recursive: true });
       const lock = join(state, "lock");
-      writeFileSync(lock, JSON.stringify({ pid: 4242 }));
-      if (kind === "old") utimesSync(lock, new Date("2025-12-31T23:00:00Z"), new Date("2025-12-31T23:00:00Z"));
+      writeFileSync(lock, kind === "dead" ? JSON.stringify({ pid: 4242 }) : "garbage");
+      if (kind === "garbage") utimesSync(lock, new Date("2025-12-31T23:00:00Z"), new Date("2025-12-31T23:00:00Z"));
       const { deps, calls } = fakeDeps(scriptRepo("/r/a", { counts: [0, 0] }), { list: ok(LIST(["/r/a"])) });
-      const r = await cli(["run"], deps, env, { alive: (pid) => kind === "old" && pid === 4242 });
+      const r = await cli(["run"], deps, env, { alive: () => false });
       assert.equal(r.code, 0);
       assert.ok(calls.length > 0, `${kind} lock taken over`);
       assert.ok(!existsSync(lock));
     }
+  });
+
+  it("does not take over an aged lock held by a live pid", async () => {
+    const { env, state } = setup();
+    mkdirSync(state, { recursive: true });
+    const lock = join(state, "lock");
+    writeFileSync(lock, JSON.stringify({ pid: 4242 }));
+    utimesSync(lock, new Date("2025-12-31T23:00:00Z"), new Date("2025-12-31T23:00:00Z"));
+    const { deps, calls } = fakeDeps({}, { list: err("must not be called") });
+    const r = await cli(["run"], deps, env, { alive: (pid) => pid === 4242 });
+    assert.deepEqual([r.code, calls.length], [0, 0]);
+    assert.equal(JSON.parse(readFileSync(lock, "utf8")).pid, 4242);
   });
 
   it("pause stops runs silently until resume", async () => {
@@ -178,14 +200,14 @@ describe("lock", () => {
     assert.equal(store.readLast(), null);
   });
 
-  it("does not remove a lock that another run replaced after the stale check", async () => {
+  it("restores a replaced lock after atomic stale-lock takeover", async () => {
     const { Store } = await import("../scripts/store.ts");
     const { state } = setup();
     const store = new Store(state);
     store.ensureDir();
     const lock = join(state, "lock");
     writeFileSync(lock, JSON.stringify({ pid: 4242 }));
-    // The liveness check runs between reading the stale lock and removing it; simulate another run taking over then.
+    // Simulate another process replacing the lock during the liveness check.
     const taken = store.tryLock(Date.parse("2026-01-01T00:00:00Z"), () => {
       writeFileSync(lock, JSON.stringify({ pid: 4343 }));
       return false;

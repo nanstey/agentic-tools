@@ -69,6 +69,7 @@ export function fakeDeps(script: Record<string, Reply>, opts: { list?: CmdResult
 export interface RepoScript {
   current?: string;
   originHead?: CmdResult;
+  originUrl?: CmdResult;
   status?: string;
   fetch?: Reply;
   /** [ahead, behind] */
@@ -86,7 +87,8 @@ export function scriptRepo(path: string, s: RepoScript = {}, branch = "main"): R
   return {
     [`${path}|rev-parse --abbrev-ref HEAD`]: ok(`${s.current ?? branch}\n`),
     [`${path}|rev-parse --abbrev-ref origin/HEAD`]: s.originHead ?? ok(`origin/${branch}\n`),
-    [`${path}|status --porcelain`]: ok(s.status ?? ""),
+    [`${path}|--no-optional-locks status --porcelain`]: ok(s.status ?? ""),
+    [`${path}|remote get-url origin`]: s.originUrl ?? ok("git@github.com:me/app.git\n"),
     [`${path}|fetch origin ${branch}`]: s.fetch ?? ok(),
     [`${path}|rev-list --left-right --count HEAD...origin/${branch}`]: s.count ?? ok(`${ahead}\t${behind}\n`),
     [`${path}|rev-parse HEAD`]: () => ok(`${merged ? SHA_B : SHA_A}\n`),

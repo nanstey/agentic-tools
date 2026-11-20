@@ -83,6 +83,6 @@ export function parseRepoList(text: string): Repo[] {
 /** Branch name from an Orca base ref such as `origin/main` or `refs/remotes/origin/main`. */
 export function baseBranch(ref: string | null): string | null {
   if (!ref) return null;
-  const b = ref.replace(/^refs\/remotes\//, "").replace(/^origin\//, "").replace(/^refs\/heads\//, "");
-  return b || null;
+  const prefixed = /^(?:origin\/|refs\/remotes\/origin\/|refs\/heads\/)(.+)$/.exec(ref)?.[1];
+  return prefixed ?? (!ref.includes("/") ? ref : null);
 }

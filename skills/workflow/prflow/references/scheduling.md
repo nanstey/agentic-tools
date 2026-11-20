@@ -36,8 +36,8 @@ node <skill-dir>/scripts/prflow.ts tick [--state-dir <path>] [--config <path>] [
 `tick` is a superset of `watch`: the same scan and report, plus state, rails,
 an event feed, the safe actions (see `references/state.md`), and Pi dispatch
 (see `references/dispatch.md`). Actions stay dry runs until the config sets
-`"actions": {"dryRun": false}`, and dispatch until it sets
-`"dispatch": {"dryRun": false}`.
+`prflow.actions.dryRun` to `false`, and dispatch until it sets
+`prflow.dispatch.dryRun` to `false`.
 
 | Result | stdout | Exit |
 | --- | --- | --- |

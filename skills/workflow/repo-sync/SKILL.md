@@ -29,10 +29,10 @@ For each repo, in order (Node 22.18+ runs `.ts` directly):
 
 1. Read the current branch. If git cannot read the checkout: `failed (error)`.
 2. Require an `origin` remote (`no-remote`) and a default branch: `origin/HEAD`, else the Orca base ref (`no-default-branch`). If origin's default branch changed, the local `origin/HEAD` stays stale until `git remote set-head origin --auto`; the stuck notice says so.
-3. Require the default branch to be checked out (`not-on-default`) and `git status --porcelain` to be empty, untracked files included (`dirty`).
+3. Require the default branch to be checked out (`not-on-default`) and `git --no-optional-locks status --porcelain` to be empty, untracked files included (`dirty`).
 4. `git fetch origin <default>` (`fetch-failed`).
 5. Compare with `origin/<default>`: `diverged`, `ahead`, or up to date (`no-remote` if it cannot be resolved).
-6. When behind, re-check the branch and `git status --porcelain` (the checkout may change during the fetch), then `git merge --ff-only --no-overwrite-ignore origin/<default>` (`failed (merge-failed)`), which refuses to overwrite ignored local files such as `.env`. The merge has no timeout, so it is never killed halfway. For `reportChanges` repos, collect `git log --oneline` (10 max) and `git diff --name-only` (15 max).
+6. When behind, re-check the branch and `git --no-optional-locks status --porcelain` (the checkout may change during the fetch), then `git merge --ff-only --no-overwrite-ignore origin/<default>` (`failed (merge-failed)`), which refuses to overwrite ignored local files such as `.env`. The merge has no timeout, so it is never killed halfway. For `reportChanges` repos, collect `git log --oneline` (10 max) and `git diff --name-only` (15 max).
 
 `run --dry-run` stops before steps 4 and 6. It compares with the last fetched `origin/<default>`, prints one line per repo with its auth mode, and writes nothing.
 
@@ -44,7 +44,7 @@ For each repo, in order (Node 22.18+ runs `.ts` directly):
 2. A fetch failure, failed merge, or unreadable checkout, once when it starts.
 3. A pull in a `reportChanges` repo: count, commits, and changed paths.
 
-Quiet successes print nothing. A paused or overlapping run exits 0 with no output. Per-repo problems never fail the run. It exits 1 only when it cannot run at all: invalid config, no repo list from Orca and no cached list, or unwritable state. Every child process except the merge has a 60-second timeout.
+Quiet successes print nothing. A paused or overlapping run exits 0 with no output. Per-repo problems never fail the run. It exits 1 only when it cannot run at all: invalid config, no repo list from Orca and no cached list, or unwritable state. Bad usage (unknown commands or invalid flags) exits 2. Every child process except the merge has a 60-second timeout.
 
 ## State
 
@@ -53,12 +53,12 @@ Quiet successes print nothing. A paused or overlapping run exits 0 with no outpu
 - `last-run.json`: last result per repo with streak count. `repo-sync status` prints it.
 - `events.jsonl`: every pull, the first run of each skip or failure, and a run summary.
 - `repos.json`: last good Orca repo list, used when `orca-ide` cannot answer.
-- `lock`: held during `run`. A lock whose process is gone, or older than 30 minutes, is taken over.
+- `lock`: held during `run`. A lock whose process is gone is taken over immediately. An unreadable lock is taken over only after 30 minutes; a live process is never taken over based on age.
 - `paused`: present after `repo-sync pause`; removed by `repo-sync resume`.
 
 ## Safety Rules
 
-- Git commands are limited to: `rev-parse`, `status --porcelain`, `fetch origin <branch>`, `merge --ff-only --no-overwrite-ignore origin/<branch>`, `rev-list --left-right --count`, `log --oneline`, `diff --name-only`.
+- Git commands are limited to: `rev-parse`, `--no-optional-locks status --porcelain`, `remote get-url origin`, `fetch origin <branch>`, `merge --ff-only --no-overwrite-ignore origin/<branch>`, `rev-list --left-right --count`, `log --oneline`, `diff --name-only`.
 - Never reset, stash, rebase, check out, clean, push, force, or fetch other branches or remotes.
 - Never run `gh auth switch` or write credentials.
 - Use `orca-ide`, never bare `orca` (the GNOME screen reader on some desktops).

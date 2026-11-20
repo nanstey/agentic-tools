@@ -97,10 +97,11 @@ describe("remotes and the Orca repo list", () => {
     assert.throws(() => parseRepoList('{"ok": false}'), /missing result.repos/);
   });
 
-  it("strips origin from an Orca base ref", () => {
-    assert.equal(baseBranch("origin/main"), "main");
-    assert.equal(baseBranch("refs/remotes/origin/develop"), "develop");
-    assert.equal(baseBranch("main"), "main");
+  it("accepts only supported origin or local base-ref forms", () => {
+    for (const [ref, branch] of [["origin/main", "main"], ["refs/remotes/origin/develop", "develop"], ["refs/heads/release", "release"], ["origin/feature/topic", "feature/topic"], ["refs/heads/feature/topic", "feature/topic"], ["main", "main"]] as const)
+      assert.equal(baseBranch(ref), branch);
+    for (const ref of ["upstream/main", "refs/remotes/upstream/main"])
+      assert.equal(baseBranch(ref), null);
     assert.equal(baseBranch(null), null);
   });
 });

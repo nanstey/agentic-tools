@@ -1,6 +1,6 @@
 /** Per-repo fast-forward. All I/O goes through `Deps`; every git call uses a builder from `git.ts`. */
 import { accountFor, reportsChanges, type Config } from "./config.ts";
-import { baseBranch, transport } from "./repos.ts";
+import { baseBranch, parseRemote, transport } from "./repos.ts";
 import type { Repo, RepoResult, SkipReason, FailReason } from "./types.ts";
 import type { CmdResult, Deps } from "./deps.ts";
 import { gitArgs, safeBranch, safeSha } from "./git.ts";
@@ -12,8 +12,9 @@ export interface SyncOptions {
   concurrency?: number;
 }
 
+const printable = (s: string) => s.replace(/[\x00-\x08\x0b-\x1f\x7f-\x9f]/g, "?");
 const firstLine = (s: string) =>
-  (s.split("\n").map((l) => l.trim()).find(Boolean) ?? "").replace(/^(fatal|error): /, "").slice(0, 200);
+  printable((s.split("\n").map((l) => l.trim()).find(Boolean) ?? "").replace(/^(fatal|error): /, "").slice(0, 200));
 
 /** The repo has no `origin` remote (as opposed to an unreachable one). */
 const NO_REMOTE = /'origin' does not appear to be a git repository|No such remote 'origin'/i;
@@ -22,10 +23,12 @@ const NO_REMOTE = /'origin' does not appear to be a git repository|No such remot
 type TokenCache = Map<string, Promise<string | null>>;
 
 /** How the fetch authenticates. Only HTTPS remotes with a mapped account get `GH_TOKEN`. */
-async function authFor(deps: Deps, repo: Repo, cfg: Config, tokens: TokenCache, dryRun: boolean) {
-  const kind = transport(repo.remoteUrl);
-  if (kind !== "https") return { label: kind === "ssh" ? "ssh" : "local", env: undefined };
-  const login = accountFor(cfg, repo.slug)?.login;
+async function authFor(deps: Deps, remoteUrl: string, cfg: Config, tokens: TokenCache, dryRun: boolean) {
+  const kind = transport(remoteUrl);
+  const remote = parseRemote(remoteUrl);
+  if (kind !== "https" || remote?.host.toLowerCase() !== "github.com")
+    return { label: kind === "https" ? "https (ambient)" : kind === "ssh" ? "ssh" : "local", env: undefined };
+  const login = accountFor(cfg, `${remote.owner}/${remote.repo}`)?.login;
   if (!login) return { label: "https (ambient)", env: undefined };
   if (dryRun) return { label: `https as ${login}`, env: undefined };
   let p = tokens.get(login);
@@ -36,8 +39,7 @@ async function authFor(deps: Deps, repo: Repo, cfg: Config, tokens: TokenCache, 
 
 /** Sync one main checkout. Never throws for git failures; they become a result. */
 export async function syncRepo(deps: Deps, repo: Repo, opts: SyncOptions, tokens: TokenCache = new Map()): Promise<RepoResult> {
-  const kind = transport(repo.remoteUrl);
-  const base: RepoResult = { path: repo.path, name: repo.name, slug: repo.slug, status: "up-to-date", auth: kind === "other" ? "local" : kind };
+  const base: RepoResult = { path: repo.path, name: repo.name, slug: repo.slug, status: "up-to-date", auth: "local" };
   const skip = (reason: SkipReason, detail?: string): RepoResult => ({ ...base, status: "skipped", reason, ...(detail ? { detail } : {}) });
   const failed = (reason: FailReason, detail: string): RepoResult => ({ ...base, status: "failed", reason, detail });
   const git = (args: string[], env?: Record<string, string>): Promise<CmdResult> => deps.git(repo.path, args, env);
@@ -49,6 +51,12 @@ export async function syncRepo(deps: Deps, repo: Repo, opts: SyncOptions, tokens
 
   if (!repo.remoteName) return skip("no-remote");
   if (repo.remoteName !== "origin") return skip("no-remote", `remote is ${repo.remoteName}, not origin`);
+
+  const originUrl = await git(gitArgs.originUrl());
+  if (!originUrl.ok) return skip("no-remote", firstLine(originUrl.stderr));
+  const remoteUrl = originUrl.stdout.trim();
+  const kind = transport(remoteUrl);
+  base.auth = kind;
 
   const head = await git(gitArgs.originHead());
   const fromOrigin = head.ok ? head.stdout.trim().replace(/^origin\//, "") : "";
@@ -63,7 +71,7 @@ export async function syncRepo(deps: Deps, repo: Repo, opts: SyncOptions, tokens
   const changed = status.stdout.split("\n").filter(Boolean).length;
   if (changed) return skip("dirty", `${changed} changed path${changed === 1 ? "" : "s"}`);
 
-  const auth = await authFor(deps, repo, opts.config, tokens, opts.dryRun);
+  const auth = await authFor(deps, remoteUrl, opts.config, tokens, opts.dryRun);
   base.auth = auth.label;
   if (!opts.dryRun) {
     const f = await git(gitArgs.fetch(def), auth.env);
@@ -83,8 +91,9 @@ export async function syncRepo(deps: Deps, repo: Repo, opts: SyncOptions, tokens
   const again = await git(gitArgs.currentBranch());
   if (!again.ok || again.stdout.trim() !== def) return skip("not-on-default", `switched to ${again.stdout.trim() || "unknown"} during sync`);
   const recheck = await git(gitArgs.status());
+  if (!recheck.ok) return failed("error", firstLine(recheck.stderr));
   const nowChanged = recheck.stdout.split("\n").filter(Boolean).length;
-  if (!recheck.ok || nowChanged) return skip("dirty", `${nowChanged} changed path${nowChanged === 1 ? "" : "s"} appeared during sync`);
+  if (nowChanged) return skip("dirty", `${nowChanged} changed path${nowChanged === 1 ? "" : "s"} appeared during sync`);
 
   const from = (await git(gitArgs.headSha())).stdout.trim();
   const m = await git(gitArgs.merge(def));
@@ -95,8 +104,8 @@ export async function syncRepo(deps: Deps, repo: Repo, opts: SyncOptions, tokens
   if (reportsChanges(opts.config, repo) && safeSha(from) && safeSha(to)) {
     const log = await git(gitArgs.log(from, to));
     const diff = await git(gitArgs.diff(from, to));
-    out.log = log.ok ? log.stdout.split("\n").filter(Boolean).slice(0, 10) : [];
-    const paths = diff.ok ? diff.stdout.split("\n").filter(Boolean) : [];
+    out.log = log.ok ? log.stdout.split("\n").filter(Boolean).slice(0, 10).map(printable) : [];
+    const paths = diff.ok ? diff.stdout.split("\n").filter(Boolean).map(printable) : [];
     out.paths = paths.slice(0, 15);
     out.totalPaths = paths.length;
   }

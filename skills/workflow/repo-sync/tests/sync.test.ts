@@ -82,11 +82,11 @@ describe("syncRepo skips", () => {
 describe("syncRepo re-checks before merging", () => {
   it("skips when the checkout changes during the fetch", async () => {
     for (const [key, later, reason] of [
-      ["status --porcelain", ok("?? new.txt\n"), "dirty"],
+      ["--no-optional-locks status --porcelain", ok("?? new.txt\n"), "dirty"],
       ["rev-parse --abbrev-ref HEAD", ok("feature\n"), "not-on-default"],
     ] as const) {
       let n = 0;
-      const script = { ...scriptRepo(P), [`${P}|${key}`]: () => (n++ === 0 ? ok(key.startsWith("status") ? "" : "main\n") : later) };
+      const script = { ...scriptRepo(P), [`${P}|${key}`]: () => (n++ === 0 ? ok(key.includes("status --porcelain") ? "" : "main\n") : later) };
       const { deps, calls } = fakeDeps(script);
       const r = await syncRepo(deps, repo(), live);
       assert.deepEqual([r.status, r.reason], ["skipped", reason]);
@@ -97,6 +97,12 @@ describe("syncRepo re-checks before merging", () => {
 });
 
 describe("syncRepo failures", () => {
+  it("reports a failed post-fetch status check as an error", async () => {
+    let checks = 0;
+    const script = { ...scriptRepo(P), [`${P}|--no-optional-locks status --porcelain`]: () => checks++ === 0 ? ok() : err("fatal: index\u001b unavailable\n") };
+    const r = await syncRepo(fakeDeps(script).deps, repo(), live);
+    assert.deepEqual([r.status, r.reason, r.detail], ["failed", "error", "index? unavailable"]);
+  });
   it("merge-failed: the fast-forward is refused", async () => {
     const r = await syncRepo(fakeDeps(scriptRepo(P, { merge: err("fatal: Not possible to fast-forward, aborting.") })).deps, repo(), live);
     assert.deepEqual([r.status, r.reason, r.detail], ["failed", "merge-failed", "Not possible to fast-forward, aborting."]);
@@ -123,17 +129,24 @@ describe("syncRepo success", () => {
     assert.deepEqual([r.status, r.commits, r.from, r.to], ["updated", 2, SHA_A, SHA_B]);
     assert.deepEqual(ranArgs(calls), [
       "rev-parse --abbrev-ref HEAD",
+      "remote get-url origin",
       "rev-parse --abbrev-ref origin/HEAD",
-      "status --porcelain",
+      "--no-optional-locks status --porcelain",
       "fetch origin main",
       "rev-list --left-right --count HEAD...origin/main",
       "rev-parse --abbrev-ref HEAD",
-      "status --porcelain",
+      "--no-optional-locks status --porcelain",
       "rev-parse HEAD",
       "merge --ff-only --no-overwrite-ignore origin/main",
       "rev-parse HEAD",
     ]);
     assert.equal(r.log, undefined, "no log for repos outside reportChanges");
+  });
+
+  it("sanitizes terminal controls from commit subjects", async () => {
+    const { deps } = fakeDeps(scriptRepo(P, { log: `b1 safe\u001b[31mred\u001b[0m\n` }));
+    const r = await syncRepo(deps, repo({ name: "reported" }), live);
+    assert.deepEqual(r.log, ["b1 safe?[31mred?[0m"]);
   });
 
   it("collects log (max 10) and paths (max 15) for reportChanges repos", async () => {
@@ -158,7 +171,7 @@ describe("auth", () => {
   const cfg = config({ accounts: [{ login: "work-login", owners: ["WorkOrg"], repos: [] }, { login: "me-login", owners: [], repos: [] }] });
 
   it("https remotes fetch with GH_TOKEN of the mapped account", async () => {
-    const { deps, calls, tokenCalls } = fakeDeps(scriptRepo(P), { tokens: { "work-login": "tok-w" } });
+    const { deps, calls, tokenCalls } = fakeDeps(scriptRepo(P, { originUrl: ok("https://github.com/WorkOrg/app.git\n") }), { tokens: { "work-login": "tok-w" } });
     const r = await syncRepo(deps, repo({ slug: "WorkOrg/app", remoteUrl: "https://github.com/WorkOrg/app.git" }), { config: cfg, dryRun: false });
     assert.equal(r.auth, "https as work-login");
     assert.deepEqual(tokenCalls, ["work-login"]);
@@ -168,15 +181,31 @@ describe("auth", () => {
   });
 
   it("ssh remotes, including host aliases, never get a token", async () => {
-    const { deps, calls, tokenCalls } = fakeDeps(scriptRepo(P), { tokens: { "work-login": "tok-w" } });
+    const { deps, calls, tokenCalls } = fakeDeps(scriptRepo(P, { originUrl: ok("git@github.com-work:WorkOrg/app.git\n") }), { tokens: { "work-login": "tok-w" } });
     const r = await syncRepo(deps, repo({ slug: "WorkOrg/app", remoteUrl: "git@github.com-work:WorkOrg/app.git" }), { config: cfg, dryRun: false });
     assert.equal(r.auth, "ssh");
     assert.deepEqual(tokenCalls, []);
     assert.ok(calls.every((c) => !c.env));
   });
 
+  it("uses the checkout origin, not Orca's cached URL or slug, for token selection", async () => {
+    const { deps, calls, tokenCalls } = fakeDeps(scriptRepo(P, { originUrl: ok("https://GITHUB.com/WorkOrg/app.git\n") }), { tokens: { "work-login": "tok-w" } });
+    const r = await syncRepo(deps, repo({ slug: "elsewhere/cached", remoteUrl: "git@github.com-work:Elsewhere/cached.git" }), { config: cfg, dryRun: false });
+    assert.equal(r.auth, "https as work-login");
+    assert.deepEqual(tokenCalls, ["work-login"]);
+    assert.deepEqual(calls.find((c) => c.args[0] === "fetch")?.env, { GH_TOKEN: "tok-w" });
+  });
+
+  it("does not attach tokens to HTTPS hosts other than github.com", async () => {
+    const { deps, calls, tokenCalls } = fakeDeps(scriptRepo(P, { originUrl: ok("https://github.example/WorkOrg/app.git\n") }), { tokens: { "work-login": "tok-w" } });
+    const r = await syncRepo(deps, repo(), { config: cfg, dryRun: false });
+    assert.equal(r.status, "updated");
+    assert.deepEqual(tokenCalls, []);
+    assert.ok(calls.every((c) => !c.env));
+  });
+
   it("https with no token falls back to ambient auth", async () => {
-    const { deps, calls } = fakeDeps(scriptRepo(P));
+    const { deps, calls } = fakeDeps(scriptRepo(P, { originUrl: ok("https://github.com/me/app.git\n") }));
     const r = await syncRepo(deps, repo({ remoteUrl: "https://github.com/me/app.git" }), { config: cfg, dryRun: false });
     assert.equal(r.status, "updated");
     assert.match(r.auth, /ambient/);
@@ -207,7 +236,7 @@ describe("syncAll", () => {
 
   it("token lookup happens once per login per run", async () => {
     const cfg = config({ accounts: [{ login: "me-login", owners: [], repos: [] }] });
-    const { deps, tokenCalls } = fakeDeps({ ...scriptRepo("/r/a"), ...scriptRepo("/r/b") }, { tokens: { "me-login": "t" } });
+    const { deps, tokenCalls } = fakeDeps({ ...scriptRepo("/r/a", { originUrl: ok("https://github.com/me/a.git\n") }), ...scriptRepo("/r/b", { originUrl: ok("https://github.com/me/b.git\n") }) }, { tokens: { "me-login": "t" } });
     const https = (n: string) => repo({ path: `/r/${n}`, name: n, remoteUrl: `https://github.com/me/${n}.git` });
     await syncAll(deps, [https("a"), https("b")], { config: cfg, dryRun: false, concurrency: 1 });
     assert.deepEqual(tokenCalls, ["me-login"]);

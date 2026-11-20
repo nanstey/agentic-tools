@@ -1,5 +1,5 @@
 /** State files under `${XDG_STATE_HOME:-~/.local/state}/repo-sync/`. */
-import { appendFileSync, closeSync, mkdirSync, openSync, renameSync, rmSync, statSync, writeFileSync, writeSync } from "node:fs";
+import { appendFileSync, closeSync, linkSync, mkdirSync, openSync, renameSync, rmSync, statSync, writeFileSync, writeSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { Event, LastRun } from "./types.ts";
@@ -7,7 +7,7 @@ import { defaultStateDir as sharedStateDir, pidAlive, readOrNull } from "../../.
 export { pidAlive, readOrNull } from "../../../../lib/runtime.ts";
 export type { Read } from "../../../../lib/runtime.ts";
 
-/** A lock older than this belongs to a crashed or hung run. */
+/** Maximum age before an unreadable lock can be taken over. */
 export const LOCK_STALE_MS = 30 * 60 * 1000;
 
 export function defaultStateDir(env: NodeJS.ProcessEnv = process.env, home = homedir()): string {
@@ -38,7 +38,7 @@ export class Store {
 
   /**
    * Take the run lock. `false` when another live run holds it. A lock whose
-   * process is gone, or that is older than `LOCK_STALE_MS`, is taken over.
+   * process is gone, or unreadable and older than `LOCK_STALE_MS`, is taken over.
    */
   tryLock(now: number, alive: (pid: number) => boolean = pidAlive): boolean {
     const path = this.file("lock");
@@ -65,15 +65,27 @@ export class Store {
         } catch {
           // Unreadable lock: judged by age alone.
         }
-        const stale = now - mtime >= LOCK_STALE_MS || (pid > 0 && !alive(pid));
+        const isAlive = pid > 0 && alive(pid);
+        const stale = pid > 0 ? !isAlive : now - mtime >= LOCK_STALE_MS;
         if (!stale) return false;
-        // Remove only the lock judged stale: if another run replaced it meanwhile, back off.
+        const renamed = `${path}.stale.${process.pid}`;
         try {
-          if (statSync(path).mtimeMs !== mtime || readOrNull(path) !== content) return false;
-        } catch {
+          renameSync(path, renamed);
+        } catch (e) {
+          if ((e as NodeJS.ErrnoException).code === "ENOENT") continue;
+          throw e;
+        }
+        if (readOrNull(renamed) === content) {
+          rmSync(renamed, { force: true });
           continue;
         }
-        rmSync(path, { force: true });
+        try {
+          linkSync(renamed, path);
+        } catch (e) {
+          if ((e as NodeJS.ErrnoException).code !== "EEXIST") throw e;
+        }
+        rmSync(renamed, { force: true });
+        return false;
       }
     }
     return false;

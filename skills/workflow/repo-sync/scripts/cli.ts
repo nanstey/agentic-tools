@@ -136,9 +136,9 @@ async function runCmd(io: Io, store: Store, dryRun: boolean, configPath: string 
     const results = await syncAll(io.deps, repos, { config, dryRun: false });
     const at = new Date(io.now()).toISOString();
     const { state, notices } = nextState(store.readLast(), results, at);
+    io.out(renderRun(notices, results));
     store.appendEvents(runEvents(state, results, at));
     store.writeLast(state);
-    io.out(renderRun(notices, results));
     return 0;
   } finally {
     store.unlock();
