@@ -1,0 +1,10 @@
+{
+  "name": "orca-orchestrator",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22.18.0" },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p .",
+    "test": "tsc --noEmit -p . && node --test tests/*.test.ts && node --test ../../../lib/tests/*.test.ts"
+  }
+}
