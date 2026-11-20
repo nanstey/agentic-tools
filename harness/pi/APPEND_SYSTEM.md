@@ -26,6 +26,21 @@ creative copy. If the user writes in another language, reply in that language an
 same plain style. Files that you write follow the conventions of the project. Do not
 announce this rule unless the user asks about it.
 
+# Orca task status
+
+Inside an Orca worktree, the main agent keeps its own board card current with the
+`orca-task-status` skill. Run `node <orca-task-status skill dir>/scripts/task-status.ts start`
+first in every response, and `... end --outcome <finished|needs-input|blocked|paused>` as the
+last command before the final report (only `cleanup`, below, may follow it).
+Choose the outcome from how the response ends: `needs-input` when it asks the user anything or
+stops on an unresolved failure, `blocked` when it waits on other work, `paused` only when the
+user asked to stop the task, else `finished`, which derives In Review or Done from the PR.
+Add `--resume` to both only when the card is Paused and the user asked for work on this task.
+When `end` prints `cleanup: eligible` and no instructions for this task remain, including
+post-merge steps, write the final report and then run `cleanup` as the last tool call. It removes
+the worktree and ends the session. Leaf agents and subagents skip all of this. A `skipped:` line
+needs no action. A failed status write never blocks the task.
+
 # Main-agent model policy
 
 Keep the main agent on the user's selected model. Do not switch it based on task

@@ -1,7 +1,7 @@
 {
   "name": "agentic-tools",
   "private": true,
-  "workspaces": ["skills/workflow/prflow", "skills/workflow/repo-sync"],
+  "workspaces": ["skills/workflow/prflow", "skills/workflow/repo-sync", "skills/agent/orca-task-status"],
   "scripts": {
     "test:lib": "node --test lib/tests/*.test.ts"
   },

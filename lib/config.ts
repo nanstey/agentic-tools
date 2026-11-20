@@ -13,6 +13,7 @@ export interface SharedConfig {
   accounts: Account[];
   prflow: unknown;
   repoSync: unknown;
+  taskStatus: unknown;
 }
 
 export function parseSharedConfig(text: string, source: string): SharedConfig {
@@ -22,11 +23,11 @@ export function parseSharedConfig(text: string, source: string): SharedConfig {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return fail("must be a JSON object");
   const value = raw as Record<string, unknown>;
   for (const key of Object.keys(value))
-    if (!["$comment", "accounts", "prflow", "repoSync"].includes(key)) fail(`unknown key "${key}"`);
+    if (!["$comment", "accounts", "prflow", "repoSync", "taskStatus"].includes(key)) fail(`unknown key "${key}"`);
   let accounts: Account[] = [];
   if (value.accounts !== undefined) {
     if (!Array.isArray(value.accounts)) fail("accounts must be an array");
     accounts = parseAccounts(value.accounts, fail);
   }
-  return { accounts, prflow: value.prflow, repoSync: value.repoSync };
+  return { accounts, prflow: value.prflow, repoSync: value.repoSync, taskStatus: value.taskStatus };
 }
