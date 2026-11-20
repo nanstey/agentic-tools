@@ -1,0 +1,59 @@
+{
+  "$comment": "Copy this file to config.json at the repository root (git-ignored) or to ${XDG_CONFIG_HOME:-~/.config}/agentic-tools/config.json. Each account needs a gh login: gh auth login, then check with gh auth status. prflow reads tokens with gh auth token -u <login> and never switches the active account.",
+  "accounts": [
+    {
+      "$comment": "An account can cover every repo under these owners plus selected repos elsewhere. A repos entry wins over another account's owners entry.",
+      "login": "work-login",
+      "owners": ["work-org"],
+      "repos": ["partner-org/shared-repo"]
+    },
+    {
+      "$comment": "An account with no owners or repos covers every repo not claimed above. At most one account may be unscoped.",
+      "login": "personal-login"
+    }
+  ],
+  "prflow": {
+    "limit": 50,
+    "worktrees": true,
+    "rails": {
+      "$comment": "Optional tick limits. Missing keys keep their defaults (shown here).",
+      "startsPerTick": 2,
+      "maxOpen": 5,
+      "perHour": 6,
+      "perDay": 30,
+      "loopSameVersion": 3,
+      "loopAcrossVersions": 8,
+      "backoffBaseMinutes": 15,
+      "backoffMaxMinutes": 240,
+      "pollBudgetSeconds": 120,
+      "childTimeoutSeconds": 60,
+      "leaseMinutes": 45,
+      "maxAttempts": 3,
+      "rerunsPerVersion": 2,
+      "busyWaitMinutes": 45
+    },
+    "actions": {
+      "$comment": "tick actions (rerun cancelled CI, archive clean worktrees) are announced only while dryRun is true. Set false to act.",
+      "dryRun": true
+    },
+    "dispatch": {
+      "$comment": "Pi dispatch for ci, comments, and behind. Briefs and targets are announced only while dryRun is true; set false to launch and message Pi sessions. Separate from actions.dryRun. A PR in a projectContext repo, or in any repo of one of its owners, gets a pointer to <path>/AGENTS.md and <path>/<folder>/AGENTS.md.",
+      "dryRun": true,
+      "projectContext": [
+        { "path": "/abs/path/to/shared-docs", "folder": "project", "owners": ["work-org"], "repos": ["partner-org/shared-app"] }
+      ]
+    },
+    "review": {
+      "$comment": "Reviewer sessions use one persistent Orca worktree per PR and save per-head drafts under the state directory. Announced only while dryRun is true; set false to create worktrees and launch reviewers. Tick never posts; use prflow review post <draft-id> --yes.",
+      "dryRun": true,
+      "maxConcurrent": 2,
+      "sessionReviews": 5,
+      "idleCloseHours": 24,
+      "statuses": { "draft": "review-draft", "reviewing": "reviewing", "changes": "review-changes", "approved": "review-approved" }
+    }
+  },
+  "repoSync": {
+    "$comment": "Repos (Orca display name, folder name, or owner/repo) whose pulls print their new commits and changed paths. Default [].",
+    "reportChanges": ["my-repo"]
+  }
+}

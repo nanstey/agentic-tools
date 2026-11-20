@@ -15,10 +15,9 @@ let n = 0;
 /** Fresh state and config dirs per test; no default config file exists in them. */
 function setup() {
   const dir = join(root, String(n++));
-  const env = { XDG_STATE_HOME: join(dir, "state"), XDG_CONFIG_HOME: join(dir, "config"), REPO_SYNC_CONFIG: join(dir, "config.json"), PRFLOW_CONFIG: join(dir, "prflow.json") };
+  const env = { XDG_STATE_HOME: join(dir, "state"), XDG_CONFIG_HOME: join(dir, "config"), AGENTIC_TOOLS_CONFIG: join(dir, "config.json") };
   mkdirSync(dir, { recursive: true });
-  writeFileSync(env.REPO_SYNC_CONFIG, JSON.stringify({ reportChanges: ["reported"] }));
-  writeFileSync(env.PRFLOW_CONFIG, JSON.stringify({ accounts: [], rails: {} }));
+  writeFileSync(env.AGENTIC_TOOLS_CONFIG, JSON.stringify({ accounts: [], repoSync: { reportChanges: ["reported"] } }));
   return { dir, env, state: join(env.XDG_STATE_HOME, "repo-sync") };
 }
 
@@ -125,7 +124,7 @@ describe("repo-sync run", () => {
 
   it("exits 1 on an invalid config, 2 on usage errors", async () => {
     const { env } = setup();
-    writeFileSync(env.PRFLOW_CONFIG, '{"accounts": "x"}');
+    writeFileSync(env.AGENTIC_TOOLS_CONFIG, '{"accounts": "x"}');
     const { deps } = fakeDeps({});
     const r = await cli(["run"], deps, env);
     assert.equal(r.code, 1);

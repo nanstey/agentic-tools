@@ -1,5 +1,5 @@
 import { parseArgs } from "node:util";
-import { defaultPaths, loadConfig, prflowPaths } from "./config.ts";
+import { defaultPaths, loadConfig } from "./config.ts";
 import { nextState, renderDryRun, renderRun, renderStatus, runEvents } from "./report.ts";
 import { parseRepoList } from "./repos.ts";
 import type { Repo } from "./types.ts";
@@ -19,11 +19,9 @@ export const USAGE = `Usage: repo-sync <command> [options]
   resume         Resume scheduled runs.
 
 Options:
-  --config <path>     Config file for reportChanges (default:
-                      <skill-dir>/config.json, then
-                      \${XDG_CONFIG_HOME:-~/.config}/repo-sync/config.json).
-                      Accounts come from prflow's config (PRFLOW_CONFIG,
-                      prflow's skill dir, then ~/.config/prflow/config.json).
+  --config <path>     Shared config file (default: <repo-root>/config.json,
+                      then \${XDG_CONFIG_HOME:-~/.config}/agentic-tools/config.json).
+                      AGENTIC_TOOLS_CONFIG also selects the file.
   --state-dir <path>  State directory (default:
                       \${XDG_STATE_HOME:-~/.local/state}/repo-sync).
   --format json       Machine output for status.
@@ -106,7 +104,7 @@ export async function main(argv: string[], io: Io): Promise<number> {
         io.out(store.resume() ? "repo-sync resumed\n" : "repo-sync was not paused\n");
         return 0;
       case "run":
-        return await runCmd(io, store, values["dry-run"] === true, values.config ?? io.env.REPO_SYNC_CONFIG);
+        return await runCmd(io, store, values["dry-run"] === true, values.config ?? io.env.AGENTIC_TOOLS_CONFIG);
       default:
         io.err(`repo-sync: unknown command "${cmd}"\n${USAGE}`);
         return 2;
@@ -118,7 +116,7 @@ export async function main(argv: string[], io: Io): Promise<number> {
 }
 
 async function runCmd(io: Io, store: Store, dryRun: boolean, configPath: string | undefined): Promise<number> {
-  const { config } = loadConfig({ explicit: configPath, paths: defaultPaths(io.env), prflowExplicit: io.env.PRFLOW_CONFIG || undefined, prflowPaths: prflowPaths(io.env) });
+  const { config } = loadConfig({ explicit: configPath, paths: defaultPaths(io.env) });
   if (dryRun) {
     const repos = await listRepos(io, store, false);
     if (!repos) return 1;

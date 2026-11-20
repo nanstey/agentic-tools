@@ -93,12 +93,12 @@ const USAGE = `Usage: prflow <command> [options]
                  ledger (idempotent; reads them only).
   config         Print the resolved accounts and where they came from.
 
-Accounts come from the first of: --user; --config or PRFLOW_CONFIG;
-<skill-dir>/config.json; \${XDG_CONFIG_HOME:-~/.config}/prflow/config.json;
-the active gh account. See config.example.json.
+Accounts come from the first of: --user; --config or AGENTIC_TOOLS_CONFIG;
+<repo-root>/config.json; \${XDG_CONFIG_HOME:-~/.config}/agentic-tools/config.json;
+the active gh account. See <repo-root>/config.example.json.
 
 Options:
-  --config <path>            Config file (env PRFLOW_CONFIG)
+  --config <path>            Config file (env AGENTIC_TOOLS_CONFIG)
   --user <login>             Use one account and ignore config files
   --owner <login>            Owner scope for --user or the active account, repeatable
   --repo <owner/repo>        Repo scope for --user or the active account, repeatable
@@ -257,7 +257,7 @@ async function main(argv: string[]): Promise<number> {
   const deps = realDeps();
   const loaded = await loadConfig(
     {
-      config: values.config ?? (process.env.PRFLOW_CONFIG || undefined),
+      config: values.config ?? (process.env.AGENTIC_TOOLS_CONFIG || undefined),
       user: values.user,
       owners: values.owner,
       repos: values.repo,

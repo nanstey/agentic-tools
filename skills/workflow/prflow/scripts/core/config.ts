@@ -1,7 +1,8 @@
 /** prflow configuration: GitHub accounts and the projects each one covers. Pure, no I/O. */
 
-import { accountFor as selectAccount, NAME, parseAccounts as parseAccountList, strings } from "../../../../../lib/accounts.ts";
+import { accountFor as selectAccount, NAME, strings } from "../../../../../lib/accounts.ts";
 import type { Account } from "../../../../../lib/accounts.ts";
+import { parseSharedConfig } from "../../../../../lib/config.ts";
 export type { Account } from "../../../../../lib/accounts.ts";
 
 export interface Config {
@@ -241,21 +242,16 @@ export function accountFor(cfg: Config, repo: string): Account | null {
 
 /** Parse and validate a config file. Errors name the file and the bad field. */
 export function parseConfig(text: string, source: string): Config {
-  let raw: unknown;
-  try {
-    raw = JSON.parse(text);
-  } catch (e) {
-    throw new Error(`${source}: invalid JSON: ${(e as Error).message}`);
-  }
-  const fail = (msg: string): never => {
-    throw new Error(`${source}: ${msg}`);
-  };
-  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return fail("top level must be an object");
-  const o = raw as Record<string, unknown>;
+  const shared = parseSharedConfig(text, source);
+  const top = (msg: string): never => { throw new Error(`${source}: ${msg}`); };
+  const fail = (msg: string): never => top(`prflow.${msg}`);
+  const section = shared.prflow;
+  if (section !== undefined && (typeof section !== "object" || section === null || Array.isArray(section))) top("prflow must be an object");
+  const o = (section ?? {}) as Record<string, unknown>;
+  if (shared.accounts.length === 0) top("accounts must be a non-empty array");
   for (const k of Object.keys(o))
-    if (!["$comment", "accounts", "limit", "worktrees", "rails", "actions", "dispatch", "review"].includes(k)) fail(`unknown key "${k}"`);
-  if (!Array.isArray(o.accounts) || o.accounts.length === 0) fail("accounts must be a non-empty array");
-  const accounts = parseAccountList(o.accounts, fail);
+    if (!["limit", "worktrees", "rails", "actions", "dispatch", "review"].includes(k)) fail(`unknown key "${k}"`);
+  const accounts = shared.accounts;
   if (o.limit !== undefined && (typeof o.limit !== "number" || !Number.isInteger(o.limit) || o.limit < 1 || o.limit > 1000))
     fail("limit must be an integer from 1 to 1000");
   if (o.worktrees !== undefined && typeof o.worktrees !== "boolean") fail("worktrees must be a boolean");

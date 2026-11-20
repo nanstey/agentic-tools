@@ -21,8 +21,7 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
 ## Configuration
 
-- **Accounts:** read from prflow's config, the same file prflow uses: `PRFLOW_CONFIG` (must exist), prflow's `<skill-dir>/config.json`, then `${XDG_CONFIG_HOME:-~/.config}/prflow/config.json`. Only `accounts` is read. A repo maps to an exact `repos` entry, then an `owners` entry, then the one unscoped account. Only HTTPS remotes use it: their fetch gets `GH_TOKEN` from `gh auth token -u <login>`. SSH remotes, including host aliases such as `github.com-work`, use the user's ssh config and get no token.
-- **`reportChanges`:** repos (Orca display name, folder name, or `owner/repo`) whose pulls print their new commits. Default `[]`. Set it in repo-sync's own config: `--config <path>` or `REPO_SYNC_CONFIG` (must exist), `<skill-dir>/config.json` (git-ignored), then `${XDG_CONFIG_HOME:-~/.config}/repo-sync/config.json`. Copy `config.example.json` to start.
+Both tools read one shared file, selected by `--config <path>` or `AGENTIC_TOOLS_CONFIG` (the file must exist), then `<repo-root>/config.json`, then `${XDG_CONFIG_HOME:-~/.config}/agentic-tools/config.json`. Copy the repository's `config.example.json` to `<repo-root>/config.json` or the XDG path to start. Accounts are top-level; repo-sync reads only `repoSync.reportChanges` and prflow reads only the `prflow` section. A repo maps to an exact `repos` entry, then an `owners` entry, then the one unscoped account. Only HTTPS remotes use an account: their fetch gets `GH_TOKEN` from `gh auth token -u <login>`. SSH remotes, including host aliases such as `github.com-work`, use the user's ssh config and get no token.
 
 ## Workflow
 

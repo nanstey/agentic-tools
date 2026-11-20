@@ -37,6 +37,8 @@ Scope by location:
 agents/[<group>/]<agent-name>.md          # Pi agent profiles
 skills/<category>/<skill-name>/SKILL.md   # global skill
 lib/                                      # shared TypeScript for skill scripts; not installed
+config.example.json                      # shared config example
+config.json                               # local shared config; git-ignored
 harness/pi/settings.json                   # portable pi configuration
 harness/omp/APPEND_SYSTEM.md               # portable omp system-prompt addition
 harness/<harness>/README.md                # managed-file table and behavior (not installed)

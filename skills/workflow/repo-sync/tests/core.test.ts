@@ -3,48 +3,38 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import { loadConfig } from "../scripts/config.ts";
-import { accountFor, parseAccounts, parseConfig, reportsChanges } from "../scripts/config.ts";
+import { accountFor, parseConfig, reportsChanges } from "../scripts/config.ts";
 import { changeBlock, nextState, renderDryRun, renderRun, renderStatus, runEvents } from "../scripts/report.ts";
 import { baseBranch, parseRemote, parseRepoList, transport } from "../scripts/repos.ts";
 import type { LastRun, RepoResult } from "../scripts/types.ts";
 import { config, ORCA_LIST, SHA_A, SHA_B } from "./fixtures.ts";
 
 describe("config", () => {
-  it("parses reportChanges, defaulting it, and accounts from a prflow config", () => {
-    const c = parseConfig(JSON.stringify({ $comment: "x" }), "c.json");
-    assert.deepEqual(c.reportChanges, []);
-    const prflow = { accounts: [{ login: "noel-work", owners: ["WorkOrg"] }, { login: "me", $comment: "rest" }], rails: { maxActions: 1 }, dispatch: {} };
-    assert.deepEqual(parseAccounts(JSON.stringify(prflow), "p.json"), [{ login: "noel-work", owners: ["WorkOrg"], repos: [] }, { login: "me", owners: [], repos: [] }]);
-    assert.deepEqual(parseAccounts("{}", "p.json"), []);
-    assert.deepEqual(parseConfig('{"reportChanges": []}', "c").reportChanges, []);
+  it("parses shared accounts and repoSync.reportChanges", () => {
+    const c = parseConfig(JSON.stringify({ $comment: "x", accounts: [{ login: "work", owners: ["WorkOrg"] }], repoSync: { reportChanges: ["repo"] } }), "c.json");
+    assert.deepEqual(c.reportChanges, ["repo"]);
+    assert.deepEqual(c.accounts, [{ login: "work", owners: ["WorkOrg"], repos: [] }]);
+    assert.deepEqual(parseConfig('{"accounts": []}', "c").accounts, []);
+    assert.deepEqual(parseConfig('{"prflow": false}', "c").reportChanges, []);
   });
 
-  it("rejects bad input with the source in the message", () => {
+  it("rejects bad shared and repoSync input with the source in the message", () => {
     for (const [text, msg] of [
       ["{", /c.json: invalid JSON/],
       ["[]", /must be a JSON object/],
       ['{"other": 1}', /unknown key "other"/],
-      ['{"accounts": []}', /read from prflow's config/],
-      ['{"reportChanges": "x"}', /array of strings/],
-    ] as const)
-      assert.throws(() => parseConfig(text, "c.json"), msg, text);
-    for (const [text, msg] of [
-      ["{", /p.json: invalid JSON/],
+      ['{"repoSync": []}', /: repoSync must be an object/],
+      ['{"repoSync": null}', /: repoSync must be an object/],
       ['{"accounts": "x"}', /accounts must be an array/],
+      ['{"repoSync": {"reportChanges": "x"}}', /repoSync.reportChanges must be an array of strings/],
       ['{"accounts": [{"login": "a", "token": "x"}]}', /unknown key "token"/],
       ['{"accounts": [{"login": "a", "repos": ["nope"]}]}', /must be owner\/repo/],
       ['{"accounts": [{"login": "a"}, {"login": "b"}]}', /at most one account/],
-    ] as const)
-      assert.throws(() => parseAccounts(text, "p.json"), msg, text);
-    assert.deepEqual(parseAccounts('{"accounts": []}', "p.json"), []);
-    assert.deepEqual(parseAccounts('{"accounts": [{"login": "-bad"}]}', "p.json"), [{ login: "-bad", owners: [], repos: [] }]);
-    assert.throws(() => parseAccounts('{"accounts": [{"login": "a", "owners": ["bad owner"]}]}', "p.json"), /p.json: accounts\[0\]\.owners entry "bad owner" must be a GitHub owner/);
-    assert.throws(() => parseAccounts('{"accounts": [{"login": "a"}, {"login": "A"}]}', "p.json"), /p.json: account "a" is listed twice/);
-    assert.throws(() => parseAccounts('{"accounts": [{"login": "a", "owners": ["org"]}, {"login": "b", "owners": ["org"]}]}', "p.json"), /p.json: owner org is assigned to both a and b/);
+    ] as const) assert.throws(() => parseConfig(text, "c.json"), msg, text);
   });
 
   it("maps a repo to an account: repos entry, then owner, then unscoped", () => {
-    const c = config({ accounts: parseAccounts(JSON.stringify({ accounts: [{ login: "work", owners: ["WorkOrg"] }, { login: "side", repos: ["WorkOrg/shared"] }, { login: "me" }] }), "c") });
+    const c = config({ accounts: [{ login: "work", owners: ["WorkOrg"], repos: [] }, { login: "side", owners: [], repos: ["WorkOrg/shared"] }, { login: "me", owners: [], repos: [] }] });
     assert.equal(accountFor(c, "workorg/app")?.login, "work");
     assert.equal(accountFor(c, "WorkOrg/shared")?.login, "side");
     assert.equal(accountFor(c, "someone/else")?.login, "me");
@@ -61,29 +51,26 @@ describe("config", () => {
   });
 
   it("accepts the shipped config.example.json", () => {
-    const text = readFileSync(join(import.meta.dirname, "..", "config.example.json"), "utf8");
+    const text = readFileSync(join(import.meta.dirname, "../../../../config.example.json"), "utf8");
     assert.deepEqual(parseConfig(text, "config.example.json").reportChanges, ["my-repo"]);
   });
 
   it("loads an explicit file, then the first default path, then defaults", () => {
-    const files: Record<string, string> = { "/a.json": '{"reportChanges": ["a"]}', "/d2.json": '{"reportChanges": ["d2"]}' };
+    const files: Record<string, string> = { "/a.json": '{"repoSync":{"reportChanges":["a"]}}', "/d2.json": '{"repoSync":{"reportChanges":["d2"]}}' };
     const read = (p: string) => files[p] ?? null;
-    const load = (explicit: string | undefined, paths: string[]) => loadConfig({ explicit, paths, prflowPaths: [] }, read);
+    const load = (explicit: string | undefined, paths: string[]) => loadConfig({ explicit, paths }, read);
     assert.deepEqual(load("/a.json", ["/d2.json"]).config.reportChanges, ["a"]);
     assert.throws(() => load("/missing.json", []), /not found/);
     assert.equal(load(undefined, ["/d1.json", "/d2.json"]).source, "/d2.json");
     assert.equal(load(undefined, ["/d1.json"]).source, "defaults");
   });
 
-  it("takes accounts from prflow's config: PRFLOW_CONFIG, then the first existing prflow path", () => {
-    const acct = (login: string) => JSON.stringify({ accounts: [{ login }], rails: {} });
-    const files: Record<string, string> = { "/own.json": '{"reportChanges": []}', "/env.json": acct("env"), "/p2.json": acct("p2") };
-    const read = (p: string) => files[p] ?? null;
-    const viaEnv = loadConfig({ explicit: "/own.json", paths: [], prflowExplicit: "/env.json", prflowPaths: ["/p2.json"] }, read);
-    assert.deepEqual([viaEnv.config.accounts[0]?.login, viaEnv.config.reportChanges, viaEnv.accountsSource], ["env", [], "/env.json"]);
-    assert.equal(loadConfig({ paths: [], prflowPaths: ["/p1.json", "/p2.json"] }, read).config.accounts[0]?.login, "p2");
-    assert.deepEqual(loadConfig({ paths: [], prflowPaths: ["/p1.json"] }, read).config.accounts, []);
-    assert.throws(() => loadConfig({ paths: [], prflowExplicit: "/gone.json", prflowPaths: [] }, read), /not found: \/gone.json/);
+  it("loads accounts and repoSync settings from one shared file", () => {
+    const file = JSON.stringify({ accounts: [{ login: "shared" }], prflow: { rails: {} }, repoSync: { reportChanges: ["reported"] } });
+    const result = loadConfig({ paths: ["/shared.json"] }, (path) => path === "/shared.json" ? file : null);
+    assert.deepEqual(result.config.accounts.map((account) => account.login), ["shared"]);
+    assert.deepEqual(result.config.reportChanges, ["reported"]);
+    assert.equal(result.source, "/shared.json");
   });
 });
 

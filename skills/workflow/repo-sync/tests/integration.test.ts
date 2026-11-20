@@ -76,8 +76,8 @@ describe("real git: run against temporary clones", () => {
   it("fast-forwards clean checkouts and leaves every other checkout untouched", async () => {
     const list = JSON.stringify({ ok: true, result: { repos: NAMES.map((n) => ({ id: n, path: path(n), displayName: n, kind: "git", executionHostId: "local", gitRemoteIdentity: { remoteName: "origin", remoteUrl: remote } })) } });
     const deps: Deps = { ...realDeps(), orcaRepos: async () => ({ ok: true, stdout: list, stderr: "" }) };
-    const env = { REPO_SYNC_CONFIG: join(root, "report.json"), XDG_STATE_HOME: join(root, "state"), XDG_CONFIG_HOME: join(root, "config"), PRFLOW_CONFIG: join(root, "prflow.json") };
-    writeFileSync(join(root, "report.json"), JSON.stringify({ reportChanges: ["reported"] }));
+    const env = { AGENTIC_TOOLS_CONFIG: join(root, "config.json"), XDG_STATE_HOME: join(root, "state"), XDG_CONFIG_HOME: join(root, "config") };
+    writeFileSync(env.AGENTIC_TOOLS_CONFIG, JSON.stringify({ accounts: [], repoSync: { reportChanges: ["reported"] } }));
     let out = "";
     const io = { deps, env, now: () => Date.now(), out: (s: string) => (out += s), err: (s: string) => assert.fail(s) };
 
@@ -130,7 +130,7 @@ describe("real git: run against temporary clones", () => {
     const list = JSON.stringify({ ok: true, result: { repos: [{ id: "u", path: dir, displayName: "unreachable", kind: "git", gitRemoteIdentity: { remoteName: "origin", remoteUrl: join(root, "gone.git") } }] } });
     const deps: Deps = { ...realDeps(), orcaRepos: async () => ({ ok: true, stdout: list, stderr: "" }) };
     let out = "";
-    const code = await main(["run"], { deps, env: { XDG_STATE_HOME: join(root, "state2"), XDG_CONFIG_HOME: join(root, "config"), PRFLOW_CONFIG: join(root, "prflow.json") }, now: () => Date.now(), out: (t) => (out += t), err: () => {} });
+    const code = await main(["run"], { deps, env: { XDG_STATE_HOME: join(root, "state2"), XDG_CONFIG_HOME: join(root, "config") }, now: () => Date.now(), out: (t) => (out += t), err: () => {} });
     assert.equal(code, 0);
     assert.match(out, /^unreachable: fetch failed: .*gone\.git/);
     assert.deepEqual(snapshot(dir), s);

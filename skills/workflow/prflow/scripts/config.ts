@@ -1,15 +1,15 @@
 import { homedir } from "node:os";
 import { dirname } from "node:path";
+import { configPaths as sharedConfigPaths } from "../../../../lib/config.ts";
+
 import { readOrNull } from "../../../../lib/runtime.ts";
-import { configPaths } from "../../../../lib/paths.ts";
 import type { Read } from "../../../../lib/runtime.ts";
 import { DEFAULT_ACTIONS, DEFAULT_DISPATCH, DEFAULT_LIMIT, DEFAULT_RAILS, DEFAULT_REVIEW, parseConfig, type Config } from "./core/config.ts";
 
-/** Skill directory, where an uncommitted `config.json` may sit beside `config.example.json`. */
 export const SKILL_DIR = dirname(import.meta.dirname);
 
 export interface ConfigFlags {
-  /** Explicit config file (`--config` or `PRFLOW_CONFIG`); must exist. */
+  /** Explicit config file (`--config` or `AGENTIC_TOOLS_CONFIG`); must exist. */
   config?: string;
   /** Single-account override (`--user`); ignores config files. */
   user?: string;
@@ -19,7 +19,7 @@ export interface ConfigFlags {
 
 /** Config files tried in order when no explicit path is given. */
 export function defaultPaths(env: NodeJS.ProcessEnv = process.env, home = homedir()): string[] {
-  return configPaths(SKILL_DIR, "prflow", env, home);
+  return sharedConfigPaths(env, home);
 }
 
 export interface Loaded {
@@ -28,11 +28,7 @@ export interface Loaded {
   source: string;
 }
 
-/**
- * Resolve the config. Precedence: `--user` (one account, built from flags), then an
- * explicit file, then the first default path that exists, then the active gh account
- * (`whoami`) with flag scope.
- */
+/** Resolve the config. `--user` and scoped flags keep their existing precedence and fallback. */
 export async function loadConfig(
   flags: ConfigFlags,
   whoami: () => Promise<string>,
@@ -58,9 +54,9 @@ export async function loadConfig(
     return { config: parseConfig(text, flags.config), source: flags.config };
   }
   if (!flags.owners && !flags.repos)
-    for (const p of paths) {
-      const text = read(p);
-      if (text !== null) return { config: parseConfig(text, p), source: p };
+    for (const path of paths) {
+      const text = read(path);
+      if (text !== null) return { config: parseConfig(text, path), source: path };
     }
   return fromFlags(await whoami(), "active gh account");
 }

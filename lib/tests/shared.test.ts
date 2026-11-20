@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { accountFor, isUnscoped, type Account } from "../accounts.ts";
-import { configPaths, siblingConfigPaths } from "../paths.ts";
+import { configPaths, parseSharedConfig, REPO_ROOT } from "../config.ts";
 import { defaultConfigDir, defaultStateDir, pidAlive, readOrNull, withoutTokens } from "../runtime.ts";
 
 const account = (login: string, owners: string[] = [], repos: string[] = []): Account => ({ login, owners, repos });
@@ -15,11 +15,16 @@ test("account selection prioritizes exact repo, owner, then first unscoped", () 
   assert.equal(isUnscoped(entries[0]!), true);
 });
 
-test("shared paths preserve XDG defaults and skill/sibling path order", () => {
+test("shared config paths use repo-local then agentic-tools XDG config", () => {
   assert.equal(defaultStateDir("unit", {}, "/home/test"), "/home/test/.local/state/unit");
   assert.equal(defaultConfigDir({}, "/home/test"), "/home/test/.config");
-  assert.deepEqual(configPaths("/skills/demo", "demo", {}, "/home/test"), ["/skills/demo/config.json", "/home/test/.config/demo/config.json"]);
-  assert.deepEqual(siblingConfigPaths("/skills/repo-sync", "prflow", "prflow", {}, "/home/test"), ["/skills/prflow/config.json", "/home/test/.config/prflow/config.json"]);
+  assert.deepEqual(configPaths({}, "/home/test"), [`${REPO_ROOT}/config.json`, "/home/test/.config/agentic-tools/config.json"]);
+  assert.deepEqual(configPaths({ XDG_CONFIG_HOME: "/x" }, "/home/test"), [`${REPO_ROOT}/config.json`, "/x/agentic-tools/config.json"]);
+});
+
+test("shared config accepts only shared sections and parses accounts", () => {
+  assert.deepEqual(parseSharedConfig('{"accounts":[{"login":"a"}],"prflow":{},"repoSync":{}}', "c").accounts, [{ login: "a", owners: [], repos: [] }]);
+  assert.throws(() => parseSharedConfig('{"extra":true}', "c"), /unknown key/);
 });
 
 test("shared runtime helpers preserve token removal and ENOENT behavior", () => {

@@ -24,12 +24,12 @@ Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 prflow uses the first of these:
 
 1. `--user <login>`, with optional `--owner` and `--repo` scope. Config files are ignored.
-2. `--config <path>` or `PRFLOW_CONFIG`. The file must exist.
-3. `<skill-dir>/config.json` (git-ignored).
-4. `${XDG_CONFIG_HOME:-~/.config}/prflow/config.json`.
+2. `--config <path>` or `AGENTIC_TOOLS_CONFIG`. The file must exist.
+3. `<repo-root>/config.json` (git-ignored).
+4. `${XDG_CONFIG_HOME:-~/.config}/agentic-tools/config.json`.
 5. The active `gh` account, with optional `--owner` and `--repo` scope. Flag scope skips steps 3 and 4.
 
-Copy `config.example.json` to start. Each account has a `login` and optional `owners` and `repos` (`owner/repo`). An account with neither covers every repo no other account claims; at most one may do so. A repo maps to one account: an exact `repos` entry first, then an `owners` entry, then the unscoped account. So a `repos` entry can move one repo out of another account's owner. Each account searches only its scope, and hits in repos owned by another account are dropped. Worktrees in repos no account covers are skipped. Review worktrees are scanned for archive after their PR closes or merges. Every account must be logged in to `gh` (`gh auth login`). Run `prflow config` to check the result.
+Copy the repository's `config.example.json` to `<repo-root>/config.json` or the XDG path to start. prflow reads its options from the `prflow` section; accounts are shared at the top level. Each account has a `login` and optional `owners` and `repos` (`owner/repo`). An account with neither covers every repo no other account claims; at most one may do so. A repo maps to one account: an exact `repos` entry first, then an `owners` entry, then the unscoped account. So a `repos` entry can move one repo out of another account's owner. Each account searches only its scope, and hits in repos owned by another account are dropped. Worktrees in repos no account covers are skipped. Review worktrees are scanned for archive after their PR closes or merges. Every account must be logged in to `gh` (`gh auth login`). Run `prflow config` to check the result.
 
 An optional `rails` object sets tick limits; missing keys keep their defaults: `startsPerTick` 2, `maxOpen` 5, `perHour` 6, `perDay` 30, `loopSameVersion` 3, `loopAcrossVersions` 8, `backoffBaseMinutes` 15, `backoffMaxMinutes` 240, `pollBudgetSeconds` 120, `childTimeoutSeconds` 60, `leaseMinutes` 45, `maxAttempts` 3, `rerunsPerVersion` 2, `busyWaitMinutes` 45.
 
