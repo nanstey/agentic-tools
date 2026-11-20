@@ -149,6 +149,36 @@ hermes cron create --name prflow-watch --script prflow-watch.sh --no-agent --del
 Check it with `hermes cron run <id>`, `hermes cron tick`, and
 `hermes cron runs <id>`.
 
+### Orca automation precheck
+
+An Orca automation runs its `--precheck` command before each scheduled run and
+starts the agent only when it exits 0; any other exit, error, or timeout
+records `skipped_precheck`. Orca spawns the command from the app with
+`shell: true`, the app's environment, and the automation's folder as `cwd`. The
+default time limit is 60 seconds (`--precheck-timeout`, at most 600).
+
+A precheck has no Orca terminal (`ORCA_TERMINAL_HANDLE` is unset), so
+`orca-ide orchestration send` fails there with `no_active_sender_terminal`.
+Read calls work and `orca-ide agent launch` needs no sender, but prflow briefs a
+running session with `orchestration send`. So:
+
+- Run `prflow watch` (read-only) in the precheck, never `prflow tick`. With
+  dispatch live, a precheck tick would fail every brief to a running session.
+- Run `prflow tick` in the automation's agent run, which is an Orca agent
+  session and can send.
+- Watch prints nothing when nothing changed, but a precheck must exit non-zero
+  to skip. Wrap it so empty stdout exits 1 and a failure becomes output.
+
+The `orca-orchestrator` skill's `scripts/tick.ts` is that wrapper: it runs
+`repo-sync run`, `prflow watch --name orca-orchestrator`, and `prflow status`
+(to catch dispatches past their lease, which only a tick moves), writes the
+combined feed to a file, and exits 0 only when the feed is non-empty. Its
+`SKILL.md` is the runbook for the agent run, including the `automations create`
+command. Give it `--precheck-timeout 240`.
+
+Run now and `orca-ide automations run` bypass the precheck; the runbook covers
+that case.
+
 ### Other agent schedulers
 
 Any scheduler that can run a command works the same way: run `prflow watch`
