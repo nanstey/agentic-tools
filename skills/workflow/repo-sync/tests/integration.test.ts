@@ -200,7 +200,7 @@ describe("real git: merge safety", () => {
     git: (cwd, args, extra) => {
       if (args[0] !== "merge") return realDeps().git(cwd, args, extra);
       return new Promise((done) => {
-        const child = spawn("git", args, { cwd, env: gitEnv(process.env, extra), stdio: ["ignore", "pipe", "pipe"] });
+        const child = spawn("git", args, { cwd, env: gitEnv(process.env, extra), stdio: ["ignore", "pipe", "pipe"], detached: true });
         let stderr = "";
         child.stderr.on("data", (d) => (stderr += d));
         const started = Date.now();
@@ -210,8 +210,15 @@ describe("real git: merge safety", () => {
             child.kill(signal);
           }
         }, 20);
-        child.on("close", (code) => {
+        // "exit", not "close": the orphaned filter keeps the stderr pipe open until its sleep ends.
+        child.on("exit", (code) => {
           clearInterval(poll);
+          try {
+            process.kill(-child.pid!, "SIGKILL"); // the filter left behind in git's process group
+          } catch {
+            // Already gone.
+          }
+          child.stderr.destroy();
           done({ ok: code === 0, stdout: "", stderr });
         });
       });
