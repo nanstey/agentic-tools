@@ -14,7 +14,7 @@
  * bot's run executes `prflow tick` itself.
  */
 import { spawn } from "node:child_process";
-import { closeSync, mkdirSync, openSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync, writeSync } from "node:fs";
+import { closeSync, linkSync, mkdirSync, openSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync, writeSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
@@ -97,30 +97,64 @@ function runTool(t: Tool, o: Options, dir: string): Promise<ToolRun> {
   });
 }
 
-/** Take `<dir>/lock`, or return false when a live tick holds it. A dead or 30-minute-old holder is taken over. */
-function lock(dir: string, now: number): boolean {
+/** Take `<dir>/lock`, or return null when a live tick holds it. A dead or 30-minute-old holder is taken over. */
+function lock(dir: string, now: number): string | null {
   const path = join(dir, "lock");
   for (let i = 0; i < 2; i++) {
     try {
       const fd = openSync(path, "wx");
-      writeSync(fd, JSON.stringify({ pid: process.pid, at: now }));
+      const content = JSON.stringify({ pid: process.pid, at: now });
+      writeSync(fd, content);
       closeSync(fd);
-      return true;
+      return content;
     } catch (e) {
       if ((e as NodeJS.ErrnoException).code !== "EEXIST") throw e;
+      let content: string | null = null;
       let held: { pid?: number; at?: number } = {};
       try {
-        held = JSON.parse(readFileSync(path, "utf8")) as typeof held;
+        content = readFileSync(path, "utf8");
+        held = JSON.parse(content) as typeof held;
       } catch {
         /* unreadable: judge by age below */
       }
       const fresh = typeof held.at === "number" && now - held.at < STALE_LOCK_MS;
-      if (typeof held.pid === "number" && pidAlive(held.pid) && fresh) return false;
-      if (typeof held.pid !== "number" && fresh) return false;
-      rmSync(path, { force: true });
+      if (typeof held.pid === "number" && pidAlive(held.pid) && fresh) return null;
+      if (typeof held.pid !== "number" && fresh) return null;
+      const renamed = `${path}.stale.${process.pid}`;
+      try {
+        renameSync(path, renamed);
+      } catch (e) {
+        if ((e as NodeJS.ErrnoException).code === "ENOENT") continue;
+        throw e;
+      }
+      let ours = false;
+      try {
+        ours = readFileSync(renamed, "utf8") === content;
+      } catch {
+        /* cannot verify ownership: restore it */
+      } finally {
+        if (!ours) {
+          try {
+            linkSync(renamed, path);
+          } catch (e) {
+            if ((e as NodeJS.ErrnoException).code !== "EEXIST") renameSync(renamed, path);
+          }
+        }
+        rmSync(renamed, { force: true });
+      }
+      if (!ours) return null;
     }
   }
-  return false;
+  return null;
+}
+
+function unlock(dir: string, content: string): void {
+  const path = join(dir, "lock");
+  try {
+    if (readFileSync(path, "utf8") === content) rmSync(path, { force: true });
+  } catch {
+    /* already released or replaced */
+  }
 }
 
 function writeAtomic(path: string, text: string): void {
@@ -148,16 +182,29 @@ export async function tick(o: Options, out: (s: string) => void, err: (s: string
   const feedDir = join(o.stateDir, "feed");
   const runDir = join(o.stateDir, "runs", stamp(at));
   try {
-    mkdirSync(feedDir, { recursive: true });
-    mkdirSync(runDir, { recursive: true });
+    mkdirSync(o.stateDir, { recursive: true });
   } catch (e) {
     err(`orca-orchestrator: cannot write state: ${(e as Error).message}\n`);
     return EXIT.internal;
   }
-  if (!lock(o.stateDir, at.getTime())) {
-    rmSync(runDir, { recursive: true, force: true });
+  let lockContent: string | null;
+  try {
+    lockContent = lock(o.stateDir, at.getTime());
+  } catch (e) {
+    err(`orca-orchestrator: cannot write state: ${(e as Error).message}\n`);
+    return EXIT.internal;
+  }
+  if (lockContent === null) {
     err("orca-orchestrator: another tick is running\n");
     return EXIT.busy;
+  }
+  try {
+    mkdirSync(feedDir, { recursive: true });
+    mkdirSync(runDir, { recursive: true });
+  } catch (e) {
+    unlock(o.stateDir, lockContent);
+    err(`orca-orchestrator: cannot write state: ${(e as Error).message}\n`);
+    return EXIT.internal;
   }
   try {
     const cfg = o.config ? ["--config", o.config] : [];
@@ -195,7 +242,7 @@ export async function tick(o: Options, out: (s: string) => void, err: (s: string
     err(`orca-orchestrator: ${(e as Error).message}\n`);
     return EXIT.internal;
   } finally {
-    rmSync(join(o.stateDir, "lock"), { force: true });
+    unlock(o.stateDir, lockContent);
   }
 }
 

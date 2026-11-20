@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { appendFileSync, existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
@@ -11,12 +11,13 @@ const TICK = join(dirname(fileURLToPath(import.meta.url)), "..", "scripts", "tic
 
 /** A fake tool: prints FAKE_<TOOL>_OUT, writes FAKE_<TOOL>_ERR to stderr, exits FAKE_<TOOL>_EXIT, logs its argv. */
 const FAKE = `
-import { appendFileSync } from "node:fs";
+import { appendFileSync, writeFileSync } from "node:fs";
 const args = process.argv.slice(2);
 const tool = process.argv[1].includes("prflow") ? (args[0] === "status" ? "STATUS" : "WATCH") : "SYNC";
 appendFileSync(process.env.FAKE_LOG, JSON.stringify([tool, ...args]) + "\\n");
 const e = (k) => process.env["FAKE_" + tool + "_" + k];
 const go = () => {
+  if (e("REPLACE_LOCK")) writeFileSync(e("REPLACE_LOCK"), e("REPLACEMENT"));
   if (e("OUT")) process.stdout.write(e("OUT"));
   if (e("ERR")) process.stderr.write(e("ERR"));
   process.exit(Number(e("EXIT") ?? 0));
@@ -132,6 +133,19 @@ test("a slow tool is left running and reported, not killed", async () => {
   assert.equal(readFileSync(outFile, "utf8"), "late\n", "the abandoned tool finished and its output landed in its file");
 });
 
+test("a live lock skips without changing the matching run directory", async () => {
+  const w = world();
+  const runDir = join(w.opts.stateDir, "runs", "2026-11-20T20-30-00-000Z");
+  mkdirSync(runDir, { recursive: true });
+  writeFileSync(join(runDir, "marker"), "keep");
+  const lock = join(w.opts.stateDir, "lock");
+  writeFileSync(lock, JSON.stringify({ pid: process.pid, at: Date.parse("2026-11-20T20:30:00.000Z") }));
+  assert.equal(await w.go(), EXIT.busy);
+  assert.match(w.err(), /another tick is running/);
+  assert.equal(readFileSync(join(runDir, "marker"), "utf8"), "keep");
+  assert.equal(w.calls().length, 0);
+});
+
 test("a live lock skips with 75; a dead holder is taken over", async () => {
   const w = world({ FAKE_WATCH_OUT: "x\n" });
   const lock = join(w.opts.stateDir, "lock");
@@ -142,6 +156,15 @@ test("a live lock skips with 75; a dead holder is taken over", async () => {
   assert.equal(readFileSync(lock, "utf8").includes(String(process.pid)), true, "the live lock is kept");
   writeFileSync(lock, JSON.stringify({ pid: 2 ** 22 + 12345, at: Date.now() }));
   assert.equal(await w.go(), EXIT.feed);
+});
+
+test("a tick does not remove a lock replaced while its tools run", async () => {
+  const replacement = JSON.stringify({ pid: 2 ** 22 + 12345, at: Date.now() });
+  const w = world({ FAKE_STATUS_REPLACEMENT: replacement, FAKE_WATCH_OUT: "x\n" });
+  const lock = join(w.opts.stateDir, "lock");
+  w.opts.env.FAKE_STATUS_REPLACE_LOCK = lock;
+  assert.equal(await w.go(), EXIT.feed);
+  assert.equal(readFileSync(lock, "utf8"), replacement);
 });
 
 test("only the newest feeds and run outputs are kept", async () => {
