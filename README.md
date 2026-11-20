@@ -85,6 +85,7 @@ and runtime behavior.
 | [`scope`](skills/agent/scope/SKILL.md) | Confirms and normalizes analysis scope, then returns clear scope assumptions. Use when work needs explicit boundaries before scanning files. |
 | [`reflect`](skills/agent/reflect/SKILL.md) | Reviews the current session for problems and their eventual fixes, then proposes durable improvements to repo skills, scripts, or docs that prevent recurrence. Use when a session hit avoidable friction worth turning into a lasting fix. |
 | [`handoff`](skills/agent/handoff/SKILL.md) | Hands a task off to a new standalone Pi session in a fresh Orca worktree that drives it to review-ready PRs with idea-to-pr, then stops work on it. Use when the user asks to run, continue, or give a task in a new worktree or to another agent. |
+| [`orca-task-status`](skills/agent/orca-task-status/SKILL.md) | Keeps the agent's own Orca worktree board status current (In Progress, Needs Attention, Blocked, Paused, In Review, Done) at the start and end of every response, and removes the worktree after its PR merges once no work remains. Use when starting or ending a response inside an Orca worktree, or when the user asks to set, check, or clean up this task's status. |
 | [`durable`](skills/agent/durable/SKILL.md) | Operates the Durable local agent engine through its CLI. Use when checking, attaching to, chatting with, queueing, stopping, or approving Durable work. |
 
 ### Writing

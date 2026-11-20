@@ -55,5 +55,9 @@
   "repoSync": {
     "$comment": "Repos (Orca display name, folder name, or owner/repo) whose pulls print their new commits and changed paths. Default [].",
     "reportChanges": ["my-repo"]
+  },
+  "taskStatus": {
+    "$comment": "orca-task-status: Orca board status id per task state. in-progress, in-review, and done default to Orca's built-in in-progress, in-review, and completed. Custom columns (paused, blocked, needs-attention) have generated ids; read one with orca-ide worktree current --json from a worktree in that column.",
+    "statuses": { "paused": "status-6-2", "blocked": "status-6", "needs-attention": "status-7" }
   }
 }

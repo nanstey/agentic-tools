@@ -39,6 +39,22 @@ For explicitly headless OMP, send EOF on stdin when no piped prompt is intended.
 An open pipe can stall at `readPipedInput`. Do not use arbitrary log output as
 readiness; use an application-specific handshake.
 
+# Orca task status
+
+Inside an Orca worktree, the main agent keeps its own board card current with the
+`orca-task-status` skill. Run `node <orca-task-status skill dir>/scripts/task-status.ts start`
+first in every response, and `... end --outcome <finished|needs-input|blocked|paused>` as the
+last command before the final report (only `cleanup`, below, may follow it).
+Choose the outcome from how the response ends: `needs-input` when it asks the user anything or
+stops on an unresolved failure, `blocked` when it waits on other work, `paused` only when the
+user asked to stop the task, else `finished`, which derives In Review or Done from the PR.
+Add `--resume` to both only when the card is Paused and the user asked for work on this task.
+When `end` prints `cleanup: eligible` and no instructions for this task remain, including
+post-merge steps, write the final report and then run `cleanup` as the last tool call. It removes
+the worktree and ends the session. If it refuses or fails, reply once with the reason and run no
+further commands. Leaf agents and subagents skip all of this. A `skipped:` line
+needs no action. A failed status write never blocks the task.
+
 # Temporary-file safety
 
 This rule applies to scratch artifacts, not the placement of an Orca-managed
