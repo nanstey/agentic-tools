@@ -178,6 +178,31 @@ describe("unblock", () => {
     assert.equal(s.findDispatch("Acme/widgets#1", `blocked@${SET_AT}`, "unblock")?.detail, "/w/feat already left Blocked");
   });
 
+  it("treats a record from another branch of the same worktree as no record", async () => {
+    const w = blockedWorld(null, { blocked: { version: 1, records: { [ID]: record(["checks-pass"], { branch: "old" }) } } });
+    assert.match((await runTick(w, tempStore())).stdout, /needs-decision acme\/widgets#1 unblock: blocked with no unblock condition/);
+    assert.deepEqual(statusWrites(w), []);
+  });
+
+  it("skips the write when the card was re-blocked with new conditions during the tick", async () => {
+    const w = blockedWorld(["checks-pass"]);
+    const s = tempStore();
+    const c = config();
+    const deps = fakeTickDeps(w);
+    let reads = 0;
+    const read = deps.readBlocked;
+    deps.readBlocked = () => {
+      // First read by the step; the second, right before the write, sees a newer record.
+      if (++reads === 2) w.blocked!.records[ID] = record(["pr-approved"], { setAt: "2026-01-12T16:30:00.000Z" });
+      return read();
+    };
+    const unblock = makeUnblock(deps, s, c);
+    await tick(deps, s, c, { dryRun: false }, { act: async (ctx, _r, _i, opts) => unblock(ctx, opts) });
+    assert.deepEqual(statusWrites(w), []);
+    assert.equal(w.blocked!.records[ID]?.conditions[0], "pr-approved");
+    assert.equal(s.findDispatch("Acme/widgets#1", `blocked@${SET_AT}`, "unblock")?.detail, "/w/feat was re-blocked with new conditions");
+  });
+
   it("records a failed status write and retries it on a later tick", async () => {
     const w = blockedWorld(["checks-pass"], { orcaFails: { status: "runtime_unavailable" } });
     const s = tempStore();

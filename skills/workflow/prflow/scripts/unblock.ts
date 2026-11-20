@@ -102,7 +102,9 @@ async function one(c: Ctx, w: OrcaWorktree, rec: BlockedRecord | undefined): Pro
   const account = accountFor(cfg, w.repo);
   if (!account) return;
   const fallbackItem = `${w.repo}@${w.branch}`;
-  if (!rec || rec.path !== w.path) {
+  // A record from an earlier branch or repo in this worktree is stale: treat it as none.
+  const stale = rec && (rec.path !== w.path || rec.branch !== w.branch || (rec.repo !== null && rec.repo.toLowerCase() !== w.repo.toLowerCase()));
+  if (!rec || stale) {
     once(store, ctx.now, `ask:blocked-no-record:${w.id}`, "needs-decision", {
       type: "needs-decision", item: w.linkedPr !== null ? `${w.repo}#${w.linkedPr}` : fallbackItem, version: "no-record", kind: "unblock",
       detail: `blocked with no unblock condition: ${w.path}. Set one (orca-task-status set blocked --reason <why> --until <condition>) or move the card by hand`,
@@ -173,6 +175,19 @@ async function one(c: Ctx, w: OrcaWorktree, rec: BlockedRecord | undefined): Pro
   }
   if (!still) {
     finishDispatch(store, deps.now(), d, "done", `${w.path} already left Blocked`);
+    return;
+  }
+  // The agent may have re-blocked with new conditions since the tick read the record.
+  let current: BlockedRecord | undefined;
+  try {
+    current = deps.readBlocked().records[w.id];
+  } catch (e) {
+    finishDispatch(store, deps.now(), d, "failed", `blocked records: ${(e as Error).message}`);
+    store.appendEvent(deps.now(), { ...evt, type: "action-failed", detail: clip(`blocked records: ${(e as Error).message}`, 300) });
+    return;
+  }
+  if (current?.setAt !== rec.setAt) {
+    finishDispatch(store, deps.now(), d, "done", `${w.path} was re-blocked with new conditions`);
     return;
   }
   const res = await deps.setTaskStatus(w.id, status, comment);
