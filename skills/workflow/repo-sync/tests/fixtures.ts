@@ -90,7 +90,7 @@ export function scriptRepo(path: string, s: RepoScript = {}, branch = "main"): R
     [`${path}|fetch origin ${branch}`]: s.fetch ?? ok(),
     [`${path}|rev-list --left-right --count HEAD...origin/${branch}`]: s.count ?? ok(`${ahead}\t${behind}\n`),
     [`${path}|rev-parse HEAD`]: () => ok(`${merged ? SHA_B : SHA_A}\n`),
-    [`${path}|merge --ff-only origin/${branch}`]: () => {
+    [`${path}|merge --ff-only --no-overwrite-ignore origin/${branch}`]: () => {
       const r = s.merge ?? ok("Fast-forward\n");
       if (r.ok) merged = true;
       return r;

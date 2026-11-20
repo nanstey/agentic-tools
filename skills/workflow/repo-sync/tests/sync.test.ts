@@ -75,7 +75,7 @@ describe("syncRepo skips", () => {
     const r = await syncRepo(deps, repo({ baseRef: "origin/trunk" }), live);
     assert.equal(r.status, "updated");
     assert.equal(r.defaultBranch, "trunk");
-    assert.ok(ranArgs(calls).includes("merge --ff-only origin/trunk"));
+    assert.ok(ranArgs(calls).includes("merge --ff-only --no-overwrite-ignore origin/trunk"));
   });
 });
 
@@ -130,7 +130,7 @@ describe("syncRepo success", () => {
       "rev-parse --abbrev-ref HEAD",
       "status --porcelain",
       "rev-parse HEAD",
-      "merge --ff-only origin/main",
+      "merge --ff-only --no-overwrite-ignore origin/main",
       "rev-parse HEAD",
     ]);
     assert.equal(r.log, undefined, "no log for repos outside reportChanges");

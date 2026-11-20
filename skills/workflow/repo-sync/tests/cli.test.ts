@@ -93,6 +93,8 @@ describe("repo-sync run", () => {
     const paused = await cli(["run"], deps, env);
     assert.deepEqual([paused.code, paused.out, calls.length], [0, "", 0]);
     assert.ok(!existsSync(join(state, "last-run.json")));
+    const badConfig = await cli(["run", "--config", join(state, "missing.json")], deps, env);
+    assert.deepEqual([badConfig.code, badConfig.out, badConfig.err], [0, "", ""]);
     assert.match((await cli(["status"], deps, env)).out, /^paused: travel\nno runs yet/);
     assert.equal((await cli(["resume"], deps, env)).out, "repo-sync resumed\n");
     await cli(["run"], deps, env);

@@ -116,8 +116,9 @@ export async function main(argv: string[], io: Io): Promise<number> {
 }
 
 async function runCmd(io: Io, store: Store, dryRun: boolean, configPath: string | undefined): Promise<number> {
-  const { config } = loadConfig({ explicit: configPath, paths: defaultPaths(io.env) });
+  const load = () => loadConfig({ explicit: configPath, paths: defaultPaths(io.env) }).config;
   if (dryRun) {
+    const config = load();
     const repos = await listRepos(io, store, false);
     if (!repos) return 1;
     const results = await syncAll(io.deps, repos, { config, dryRun: true });
@@ -129,6 +130,7 @@ async function runCmd(io: Io, store: Store, dryRun: boolean, configPath: string 
   store.ensureDir();
   if (!store.tryLock(io.now(), io.alive ?? pidAlive)) return 0;
   try {
+    const config = load();
     const repos = await listRepos(io, store, true);
     if (!repos) return 1;
     const results = await syncAll(io.deps, repos, { config, dryRun: false });

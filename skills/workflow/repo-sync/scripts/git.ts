@@ -25,7 +25,7 @@ const originHeadArgs = (): string[] => ["rev-parse", "--abbrev-ref", "origin/HEA
 const headShaArgs = (): string[] => ["rev-parse", "HEAD"];
 const statusArgs = (): string[] => ["status", "--porcelain"];
 const fetchArgs = (b: string): string[] => { branch(b); return ["fetch", "origin", b]; };
-const mergeArgs = (b: string): string[] => { branch(b); return ["merge", "--ff-only", `origin/${b}`]; };
+const mergeArgs = (b: string): string[] => { branch(b); return ["merge", "--ff-only", "--no-overwrite-ignore", `origin/${b}`]; };
 const countArgs = (b: string): string[] => { branch(b); return ["rev-list", "--left-right", "--count", `HEAD...origin/${b}`]; };
 const logArgs = (from: string, to: string): string[] => { sha(from); sha(to); return ["log", "--oneline", "--no-decorate", "-n", "10", `${from}..${to}`]; };
 const diffArgs = (from: string, to: string): string[] => { sha(from); sha(to); return ["diff", "--name-only", from, to]; };

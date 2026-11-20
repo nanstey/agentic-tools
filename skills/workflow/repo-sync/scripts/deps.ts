@@ -12,11 +12,11 @@ export interface Deps {
   ghToken(login: string): Promise<string | null>;
 }
 
-/** Every child process is killed after this long. */
+/** Every child process except `git merge` is killed after this long. */
 export const CHILD_TIMEOUT_MS = 60_000;
 
-function run(cmd: string, args: string[], env: NodeJS.ProcessEnv, cwd?: string): Promise<CmdResult> {
-  return runProcess(cmd, args, env, cwd, CHILD_TIMEOUT_MS);
+function run(cmd: string, args: string[], env: NodeJS.ProcessEnv, cwd?: string, timeoutMs = CHILD_TIMEOUT_MS): Promise<CmdResult> {
+  return runProcess(cmd, args, env, cwd, timeoutMs);
 }
 
 /** Real dependencies. `orca-ide`, never bare `orca` (the GNOME screen reader on some desktops). */
@@ -25,7 +25,8 @@ export function realDeps(): Deps {
     orcaRepos: () => run("orca-ide", ["repo", "list", "--json"], process.env),
     async git(cwd, args, extra) {
       const env: NodeJS.ProcessEnv = { ...process.env, GIT_TERMINAL_PROMPT: "0", GH_PROMPT_DISABLED: "1", LC_ALL: "C", ...extra };
-      return run("git", args, env, cwd);
+      // Killing a merge mid-write leaves index.lock and partial files, so it runs to completion.
+      return run("git", args, env, cwd, args[0] === "merge" ? 0 : CHILD_TIMEOUT_MS);
     },
     async ghToken(login) {
       const r = await run("gh", ["auth", "token", "-u", login], { ...withoutTokens(), GH_PROMPT_DISABLED: "1" });

@@ -6,9 +6,9 @@ import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
 import { main } from "../scripts/cli.ts";
 import { realDeps, type Deps } from "../scripts/deps.ts";
+import { gitArgs } from "../scripts/git.ts";
 
 const root = mkdtempSync(join(tmpdir(), "repo-sync-it-"));
-writeFileSync(join(root, "prflow.json"), JSON.stringify({ accounts: [] }));
 after(() => rmSync(root, { recursive: true, force: true }));
 
 /** Setup git directly for the integration fixture. */
@@ -134,5 +134,26 @@ describe("real git: run against temporary clones", () => {
     assert.equal(code, 0);
     assert.match(out, /^unreachable: fetch failed: .*gone\.git/);
     assert.deepEqual(snapshot(dir), s);
+  });
+});
+
+describe("real git: merge safety", () => {
+  it("refuses to overwrite an ignored local file that upstream starts tracking", async () => {
+    const up = join(root, "ignored-seed");
+    git(root, "init", "-q", up);
+    commit(up, ".gitignore", ".env\n", "ignore env");
+    const local = join(root, "ignored-local");
+    git(root, "clone", "-q", up, local);
+    writeFileSync(join(local, ".env"), "SECRET=local\n");
+    writeFileSync(join(up, ".gitignore"), "");
+    writeFileSync(join(up, ".env"), "SECRET=upstream\n");
+    git(up, "add", ".gitignore", ".env");
+    git(up, "commit", "-qm", "track env");
+    git(local, "fetch", "-q", "origin");
+    const before = git(local, "rev-parse", "HEAD");
+    const m = await realDeps().git(local, gitArgs.merge("main"));
+    assert.equal(m.ok, false);
+    assert.equal(readFileSync(join(local, ".env"), "utf8"), "SECRET=local\n");
+    assert.equal(git(local, "rev-parse", "HEAD"), before);
   });
 });
