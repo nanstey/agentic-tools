@@ -2,8 +2,9 @@
  * Orca adapter: parsing and the exact `orca-ide` calls prflow may make.
  *
  * Reads: `worktree list`, `agent list`, `terminal list`. Writes: archive a
- * worktree, create a review worktree for one PR, update its status or display
- * name (review worktrees only), launch Pi
+ * worktree, create a review worktree for one PR (without the caller's Orca
+ * identity, see `detachedEnv`), update its status or display name or drop a
+ * stray parent (review worktrees only), launch Pi
  * in an existing worktree, mail a running agent with `orchestration send`
  * (never `terminal send`), and close an idle prflow-launched terminal.
  * `assertOrca` rejects every other call.
@@ -187,11 +188,46 @@ export function assertWorktreeSet(args: readonly string[], expectedPath?: string
   if (!ok) throw new Error(`prflow: orca-ide ${args.join(" ")} is not the allowed review worktree status call`);
 }
 
-/** `orca-ide worktree create --json`: the new worktree's id and path, when the reply has them. */
-export function parseCreatedWorktree(json: string): { id: string; path: string } | null {
+/**
+ * `orca-ide worktree create --json`: the new worktree's id and path, when the
+ * reply has them. `nested` is true when Orca still recorded a parent
+ * (`lineage`, `workspaceLineage`, or `crossStoreLineage`) despite `--no-parent`.
+ */
+export function parseCreatedWorktree(json: string): { id: string; path: string; nested: boolean } | null {
   const r = result<Record<string, unknown>>(json, "orca-ide worktree create");
   const w = (r.worktree ?? r) as { id?: unknown; path?: unknown };
-  return typeof w.id === "string" && typeof w.path === "string" && WORKTREE_ID.test(w.id) ? { id: w.id, path: w.path } : null;
+  const nested = [r.lineage, r.workspaceLineage, r.crossStoreLineage].some((x) => x !== undefined && x !== null);
+  return typeof w.id === "string" && typeof w.path === "string" && WORKTREE_ID.test(w.id) ? { id: w.id, path: w.path, nested } : null;
+}
+
+/**
+ * Environment variables that name the calling Orca terminal, chat, bot, or
+ * workspace. Orca files a new worktree under the caller's bot folder when the
+ * create call carries the caller's terminal handle or agent session id, even
+ * with `--no-parent`. prflow drops them from its `worktree create` call, so
+ * review worktrees are always top-level in their repo. Connection variables
+ * (`ORCA_ENVIRONMENT`, `ORCA_PAIRING_CODE`, `ORCA_USER_DATA_PATH`,
+ * `ORCA_CLI_COMMAND`) stay.
+ */
+export const ORCA_CALLER_ENV = ["ORCA_TERMINAL_HANDLE", "ORCA_AGENT_SESSION_ID", "ORCA_AGENT_SESSION_SPAWN_TOKEN", "ORCA_BOT_TOOLS_TOKEN", "ORCA_WORKSPACE_ID", "ORCA_WORKTREE_ID"] as const;
+
+/** `env` without the caller-identity variables above. */
+export function detachedEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const out = { ...env };
+  for (const k of ORCA_CALLER_ENV) delete out[k];
+  return out;
+}
+
+/** Remove a review worktree's Orca parent lineage. */
+export const worktreeUnparentArgs = (path: string): string[] => ["worktree", "set", "--worktree", `path:${path}`, "--no-parent", "--json"];
+
+/** Throws unless `args` is exactly `worktreeUnparentArgs` for a `prflow-review-` folder (and `expectedPath`, when given). */
+export function assertWorktreeUnparent(args: readonly string[], expectedPath?: string): void {
+  const path = args[3]?.slice("path:".length) ?? "";
+  const ok = args.length === 6 && (args[3] ?? "").startsWith("path:") && (expectedPath === undefined || path === expectedPath) &&
+    path.startsWith("/") && !path.split("/").includes("..") && !/[\n\0]/.test(path) &&
+    (path.split("/").at(-1)?.startsWith("prflow-review-") ?? false) && same(args, worktreeUnparentArgs(path));
+  if (!ok) throw new Error(`prflow: orca-ide ${args.join(" ")} is not the allowed review worktree unparent call`);
 }
 
 // ---- worktree matching ----
@@ -430,7 +466,7 @@ export function assertOrca(args: readonly string[]): void {
     (args.length === 9 && TERMINAL.test(args[3] ?? "") && same(args, waitIdleArgs(args[3] ?? "")));
   if (ok) return;
   if (args[0] === "worktree" && args[1] === "create") return assertReviewWorktree(args);
-  if (args[0] === "worktree" && args[1] === "set") return args[4] === "--display-name" ? assertWorktreeName(args) : assertWorktreeSet(args);
+  if (args[0] === "worktree" && args[1] === "set") return args[4] === "--display-name" ? assertWorktreeName(args) : args[4] === "--no-parent" ? assertWorktreeUnparent(args) : assertWorktreeSet(args);
   try {
     assertArchive(args);
   } catch {

@@ -3,7 +3,7 @@ import { run as runProcess, withoutTokens } from "../../../../lib/runtime.ts";
 import type { CmdResult } from "../../../../lib/runtime.ts";
 import { assertReadOnly, assertRerun, assertReviewPost, rerunArgs, reviewPostArgs } from "./adapters/gh.ts";
 import { assertDeleteBranch, assertReviewFetch, assertReviewReset, deleteBranchArgs, reviewFetchArgs, reviewResetArgs } from "./adapters/git.ts";
-import { agentListArgs, archiveArgs, assertArchive, assertOrca, assertWorktreeName, assertWorktreeSet, closeArgs, interruptArgs, launchArgs, reviewWorktreeArgs, sendArgs, terminalListArgs, waitIdleArgs, worktreeListArgs, worktreeNameArgs, worktreeSetArgs, isReviewBranch } from "./adapters/orca.ts";
+import { agentListArgs, archiveArgs, assertArchive, assertOrca, assertWorktreeName, assertWorktreeSet, assertWorktreeUnparent, closeArgs, detachedEnv, interruptArgs, launchArgs, reviewWorktreeArgs, sendArgs, terminalListArgs, waitIdleArgs, worktreeListArgs, worktreeNameArgs, worktreeSetArgs, worktreeUnparentArgs, isReviewBranch } from "./adapters/orca.ts";
 import type { TickDeps } from "./tick.ts";
 
 /** Default limit for one child process; `setChildTimeout` overrides it from config. */
@@ -129,7 +129,9 @@ export function realDeps(): RealDeps {
     closeTerminal: (handle) => orca(closeArgs(handle)),
     interruptTerminal: (handle) => orca(interruptArgs(handle)),
     waitIdle: (handle) => orca(waitIdleArgs(handle)),
-    createReviewWorktree: (repoId, slug, pr) => orca(reviewWorktreeArgs(repoId, slug, pr)),
+    // Without the caller's Orca identity: a create from a bot chat otherwise lands under the bot's folder despite --no-parent.
+    createReviewWorktree(repoId, slug, pr) { const args = reviewWorktreeArgs(repoId, slug, pr); assertOrca(args); return run("orca-ide", args, detachedEnv(process.env)); },
+    async unparentReviewWorktree(path, branch) { if (!isReviewBranch(branch)) throw new Error("prflow: review unparent requires a prflow-review branch"); const args = worktreeUnparentArgs(path); assertWorktreeUnparent(args, path); return orca(args); },
     async reviewFetch(path, number, branch) { if (!isReviewBranch(branch)) throw new Error("prflow: review fetch requires a prflow-review branch"); const args = reviewFetchArgs(path, number); assertReviewFetch(args); return run("git", args, process.env); },
     async reviewReset(path, sha, branch) { if (!isReviewBranch(branch)) throw new Error("prflow: review reset requires a prflow-review branch"); const args = reviewResetArgs(path, sha); assertReviewReset(args); return run("git", args, process.env); },
     async reviewHead(path) { const r = await run("git", ["-C", path, "rev-parse", "HEAD"], process.env); return r.ok ? r.stdout.trim() : null; },

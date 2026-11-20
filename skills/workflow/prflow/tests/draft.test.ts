@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import { assertReadOnly, assertReviewPost, reviewPostArgs } from "../scripts/adapters/gh.ts";
@@ -169,7 +169,7 @@ describe("prflow review post", () => {
     assert.match(ev[0]?.detail ?? "", new RegExp(`posted draft ${ID} as octocat: REQUEST_CHANGES with 2 inline comment\\(s\\) at c0ffee11 https://github.com/Acme/x/pull/5#pullrequestreview-99`));
     assert.match(renderDraftList(listDrafts(s)), /\| posted \|/);
     const again = await postDraft(s, postDeps(f), ID, { event: "comment", yes: true });
-    assert.deepEqual([again.code, again.out, f.posts.length], [1, `refusing: draft ${ID} was already posted`, 1]);
+    assert.deepEqual([again.code, again.out, f.posts.length], [1, `refusing: draft ${ID} revision r1 was already posted (a rewritten draft becomes a new revision)`, 1]);
   });
 
   it("refuses an unsaved or broken draft", async () => {
@@ -220,5 +220,64 @@ describe("prflow review post", () => {
     assert.equal(f.posts.length, 0);
     mkdirSync(join(s.dir, "drafts", "junk"), { recursive: true });
     assert.equal(listDrafts(s).length, 1);
+  });
+});
+
+describe("prflow review post: draft revisions", () => {
+  const APPROVE = DRAFT.replace("Verdict: request-changes", "Verdict: approve").replace("Nit: name this.", "Nit: name this.\n\n### src/c.ts:7\n\nNew: guard this.");
+  const commented = (at = "2026-01-12T17:30:00Z") => review(user(ME), "COMMENTED", at, "x", HEAD);
+  const fakeWith = (reviews: unknown[], over: Partial<FakePost> = {}): FakePost => ({ pr: prResponse({ requests: [], decision: null, reviews }), posts: [], reads: [], ...over });
+
+  it("posts a rewritten draft as revision r2 on an already-reviewed head, with only its new inline comments", async () => {
+    const s = tempStore();
+    const p = seed(s);
+    assert.equal((await postDraft(s, postDeps(fakeWith([])), ID, { event: "comment", yes: true })).code, 0);
+    // The draft is rewritten after the COMMENT review (incident: Noel asked the reviewer to approve).
+    writeFileSync(p.file, APPROVE);
+    assert.match(renderDraftList(listDrafts(s)), /\| ready r2 \(earlier revision posted\) \| verdict suggestion approve/);
+    assert.match(showDraft(s, ID), /^posted: no, revision r2 \(r1 posted\)$/m);
+    const f = fakeWith([commented()]);
+    const dry = await postDraft(s, postDeps(f), ID, { event: "approve", yes: false });
+    assert.match(dry.out, /^would post: APPROVE review of Acme\/x#5 at c0ffee11 \(draft revision r2\) with 1 inline comment\(s\) \(2 already posted with an earlier revision\), as octocat/);
+    const r = await postDraft(s, postDeps(f), ID, { event: "approve", yes: true });
+    assert.equal(r.code, 0, r.out);
+    const body = JSON.parse(f.posts[0]?.[3] ?? "{}");
+    assert.deepEqual([body.event, body.commit_id, body.comments.map((c: { path: string }) => c.path)], ["APPROVE", HEAD, ["src/c.ts"]]);
+    assert.match(r.out, new RegExp(`^posted draft ${ID} revision r2 as octocat: APPROVE with 1 inline comment`));
+    assert.ok(s.hasLedgerRef(`review-posted:${ID}:r2`));
+    assert.match(renderDraftList(listDrafts(s)), /\| posted r2 \|/);
+    const again = await postDraft(s, postDeps(fakeWith([commented(), review(user(ME), "APPROVED", "2099-01-01T00:00:00Z", "y", HEAD)])), ID, { event: "approve", yes: true });
+    assert.deepEqual([again.code, again.out], [1, `refusing: draft ${ID} revision r2 was already posted`]);
+  });
+
+  it("refuses a revision when a review of the commit is newer than it (a lost post record), and approval after the head moved", async () => {
+    const s = tempStore();
+    const p = seed(s);
+    assert.equal((await postDraft(s, postDeps(fakeWith([])), ID, { event: "comment", yes: true })).code, 0);
+    writeFileSync(p.file, APPROVE);
+    const newer = fakeWith([commented("2099-01-01T00:00:00Z")]);
+    assert.match((await postDraft(s, postDeps(newer), ID, { event: "approve", yes: true })).out, /refusing: octocat already reviewed Acme\/x#5 at c0ffee11 \(COMMENTED 2099-01-01T00:00:00Z\) after draft revision r2 was saved/);
+    const moved = fakeWith([commented()]);
+    moved.pr = prResponse({ requests: [], decision: null, reviews: [commented()], head: "beefbeef00112233445566778899aabbccddeeff" });
+    assert.match((await postDraft(s, postDeps(moved), ID, { event: "approve", yes: true })).out, /refusing: the head moved to beefbeef/);
+    assert.equal(newer.posts.length + moved.posts.length, 0);
+  });
+
+  it("treats a draft posted before revisions were tracked as revision r1 by its post time and post.json", async () => {
+    const s = tempStore();
+    const p = seed(s);
+    // An older prflow posted it: a ledger row and post.json, no posted.json.
+    writeFileSync(join(p.dir, "post.json"), JSON.stringify(reviewPayload(parseDraft(DRAFT), "comment", HEAD)));
+    s.addLedger({ at: Date.now() + 60_000, item: "Acme/x#5", version: "c0ffee11", kind: "review-requested", outcome: "posted", detail: "old", source: "prflow", ref: `review-posted:${ID}` });
+    assert.match((await postDraft(s, postDeps(fakeWith([commented()])), ID, { event: "comment", yes: true })).out, /revision r1 was already posted/);
+    writeFileSync(p.file, APPROVE);
+    const later = (Date.now() + 120_000) / 1000;
+    utimesSync(p.file, later, later);
+    const f = fakeWith([commented()]);
+    const r = await postDraft(s, postDeps(f), ID, { event: "approve", yes: true });
+    assert.equal(r.code, 0, r.out);
+    assert.deepEqual(JSON.parse(f.posts[0]?.[3] ?? "{}").comments.map((c: { path: string }) => c.path), ["src/c.ts"]);
+    assert.ok(existsSync(join(p.dir, "posted.json")));
+    assert.deepEqual(JSON.parse(readFileSync(join(p.dir, "posted.json"), "utf8")).revisions.map((x: { rev: number }) => x.rev), [1, 2]);
   });
 });

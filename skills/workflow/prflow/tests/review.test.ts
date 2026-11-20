@@ -8,6 +8,8 @@ import { importLegacy, pause, recover } from "../scripts/commands.ts";
 import { SKILL_DIR } from "../scripts/config.ts";
 import type { Config } from "../scripts/core/config.ts";
 import { draftPaths, makeReviewFlow } from "../scripts/review.ts";
+import { commentKey, recordPosted, textHash } from "../scripts/revisions.ts";
+import { parseDraft } from "../scripts/core/draft.ts";
 import type { Store } from "../scripts/store.ts";
 import { tick, type TickDeps } from "../scripts/tick.ts";
 import { AFTER, alice, DRAFT, HEAD, ME, ok, prResponse, review, run, user } from "./fixtures.ts";
@@ -84,7 +86,7 @@ describe("review dispatch: dry run", () => {
   it("is the default and announces the exact target and brief once, creating nothing", async () => {
     const { w, s } = setup();
     const out = (await runTick(w, s, { omitFlag: true })).stdout;
-    assert.match(out, new RegExp(`dry-run Acme/x#5 review-requested: would create Orca worktree prflow-review-${SLUG} on branch prflow-review/${SLUG} \\(orca-ide worktree create --repo id:rid1 --name prflow-review-${SLUG} --branch prflow-review/${SLUG} --pr 5 --no-parent --setup run --json\\) for Acme/x, name it feature, then fetch origin pull/5/head, reset --hard ${HEAD}, verify HEAD, and launch a fresh Pi reviewer there; draft Acme-x-5-${H8} to ${s.dir.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/drafts/Acme-x-5/${H8}/review\\.md; brief review v2:\\n# Draft a review of Acme/x#5 at ${H8}`));
+    assert.match(out, new RegExp(`dry-run Acme/x#5 review-requested: would create top-level Orca worktree prflow-review-${SLUG} on branch prflow-review/${SLUG} \\(orca-ide worktree create --repo id:rid1 --name prflow-review-${SLUG} --branch prflow-review/${SLUG} --pr 5 --no-parent --setup run --json, without the caller's Orca identity\\) for Acme/x, name it feature, then fetch origin pull/5/head, reset --hard ${HEAD}, verify HEAD, and launch a fresh Pi reviewer there; set status reviewing, comment reviewing ${H8}; draft Acme-x-5-${H8} to ${s.dir.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/drafts/Acme-x-5/${H8}/review\\.md; brief review v2:\\n# Draft a review of Acme/x#5 at ${H8}`));
     assert.match(out, /run `\/pr review https:\/\/github\.com\/Acme\/widgets\/pull\/1 report`\. Report mode never publishes\./);
     assert.match(out, /Do not post anything to GitHub/);
     assert.match(out, /orca-ide worktree set --worktree active --workspace-status <id> --comment/);
@@ -147,8 +149,9 @@ describe("review dispatch: live", () => {
       },
     };
     const out = (await runTick(w, s, { live: true, deps })).stdout;
-    assert.match(seen[0] ?? "", /^planned dispatched #1: brief review v2: create Orca worktree prflow-review-x-5 .* meta=true$/);
-    assert.deepEqual(w.effects, [`create-worktree ${SLUG}`, `name ${RPATH} feature`, `review-fetch ${RPATH} 5`, `review-reset ${RPATH} ${HEAD}`, `launch ${RWT}`]);
+    assert.match(seen[0] ?? "", /^planned dispatched #1: brief review v2: create top-level Orca worktree prflow-review-x-5 .*; set status reviewing, comment reviewing c0ffee11 meta=true$/);
+    // The new worktree shows reviewing in the same tick, not Orca's default column until the next one.
+    assert.deepEqual(w.effects, [`create-worktree ${SLUG}`, `name ${RPATH} feature`, `review-fetch ${RPATH} 5`, `review-reset ${RPATH} ${HEAD}`, `launch ${RWT}`, `status ${RPATH} reviewing reviewing ${H8} `]);
     const d = s.dispatch(1);
     assert.equal(d?.kind, "review-requested");
     assert.equal(d?.version, H8);
@@ -186,7 +189,7 @@ describe("review dispatch: live", () => {
     assert.equal(s.dispatch(1)?.state, "done");
     const second = s.findDispatch(KEY, "beefbeef", "review-requested");
     assert.equal(second?.state, "launched");
-    assert.deepEqual(w.effects.slice(-3), [`review-fetch ${RPATH} 5`, `review-reset ${RPATH} ${NEW_HEAD}`, "send term_new1"]);
+    assert.deepEqual(w.effects.slice(-4), [`review-fetch ${RPATH} 5`, `review-reset ${RPATH} ${NEW_HEAD}`, "send term_new1", `status ${RPATH} reviewing reviewing beefbeef `]);
     assert.match(w.sent.at(-1) ?? "", new RegExp(`## Earlier draft\\n\\nprflow saved a draft for the earlier head \`${H8}\``));
   });
 
@@ -334,6 +337,25 @@ describe("review dispatch: live", () => {
     assert.equal(w.effects.filter((e) => e.startsWith("create-worktree")).length, 1);
     assert.equal(w.effects.filter((e) => e.startsWith("launch ")).length, 1);
     assert.equal(s.dispatch(1)?.worktree, RWT);
+  });
+});
+
+describe("review worktree lineage", () => {
+  it("drops a parent Orca still recorded on a new review worktree, and reports a failure once", async () => {
+    const nested = { ok: true, result: { worktree: { id: RWT, path: RPATH }, lineage: null, workspaceLineage: { parentWorkspaceKey: "folder:pingu" } } };
+    const { w, s } = setup({ createReply: nested });
+    await runTick(w, s, { live: true });
+    assert.deepEqual(w.effects.slice(0, 2), [`create-worktree ${SLUG}`, `unparent ${RPATH}`]);
+    assert.equal(s.dispatch(1)?.state, "launched", "the review goes on");
+
+    const { w: top, s: topStore } = setup();
+    await runTick(top, topStore, { live: true });
+    assert.equal(top.effects.some((e) => e.startsWith("unparent ")), false, "a top-level create needs no unparent call");
+
+    const { w: bad, s: badStore } = setup({ createReply: nested, orcaFails: { unparent: "offline" } });
+    await runTick(bad, badStore, { live: true });
+    assert.equal(badStore.dispatch(1)?.state, "launched");
+    assert.deepEqual(events(badStore).filter((e) => e.startsWith("action-failed")), [`action-failed: orca-ide worktree set ${RPATH} --no-parent: offline`]);
   });
 });
 
@@ -534,7 +556,8 @@ describe("review worktree status sync", () => {
     const comment = `queued ${H8}`;
     const { w, s } = setup({ worktrees: [MAIN, row("reviewing", comment)] });
     await runTick(w, s, { live: true });
-    assert.equal(w.effects.some((e) => e.startsWith("status ")), false);
+    // Status sync writes nothing; the only write marks the reviewer launched this tick.
+    assert.deepEqual(w.effects.filter((e) => e.startsWith("status ")), [`status ${RPATH} reviewing reviewing ${H8} `]);
 
     const { w: dryWorld, s: dryStore } = setup({ worktrees: [MAIN, row()] });
     const out = (await runTick(dryWorld, dryStore)).stdout;
@@ -574,7 +597,7 @@ describe("review worktree status sync", () => {
     await runTick(w, s, { live: true, deps });
     const failures = s.readEventsFrom(0).events.filter((x) => x.type === "action-failed");
     assert.equal(failures.length, 2, "two distinct status/comment pairs each report one failure");
-    assert.equal(attempted, 3, "status writes retry on later ticks even after failure");
+    assert.equal(attempted, 4, "status writes retry on later ticks even after failure (one more right after the launch)");
   });
 
   it("names the review worktree after the PR head branch, only when it differs, and dry run only announces", async () => {
@@ -611,6 +634,50 @@ describe("review worktree status sync", () => {
     await runTick(w, s, { live: true });
     assert.ok(w.calls.some((c) => c[0] === "gh" && c.includes("api") && c.some((x) => x.includes("query=query"))));
     assert.ok(w.effects.some((e) => e === `status ${RPATH} reviewing queued ${H8} `), JSON.stringify({ effects: w.effects, calls: w.calls }));
+  });
+});
+
+describe("review draft revisions", () => {
+  const APPROVE = DRAFT.replace("Verdict: request-changes", "Verdict: approve").replace("One blocking finding: F1 in src/a.ts.", "Fixed; approving.");
+  /** prflow posted the draft as it is now (revision `rev`). */
+  function markPosted(s: Store, text: string, rev: number, event: string) {
+    const p = draftPaths(s.dir, "Acme/x", 5, H8);
+    recordPosted(s, p, { rev, hash: textHash(text), event, at: T0, comments: parseDraft(text).comments.map(commentKey) });
+  }
+
+  it("a draft rewritten after its post is a new revision that wins status sync until it is posted", async () => {
+    const { w, s } = setup();
+    await runTick(w, s, { live: true });
+    w.clock += 15 * MIN;
+    session(w, RWT, "term_new1", "done", w.clock - MIN, "Draft written.");
+    saveDraft(s);
+    await runTick(w, s, { live: true });
+    assert.equal(s.dispatch(1)?.state, "done");
+
+    // Posted as COMMENT; GitHub shows it.
+    markPosted(s, DRAFT, 1, "COMMENT");
+    w.reviewPrs[KEY] = REQ({ requests: [], reviews: [review(user(ME), "COMMENTED", AFTER, "x", HEAD)] });
+    w.clock += 15 * MIN;
+    await runTick(w, s, { live: true });
+    assert.equal(w.effects.at(-1), `status ${RPATH} reviewing commented at ${H8} --read`);
+
+    // Noel tells the reviewer to approve; it rewrites the same file.
+    saveDraft(s, APPROVE);
+    w.clock += 15 * MIN;
+    const out = (await runTick(w, s, { live: true })).stdout;
+    assert.match(out, new RegExp(`review-drafted Acme/x#5 review-requested #1: revision r2 \\(r1 posted\\): draft Acme-x-5-${H8}: verdict suggestion approve`));
+    assert.equal(w.effects.at(-1), `status ${RPATH} review-approved draft r2: approve, not posted --unread`);
+    w.clock += 15 * MIN;
+    const before = w.effects.length;
+    assert.doesNotMatch((await runTick(w, s, { live: true })).stdout, /review-drafted/, "one event per revision");
+    assert.equal(w.effects.length, before, "the newer revision keeps its status; the older COMMENT does not win it back");
+
+    // Revision 2 is posted as APPROVE; the posted review wins again.
+    markPosted(s, APPROVE, 2, "APPROVE");
+    w.reviewPrs[KEY] = REQ({ requests: [], reviews: [review(user(ME), "COMMENTED", AFTER, "x", HEAD), review(user(ME), "APPROVED", "2026-01-10T14:00:00Z", "y", HEAD)] });
+    w.clock += 15 * MIN;
+    await runTick(w, s, { live: true });
+    assert.equal(w.effects.at(-1), `status ${RPATH} review-approved approved at ${H8} --read`);
   });
 });
 

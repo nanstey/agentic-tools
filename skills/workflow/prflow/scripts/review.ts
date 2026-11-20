@@ -10,9 +10,11 @@
  *    waits for the older reviewer to settle. At most `review.maxConcurrent`
  *    reviewers are open; the usual caps and loop breaker apply (`beginDispatch`).
  * 2. Create the review worktree (`orca-ide worktree create`, the only worktree
- *    prflow creates) and set its Orca display name to the PR's head branch,
- *    record `meta.json` beside the draft, then launch Pi with the review brief
- *    (`templates/briefs/review.md`). Row and event first.
+ *    prflow creates; run without the caller's Orca identity so it is top-level,
+ *    and unparented if Orca still nests it) and set its Orca display name to the
+ *    PR's head branch, record `meta.json` beside the draft, then launch Pi with
+ *    the review brief (`templates/briefs/review.md`) and set the worktree to
+ *    `statuses.reviewing`. Row and event first.
  *
  * Monitor (before reconcile): the agent monitor with review rules. Done once a
  * parseable draft is saved (or the review is no longer requested) and the
@@ -26,7 +28,9 @@
  * is busy or open, and every Pi session is prflow-launched.
  *
  * Status sync (with monitor): each open PR's review worktree gets its board
- * status and comment, and its display name follows the PR's head branch.
+ * status and comment, and its display name follows the PR's head branch. A
+ * draft revision saved after the latest posted review and not posted yet wins
+ * over that review (`scripts/revisions.ts`).
  *
  * Review dry run (`review.dryRun`, default true) makes the same reads and
  * announces the exact target and brief once per head as a `dry-run` event.
@@ -58,6 +62,7 @@ import { draftFolder, draftId, draftSummary, parseDraft, type Draft, type DraftM
 import { MINUTE_MS, OPEN_STATES } from "./core/rails.ts";
 import type { Classification, PrSnapshot } from "./core/types.ts";
 import { beginDispatch, finishDispatch } from "./dispatch.ts";
+import { draftRevision } from "./revisions.ts";
 import { fetchReviewPr, type ScanResult } from "./scan.ts";
 import type { Dispatch, Store } from "./store.ts";
 import type { Act, Annotate, Monitor, TickDeps, TickOptions } from "./tick.ts";
@@ -143,9 +148,13 @@ export function earlierDraft(paths: DraftPaths): { head8: string; file: string }
 const head8 = (c: Classification) => c.version.slice(0, 8);
 
 /** Target text for a review dispatch. */
-function describeReview(target: ReturnType<typeof chooseTarget>, wt: OrcaWorktree | null, slug: string, repo: string, repoId: string | null, number: number, sha: string, headBranch: string | null): string {
+function describeReview(target: ReturnType<typeof chooseTarget>, wt: OrcaWorktree | null, slug: string, repo: string, repoId: string | null, number: number, sha: string, headBranch: string | null, reviewing: string): string {
   if (target.do === "wait") return `wait: ${target.why}`;
-  if (!wt) return `create Orca worktree ${reviewWorktreeName(slug)} on branch ${reviewBranch(slug)} (orca-ide ${reviewWorktreeArgs(repoId ?? "<repo id>", slug, number).join(" ")}) for ${repo}${headBranch && isDisplayName(headBranch) ? `, name it ${headBranch}` : ""}, then fetch origin pull/${number}/head, reset --hard ${sha}, verify HEAD, and launch a fresh Pi reviewer there`;
+  return `${describeStart(target, wt, slug, repo, repoId, number, sha, headBranch)}; set status ${reviewing}, comment reviewing ${sha.slice(0, 8)}`;
+}
+
+function describeStart(target: Exclude<ReturnType<typeof chooseTarget>, { do: "wait" }>, wt: OrcaWorktree | null, slug: string, repo: string, repoId: string | null, number: number, sha: string, headBranch: string | null): string {
+  if (!wt) return `create top-level Orca worktree ${reviewWorktreeName(slug)} on branch ${reviewBranch(slug)} (orca-ide ${reviewWorktreeArgs(repoId ?? "<repo id>", slug, number).join(" ")}, without the caller's Orca identity) for ${repo}${headBranch && isDisplayName(headBranch) ? `, name it ${headBranch}` : ""}, then fetch origin pull/${number}/head, reset --hard ${sha}, verify HEAD, and launch a fresh Pi reviewer there`;
   if (target.do === "launch") return `git -C ${wt.path} fetch origin pull/${number}/head; git -C ${wt.path} reset --hard ${sha}; git -C ${wt.path} rev-parse HEAD; ${target.close ? `close ${target.close.handle}, then ` : ""}launch a fresh Pi reviewer in ${wt.path}`;
   if (target.do === "message") return `git -C ${wt.path} fetch origin pull/${number}/head; git -C ${wt.path} reset --hard ${sha}; git -C ${wt.path} rev-parse HEAD; message Pi session ${target.session.handle} in ${wt.path}${target.restart ? ` to restart it (${target.restart})` : ""}`;
   return `git -C ${wt.path} fetch origin pull/${number}/head; git -C ${wt.path} reset --hard ${sha}; git -C ${wt.path} rev-parse HEAD; interrupt Pi session ${target.session.handle} in ${wt.path}, then restart it (${target.restart})`;
@@ -206,7 +215,7 @@ async function startReviewer(c: ReviewCtx, d: Dispatch, item: Classification, pr
       c.view.invalidateWorktrees();
     }
     if (!r.ok) return fail(c, d, `orca-ide worktree create: ${r.stderr.trim() || r.stdout.trim()}`);
-    let created: { id: string; path: string } | null = null;
+    let created: { id: string; path: string; nested: boolean } | null = null;
     try {
       created = parseCreatedWorktree(r.stdout);
     } catch (e) {
@@ -215,6 +224,7 @@ async function startReviewer(c: ReviewCtx, d: Dispatch, item: Classification, pr
     wt = findReviewWorktree(await c.view.worktrees(), pr.repo, pr.number, slug) ?? (created ? { id: created.id, path: created.path, branch: reviewBranch(slug), repo: pr.repo.toLowerCase(), linkedPr: pr.number } : null);
     if (!wt) return fail(c, d, `Orca created ${reviewWorktreeName(slug)} but did not report or list it; the next attempt looks for it by branch`);
     d = c.store.patchDispatch(d.id, { worktree: wt.id }, c.ctx.now);
+    if (created?.nested) await unparentWorktree(c, wt, d.item, d.version);
     if (pr.branch && wt.displayName !== pr.branch) await nameWorktree(c, wt, pr.branch, d.item, d.version);
   }
   if (!isReviewBranch(wt.branch)) return fail(c, d, `refusing to reset non-review branch ${wt.branch}`);
@@ -235,8 +245,50 @@ async function startReviewer(c: ReviewCtx, d: Dispatch, item: Classification, pr
   }
   await deliver(c, d, wt, target, brief);
   const after = c.store.dispatch(d.id);
-  if (after && after.state === "launched" && after.sessionHandle)
+  if (after && after.state === "launched" && after.sessionHandle) {
     c.store.appendEvent(c.deps.now(), { ...ev(after), type: "review-started", sessionHandle: after.sessionHandle, detail: `reviewer ${after.sessionHandle} in ${wt.path} (Orca worktree ${reviewWorktreeName(slug)}); draft ${paths.id} goes to ${paths.file}${item.lowPriority ? "; low priority" : ""}` });
+    // Status sync ran before this worktree existed (or before this head started); show it as reviewing now, not next tick.
+    await markReviewing(c, wt, d.item, d.version);
+  }
+}
+
+/** Set a review worktree to `statuses.reviewing`, `reviewing <head8>`, unless it already shows that. */
+async function markReviewing(c: Ctx, wt: OrcaWorktree, item: string, version: string): Promise<void> {
+  const status = c.cfg.review.statuses.reviewing;
+  const comment = `reviewing ${version}`;
+  if (wt.workspaceStatus === status && wt.comment === comment) return;
+  let res;
+  try {
+    res = await c.deps.setReviewWorktree(wt.path, wt.branch, status, comment);
+  } catch (e) {
+    res = { ok: false, stdout: "", stderr: (e as Error).message };
+  }
+  if (res.ok) {
+    wt.workspaceStatus = status;
+    wt.comment = comment;
+    return;
+  }
+  const detail = `orca-ide worktree set ${wt.path}: ${short(res.stderr.trim() || res.stdout.trim(), 200)}`;
+  if (c.store.addLedger({ at: c.ctx.now, item, version, kind: REVIEW_KIND, outcome: "failed", detail, source: "prflow", ref: `failed:review-status:${wt.id}:${status}:${comment}` }))
+    c.store.appendEvent(c.ctx.now, { type: "action-failed", item, version, kind: REVIEW_KIND, detail });
+}
+
+/**
+ * Drop the Orca parent of a review worktree Orca nested despite `--no-parent`
+ * (`orca-ide worktree set --no-parent`). A failure is reported once and never
+ * blocks the review.
+ */
+async function unparentWorktree(c: Ctx, wt: OrcaWorktree, item: string, version: string): Promise<void> {
+  let res;
+  try {
+    res = await c.deps.unparentReviewWorktree(wt.path, wt.branch);
+  } catch (e) {
+    res = { ok: false, stdout: "", stderr: (e as Error).message };
+  }
+  if (res.ok) return;
+  const detail = `orca-ide worktree set ${wt.path} --no-parent: ${short(res.stderr.trim() || res.stdout.trim(), 200)}`;
+  if (c.store.addLedger({ at: c.ctx.now, item, version, kind: REVIEW_KIND, outcome: "failed", detail, source: "prflow", ref: `failed:review-unparent:${wt.id}` }))
+    c.store.appendEvent(c.ctx.now, { type: "action-failed", item, version, kind: REVIEW_KIND, detail });
 }
 
 async function dispatchReview(c: ReviewCtx, item: Classification, pr: PrSnapshot): Promise<void> {
@@ -309,7 +361,7 @@ async function dispatchReview(c: ReviewCtx, item: Classification, pr: PrSnapshot
     if (used >= c.cfg.review.sessionReviews && reusable.kind === "terminal") target = { do: "launch", close: reusable };
   }
   const waitLease = (since: number) => since + busyWaitMs + ctx.rails.leaseMinutes * MINUTE_MS;
-  const plan = describeReview(target, wt, slug, pr.repo, repoId, pr.number, pr.headSha, pr.branch ?? null);
+  const plan = describeReview(target, wt, slug, pr.repo, repoId, pr.number, pr.headSha, pr.branch ?? null, c.cfg.review.statuses.reviewing);
 
   if (mine) {
     if (target.do === "wait" && mine.waitSince === null && !c.dryRun) store.patchDispatch(mine.id, { waitSince: ctx.now, leaseUntil: waitLease(ctx.now) }, ctx.now);
@@ -391,6 +443,10 @@ async function reap(c: ReviewCtx): Promise<void> {
     const draft = loadDraft(pathsOf(store.dir, d));
     if (draft.ok && draft.draft && store.addLedger({ at: ctx.now, item: d.item, version: d.version, kind: d.kind, outcome: "drafted", detail: draft.paths.id, dispatchId: d.id, source: "prflow", ref: `review-drafted:${d.id}` }))
       store.appendEvent(ctx.now, { ...ev(d), type: "review-drafted", sessionHandle: d.sessionHandle, detail: draftSummary(draft.paths.id, draft.draft, draft.paths.file) });
+    // A posted draft rewritten afterwards is a new, unposted revision.
+    const rev = draft.ok && draft.draft && draft.text !== null ? draftRevision(store, draft.paths, draft.text) : null;
+    if (rev && draft.draft && rev.rev > 1 && !rev.posted && store.addLedger({ at: ctx.now, item: d.item, version: d.version, kind: d.kind, outcome: "drafted", detail: `${draft.paths.id} r${rev.rev}`, dispatchId: d.id, source: "prflow", ref: `review-drafted:${d.id}:r${rev.rev}` }))
+      store.appendEvent(ctx.now, { ...ev(d), type: "review-drafted", sessionHandle: d.sessionHandle, detail: `revision r${rev.rev} (r${rev.rev - 1} posted): ${draftSummary(draft.paths.id, draft.draft, draft.paths.file)}` });
     // The PR's review worktree persists until the PR closes or merges.
 
   }
@@ -465,17 +521,22 @@ async function syncStatuses(c: ReviewCtx, result: ScanResult, items: Classificat
     }
     const dispatch = c.store.findDispatch(`${pr.repo}#${pr.number}`, h8, REVIEW_KIND);
     const loaded = loadDraft(draftPaths(c.store.dir, pr.repo, pr.number, h8));
-    const posted = pr.reviews.filter((r) => r.author?.login.toLowerCase() === pr.account.toLowerCase() && r.at !== null && r.state !== "PENDING" && r.commitOid === pr.headSha).sort((a, b) => (b.at ?? "").localeCompare(a.at ?? ""))[0];
+    const own = pr.reviews.filter((r) => r.author?.login.toLowerCase() === pr.account.toLowerCase() && r.at !== null && r.state !== "PENDING" && r.commitOid === pr.headSha).sort((a, b) => (b.at ?? "").localeCompare(a.at ?? ""));
+    const posted = own[0];
+    const ownOnHead = own.length;
+    // A saved draft revision that is not posted and is newer than the latest posted review wins; once posted, the review wins.
+    const rev = loaded.ok && loaded.text !== null ? draftRevision(c.store, loaded.paths, loaded.text) : null;
+    const draftWins = !!rev && !rev.posted && (!posted || Date.parse(posted.at ?? "") < rev.mtime);
     let status: string, comment: string;
     let unread: "--unread" | "--read" | undefined;
     let desiredUnread: boolean | undefined;
-    const postedRef = `review-status-posted:${wt.id}:${h8}`;
-    const draftRef = `review-status-draft:${wt.id}:${h8}`;
+    const postedRef = `review-status-posted:${wt.id}:${h8}${ownOnHead > 1 ? `:${posted?.at}` : ""}`;
+    const draftRef = `review-status-draft:${wt.id}:${h8}${rev && rev.rev > 1 ? `:r${rev.rev}` : ""}`;
     if (pr.isDraft) { status = c.cfg.review.statuses.draft; comment = "PR in draft"; }
     else if (!posted && !loaded.ok) {
       status = c.cfg.review.statuses.reviewing;
       comment = dispatch && OPEN_STATES.includes(dispatch.state as typeof OPEN_STATES[number]) ? `reviewing ${h8}` : item?.status.includes("required checks pending") ? `checks running on ${h8}` : `queued ${h8}`;
-    } else if (posted) {
+    } else if (posted && !draftWins) {
       const mapping = posted.state === "APPROVED" ? [c.cfg.review.statuses.approved, "approved"] : posted.state === "CHANGES_REQUESTED" ? [c.cfg.review.statuses.changes, "changes requested"] : [c.cfg.review.statuses.reviewing, "commented"];
       status = mapping[0] as string; comment = `${mapping[1]} at ${h8}`;
       desiredUnread = false;
@@ -483,12 +544,12 @@ async function syncStatuses(c: ReviewCtx, result: ScanResult, items: Classificat
     } else {
       const verdict = loaded.draft?.verdict ?? "comment";
       status = verdict === "approve" ? c.cfg.review.statuses.approved : verdict === "request-changes" ? c.cfg.review.statuses.changes : c.cfg.review.statuses.reviewing;
-      comment = `draft: ${verdict}, ${loaded.draft?.comments.length ?? 0} inline, not posted`;
+      comment = rev && rev.rev > 1 ? `draft r${rev.rev}: ${verdict}, not posted` : `draft: ${verdict}, ${loaded.draft?.comments.length ?? 0} inline, not posted`;
       desiredUnread = true;
       if (!c.store.hasLedgerRef(draftRef) && wt.isUnread !== true) unread = "--unread";
     }
-    if (posted && desiredUnread === false && !c.store.hasLedgerRef(postedRef) && wt.isUnread === false) c.store.addLedger({ at: c.ctx.now, item: key, version: h8, kind: REVIEW_KIND, outcome: "posted-status-seen", detail: comment, source: "prflow", ref: postedRef });
-    if (loaded.ok && !posted && desiredUnread === true && !c.store.hasLedgerRef(draftRef) && wt.isUnread === true) c.store.addLedger({ at: c.ctx.now, item: key, version: h8, kind: REVIEW_KIND, outcome: "draft-status-seen", detail: comment, source: "prflow", ref: draftRef });
+    if (desiredUnread === false && !c.store.hasLedgerRef(postedRef) && wt.isUnread === false) c.store.addLedger({ at: c.ctx.now, item: key, version: h8, kind: REVIEW_KIND, outcome: "posted-status-seen", detail: comment, source: "prflow", ref: postedRef });
+    if (desiredUnread === true && !c.store.hasLedgerRef(draftRef) && wt.isUnread === true) c.store.addLedger({ at: c.ctx.now, item: key, version: h8, kind: REVIEW_KIND, outcome: "draft-status-seen", detail: comment, source: "prflow", ref: draftRef });
     if (wt.workspaceStatus === status && wt.comment === comment && unread === undefined) continue;
     const ref = `review-status:${wt.id}:${h8}`;
     const writeKey = `${wt.id}:${status}:${comment}`;
@@ -499,8 +560,8 @@ async function syncStatuses(c: ReviewCtx, result: ScanResult, items: Classificat
       if (c.store.addLedger({ at: c.ctx.now, item: key, version: h8, kind: REVIEW_KIND, outcome: "failed", detail, source: "prflow", ref: `failed:review-status:${writeKey}` })) c.store.appendEvent(c.ctx.now, { type: "action-failed", item: key, version: h8, kind: REVIEW_KIND, detail });
       continue;
     }
-    if (posted && desiredUnread === false && !c.store.hasLedgerRef(postedRef)) c.store.addLedger({ at: c.ctx.now, item: key, version: h8, kind: REVIEW_KIND, outcome: "posted-status-seen", detail: comment, source: "prflow", ref: postedRef });
-    if (loaded.ok && !posted && desiredUnread === true && !c.store.hasLedgerRef(draftRef)) c.store.addLedger({ at: c.ctx.now, item: key, version: h8, kind: REVIEW_KIND, outcome: "draft-status-seen", detail: comment, source: "prflow", ref: draftRef });
+    if (desiredUnread === false && !c.store.hasLedgerRef(postedRef)) c.store.addLedger({ at: c.ctx.now, item: key, version: h8, kind: REVIEW_KIND, outcome: "posted-status-seen", detail: comment, source: "prflow", ref: postedRef });
+    if (desiredUnread === true && !c.store.hasLedgerRef(draftRef)) c.store.addLedger({ at: c.ctx.now, item: key, version: h8, kind: REVIEW_KIND, outcome: "draft-status-seen", detail: comment, source: "prflow", ref: draftRef });
   }
 }
 

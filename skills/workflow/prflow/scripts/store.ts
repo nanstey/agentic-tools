@@ -535,6 +535,12 @@ export class Store {
     return this.db.prepare("SELECT 1 FROM ledger WHERE ref = ?").get(ref) !== undefined;
   }
 
+  /** Time of the ledger row with `ref`, or `null` when there is none. */
+  ledgerAt(ref: string): number | null {
+    const r = this.db.prepare("SELECT at FROM ledger WHERE ref = ?").get(ref) as Row | undefined;
+    return r ? Number(r.at) : null;
+  }
+
   ledger(item?: string): (LedgerInput & { id: number })[] {
     const rows = (item
       ? this.db.prepare("SELECT * FROM ledger WHERE item = ? ORDER BY id").all(item)

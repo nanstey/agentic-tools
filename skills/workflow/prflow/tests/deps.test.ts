@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, describe, it } from "node:test";
@@ -85,5 +85,30 @@ describe("realPostDeps", () => {
     await assert.rejects(d.postReview("octocat", "Acme/x", 5, "/elsewhere/drafts/Acme-x-5/c0ffee11/post.json"), /is not under \/state\/prflow\/drafts\//);
     await assert.rejects(d.postReview("octocat", "Acme/x", 5, "/state/prflow/drafts/../drafts/a/post.json"), /not the allowed review post/);
     await assert.rejects(d.postReview("octocat", "Acme/x", 5, "/tmp/post.json"), /not the allowed review post/);
+  });
+});
+
+describe("review worktree creation environment", () => {
+  it("runs orca-ide worktree create without the caller's terminal, chat, bot, or workspace identity", async () => {
+    const bin = mkdtempSync(join(tmpdir(), "prflow-orca-"));
+    const dump = join(bin, "env.txt");
+    writeFileSync(join(bin, "orca-ide"), `#!/bin/sh\nenv > ${dump}\necho "$@" >> ${dump}\necho '{"ok":true,"result":{"worktree":{"id":"r::/w/prflow-review-x-5","path":"/w/prflow-review-x-5"}}}'\n`);
+    chmodSync(join(bin, "orca-ide"), 0o755);
+    const saved = { ...process.env };
+    try {
+      Object.assign(process.env, { PATH: `${bin}:${process.env.PATH}`, ORCA_TERMINAL_HANDLE: "term_bot", ORCA_AGENT_SESSION_ID: "bot-session", ORCA_WORKSPACE_ID: "folder:bot", ORCA_WORKTREE_ID: "folder:bot", ORCA_ENVIRONMENT: "local" });
+      const r = await realDeps().createReviewWorktree("rid1", "x-5", 5);
+      assert.equal(r.ok, true, r.stderr);
+      const seen = readFileSync(dump, "utf8");
+      assert.doesNotMatch(seen, /ORCA_TERMINAL_HANDLE|ORCA_AGENT_SESSION_ID|ORCA_WORKSPACE_ID|ORCA_WORKTREE_ID/);
+      assert.match(seen, /^ORCA_ENVIRONMENT=local$/m);
+      assert.match(seen, /worktree create --repo id:rid1 --name prflow-review-x-5 --branch prflow-review\/x-5 --pr 5 --no-parent --setup run --json/);
+      await assert.rejects(realDeps().unparentReviewWorktree("/w/prflow-review-x-5", "feature"), /requires a prflow-review branch/);
+      await assert.rejects(realDeps().unparentReviewWorktree("/w/other", "prflow-review/x-5"), /not the allowed review worktree unparent call/);
+    } finally {
+      for (const k of Object.keys(process.env)) if (!(k in saved)) delete process.env[k];
+      Object.assign(process.env, saved);
+      rmSync(bin, { recursive: true, force: true });
+    }
   });
 });
