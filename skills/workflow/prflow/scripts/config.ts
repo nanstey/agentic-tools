@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
-import { DEFAULT_ACTIONS, DEFAULT_DISPATCH, DEFAULT_LIMIT, DEFAULT_RAILS, parseConfig, type Config } from "./core/config.ts";
+import { DEFAULT_ACTIONS, DEFAULT_DISPATCH, DEFAULT_LIMIT, DEFAULT_RAILS, DEFAULT_REVIEW, parseConfig, type Config } from "./core/config.ts";
 
 /** Skill directory, where an uncommitted `config.json` may sit beside `config.example.json`. */
 export const SKILL_DIR = dirname(import.meta.dirname);
@@ -57,6 +57,7 @@ export async function loadConfig(
       rails: { ...DEFAULT_RAILS },
       actions: { ...DEFAULT_ACTIONS },
       dispatch: { ...DEFAULT_DISPATCH, projectContext: [] },
+      review: { ...DEFAULT_REVIEW },
     },
     source,
   });

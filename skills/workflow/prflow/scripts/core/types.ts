@@ -127,4 +127,8 @@ export interface Classification {
   owner: Owner;
   /** Informational text shown on the report row, such as an approval's body. */
   notes?: string[];
+  /** Some check on the head is still running (PRs only). */
+  checksPending?: boolean;
+  /** Review request on a PR another human already approved with no changes requested. */
+  lowPriority?: boolean;
 }

@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import { defaultPaths, loadConfig, SKILL_DIR } from "../scripts/config.ts";
-import { accountFor, DEFAULT_ACTIONS, DEFAULT_DISPATCH, DEFAULT_RAILS, parseConfig, projectFor } from "../scripts/core/config.ts";
+import { accountFor, DEFAULT_ACTIONS, DEFAULT_DISPATCH, DEFAULT_RAILS, DEFAULT_REVIEW, parseConfig, projectFor } from "../scripts/core/config.ts";
 
 const parse = (v: unknown) => parseConfig(JSON.stringify(v), "cfg.json");
 
@@ -23,7 +23,15 @@ describe("parseConfig", () => {
       rails: DEFAULT_RAILS,
       actions: DEFAULT_ACTIONS,
       dispatch: DEFAULT_DISPATCH,
+      review: DEFAULT_REVIEW,
     });
+  });
+
+  it("defaults review to dry run with 2 reviewers, separately from dispatch and actions", () => {
+    assert.deepEqual(DEFAULT_REVIEW, { dryRun: true, maxConcurrent: 2, sessionReviews: 5, idleCloseHours: 24, statuses: { draft: "review-draft", reviewing: "reviewing", changes: "review-changes", approved: "review-approved" } });
+    const cfg = parse({ accounts: [{ login: "a" }], actions: { dryRun: false }, dispatch: { dryRun: false } });
+    assert.equal(cfg.review.dryRun, true);
+    assert.deepEqual(parse({ accounts: [{ login: "a" }], review: { dryRun: false, maxConcurrent: 1 } }).review, { ...DEFAULT_REVIEW, dryRun: false, maxConcurrent: 1 });
   });
 
   it("defaults dispatch to dry run, separately from actions", () => {
@@ -87,6 +95,13 @@ describe("parseConfig", () => {
     ["bad project repo", { accounts: [{ login: "a" }], dispatch: { projectContext: [{ path: "/d", repos: ["x"] }] } }, /must be owner\/repo/],
     ["bad project owner", { accounts: [{ login: "a" }], dispatch: { projectContext: [{ path: "/d", owners: ["a/b"] }] } }, /owners entry "a\/b" must be a GitHub user or org/],
     ["project with no repos or owners", { accounts: [{ login: "a" }], dispatch: { projectContext: [{ path: "/d" }] } }, /needs repos or owners/],
+    ["review not object", { accounts: [{ login: "a" }], review: true }, /review must be an object/],
+    ["unknown review key", { accounts: [{ login: "a" }], review: { post: true } }, /review: unknown key "post"/],
+    ["review dryRun not boolean", { accounts: [{ login: "a" }], review: { dryRun: "no" } }, /review\.dryRun must be a boolean/],
+    ["review maxConcurrent zero", { accounts: [{ login: "a" }], review: { maxConcurrent: 0 } }, /review\.maxConcurrent must be an integer from 1 to 20/],
+    ["review sessionReviews zero", { accounts: [{ login: "a" }], review: { sessionReviews: 0 } }, /sessionReviews must be an integer/],
+    ["review idleCloseHours zero", { accounts: [{ login: "a" }], review: { idleCloseHours: 0 } }, /idleCloseHours must be a number/],
+    ["invalid review status id", { accounts: [{ login: "a" }], review: { statuses: { draft: "Invalid!" } } }, /review\.statuses\.draft/],
     ["bad limit", { accounts: [{ login: "a" }], limit: 0 }, /limit/],
     ["bad worktrees", { accounts: [{ login: "a" }], worktrees: "yes" }, /worktrees/],
   ];

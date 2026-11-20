@@ -86,6 +86,29 @@ export function assertRerun(args: readonly string[]): void {
   if (!ok) throw new Error(`prflow: gh ${args.join(" ")} is not the allowed rerun call`);
 }
 
+/**
+ * The one review write, used only by `prflow review post` (never by tick):
+ * `gh api --method POST repos/<o>/<r>/pulls/<n>/reviews --input <draft dir>/post.json`.
+ */
+export const reviewPostArgs = (repo: string, number: number, input: string): string[] => ["api", "--method", "POST", `repos/${repo}/pulls/${number}/reviews`, "--input", input];
+
+/** Throws unless `args` is exactly the review post above, reading a `post.json` under a `drafts` folder. */
+export function assertReviewPost(args: readonly string[]): void {
+  const m = /^repos\/([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)\/pulls\/([1-9]\d{0,9})\/reviews$/.exec(args[3] ?? "");
+  const input = args[5] ?? "";
+  const ok =
+    args.length === 6 &&
+    !!m?.[1] &&
+    REPO.test(m[1]) &&
+    input.startsWith("/") &&
+    input.endsWith("/post.json") &&
+    input.includes("/drafts/") &&
+    !input.split("/").includes("..") &&
+    !/[\n\0]/.test(input) &&
+    reviewPostArgs(m[1], Number(m[2]), input).every((x, i) => x === args[i]);
+  if (!ok) throw new Error(`prflow: gh ${args.join(" ")} is not the allowed review post`);
+}
+
 export interface SearchHit {
   repo: string;
   number: number;

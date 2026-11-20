@@ -449,6 +449,12 @@ export class Store {
     return (this.db.prepare(`SELECT * FROM dispatches WHERE state IN (${marks}) ORDER BY id`).all(...OPEN_STATES) as Row[]).map(toDispatch);
   }
 
+  /** Dispatches of one kind in the given states, oldest first. */
+  dispatchesOfKind(kind: string, states: readonly DispatchState[]): Dispatch[] {
+    const marks = states.map(() => "?").join(", ");
+    return (this.db.prepare(`SELECT * FROM dispatches WHERE kind = ? AND state IN (${marks}) ORDER BY id`).all(kind, ...states) as Row[]).map(toDispatch);
+  }
+
   /** Insert a new `planned` dispatch. Throws on a duplicate (item, version, kind). */
   createDispatch(item: string, version: string, kind: string, now: number, detail: string | null = null): Dispatch {
     const r = this.db

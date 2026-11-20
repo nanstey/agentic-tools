@@ -6,10 +6,8 @@
 import type { Config } from "./core/config.ts";
 import { renderEvent } from "./core/events.ts";
 import { backoffMs } from "./core/rails.ts";
-import { renderTickReport } from "./core/report.ts";
-import { sortItems } from "./core/report.ts";
+import { changeNote, renderTickReport, snapshotOf, sortItems, tickFingerprint, type Snapshot } from "./core/report.ts";
 import type { Classification } from "./core/types.ts";
-import { fingerprint } from "./core/watch.ts";
 import { reconcile, type TickContext } from "./dispatch.ts";
 import { plan, scan, type CmdResult, type Deps, type ScanResult } from "./scan.ts";
 import type { Dispatch, ItemRow, Store } from "./store.ts";
@@ -50,6 +48,15 @@ export interface TickDeps extends Deps {
   interruptTerminal(handle: string): Promise<CmdResult>;
   /** `orca-ide terminal wait --terminal <handle> --for tui-idle --timeout-ms <n> --json`. */
   waitIdle(handle: string): Promise<CmdResult>;
+  /**
+   * `orca-ide worktree create` for one review worktree (`reviewWorktreeArgs`):
+   * repo id, `<repo>-<n>-<head8>` slug, PR number. The only worktree prflow creates.
+   */
+  createReviewWorktree(repoId: string, slug: string, pr: number): Promise<CmdResult>;
+  reviewFetch(path: string, number: number, branch: string): Promise<CmdResult>;
+  reviewReset(path: string, sha: string, branch: string): Promise<CmdResult>;
+  reviewHead(path: string): Promise<string | null>;
+  setReviewWorktree(path: string, branch: string, status: string, comment: string, unread?: "--unread" | "--read"): Promise<CmdResult>;
 }
 
 export interface TickOptions {
@@ -57,6 +64,8 @@ export interface TickOptions {
   dryRun: boolean;
   /** No Pi session is launched, messaged, nudged, or closed; briefs are only announced. Default `true`. */
   dispatchDryRun?: boolean;
+  /** No review worktree is created and no reviewer launched, nudged, closed, or archived; only announced. Default `true`. */
+  reviewDryRun?: boolean;
 }
 
 export interface TickOutput {
@@ -72,6 +81,8 @@ export const META = {
   failures: "failures",
   nextTickAt: "next_tick_at",
   lastScanAt: "last_scan_at",
+  /** JSON `Snapshot` of the rows the last printed report showed. */
+  reportItems: "report_items",
 } as const;
 
 /** Reject when `p` takes longer than `ms`. */
@@ -101,14 +112,25 @@ export function pausedRow(i: ItemRow): string {
   return `- ${i.key} paused: ${i.pausedReason ?? "no reason"} | next: \`prflow resume --item ${i.key}\` when resolved | owner: you`;
 }
 
-/** Report text and its change fingerprint. Lease times are left out of the fingerprint. */
-export function tickReport(actionable: Classification[], open: Dispatch[], paused: ItemRow[], now: number) {
+/**
+ * Report text and its change fingerprint. Lease times are left out of the
+ * fingerprint. `prev` is what the last printed report showed: rows note what
+ * changed since then, and `waiting` items may keep a review request counted
+ * (`tickFingerprint`).
+ */
+export function tickReport(actionable: Classification[], open: Dispatch[], paused: ItemRow[], now: number, prev: Snapshot | null = null, waiting: Classification[] = []) {
+  const changes = new Map<string, string>();
+  for (const c of actionable) {
+    const note = changeNote(prev, c);
+    if (note) changes.set(c.key.toLowerCase(), note);
+  }
   const text = renderTickReport(actionable, {
     inFlight: open.map((d) => inFlightRow(d, now)),
     paused: paused.map(pausedRow),
+    changes,
   });
   const fp = [
-    fingerprint(actionable),
+    tickFingerprint(actionable, waiting, prev),
     ...open.map((d) => `dispatch ${d.id} ${d.state} ${d.attempts} ${d.sessionHandle ?? ""}`),
     ...paused.map((i) => `paused ${i.key.toLowerCase()} ${i.pausedReason ?? ""}`),
   ]
@@ -126,12 +148,23 @@ export type Verify = Parameters<typeof reconcile>[2];
 /** Watch open dispatches' sessions (renew leases, settle, recover). Runs before `reconcile`. */
 export type Monitor = Act;
 
+function readSnapshot(store: Store): Snapshot {
+  try {
+    return JSON.parse(store.getMeta(META.reportItems) ?? "{}") as Snapshot;
+  } catch {
+    return {};
+  }
+}
+
+/** Adjust items before the report (for example, a review draft is ready). Pure over the store's state. */
+export type Annotate = (items: Classification[]) => Classification[];
+
 export async function tick(
   deps: TickDeps,
   store: Store,
   cfg: Config,
   opts: TickOptions,
-  hooks: { act?: Act; verify?: (result: ScanResult) => Verify; monitor?: Monitor } = {},
+  hooks: { act?: Act; verify?: (result: ScanResult) => Verify; monitor?: Monitor; annotate?: Annotate } = {},
 ): Promise<TickOutput> {
   const quiet: TickOutput = { stdout: "", stderr: "", exitCode: 0 };
   // A paused prflow does nothing: no scan, no run row, no output. Events wait
@@ -156,9 +189,11 @@ export async function tick(
     reconcile(store, ctx, hooks.verify?.(result));
     if (hooks.act) await hooks.act(ctx, result, items, opts);
 
-    const actionable = sortItems(items).filter((c) => c.kind !== "waiting");
-    const report = tickReport(actionable, store.openDispatches(), store.pausedItems(), deps.now());
+    const shown = hooks.annotate ? hooks.annotate(items) : items;
+    const actionable = sortItems(shown).filter((c) => c.kind !== "waiting");
     const prevFp = store.getMeta(META.reportFp);
+    const prevRows = readSnapshot(store);
+    const report = tickReport(actionable, store.openDispatches(), store.pausedItems(), deps.now(), prevFp === null ? null : prevRows, shown.filter((c) => c.kind === "waiting"));
     const changed = report.fp !== (prevFp ?? "");
     const { events, offset } = store.readEventsFrom(Number(store.getMeta(META.eventsOffset) ?? 0));
     const parts: string[] = [];
@@ -167,6 +202,7 @@ export async function tick(
     else if (changed && report.text) parts.push(report.text);
     store.setMeta(META.eventsOffset, String(offset));
     store.setMeta(META.reportFp, report.fp);
+    if (changed || prevFp === null) store.setMeta(META.reportItems, JSON.stringify(snapshotOf(actionable)));
     store.setMeta(META.failures, "0");
     store.setMeta(META.nextTickAt, "0");
     store.finishRun(runId, deps.now(), { ok: true, items: items.length, events: events.length });

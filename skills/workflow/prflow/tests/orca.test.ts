@@ -20,6 +20,13 @@ import {
   sendArgs,
   terminalListArgs,
   worktreeListArgs,
+  assertWorktreeSet,
+  worktreeSetArgs,
+  findReviewWorktree,
+  parseCreatedWorktree,
+  repoIdFor,
+  reviewSlug,
+  reviewWorktreeArgs,
   type OrcaWorktree,
 } from "../scripts/adapters/orca.ts";
 
@@ -38,8 +45,46 @@ describe("assertOrca", () => {
       interruptArgs("term_abc"),
       waitIdleArgs("term_abc"),
       archiveArgs("/w/x"),
+      reviewWorktreeArgs("17a840f6-fff8-4935", "guest-widgets-598", 598),
     ])
       assert.doesNotThrow(() => assertOrca(a), a.join(" "));
+  });
+
+  it("allows exactly one persistent review worktree per PR", () => {
+    const ok = reviewWorktreeArgs("rid1", "x-5", 5);
+    assert.deepEqual(ok, ["worktree", "create", "--repo", "id:rid1", "--name", "prflow-review-x-5", "--branch", "prflow-review/x-5", "--pr", "5", "--no-parent", "--setup", "run", "--json"]);
+    const swap = (i: number, v: string) => ok.map((x, j) => (j === i ? v : x));
+    for (const a of [
+      [...ok.slice(0, -1), "--agent", "pi", "--json"],
+      [...ok.slice(0, -1), "--prompt", "x", "--json"],
+      [...ok.slice(0, -1), "--activate", "--json"],
+      swap(3, "id:rid1::/w/x"),
+      swap(3, "path:/w/x"),
+      swap(5, "my-task"),
+      swap(5, "prflow-review-x-6"),
+      swap(7, "main"),
+      swap(7, "prflow-review/x-6"),
+      swap(9, "6"),
+      swap(10, "--parent-worktree"),
+      swap(12, "skip"),
+      reviewWorktreeArgs("rid1", "../x-5", 5),
+      reviewWorktreeArgs("rid1", "x-05", 5),
+      reviewWorktreeArgs("rid1", "x-0-c0ffee11", 0),
+      ["worktree", "create", "--name", "prflow-review-x-5-c0ffee11", "--json"],
+    ])
+      assert.throws(() => assertOrca(a), /prflow: orca-ide worktree create/, a.join(" "));
+  });
+
+  it("allows only exact review status writes and rejects unsafe fields", () => {
+    const args = worktreeSetArgs("/w/prflow-review-x-5", "reviewing", "queued c0ffee11", "--unread");
+    assert.doesNotThrow(() => assertWorktreeSet(args, "/w/prflow-review-x-5"));
+    for (const bad of [
+      worktreeSetArgs("/w/other", "reviewing", "queued"),
+      worktreeSetArgs("/w/prflow-review-parent/other", "reviewing", "queued"),
+      worktreeSetArgs("/w/prflow-review-x-5", "../unsafe", "queued"),
+      worktreeSetArgs("/w/prflow-review-x-5", "reviewing", "line\nbreak"),
+      [...args.slice(0, -1), "--force", "--json"],
+    ]) assert.throws(() => assertWorktreeSet(bad, "/w/prflow-review-x-5"));
   });
 
   it("rejects terminal send, other agents, worktree creation, and anything malformed", () => {
@@ -71,6 +116,38 @@ describe("assertOrca", () => {
       [],
     ])
       assert.throws(() => assertOrca(a), /prflow: orca-ide/, a.join(" "));
+  });
+});
+
+describe("review worktrees", () => {
+  const list = (rows: unknown[]) => JSON.stringify({ result: { worktrees: rows } });
+  const main = (repoId: string, path: string, project = "github:github.com-work/acme/widgets") => ({ id: `${repoId}::${path}`, repoId, path, branch: "refs/heads/main", projectId: project, isMainWorktree: true });
+
+  it("names a stable slug from repo and number", () => {
+    assert.equal(reviewSlug("Checkfront/guest-widgets", 598, "D5F5DA28"), "guest-widgets-598");
+  });
+
+  it("finds the Orca repo id from the main worktree, preferring the clone named after the repo", () => {
+    assert.deepEqual(repoIdFor(list([main("r1", "/c/widgets")]), "Acme/Widgets"), { id: "r1", path: "/c/widgets" });
+    assert.deepEqual(repoIdFor(list([main("r1", "/c/widgets-2"), main("r2", "/c/widgets")]), "acme/widgets"), { id: "r2", path: "/c/widgets" });
+    assert.equal(repoIdFor(list([main("r1", "/c/w-2"), main("r2", "/c/w-3")]), "acme/widgets"), null);
+    assert.equal(repoIdFor(list([main("r1", "/c/widgets", "github:acme/other")]), "acme/widgets"), null);
+    assert.equal(repoIdFor(list([]), "acme/widgets"), null);
+  });
+
+  it("finds a review worktree by its branch, with Orca's numeric suffix", () => {
+    const row = (branch: string, linkedPr: number | null = 5): OrcaWorktree => ({ id: `r1::/w/${branch}`, path: `/w/${branch}`, branch, repo: "acme/x", linkedPr });
+    assert.equal(findReviewWorktree([row("prflow-review/x-5")], "Acme/x", 5, "x-5")?.path, "/w/prflow-review/x-5");
+    assert.equal(findReviewWorktree([row("prflow-review/x-5-2")], "Acme/x", 5, "x-5")?.branch, "prflow-review/x-5-2");
+    assert.equal(findReviewWorktree([row("prflow-review/x-5x")], "Acme/x", 5, "x-5"), null);
+    assert.equal(findReviewWorktree([row("prflow-review/x-5", 9)], "Acme/x", 5, "x-5"), null);
+    assert.equal(findReviewWorktree([row("feature")], "Acme/x", 5, "x-5-c0ffee11"), null);
+  });
+
+  it("reads the created worktree from the reply, and Orca errors", () => {
+    assert.deepEqual(parseCreatedWorktree(JSON.stringify({ ok: true, result: { worktree: { id: "r1::/w/a", path: "/w/a" } } })), { id: "r1::/w/a", path: "/w/a" });
+    assert.equal(parseCreatedWorktree(JSON.stringify({ ok: true, result: { created: true } })), null);
+    assert.throws(() => parseCreatedWorktree(JSON.stringify({ ok: false, error: { code: "exists", message: "taken" } })), /exists: taken/);
   });
 });
 

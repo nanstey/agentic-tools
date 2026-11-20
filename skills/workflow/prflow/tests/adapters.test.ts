@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { assertReadOnly, assertRerun, parsePr, parsePrRefs, parseSearch, prArgs, PR_QUERY, rerunArgs, runViewArgs } from "../scripts/adapters/gh.ts";
-import { assertDeleteBranch, deleteBranchArgs } from "../scripts/adapters/git.ts";
+import { assertDeleteBranch, assertReviewFetch, assertReviewReset, deleteBranchArgs, reviewFetchArgs, reviewResetArgs } from "../scripts/adapters/git.ts";
 import { archiveArgs, assertArchive, parseWorktrees, repoFromPrUrl, repoFromProjectId } from "../scripts/adapters/orca.ts";
 import { HEAD, prResponse, status } from "./fixtures.ts";
 
@@ -94,7 +94,7 @@ describe("orca parsing", () => {
 
   it("keeps active non-main worktrees of in-scope owners", () => {
     assert.deepEqual(parseWorktrees(JSON.stringify(list), ["Acme"]), [
-      { id: "r1::/a", path: "/a", branch: "feat", repo: "acme/x", linkedPr: 12 },
+      { id: "r1::/a", path: "/a", branch: "feat", repo: "acme/x", linkedPr: 12, workspaceStatus: null, comment: null, isUnread: null },
     ]);
   });
 
@@ -173,6 +173,16 @@ describe("phase 3 allowlist", () => {
       ["worktree", "set", "--worktree", "path:/w/a", "--json"],
     ];
     for (const a of bad) assert.throws(() => assertArchive(a), /not the allowed archive call/, a.join(" "));
+  });
+});
+
+describe("review git allowlists", () => {
+  const sha = "a".repeat(40);
+  it("allows exact review fetch/reset writes and rejects unsafe variants", () => {
+    assert.doesNotThrow(() => assertReviewFetch(reviewFetchArgs("/w/prflow-review-x-5", 5)));
+    assert.doesNotThrow(() => assertReviewReset(reviewResetArgs("/w/prflow-review-x-5", sha)));
+    for (const a of [["-C", "/w/../x", "fetch", "origin", "pull/5/head"], ["-C", "/w/x", "fetch", "origin", "pull/5/head"], ["-C", "/w/prflow-review-parent/x", "fetch", "origin", "pull/5/head"], ["-C", "/w/prflow-review-x-5", "fetch", "origin", "main"], ["-C", "/w/prflow-review-x-5", "fetch", "origin", "pull/0/head"]]) assert.throws(() => assertReviewFetch(a));
+    for (const a of [["-C", "/w/../x", "reset", "--hard", sha], ["-C", "/w/x", "reset", "--hard", sha], ["-C", "/w/prflow-review-parent/x", "reset", "--hard", sha], ["-C", "/w/prflow-review-x-5", "reset", "--hard", "A".repeat(40)], ["-C", "/w/prflow-review-x-5", "reset", "--hard", sha, "--force"]]) assert.throws(() => assertReviewReset(a));
   });
 });
 

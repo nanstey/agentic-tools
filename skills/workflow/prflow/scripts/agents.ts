@@ -63,6 +63,19 @@ export const isAgentKind = (k: string): boolean => (AGENT_KINDS as readonly stri
 
 export type Templates = Record<BriefKind, Template>;
 
+/** How the monitor judges one open dispatch. */
+export interface MonitorRules {
+  /** Why the work is finished (the dispatch is done once its session is idle or gone), or `null`. */
+  moved: string | null;
+  /** Text for the one nudge to an idle session with the work unfinished; `null` sends none. */
+  nudge: () => string | null;
+  /**
+   * Mark a briefed session that is still busy `busyWaitMinutes` after the brief
+   * stale. Off for reviewers, which may work long; the lease still applies.
+   */
+  busyLimit: boolean;
+}
+
 /** Read and check every brief template under `dir` (`templates/briefs`). */
 export function loadTemplates(dir: string): Templates {
   const out = {} as Templates;
@@ -72,14 +85,14 @@ export function loadTemplates(dir: string): Templates {
 
 /** Truncation for messages carried in events. */
 const MESSAGE_CHARS = 500;
-const short = (s: string | null, n = MESSAGE_CHARS) => {
+export const short = (s: string | null, n = MESSAGE_CHARS) => {
   const t = (s ?? "").replace(/\s+/g, " ").trim();
   return t.length > n ? `${t.slice(0, n - 3)}...` : t;
 };
 const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
 
 /** Per-tick cache of Orca reads. Read failures throw and fail the tick. */
-class OrcaView {
+export class OrcaView {
   private wts?: OrcaWorktree[];
   private agents?: AgentRow[];
   private terms = new Map<string, TerminalRow[]>();
@@ -88,8 +101,21 @@ class OrcaView {
     this.deps = deps;
   }
 
+  private raw?: string;
+
   async worktrees(): Promise<OrcaWorktree[]> {
-    return (this.wts ??= parseWorktrees(await this.deps.orcaWorktrees(), []));
+    return (this.wts ??= parseWorktrees(await this.rawWorktrees(), []));
+  }
+
+  /** `worktree list --json` text, for lookups the parsed rows drop (main worktrees). */
+  async rawWorktrees(): Promise<string> {
+    return (this.raw ??= await this.deps.orcaWorktrees());
+  }
+
+  /** Forget the worktree list after creating a worktree. */
+  invalidateWorktrees(): void {
+    this.wts = undefined;
+    this.raw = undefined;
   }
 
   async sessions(worktreeId: string): Promise<PiSession[]> {
@@ -193,7 +219,7 @@ export function settled(d: Dispatch, item: Classification | undefined): string |
   return null;
 }
 
-interface Ctx {
+export interface Ctx {
   deps: TickDeps;
   store: Store;
   cfg: Config;
@@ -203,7 +229,7 @@ interface Ctx {
   dryRun: boolean;
 }
 
-function ev(d: Dispatch) {
+export function ev(d: Dispatch) {
   return { item: d.item, version: d.version, kind: d.kind, dispatchId: d.id };
 }
 
@@ -285,7 +311,7 @@ const subject = (d: { item: string; kind: string }) => `prflow: ${d.kind} on ${d
  * Deliver a brief for a `planned` dispatch: move it to `launched` with the
  * lease and target first, then close/launch/message. Failure -> `failed`.
  */
-async function deliver(c: Ctx, d: Dispatch, wt: OrcaWorktree, target: Exclude<Target, { do: "wait" }>, brief: string): Promise<void> {
+export async function deliver(c: Ctx, d: Dispatch, wt: OrcaWorktree, target: Exclude<Target, { do: "wait" }>, brief: string): Promise<void> {
   const { store, deps } = c;
   const now = c.ctx.now;
   const handle = target.do === "message" || target.do === "interrupt" ? target.session.handle : null;
@@ -323,6 +349,7 @@ async function deliver(c: Ctx, d: Dispatch, wt: OrcaWorktree, target: Exclude<Ta
     const r = await deps.launchPi(wt.id, brief);
     if (!r.ok) return fail(`orca-ide agent launch: ${r.stderr.trim() || r.stdout.trim()}`);
     const l = parseLaunch(r.stdout);
+    store.addLedger({ at: now, item: d.item, version: d.version, kind: d.kind, outcome: "launched", detail: wt.path, dispatchId: d.id, source: "prflow", ref: `prflow-launched:${l.handle}` });
     store.patchDispatch(d.id, { sessionHandle: l.handle, detail: `launched ${l.handle} in ${wt.path} (${l.detail})` }, now);
     store.upsertSession({ handle: l.handle, item: d.item, dispatchId: d.id, at: now, lastOutputAt: null, state: "launched" });
     if (!l.promptDelivered) store.appendEvent(deps.now(), { ...ev(cur), type: "needs-decision", sessionHandle: l.handle, detail: `Orca launched ${l.handle} but could not confirm the brief reached it (${l.detail}); prflow keeps watching` });
@@ -426,7 +453,7 @@ async function dispatchItem(c: Ctx, item: Classification, pr: PrSnapshot): Promi
 
 // ---- monitor ----
 
-async function monitorOne(c: Ctx, d: Dispatch, item: Classification | undefined, pr: PrSnapshot | undefined): Promise<void> {
+export async function monitorOne(c: Ctx, d: Dispatch, rules: MonitorRules): Promise<void> {
   const { store, ctx } = c;
   const now = ctx.now;
   const { rails } = ctx;
@@ -465,7 +492,7 @@ async function monitorOne(c: Ctx, d: Dispatch, item: Classification | undefined,
   }
 
   const s = sessions.find((x) => x.handle === d.sessionHandle);
-  const moved = settled(d, item);
+  const moved = rules.moved;
   if (!s) {
     if (moved) done(`${moved}; session ${d.sessionHandle} is gone`, null);
     else stale(`session ${d.sessionHandle} closed with the work unfinished`, d.sessionHandle, d.lastMessage);
@@ -482,7 +509,7 @@ async function monitorOne(c: Ctx, d: Dispatch, item: Classification | undefined,
   if (isBusy(s)) {
     const busyFor = now - since;
     // An unknown state with no activity is not proof of work; the lease decides.
-    if (busyFor >= rails.busyWaitMinutes * MINUTE_MS && (s.state !== "unknown" || activity > since)) {
+    if (rules.busyLimit && busyFor >= rails.busyWaitMinutes * MINUTE_MS && (s.state !== "unknown" || activity > since)) {
       if (moved) done(`${moved}; session still ${s.state} after ${Math.round(busyFor / MINUTE_MS)}m`, s);
       // The retry interrupts this session and restarts it in place.
       else stale(`still ${s.state} ${Math.round(busyFor / MINUTE_MS)}m after the brief (limit ${rails.busyWaitMinutes}m)`, s.handle, s.lastMessage, s.kind === "terminal" ? s.handle : null);
@@ -494,11 +521,12 @@ async function monitorOne(c: Ctx, d: Dispatch, item: Classification | undefined,
   if (activity <= since) return;
   if (moved) return done(moved, s);
   if (d.nudgedAt === null) {
-    if (c.dryRun || !item) return;
+    const text = rules.nudge();
+    if (c.dryRun || text === null) return;
     // Ladder step 1: one nudge. Row and event first.
     d = store.patchDispatch(d.id, { nudgedAt: now, leaseUntil: leaseUntil(rails, now) }, now);
     store.appendEvent(now, { ...ev(d), type: "nudged", sessionHandle: s.handle, detail: `idle with ${d.kind} unfinished; last message: ${short(s.lastMessage) || "(none)"}` });
-    const r = await c.deps.sendToAgent(s.handle, subject(d), nudgeText(c, d, item, pr));
+    const r = await c.deps.sendToAgent(s.handle, subject(d), text);
     c.view.invalidate(d.worktree ?? "");
     if (!r.ok) stale(`nudge failed: ${r.stderr.trim() || r.stdout.trim()}`, s.handle, s.lastMessage);
     return;
@@ -521,7 +549,11 @@ export function makeAgentFlow(deps: TickDeps, store: Store, cfg: Config, templat
       if (!open.length) return;
       const ix = index(result, items);
       const c = ctxOf(ctx, opts);
-      for (const d of open) await monitorOne(c, d, ix.items.get(d.item.toLowerCase()), ix.prs.get(d.item.toLowerCase()));
+      for (const d of open) {
+        const item = ix.items.get(d.item.toLowerCase());
+        const pr = ix.prs.get(d.item.toLowerCase());
+        await monitorOne(c, d, { moved: settled(d, item), nudge: () => (item ? nudgeText(c, d, item, pr) : null), busyLimit: true });
+      }
     },
     async act(ctx, result, items, opts) {
       const ix = index(result, items);

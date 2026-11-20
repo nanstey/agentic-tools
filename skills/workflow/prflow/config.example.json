@@ -41,5 +41,13 @@
     "projectContext": [
       { "path": "/abs/path/to/shared-docs", "folder": "project", "owners": ["work-org"], "repos": ["partner-org/shared-app"] }
     ]
+  },
+  "review": {
+    "$comment": "Reviewer sessions use one persistent Orca worktree per PR and save per-head drafts under the state directory. Announced only while dryRun is true; set false to create worktrees and launch reviewers. Tick never posts; use prflow review post <draft-id> --yes.",
+    "dryRun": true,
+    "maxConcurrent": 2,
+    "sessionReviews": 5,
+    "idleCloseHours": 24,
+    "statuses": { "draft": "review-draft", "reviewing": "reviewing", "changes": "review-changes", "approved": "review-approved" }
   }
 }

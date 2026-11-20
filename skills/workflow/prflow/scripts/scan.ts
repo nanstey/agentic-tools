@@ -2,7 +2,7 @@ import { classify, classifyWorktree } from "./core/classify.ts";
 import { accountFor, type Account, type Config } from "./core/config.ts";
 import type { Classification, PrSnapshot, Role, WorktreeItem } from "./core/types.ts";
 import { parsePr, parsePrRefs, parseSearch, prArgs, type SearchHit } from "./adapters/gh.ts";
-import { parseWorktrees, repoFromPrUrl } from "./adapters/orca.ts";
+import { isReviewBranch, parseWorktrees, repoFromPrUrl } from "./adapters/orca.ts";
 
 export interface CmdResult {
   ok: boolean;
@@ -55,12 +55,15 @@ async function searchAccount(deps: Deps, cfg: Config, a: Account, errors: string
   const runs = scopes(a).flatMap((scope) => [
     { role: "author" as const, args: ["search", "prs", "--author", a.login, "--draft=false", ...base, ...scope] },
     { role: "reviewer" as const, args: ["search", "prs", "--review-requested", a.login, ...base, ...scope] },
+    { role: "reviewer" as const, args: ["search", "prs", "--reviewed-by", a.login, ...base, ...scope] },
+    { role: null, args: ["search", "prs", "--author", a.login, ...base, ...scope] },
   ]);
   const results = await Promise.all(runs.map((r) => search(deps, a.login, r.args, errors)));
   // A repo belongs to exactly one account; drop hits in repos another account covers.
   const mine = (repo: string) => accountFor(cfg, repo)?.login === a.login;
-  return runs.flatMap((r, i) =>
-    (results[i] ?? []).filter((hit) => mine(hit.repo)).map((hit) => ({ hit, role: r.role, account: a.login })),
+  const authored = new Set(runs.flatMap((r, i) => r.role === null ? (results[i] ?? []).map((hit) => `${hit.repo}#${hit.number}`.toLowerCase()) : []));
+  return runs.flatMap((r, i) => r.role === null ? [] :
+    (results[i] ?? []).filter((hit) => mine(hit.repo) && !(r.role === "reviewer" && authored.has(`${hit.repo}#${hit.number}`.toLowerCase()))).map((hit) => ({ hit, role: r.role, account: a.login })),
   );
 }
 
@@ -71,6 +74,15 @@ async function fetchPr(deps: Deps, j: Job, errors: string[]): Promise<PrSnapshot
     return null;
   }
   return parsePr(r.stdout, j.hit.repo, j.hit.number, j.role, j.account);
+}
+
+/** Read the current snapshot for an Orca review worktree even if search no longer returns it. */
+export async function fetchReviewPr(deps: Pick<Deps, "gh">, cfg: Config, repo: string, number: number): Promise<PrSnapshot | null> {
+  const account = accountFor(cfg, repo);
+  if (!account) return null;
+  const r = await deps.gh(account.login, prArgs(repo, number));
+  if (!r.ok) throw new Error(`${account.login}: ${repo}#${number}: ${r.stderr.trim()}`);
+  return parsePr(r.stdout, repo, number, "reviewer", account.login);
 }
 
 /** gh errors meaning the repo does not exist or the account cannot see it. */
