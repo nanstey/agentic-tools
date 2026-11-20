@@ -51,7 +51,8 @@ describe("brief templates", () => {
     assert.match(b, /Never force-push except `--force-with-lease` to `\{\{branch\}\}` after the rebase above\./);
     assert.doesNotMatch(b.replace(/--force-with-lease/g, ""), /--force/);
     assert.doesNotMatch(b, /origin\/main/);
-    assert.match(T.comments.body, /Reply to each item you addressed.*Resolve a review thread/s);
+    assert.match(T.comments.body, /Reply to each item you addressed.*Never resolve a review thread/s);
+    assert.doesNotMatch(T.comments.body, /Resolve a review thread/);
   });
 
   it("refuse to render with a missing value or a bad header", () => {

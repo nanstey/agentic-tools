@@ -1,4 +1,4 @@
-<!-- prflow brief: comments v1 -->
+<!-- prflow brief: comments v2 -->
 # Address review feedback on {{repo}}#{{number}}
 
 PR: {{pr_url}}
@@ -17,7 +17,7 @@ Each item below is newer than the head commit and has no reply from the PR autho
 1. Read each item and decide: change the code, or answer why not.
 2. Make the code changes in this worktree on `{{branch}}`. Run the relevant checks locally when you can.
 3. Commit and push to `{{branch}}` (a normal push, never forced).
-4. Reply to each item you addressed, on its own thread or comment, saying what changed (commit sha) or why it stays. Resolve a review thread only when your change fully addresses it.
+4. Reply to each item you addressed, on its own thread or comment, saying what changed (commit sha) or why it stays. Never resolve a review thread; the reviewer resolves it.
 5. Stop after pushing and replying. Report what you changed, the new head commit, and which items you left open and why.
 
 ## Rules
