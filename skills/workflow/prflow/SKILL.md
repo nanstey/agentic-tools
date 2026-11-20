@@ -126,7 +126,7 @@ Pending reviews with no timestamp are ignored, and a PR with no commits is skipp
 
 ## Development
 
-- `npm install` once, then `npm test` (strict `tsc --noEmit`, then `node --test`).
+- `npm install` once at the repository root (an npm workspace), then `npm test` in the skill directory (strict `tsc --noEmit`, then `node --test`).
 - Fixtures live in `tests/fixtures.ts`.
 
 ## Safety Rules

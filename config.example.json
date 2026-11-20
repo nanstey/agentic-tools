@@ -1,5 +1,5 @@
 {
-  "$comment": "Copy this file to config.json at the repository root (git-ignored) or to ${XDG_CONFIG_HOME:-~/.config}/agentic-tools/config.json. Each account needs a gh login: gh auth login, then check with gh auth status. prflow reads tokens with gh auth token -u <login> and never switches the active account.",
+  "$comment": "Copy this file to config.json at the repository root (git-ignored) or to ${XDG_CONFIG_HOME:-~/.config}/agentic-tools/config.json. Each account needs a gh login: gh auth login, then check with gh auth status. prflow, repo-sync, and orca-task-status read tokens with gh auth token -u <login> and never switch the active account.",
   "accounts": [
     {
       "$comment": "An account can cover every repo under these owners plus selected repos elsewhere. A repos entry wins over another account's owners entry.",
