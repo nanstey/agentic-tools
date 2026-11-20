@@ -77,19 +77,19 @@ failed | stale -> planned   (retry, attempts + 1)
 
 ## Rails
 
-All limits come from the config `rails` object; see `SKILL.md` for defaults.
+All limits come from the config `prflow.rails` object; see `SKILL.md` for defaults.
 
 | Rail | Effect |
 | --- | --- |
 | Caps: `startsPerTick`, `maxOpen`, `perHour`, `perDay` | The start waits for a later tick. `rail-tripped` is emitted once per tick (per-tick and open caps), hour, or day |
-| Reviewers: `review.maxConcurrent` (default 2) | Reviewer dispatches open at once; more wait, with `rail-tripped` once per tick. In dry run it caps announcements per tick |
+| Reviewers: `prflow.review.maxConcurrent` (default 2) | Reviewer dispatches open at once; more wait, with `rail-tripped` once per tick. In dry run it caps announcements per tick |
 | Loop breaker: `loopSameVersion` starts for one item and version, or `loopAcrossVersions` starts for one item, in 24 hours | The item is paused; `rail-tripped` and `paused` are emitted |
 | Backoff: `backoffBaseMinutes`, doubling to `backoffMaxMinutes` | After a failed tick, ticks before the next allowed time exit 0 with no output |
 | Poll budget: `pollBudgetSeconds` | A scan that takes longer fails the tick |
 | Child timeout: `childTimeoutSeconds` | Each `gh`, `git`, or `orca-ide` process is killed after this and counts as failed |
 | Pause | While prflow is paused, `tick` does nothing: no scan, no actions, no output. Its events print on the first tick after `prflow resume`. A paused item is still scanned and reported but starts nothing |
 | Reruns: `rerunsPerVersion` (default 2) | Checks cancelled again at the same item version are rerun up to this many times (dispatch versions `<version>`, `<version>~r2`, ...). Then the item is paused once with a reason; after `prflow resume --item` that version is not rerun again. A new head or new comments start a fresh count |
-| Dry run | Config `actions.dryRun`, `dispatch.dryRun`, and `review.dryRun` (each default `true`) or `tick --dry-run`: no side effects; dry-run announcements honour `startsPerTick` |
+| Dry run | Config `prflow.actions.dryRun`, `prflow.dispatch.dryRun`, and `prflow.review.dryRun` (each default `true`) or `tick --dry-run`: no side effects; dry-run announcements honour `startsPerTick` |
 | Busy wait: `busyWaitMinutes` | A busy Pi session may hold up a brief this long; then prflow interrupts it and restarts it with the brief (`references/dispatch.md`) |
 
 ## Tick

@@ -2,17 +2,37 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
-import { defaultPaths, loadConfig, SKILL_DIR } from "../scripts/config.ts";
+import { defaultPaths, loadConfig } from "../scripts/config.ts";
 import { accountFor, DEFAULT_ACTIONS, DEFAULT_DISPATCH, DEFAULT_RAILS, DEFAULT_REVIEW, parseConfig, projectFor } from "../scripts/core/config.ts";
 
-const parse = (v: unknown) => parseConfig(JSON.stringify(v), "cfg.json");
+const prflowKeys = ["limit", "worktrees", "rails", "actions", "dispatch", "review"];
+const parse = (v: unknown) => {
+  const value = v as Record<string, unknown>;
+  const prflow = Object.fromEntries(Object.entries(value).filter(([key]) => prflowKeys.includes(key)));
+  const shared = Object.fromEntries(Object.entries(value).filter(([key]) => !prflowKeys.includes(key)));
+  return parseConfig(JSON.stringify({ ...shared, prflow }), "cfg.json");
+};
 
 describe("parseConfig", () => {
   it("parses the committed example", () => {
-    const cfg = parseConfig(readFileSync(join(SKILL_DIR, "config.example.json"), "utf8"), "example");
+    const cfg = parseConfig(readFileSync(join(import.meta.dirname, "../../../../config.example.json"), "utf8"), "example");
     assert.deepEqual(cfg.accounts.map((a) => a.login), ["work-login", "personal-login"]);
     assert.equal(cfg.limit, 50);
     assert.equal(cfg.worktrees, true);
+  });
+
+  it("accepts a comment in the prflow section", () => {
+    const cfg = parseConfig('{"accounts":[{"login":"a"}],"prflow":{"$comment":"options below"}}', "cfg.json");
+    assert.equal(cfg.limit, 50);
+  });
+
+  it("ignores repoSync's section", () => {
+    assert.equal(parseConfig('{"accounts":[{"login":"a"}],"repoSync":false}', "cfg.json").accounts[0]?.login, "a");
+  });
+
+  it("rejects a prflow section that is not an object", () => {
+    for (const v of ["[]", "null"])
+      assert.throws(() => parseConfig(`{"accounts":[{"login":"a"}],"prflow":${v}}`, "cfg.json"), /^Error: cfg\.json: prflow must be an object$/);
   });
 
   it("fills defaults", () => {
@@ -107,7 +127,7 @@ describe("parseConfig", () => {
   ];
   for (const [name, v, re] of bad)
     it(`rejects ${name}`, () => {
-      assert.throws(() => parseConfig(v === undefined ? "{" : JSON.stringify(v), "cfg.json"), (e: Error) => {
+      assert.throws(() => v === undefined ? parseConfig("{", "cfg.json") : parse(v), (e: Error) => {
         assert.match(e.message, /^cfg\.json: /);
         assert.match(e.message, re);
         return true;
@@ -158,8 +178,8 @@ describe("loadConfig", () => {
     assert.equal(l.source, "active gh account");
     assert.deepEqual(l.config.accounts, [{ login: "active", owners: ["O"], repos: [] }]);
   });
-  it("looks in the skill dir, then XDG config", () => {
-    assert.deepEqual(defaultPaths({ XDG_CONFIG_HOME: "/x" }, "/h"), [join(SKILL_DIR, "config.json"), "/x/prflow/config.json"]);
-    assert.deepEqual(defaultPaths({}, "/h")[1], "/h/.config/prflow/config.json");
+  it("looks in the repo root, then XDG config", () => {
+    assert.deepEqual(defaultPaths({ XDG_CONFIG_HOME: "/x" }, "/h"), [join(import.meta.dirname, "../../../../config.json"), "/x/agentic-tools/config.json"]);
+    assert.deepEqual(defaultPaths({}, "/h")[1], "/h/.config/agentic-tools/config.json");
   });
 });

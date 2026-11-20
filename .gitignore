@@ -12,3 +12,5 @@ harness/pi/npm/node_modules/
 **/*.secret
 __pycache__/
 *.pyc
+node_modules/
+/config.json

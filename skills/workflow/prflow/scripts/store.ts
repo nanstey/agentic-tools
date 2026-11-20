@@ -13,6 +13,7 @@ import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { defaultStateDir as sharedStateDir, pidAlive } from "../../../../lib/runtime.ts";
 import type { DatabaseSync } from "node:sqlite";
 import { makeEvent, parseEvents, type EventInput, type PrflowEvent } from "./core/events.ts";
 import { canTransition, OPEN_STATES, type DispatchState } from "./core/rails.ts";
@@ -33,7 +34,7 @@ function loadSqlite(): typeof import("node:sqlite") {
 }
 
 export function defaultStateDir(env: NodeJS.ProcessEnv = process.env, home = homedir()): string {
-  return join(env.XDG_STATE_HOME || join(home, ".local", "state"), "prflow");
+  return sharedStateDir("prflow", env, home);
 }
 
 const SCHEMA = `
@@ -238,16 +239,6 @@ function toRun(r: Row): RunRow {
 export const LOCK_HUNG_MS = 6 * 60 * 60 * 1000;
 /** `meta` key of the tick lock: `<pid> <taken at ms> <uuid>`. */
 export const LOCK_KEY = "tick_lock";
-
-/** True when `pid` names a running process (EPERM: running, owned by someone else). */
-function pidAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch (e) {
-    return (e as NodeJS.ErrnoException).code === "EPERM";
-  }
-}
 
 /** Whether the lock `value` belongs to a dead or hung tick at `now`. */
 export function lockStale(value: string, now: number): boolean {

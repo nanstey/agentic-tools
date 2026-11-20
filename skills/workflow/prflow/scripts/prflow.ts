@@ -1,8 +1,9 @@
 #!/usr/bin/env node
-import { closeSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { closeSync, mkdirSync, openSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
+import { readOrNull } from "../../../../lib/runtime.ts";
 import { summarizeChecks, version } from "./core/classify.ts";
 import { renderReport, sortItems } from "./core/report.ts";
 import type { PrSnapshot } from "./core/types.ts";
@@ -56,15 +57,6 @@ function writeAtomic(path: string, text: string): void {
   renameSync(tmp, path);
 }
 
-function readOrNull(path: string): string | null {
-  try {
-    return readFileSync(path, "utf8");
-  } catch (e) {
-    if ((e as NodeJS.ErrnoException).code === "ENOENT") return null;
-    throw e;
-  }
-}
-
 const USAGE = `Usage: prflow <command> [options]
 
   scan           Fetch and print PR and worktree facts (read-only).
@@ -101,12 +93,12 @@ const USAGE = `Usage: prflow <command> [options]
                  ledger (idempotent; reads them only).
   config         Print the resolved accounts and where they came from.
 
-Accounts come from the first of: --user; --config or PRFLOW_CONFIG;
-<skill-dir>/config.json; \${XDG_CONFIG_HOME:-~/.config}/prflow/config.json;
-the active gh account. See config.example.json.
+Accounts come from the first of: --user; --config or AGENTIC_TOOLS_CONFIG;
+<repo-root>/config.json; \${XDG_CONFIG_HOME:-~/.config}/agentic-tools/config.json;
+the active gh account. See <repo-root>/config.example.json.
 
 Options:
-  --config <path>            Config file (env PRFLOW_CONFIG)
+  --config <path>            Config file (env AGENTIC_TOOLS_CONFIG)
   --user <login>             Use one account and ignore config files
   --owner <login>            Owner scope for --user or the active account, repeatable
   --repo <owner/repo>        Repo scope for --user or the active account, repeatable
@@ -265,7 +257,7 @@ async function main(argv: string[]): Promise<number> {
   const deps = realDeps();
   const loaded = await loadConfig(
     {
-      config: values.config ?? (process.env.PRFLOW_CONFIG || undefined),
+      config: values.config ?? (process.env.AGENTIC_TOOLS_CONFIG || undefined),
       user: values.user,
       owners: values.owner,
       repos: values.repo,

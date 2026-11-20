@@ -4,11 +4,8 @@ import type { Classification, PrSnapshot, Role, WorktreeItem } from "./core/type
 import { parsePr, parsePrRefs, parseSearch, prArgs, type SearchHit } from "./adapters/gh.ts";
 import { isReviewBranch, parseWorktrees, repoFromPrUrl } from "./adapters/orca.ts";
 
-export interface CmdResult {
-  ok: boolean;
-  stdout: string;
-  stderr: string;
-}
+export type { CmdResult } from "../../../../lib/runtime.ts";
+import type { CmdResult } from "../../../../lib/runtime.ts";
 
 /** All I/O the scanner needs. Real implementations live in `deps.ts`; tests fake them. */
 export interface Deps {

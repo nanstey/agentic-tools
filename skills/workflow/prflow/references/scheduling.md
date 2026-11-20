@@ -36,8 +36,8 @@ node <skill-dir>/scripts/prflow.ts tick [--state-dir <path>] [--config <path>] [
 `tick` is a superset of `watch`: the same scan and report, plus state, rails,
 an event feed, the safe actions (see `references/state.md`), and Pi dispatch
 (see `references/dispatch.md`). Actions stay dry runs until the config sets
-`"actions": {"dryRun": false}`, and dispatch until it sets
-`"dispatch": {"dryRun": false}`.
+`prflow.actions.dryRun` to `false`, and dispatch until it sets
+`prflow.dispatch.dryRun` to `false`.
 
 | Result | stdout | Exit |
 | --- | --- | --- |
@@ -52,10 +52,10 @@ you want the state and feed.
 
 ## Set up a schedule (agent steps)
 
-1. **Config.** Run `prflow config`. If it shows the wrong accounts, copy
-   `config.example.json` to `config.json` in the skill directory (or to
-   `${XDG_CONFIG_HOME:-~/.config}/prflow/config.json`) and edit it. Ask the
-   user which accounts cover which owners or repos; do not guess.
+1. **Config.** Run `prflow config`. If it shows the wrong accounts, copy the
+   repository's `config.example.json` to `<repo-root>/config.json` (git-ignored)
+   or `${XDG_CONFIG_HOME:-~/.config}/agentic-tools/config.json` and edit it.
+   Ask the user which accounts cover which owners or repos; do not guess.
 2. **Auth.** Every configured login must pass `gh auth token -u <login>` in
    the scheduler's environment, not just the user's shell. On Linux, `gh`
    keyring storage needs the user session bus (`DBUS_SESSION_BUS_ADDRESS`);

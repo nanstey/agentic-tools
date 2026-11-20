@@ -1,9 +1,9 @@
-import { execFile } from "node:child_process";
 import { resolve } from "node:path";
+import { run as runProcess, withoutTokens } from "../../../../lib/runtime.ts";
+import type { CmdResult } from "../../../../lib/runtime.ts";
 import { assertReadOnly, assertRerun, assertReviewPost, rerunArgs, reviewPostArgs } from "./adapters/gh.ts";
 import { assertDeleteBranch, assertReviewFetch, assertReviewReset, deleteBranchArgs, reviewFetchArgs, reviewResetArgs } from "./adapters/git.ts";
 import { agentListArgs, archiveArgs, assertArchive, assertOrca, assertWorktreeSet, closeArgs, interruptArgs, launchArgs, reviewWorktreeArgs, sendArgs, terminalListArgs, waitIdleArgs, worktreeListArgs, worktreeSetArgs, isReviewBranch } from "./adapters/orca.ts";
-import type { CmdResult } from "./scan.ts";
 import type { TickDeps } from "./tick.ts";
 
 /** Default limit for one child process; `setChildTimeout` overrides it from config. */
@@ -11,21 +11,7 @@ let childTimeoutMs = 60_000;
 
 /** Run a child process. It is killed after the child timeout and reported as a failure. */
 function run(cmd: string, args: string[], env: NodeJS.ProcessEnv, cwd?: string): Promise<CmdResult> {
-  return new Promise((resolve) => {
-    execFile(cmd, args, { env, cwd, maxBuffer: 64 * 1024 * 1024, timeout: childTimeoutMs, killSignal: "SIGKILL" }, (err, stdout, stderr) => {
-      const killed = err && (err as { killed?: boolean }).killed;
-      const msg = killed ? `${cmd} ${args.slice(0, 2).join(" ")} timed out after ${childTimeoutMs / 1000}s` : err && !stderr ? err.message : String(stderr);
-      resolve({ ok: !err, stdout: String(stdout), stderr: msg });
-    });
-  });
-}
-
-/** Environment without any ambient GitHub token, so a per-account token always wins. */
-function withoutTokens(): NodeJS.ProcessEnv {
-  const env = { ...process.env };
-  delete env.GH_TOKEN;
-  delete env.GITHUB_TOKEN;
-  return env;
+  return runProcess(cmd, args, env, cwd, childTimeoutMs);
 }
 
 export interface RealDeps extends TickDeps {

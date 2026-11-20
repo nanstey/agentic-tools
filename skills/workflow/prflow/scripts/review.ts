@@ -27,8 +27,9 @@
  * Review dry run (`review.dryRun`, default true) makes the same reads and
  * announces the exact target and brief once per head as a `dry-run` event.
  */
-import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { readOrNull } from "../../../../lib/runtime.ts";
 import { briefArgs, parseBriefFacts } from "./adapters/gh.ts";
 import { safeBranch } from "./adapters/git.ts";
 import {
@@ -78,15 +79,6 @@ export function draftPaths(stateDir: string, repo: string, number: number, head8
 export function pathsOf(stateDir: string, d: Pick<Dispatch, "item" | "version">): DraftPaths {
   const [repo, n] = d.item.split("#");
   return draftPaths(stateDir, repo ?? "", Number(n), d.version);
-}
-
-function readOrNull(path: string): string | null {
-  try {
-    return readFileSync(path, "utf8");
-  } catch (e) {
-    if ((e as NodeJS.ErrnoException).code === "ENOENT") return null;
-    throw e;
-  }
 }
 
 export interface LoadedDraft {
