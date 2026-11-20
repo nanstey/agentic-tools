@@ -66,6 +66,7 @@ test("cleanup requires a merged PR, a clean checkout, and HEAD at the merged hea
   assert.match(cleanupBlocker(wt(), "p", merged, { dirty: true, head: HEAD }) ?? "", /uncommitted/);
   assert.match(cleanupBlocker(wt(), "p", merged, { dirty: false, head: "b".repeat(40) }) ?? "", /not in merged PR/);
   assert.match(cleanupBlocker(wt({ workspaceStatus: "p" }), "p", merged, clean) ?? "", /paused/);
+  assert.match(cleanupBlocker(wt(), undefined, merged, clean) ?? "", /Paused status id is not configured/);
   assert.match(cleanupBlocker(wt({ childWorktreeIds: ["c"] }), "p", merged, clean) ?? "", /child/);
   assert.match(cleanupBlocker(wt({ isMainWorktree: true }), "p", merged, clean) ?? "", /main checkout/);
 });

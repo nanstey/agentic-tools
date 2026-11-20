@@ -38,7 +38,8 @@ user asked to stop the task, else `finished`, which derives In Review or Done fr
 Add `--resume` to both only when the card is Paused and the user asked for work on this task.
 When `end` prints `cleanup: eligible` and no instructions for this task remain, including
 post-merge steps, write the final report and then run `cleanup` as the last tool call. It removes
-the worktree and ends the session. Leaf agents and subagents skip all of this. A `skipped:` line
+the worktree and ends the session. If it refuses or fails, reply once with the reason and run no
+further commands. Leaf agents and subagents skip all of this. A `skipped:` line
 needs no action. A failed status write never blocks the task.
 
 # Main-agent model policy

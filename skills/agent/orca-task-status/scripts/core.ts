@@ -139,7 +139,8 @@ export function skipReason(wt: Worktree): string | null {
 export function cleanupBlocker(wt: Worktree, pausedId: string | undefined, pr: Pr | null, local: Local): string | null {
   const skip = skipReason(wt);
   if (skip) return skip;
-  if (pausedId && wt.workspaceStatus === pausedId) return "task is paused";
+  if (!pausedId) return "Paused status id is not configured (taskStatus.statuses.paused), so a Paused card cannot be ruled out";
+  if (wt.workspaceStatus === pausedId) return "task is paused";
   if (wt.childWorktreeIds.length > 0) return "worktree has child worktrees";
   if (pr === null) return "no PR for this branch";
   if (pr.state !== "MERGED" || pr.mergedAt === null) return `PR #${pr.number} is not merged`;

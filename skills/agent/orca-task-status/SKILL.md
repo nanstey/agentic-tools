@@ -64,11 +64,11 @@ A `gh` failure other than "no pull requests found" exits 1 and writes nothing. T
 - The PR for the branch is `MERGED` with a `mergedAt` time.
 - `git status --porcelain` is empty, untracked files included.
 - Local `HEAD` equals the merged PR head, so no later commit is lost.
-- The card is not Paused, the worktree has no child worktrees, and it is not a main checkout or prflow review worktree.
+- The Paused status id is configured and the card is not Paused, the worktree has no child worktrees, and it is not a main checkout or prflow review worktree.
 
 Run it only when no work remains for this task. That includes post-merge instructions from the user or the task brief, such as release steps, follow-up issues, deploy checks, or notes. Do those first. Report them with `end --outcome finished` and confirm `cleanup: eligible` again.
 
-Removal ends this session. Write the final report in the same message, before the `cleanup` call, and make `cleanup` the last tool call. Do not run any command after it. If it refuses or fails, report the reason. Do not retry with other flags or selectors.
+Removal ends this session. Write the final report in the same message, before the `cleanup` call, and make `cleanup` the last tool call. If it succeeds, nothing follows. If it refuses or fails, the session continues: reply once with the reason and run no further commands. Do not retry with other flags or selectors.
 
 ## Configuration
 
