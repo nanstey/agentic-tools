@@ -9,10 +9,10 @@ export interface CmdResult {
   stderr: string;
 }
 
-/** Run one child process with the caller's timeout. */
-export function run(cmd: string, args: string[], env: NodeJS.ProcessEnv, cwd: string | undefined, timeoutMs: number): Promise<CmdResult> {
+/** Run one child process with the caller's timeout (0: none) and kill signal. */
+export function run(cmd: string, args: string[], env: NodeJS.ProcessEnv, cwd: string | undefined, timeoutMs: number, killSignal: NodeJS.Signals = "SIGKILL"): Promise<CmdResult> {
   return new Promise((resolve) => {
-    const child = execFile(cmd, args, { env, cwd, maxBuffer: 64 * 1024 * 1024, timeout: timeoutMs, killSignal: "SIGKILL" }, (err, stdout, stderr) => {
+    const child = execFile(cmd, args, { env, cwd, maxBuffer: 64 * 1024 * 1024, timeout: timeoutMs, killSignal }, (err, stdout, stderr) => {
       const killed = err && (err as { killed?: boolean }).killed;
       const msg = killed ? `${cmd} ${args.slice(0, 2).join(" ")} timed out after ${timeoutMs / 1000}s` : err && !stderr ? err.message : String(stderr);
       resolve({ ok: !err, stdout: String(stdout), stderr: msg });
