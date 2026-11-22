@@ -27,7 +27,7 @@ describe("parseConfig", () => {
   });
 
   it("ignores top-level sections it does not own", () => {
-    const cfg = parseConfig('{"accounts":[{"login":"a"}],"taskStatus":{"statuses":{}},"futureTool":{"anything":1},"prflow":{"limit":5}}', "cfg.json");
+    const cfg = parseConfig('{"accounts":[{"login":"a"}],"taskStatus":{"statuses":{}},"futureTool":{"anything":1},"orchestrator":{"review":{"autoPost":true},"ignore":["x"]},"prflow":{"limit":5}}', "cfg.json");
     assert.equal(cfg.limit, 5);
     assert.throws(() => parseConfig('{"accounts":[{"login":"a"}],"futureTool":{},"prflow":{"token":"x"}}', "cfg.json"), /cfg\.json: prflow\.unknown key "token"/);
   });

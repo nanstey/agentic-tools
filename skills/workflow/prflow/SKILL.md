@@ -10,7 +10,7 @@ disable-model-invocation: false
 
 ## Core Contract
 
-Run the `prflow` CLI and relay its output. prflow fetches and classifies PRs, records them in its own state, and enforces rails. Its only side effects are the two safe actions in [Actions](#actions), the Blocked card moves in [Unblock](#unblock), the Pi dispatches in [Pi Dispatch](#pi-dispatch), and the reviewer sessions in [Review Drafts](#review-drafts), each only when the config enables it. Tick never posts to GitHub; a review draft reaches GitHub only through `prflow review post --yes` on the user's explicit instruction.
+Run the `prflow` CLI and relay its output. prflow fetches and classifies PRs, records them in its own state, and enforces rails. Its only side effects are the two safe actions in [Actions](#actions), the Blocked card moves in [Unblock](#unblock), the Pi dispatches in [Pi Dispatch](#pi-dispatch), and the reviewer sessions in [Review Drafts](#review-drafts), each only when the config enables it. Tick never posts to GitHub; a review draft reaches GitHub only through `prflow review post --yes` on the user's explicit instruction, or from the orca-orchestrator run when the user enabled `orchestrator.review.autoPost` in the shared config.
 Classification, rails, and report logic are pure TypeScript in `scripts/core/`. All I/O sits behind the `Deps` interface in `scripts/scan.ts` (`TickDeps` in `scripts/tick.ts`). Pi dispatch lives in `scripts/agents.ts`, unblocking in `scripts/unblock.ts`, the review flow in `scripts/review.ts`, and the review commands in `scripts/review-cmd.ts`; briefs render in `scripts/core/brief.ts`.
 Follow `CLAUDE.md` / `AGENTS.md` on conflict.
 
