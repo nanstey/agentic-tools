@@ -22,8 +22,10 @@ The bot reads the `orchestrator` section of the shared agentic-tools config (the
 
 | Key | Default | Effect |
 | --- | --- | --- |
-| `orchestrator.review.autoPost` | `false` | `true`: each run posts every ready review draft with its draft verdict (workflow step 5). `false`: drafts are summarised for the user and nothing is posted |
-| `orchestrator.ignore` | `[]` | Repos (Orca display name, folder name, or `owner/repo`, case-insensitive) the orchestrator never reports on or acts on: no PR rows, no briefs, no sessions, no worktree moves or cleanup questions |
+| `orchestrator.review.autoPost` | `false` | `true`: each run posts every ready review draft with its draft verdict (workflow step 5), including `approve`, with no human check of the draft. `false`: drafts are summarised for the user and nothing is posted |
+| `orchestrator.ignore` | `[]` | Repos (Orca display name, folder name, or `owner/repo`, case-insensitive) the orchestrator never reports on or acts on: no PR rows, no briefs, no sessions, no review posts, no worktree moves or cleanup questions |
+
+`orchestrator.ignore` limits the orchestrator's own reports and actions. The tools it runs read their own settings: `repoSync.ignore` stops repo-sync for a repo, and prflow acts on every repo the shared `accounts` cover. To keep a repo out of those tools too, configure them separately.
 
 Board status ids come from `taskStatus.statuses` and `prflow.review.statuses`. Setting up the columns on a new machine: [references/board.md](references/board.md).
 
@@ -53,7 +55,7 @@ Orca runs a precheck with `spawn(command, { shell: true, env: process.env })` fr
 
 ## Workflow (each bot run)
 
-Before acting on any item, drop it if its repo is in `orchestrator.ignore`.
+From step 2 on, drop every item whose repo is in `orchestrator.ignore`: feed sections, `prflow tick` events and report rows, dispatches, review drafts, sessions, and worktrees. Do not report it, brief for it, post for it, or move its worktree.
 
 1. **Feed.** Read `<state>/latest.txt`. If its header time is more than 20 minutes old, the run was started by hand (Run now and `orca-ide automations run` bypass the precheck): run `tick.ts` once yourself, and treat exit 1 as an empty feed.
 2. **Tick.** Run `node <prflow-dir>/scripts/prflow.ts tick`. Its stdout is the authoritative PR event feed; the precheck's `prflow watch` section only signals that something changed. Exit 1 is a failure to diagnose (step 4).

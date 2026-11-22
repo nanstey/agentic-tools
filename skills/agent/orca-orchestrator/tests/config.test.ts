@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { defaultConfig, isIgnored, loadConfig, parseConfig } from "../scripts/config.ts";
+import { defaultConfig, loadConfig, parseConfig } from "../scripts/config.ts";
 
 const EXAMPLE = readFileSync(join(import.meta.dirname, "../../../../config.example.json"), "utf8");
 
@@ -27,15 +27,6 @@ test("orchestrator section is strict about its own keys", () => {
   assert.throws(() => parseConfig('{"orchestrator":{"review":[]}}', "c"), /review must be an object/);
   assert.throws(() => parseConfig('{"orchestrator":{"ignore":[""]}}', "c"), /ignore must be an array/);
   assert.throws(() => parseConfig('{"orchestrator":[]}', "c"), /orchestrator must be an object/);
-});
-
-test("ignore matches display name, folder name, or owner/repo, case-insensitively", () => {
-  const cfg = parseConfig('{"orchestrator":{"ignore":["Old-App","acme/legacy"]}}', "c");
-  assert.ok(isIgnored(cfg, { name: "old-app" }));
-  assert.ok(isIgnored(cfg, { path: "/code/OLD-APP" }));
-  assert.ok(isIgnored(cfg, { slug: "ACME/legacy" }));
-  assert.ok(!isIgnored(cfg, { name: "legacy", slug: "other/legacy" }));
-  assert.ok(!isIgnored(cfg, {}));
 });
 
 test("loads the explicit file, then AGENTIC_TOOLS_CONFIG, then defaults", () => {

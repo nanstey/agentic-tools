@@ -45,14 +45,6 @@ export function parseConfig(text: string, source: string): Config {
   return out;
 }
 
-export type RepoKeys = { name?: string | null; path?: string | null; slug?: string | null };
-
-/** Whether `orchestrator.ignore` names the repo by display name, folder name, or `owner/repo` (case-insensitive). */
-export function isIgnored(cfg: Config, repo: RepoKeys): boolean {
-  const keys = [repo.name, repo.path?.split("/").at(-1), repo.slug].filter((k): k is string => !!k).map((k) => k.toLowerCase());
-  return cfg.ignore.some((r) => keys.includes(r.toLowerCase()));
-}
-
 /** The explicit file, else `AGENTIC_TOOLS_CONFIG`, else the first shared config path that exists, else defaults. */
 export function loadConfig(explicit: string | undefined, env: NodeJS.ProcessEnv, read: Read = readOrNull): { config: Config; source: string } {
   const chosen = explicit ?? env.AGENTIC_TOOLS_CONFIG;
