@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import test from "node:test";
 import { checkState, cleanupBlocker, endDecision, parsePr, parseWorktree, prDecision, skipReason, type Pr, type Worktree } from "../scripts/core.ts";
 import { DEFAULT_STATUSES, parseConfig } from "../scripts/config.ts";
@@ -85,4 +87,10 @@ test("config maps states to Orca status ids over the built-in defaults", () => {
   assert.throws(() => parseConfig('{"taskStatus":{"other":1}}', "c"), /taskStatus\.unknown key "other"/);
   assert.deepEqual(parseConfig('{"prflow":{"limit":1},"futureTool":true,"taskStatus":{"statuses":{"done":"d"}}}', "c").statuses.done, "d");
   assert.throws(() => parseConfig('{"taskStatus":{"statuses":{"done":""}}}', "c"), /non-empty/);
+});
+
+test("config accepts the shipped config.example.json, including the orchestrator section", () => {
+  const text = readFileSync(join(import.meta.dirname, "../../../../config.example.json"), "utf8");
+  assert.ok("orchestrator" in JSON.parse(text));
+  assert.equal(parseConfig(text, "config.example.json").statuses["needs-attention"], "status-7");
 });
