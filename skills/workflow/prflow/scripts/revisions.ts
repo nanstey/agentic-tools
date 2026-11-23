@@ -17,7 +17,7 @@ import { createHash } from "node:crypto";
 import { mkdirSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { readOrNull } from "../../../../lib/runtime.ts";
-import type { InlineComment } from "./core/draft.ts";
+import { type InlineComment, stripDisclosure } from "./core/draft.ts";
 
 export interface RevisionPaths {
   id: string;
@@ -53,8 +53,8 @@ type LedgerReader = { ledgerAt(ref: string): number | null };
 
 export const textHash = (text: string): string => createHash("sha256").update(text).digest("hex");
 
-/** Identity of an inline comment across revisions: location and text. */
-export const commentKey = (c: Pick<InlineComment, "path" | "line" | "startLine" | "body">): string => JSON.stringify([c.path, c.startLine, c.line, c.body.trim()]);
+/** Identity of an inline comment across revisions: location and text, without the agent disclosure. */
+export const commentKey = (c: Pick<InlineComment, "path" | "line" | "startLine" | "body">): string => JSON.stringify([c.path, c.startLine, c.line, stripDisclosure(c.body)]);
 
 /** Ledger ref that marks revision `rev` of draft `id` as posted (revision 1 keeps the original ref). */
 export const postedRef = (id: string, rev: number): string => (rev <= 1 ? `review-posted:${id}` : `review-posted:${id}:r${rev}`);

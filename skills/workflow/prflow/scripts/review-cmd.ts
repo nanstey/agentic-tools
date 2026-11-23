@@ -110,6 +110,16 @@ export function showDraft(store: Store, id: string): string {
   return lines.join("\n");
 }
 
+/** Note appended to an approval posted as a comment because the head moved past the reviewed commit. */
+export function withheldNote(reviewedSha: string): string {
+  return `approval withheld: new commits since ${reviewedSha.slice(0, 8)}; the next review cycle covers them`;
+}
+
+function withholdApproval(payload: Record<string, unknown>, reviewedSha: string): Record<string, unknown> {
+  const body = String(payload.body ?? "").trimEnd();
+  return { ...payload, event: "COMMENT", body: `${body}${body ? "\n\n" : ""}${withheldNote(reviewedSha)}` };
+}
+
 export interface PostOptions {
   event: Verdict;
   yes: boolean;
@@ -121,7 +131,9 @@ export interface PostOptions {
  * when this revision was already posted, when the account already reviewed
  * that commit on GitHub (unless this is a later revision of a posted draft,
  * saved after that review), when the PR is no
- * longer open, or an approval when the head moved. A later revision posts only
+ * longer open. An approval on a head that moved since the reviewed commit is
+ * posted as a COMMENT whose body ends with an "approval withheld" note: prflow
+ * never approves when newer commits exist. A later revision posts only
  * the inline comments no earlier posted revision had. Records the revision in
  * `posted.json`, a `review-posted` event, and a ledger row on success.
  */
@@ -137,7 +149,7 @@ export async function postDraft(store: Store, deps: PostDeps, id: string, o: Pos
   const before = new Set(revision.earlier.flatMap((r) => r.comments));
   const fresh = d.draft.comments.filter((c) => !before.has(commentKey(c)));
   const skipped = d.draft.comments.length - fresh.length;
-  const payload = reviewPayload({ ...d.draft, comments: fresh }, o.event, meta.headSha);
+  let payload = reviewPayload({ ...d.draft, comments: fresh }, o.event, meta.headSha, meta.account);
   const input = join(d.paths.dir, "post.json");
   const command = `gh ${reviewPostArgs(meta.repo, meta.number, input).join(" ")} (as ${meta.account})`;
   const what = `${fresh.length} inline comment(s)${skipped ? ` (${skipped} already posted with an earlier revision)` : ""}`;
@@ -154,7 +166,9 @@ export async function postDraft(store: Store, deps: PostDeps, id: string, o: Pos
   const mine = pr.reviews.filter((x) => x.author?.login.toLowerCase() === meta.account.toLowerCase() && x.at !== null && x.state !== "PENDING" && x.commitOid === meta.headSha).sort((a, b) => (b.at ?? "").localeCompare(a.at ?? ""))[0];
   if (mine && !(revision.earlier.length > 0 && Date.parse(mine.at ?? "") < revision.mtime)) return { out: `refusing: ${meta.account} already reviewed ${meta.item} at ${meta.headSha.slice(0, 8)} (${mine.state} ${mine.at}) after draft revision ${rn} was saved; a rewritten draft becomes a new revision`, code: 1 };
   const moved = pr.headSha !== meta.headSha;
-  if (moved && o.event === "approve") return { out: `refusing: the head moved to ${pr.headSha.slice(0, 8)} since the review of ${meta.headSha.slice(0, 8)}; approve only a current review (or post with --event comment)`, code: 1 };
+  // Never approve unreviewed commits: an approval on a moved head posts as a comment; the next review cycle covers the new head.
+  const withheld = moved && o.event === "approve";
+  if (withheld) payload = withholdApproval(payload, meta.headSha);
 
   materializeLegacy(store, d.paths);
   const tmp = `${input}.${process.pid}.tmp`;
@@ -175,7 +189,8 @@ export async function postDraft(store: Store, deps: PostDeps, id: string, o: Pos
     url = "";
   }
   recordPosted(store, d.paths, { rev: revision.rev, hash: revision.hash, event: String(payload.event), at: t, comments: d.draft.comments.map(commentKey) });
-  const detail = `posted draft ${id}${revision.rev > 1 ? ` revision ${rn}` : ""} as ${meta.account}: ${payload.event} with ${what} at ${meta.headSha.slice(0, 8)}${moved ? ` (head is now ${pr.headSha.slice(0, 8)})` : ""}${url ? ` ${url}` : ""}`;
+  const downgrade = withheld ? ` (approve downgraded to COMMENT: approval withheld, head moved to ${pr.headSha.slice(0, 8)})` : moved ? ` (head is now ${pr.headSha.slice(0, 8)})` : "";
+  const detail = `posted draft ${id}${revision.rev > 1 ? ` revision ${rn}` : ""} as ${meta.account}: ${payload.event} with ${what} at ${meta.headSha.slice(0, 8)}${downgrade}${url ? ` ${url}` : ""}`;
   store.addLedger({ at: t, item: meta.item, version: id.slice(-8), kind: "review-requested", outcome: "posted", detail, dispatchId: meta.dispatchId, source: "prflow", ref: postedRef(id, revision.rev) });
   store.appendEvent(t, { type: "review-posted", item: meta.item, version: id.slice(-8), kind: "review-requested", dispatchId: meta.dispatchId, detail });
   return { out: detail, code: 0 };
