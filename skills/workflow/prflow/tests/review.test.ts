@@ -75,6 +75,14 @@ function session(w: World, wt: string, handle: string, state: string, at: number
   w.agents.push({ orcaSessionId: `s-${handle}`, kind: "terminal", agent: "pi", state, worktreeId: wt, paneKey: pane, lastAssistantMessage: last, updatedAt: at });
 }
 
+/** Orca unmounts a terminal's pane: `terminal list` shows synthetic pty: ids and keeps the old pane as `recordedPaneKey`. */
+function orphan(w: World, wt: string, handle: string) {
+  const t = (w.terminals[wt] ?? []).find((x) => x.handle === handle) as Record<string, unknown> | undefined;
+  if (!t) throw new Error(`no terminal ${handle}`);
+  const pty = `pty:${wt}@@${handle}`;
+  Object.assign(t, { orphaned: true, recordedPaneKey: `${String(t.tabId)}:${String(t.leafId)}`, tabId: pty, leafId: pty });
+}
+
 function saveDraft(s: Store, text = DRAFT, head8 = H8) {
   const p = draftPaths(s.dir, "Acme/x", 5, head8);
   mkdirSync(p.dir, { recursive: true });
@@ -191,6 +199,35 @@ describe("review dispatch: live", () => {
     assert.equal(second?.state, "launched");
     assert.deepEqual(w.effects.slice(-4), [`review-fetch ${RPATH} 5`, `review-reset ${RPATH} ${NEW_HEAD}`, "send term_new1", `status ${RPATH} reviewing reviewing beefbeef `]);
     assert.match(w.sent.at(-1) ?? "", new RegExp(`## Earlier draft\\n\\nprflow saved a draft for the earlier head \`${H8}\``));
+  });
+
+  it("closes a finished reviewer whose terminal Orca orphaned, then sends the moved head to the same session", async () => {
+    const { w, s } = setup();
+    await runTick(w, s, { live: true });
+    w.reviewPrs[KEY] = REQ({ head: NEW_HEAD });
+    w.unpushed[RPATH] = 1;
+    session(w, RWT, "term_new1", "done", w.clock + MIN, "I saved the draft");
+    saveDraft(s);
+    orphan(w, RWT, "term_new1");
+    w.clock += 15 * MIN;
+    const out = (await runTick(w, s, { live: true })).stdout;
+    assert.match(out, /session-finished Acme\/x#5 review-requested #1: draft saved/);
+    assert.equal(s.dispatch(1)?.state, "done");
+    assert.equal(s.findDispatch(KEY, "beefbeef", "review-requested")?.state, "launched");
+    assert.equal(w.effects.filter((e) => e.startsWith("launch ")).length, 1);
+    assert.ok(w.effects.includes("send term_new1"), "the idle reviewer gets the new head");
+  });
+
+  it("closes a reviewer with a saved draft even when Orca reports no agent state and its output keeps moving", async () => {
+    const { w, s } = setup();
+    await runTick(w, s, { live: true });
+    saveDraft(s);
+    w.agents = [];
+    const t = (w.terminals[RWT] ?? [])[0] as { lastOutputAt: number | null };
+    t.lastOutputAt = w.clock + MIN;
+    w.clock += 15 * MIN;
+    await runTick(w, s, { live: true });
+    assert.equal(s.dispatch(1)?.state, "done");
   });
 
   it("does not close a user terminal when retrying a message-only dispatch", async () => {
@@ -770,6 +807,15 @@ describe("review worktree archive-on-close", () => {
     const out = (await runTick(w, s, { live: true, config: cfg({}, true) })).stdout;
     assert.match(out, /busy Pi session/);
     assert.equal(w.effects.some((e) => e.startsWith("archive")), false);
+  });
+
+  it("archives a merged PR's review worktree whose idle reviewer terminal Orca orphaned", async () => {
+    const { w, s } = await closedReview();
+    orphan(w, RWT, "term_new1");
+    (w.terminals[RWT] ??= []).push({ handle: "term_shell", worktreeId: RWT, tabId: `pty:${RWT}@@sh`, leafId: `pty:${RWT}@@sh`, orphaned: true, recordedPaneKey: "old:shell", lastOutputAt: null });
+    const out = (await runTick(w, s, { live: true, actionsLive: true, config: cfg({}, true) })).stdout;
+    assert.doesNotMatch(out, /busy Pi session/);
+    assert.match(out, /archived Acme\/x#5 cleanup/);
   });
 
   it("keeps a closed-PR review worktree when the tree is dirty", async () => {

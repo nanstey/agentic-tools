@@ -241,6 +241,28 @@ describe("Pi sessions", () => {
     assert.deepEqual(ss.map(isBusy), [true, true, false]);
   });
 
+  it("joins an orphaned terminal by its recorded pane, not its synthetic pty: ids", () => {
+    // Shape of a live `terminal list` row for a reviewer whose pane is not mounted in the Orca window.
+    const id = "b5acc71b-09a8-4c06-bd6c-680c8012762e::/w/prflow-review-x-52";
+    const pty = `pty:${id}@@cd57cc89`;
+    const orphan = JSON.stringify({
+      ok: true,
+      result: {
+        terminals: [
+          { handle: "term_shell", ptyId: `${id}@@8fa0b3e6`, orphaned: true, recordedPaneKey: "b4ca:08b6", worktreeId: id, tabId: `pty:${id}@@8fa0b3e6`, leafId: `pty:${id}@@8fa0b3e6`, lastOutputAt: null },
+          { handle: "term_pi", ptyId: `${id}@@cd57cc89`, orphaned: true, recordedPaneKey: "b1b0:3dcb", worktreeId: id, tabId: pty, leafId: pty, lastOutputAt: 900, agentIdentity: "pi" },
+        ],
+      },
+    });
+    const rows = JSON.stringify({ ok: true, result: { agents: [{ orcaSessionId: "s-pi", kind: "terminal", agent: "pi", state: "done", worktreeId: id, paneKey: "b1b0:3dcb", lastAssistantMessage: "I saved the draft", updatedAt: 500 }] } });
+    const ss = piSessions(id, parseAgents(rows), parseTerminals(orphan));
+    assert.deepEqual(ss, [{ handle: "term_pi", kind: "terminal", sessionId: "s-pi", state: "done", lastActivityAt: 900, lastMessage: "I saved the draft" }]);
+    assert.equal(ss.some(isBusy), false);
+    // A mounted terminal keeps its live tab and leaf.
+    const mounted = parseTerminals(JSON.stringify({ ok: true, result: { terminals: [{ handle: "term_m", worktreeId: id, tabId: "t", leafId: "l", recordedPaneKey: "old:pane" }] } }));
+    assert.equal(mounted[0]?.paneKey, "t:l");
+  });
+
   it("surfaces Orca errors", () => {
     assert.throws(() => parseAgents(JSON.stringify({ ok: false, error: { code: "runtime_down", message: "no" } })), /agent list: runtime_down: no/);
   });
