@@ -1,6 +1,6 @@
 # Plan: deduplicate the `pr` and `prflow` skills
 
-Status: decisions recorded (section 4), restructured around a strict pr/prflow boundary; re-analyzed after rebase onto `09a5867` (#198, O11); implemented (C1-C10) and source-reviewed clean after three review rounds; see section 8. Branch: `prflow-pr-dedup`.
+Status: decisions recorded (section 4), restructured around a strict pr/prflow boundary; re-analyzed after rebase onto `09a5867` (#198, O11); implemented (C1-C10) in PR nanstey/agentic-tools#199; see section 8. Branch: `prflow-pr-dedup`.
 Paths are relative to the repository root.
 
 ## Outcome
@@ -413,5 +413,6 @@ Implemented as planned, with these review-driven adjustments:
 - **Cancelled checks and Blocked cards.** With another condition, cancelled checks leave `checks-pass` unmet. A `checks-pass`-only record still always holds (CI waits are In Review).
 - **Config migration.** prflow rejects unknown rails keys, so existing configs must drop `rerunsPerVersion`; `SKILL.md` says so.
 - **Residual (R7).** orca-task-status `end` passes `feedback: false` because `gh pr view` cannot report unanswered feedback; on a CLEAN PR with unanswered feedback, `end` and prflow can still disagree. Closing it needs a GraphQL read in orca-task-status.
-- **Own drafts in reports.** The authored scan now includes drafts so a dispatch can follow a PR its session drafted; reports (`plan`, `watch`, `tick`) leave own drafts out, as before.
+- **Authority and draft integrity (deep security review).** The `ci`, `comments`, and `behind` briefs say they authorize only `/pr <url>`, not merge, automerge, or `force`. The orchestrator's publishing agent gets the same limit and treats the draft packet as untrusted. `review list`/`show` check `meta.json` (types, item, URL, head, folder, dispatch) and take the account from the shared config. orca-task-status `cleanup` also requires gh to report a same-repository PR on the local branch.
+- **Own drafts in reports.** The authored scan now includes drafts so a dispatch can follow a PR its session drafted; reports (`plan` text and JSON, `watch`, `tick` and its change tracking) leave own drafts out, as before.
 - **Live check.** `prflow plan` (read-only) against the real accounts: an approved, green, `CLEAN` PR reports as `mergeable`; a PR with only cancelled checks reports `ci` with `cancelled: <jobs>` and would get a `/pr` brief; own drafts no longer appear; drafts requested for review still do. No live `tick` was run, so no brief was sent.
