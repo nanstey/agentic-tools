@@ -1,6 +1,6 @@
 # Plan: deduplicate the `pr` and `prflow` skills
 
-Status: decisions recorded (section 4), restructured around a strict pr/prflow boundary; re-analyzed after rebase onto `09a5867` (#198, O11); not implemented. Branch: `prflow-pr-dedup`.
+Status: decisions recorded (section 4), restructured around a strict pr/prflow boundary; re-analyzed after rebase onto `09a5867` (#198, O11); implemented (C1-C10) and source-reviewed clean after three review rounds; see section 8. Branch: `prflow-pr-dedup`.
 Paths are relative to the repository root.
 
 ## Outcome
@@ -401,3 +401,17 @@ D4 accepts the full `pr` load per briefed session. A later change restructures `
 for gradual disclosure: a short entry per phase that a session can follow alone, with gates,
 stack, and review-publication detail loaded only when that path is taken. Measure before and
 after with the context a `ci` brief session loads (`ci.md` pulls `gates.md`, `info.md`, `push.md`).
+
+## 8. Build notes
+
+Implemented as planned, with these review-driven adjustments:
+
+- **Draft packet.** The reviewer brief keeps prflow's draft parse contract (one verdict word, `### <path>:<line>` headings, `None.`) and adds a verbatim `## Packet` section holding the `/pr review <url> report` output. Publication passes that section to `/pr review <url>` as the matching packet. A draft without it still parses; `/pr` then re-reviews instead of reusing it. `parseDraft` reads the verdict only from the header, so a quoted verdict in the packet cannot stand in.
+- **Posted detection.** `review list`/`show` derive posted state from the account's reviews on GitHub. A row whose PR cannot be read shows `posted: unknown (<error>)` (JSON: `posted: null`, `postedError`) instead of aborting the list.
+- **Untrusted data.** Briefs that embed PR text carry one data-boundary sentence. This is a fact about the input, not a `pr` rule.
+- **Orchestrator authority.** The orchestrator's only `/pr` action is `/pr review <url>` to publish a ready draft; it never runs `/pr merge`, `/pr automerge`, or `force`.
+- **Cancelled checks and Blocked cards.** With another condition, cancelled checks leave `checks-pass` unmet. A `checks-pass`-only record still always holds (CI waits are In Review).
+- **Config migration.** prflow rejects unknown rails keys, so existing configs must drop `rerunsPerVersion`; `SKILL.md` says so.
+- **Residual (R7).** orca-task-status `end` passes `feedback: false` because `gh pr view` cannot report unanswered feedback; on a CLEAN PR with unanswered feedback, `end` and prflow can still disagree. Closing it needs a GraphQL read in orca-task-status.
+- **Own drafts in reports.** The authored scan now includes drafts so a dispatch can follow a PR its session drafted; reports (`plan`, `watch`, `tick`) leave own drafts out, as before.
+- **Live check.** `prflow plan` (read-only) against the real accounts: an approved, green, `CLEAN` PR reports as `mergeable`; a PR with only cancelled checks reports `ci` with `cancelled: <jobs>` and would get a `/pr` brief; own drafts no longer appear; drafts requested for review still do. No live `tick` was run, so no brief was sent.
