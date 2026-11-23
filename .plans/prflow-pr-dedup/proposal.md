@@ -89,7 +89,7 @@ Top findings:
 | Fix CI | `/pr ci` | `ci` brief steps (`briefs/ci.md:15-18`) | — |
 | Review comments / threads | `/pr comments` (resolve, re-request) | `comments` brief (never resolve, never request) | orchestrator `SKILL.md:84`, `:106` |
 | Rebase / out of date | `/pr rebase`, `restack`, `stack` | `behind` brief (`briefs/behind.md:15-19`) | — |
-| Merge readiness | `merge.md`, `monitor.md:9` | `classify.ts:164` (`merge-ready`), `core/worktree-status.ts:28-39` | `lib/task-status.ts:99-117`; orchestrator `SKILL.md:69`, `:79` |
+| Merge readiness | `merge.md`, `monitor.md:9` | `classify.ts:164` (`merge-ready`), `core/worktree-status.ts:27-39` | `lib/task-status.ts:99-117`; orchestrator `SKILL.md:69`, `:79` |
 | Merge | `/pr merge` | never | orchestrator never |
 | Worktree cleanup | `merge.md:52-60` (`--force`) | `SKILL.md:59` (archive) | orca-task-status `cleanup` (no `--force`) |
 | Review drafting | `/pr review report` | reviewer brief calls it (`briefs/review.md:18`) | — |
@@ -207,7 +207,7 @@ Top findings:
 ### O11. Two writers set the same card column with different rules (logic conflict, high; added after rebase onto #198)
 
 #198 (`09a5867`) added prflow's worktree column sync: each tick sets a development worktree's card
-from `openPrColumn` (`skills/workflow/prflow/scripts/core/worktree-status.ts:28-39`). orca-task-status
+from `openPrColumn` (`skills/workflow/prflow/scripts/core/worktree-status.ts:27-39`). orca-task-status
 `end` sets the same card from `prDecision` (`lib/task-status.ts:99-117`, via
 `skills/agent/orca-task-status/scripts/core.ts:19`). The rules differ:
 
