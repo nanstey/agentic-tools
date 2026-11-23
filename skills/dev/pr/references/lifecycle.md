@@ -30,7 +30,7 @@ Each phase has an entry test. Run a phase only when its test shows it is unmet o
 | 4 | Sync | Behind base, conflicting, or a stack layer out of order | Stack member: `/pr stack`. Otherwise `/pr rebase`. After a parent merges: `/pr restack`. `/pr split` only when invoked explicitly. |
 | 5 | CI | Outcome unobserved, or an expected required check failed, is missing, or is still pending | `/pr ci`: fix and publish. Pending independent checks are waited on (poll as monitor does) until terminal before phase 6; `force` proceeds without waiting. |
 | 6 | Review | No exact-match complete packet or `clean` docs-only entry for this head | Own PR: `/pr review <PR> fix`. Other author's PR: `/pr review <PR> report` report-only. Review publication requires a mode-less explicit `/pr review` invocation. Depth follows `gates.md` review depth. |
-| 7 | Threads | Unresolved review threads | `/pr comments` |
+| 7 | Threads | Unresolved review threads, or a reviewer whose feedback is addressed but who is not re-requested | `/pr comments` |
 | 8 | Verify | Claims lack cited evidence in the body | `/pr verification fix` (own PR) |
 | 9 | Ready | PR is draft and phases 1–8 pass | `/pr ready` |
 | 10 | Monitor | Always, last | `/pr monitor` with `mode: once` (`mode: monitor` for `automerge`, but `mode: once` under `force` so pending CI cannot loop forever) |
