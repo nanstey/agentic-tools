@@ -115,6 +115,21 @@ export function reviewSlug(repo: string, number: number, _head8?: string): strin
   return `${name}-${number}`;
 }
 export const reviewWorktreeName = (slug: string): string => `prflow-review-${slug}`;
+
+/**
+ * True for a folder named exactly like a review worktree prflow creates
+ * (`prflow-review-<repo>-<n>`, see `reviewWorktreeName`). A development
+ * worktree whose folder merely starts with `prflow-review-` (for example
+ * `prflow-review-list-store`) is not one.
+ */
+export const isReviewWorktreeFolder = (folder: string): boolean =>
+  folder.startsWith("prflow-review-") && /^[a-z0-9._-]+-[1-9]\d{0,9}$/.test(folder.slice("prflow-review-".length));
+
+/**
+ * The one review-worktree test for a worktree card: a `prflow-review/` branch
+ * (what the tick steps skip) or a canonical review folder name.
+ */
+export const isReviewWorktree = (branch: string, folder: string): boolean => isReviewBranch(branch) || isReviewWorktreeFolder(folder);
 export const reviewBranch = (slug: string): string => `${REVIEW_BRANCH_PREFIX}${slug}`;
 
 /**
@@ -464,14 +479,17 @@ export const taskStatusSetArgs = (worktreeId: string, status: string, comment: s
   "worktree", "set", "--worktree", `id:${worktreeId}`, "--workspace-status", status, "--comment", comment, "--unread", "--json",
 ];
 
-/** Throws unless `args` is exactly `taskStatusSetArgs` for a non-review worktree id. */
-export function assertTaskStatusSet(args: readonly string[]): void {
+/**
+ * Throws unless `args` is exactly `taskStatusSetArgs` for a non-review
+ * worktree (`isReviewWorktree` on `branch` and the id's folder).
+ */
+export function assertTaskStatusSet(args: readonly string[], branch = ""): void {
   const sel = args[3] ?? "";
   const id = sel.startsWith("id:") ? sel.slice(3) : "";
   const folder = id.split("::")[1]?.split("/").at(-1) ?? "";
   const status = args[5] ?? "";
   const comment = args[7] ?? "";
-  const ok = args.length === 10 && safePath(id) && !folder.startsWith("prflow-review-") && /^[a-z0-9][a-z0-9-]{0,40}$/.test(status) &&
+  const ok = args.length === 10 && safePath(id) && !isReviewWorktree(branch, folder) && /^[a-z0-9][a-z0-9-]{0,40}$/.test(status) &&
     comment.length > 0 && comment.length <= 200 && !/[\x00-\x1f\x7f]/.test(comment) && same(args, taskStatusSetArgs(id, status, comment));
   if (!ok) throw new Error(`prflow: orca-ide ${args.join(" ")} is not the allowed unblock status call`);
 }
@@ -485,13 +503,16 @@ export const worktreeStatusArgs = (worktreeId: string, status: string): string[]
   "worktree", "set", "--worktree", `id:${worktreeId}`, "--workspace-status", status, "--json",
 ];
 
-/** Throws unless `args` is exactly `worktreeStatusArgs` for a non-review worktree id. */
-export function assertWorktreeStatusSet(args: readonly string[]): void {
+/**
+ * Throws unless `args` is exactly `worktreeStatusArgs` for a non-review
+ * worktree (`isReviewWorktree` on `branch` and the id's folder).
+ */
+export function assertWorktreeStatusSet(args: readonly string[], branch = ""): void {
   const sel = args[3] ?? "";
   const id = sel.startsWith("id:") ? sel.slice(3) : "";
   const folder = id.split("::")[1]?.split("/").at(-1) ?? "";
   const status = args[5] ?? "";
-  const ok = args.length === 7 && safePath(id) && !folder.startsWith("prflow-review-") && /^[a-z0-9][a-z0-9-]{0,40}$/.test(status) &&
+  const ok = args.length === 7 && safePath(id) && !isReviewWorktree(branch, folder) && /^[a-z0-9][a-z0-9-]{0,40}$/.test(status) &&
     same(args, worktreeStatusArgs(id, status));
   if (!ok) throw new Error(`prflow: orca-ide ${args.join(" ")} is not the allowed worktree status call`);
 }

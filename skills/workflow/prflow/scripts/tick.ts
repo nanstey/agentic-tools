@@ -65,14 +65,16 @@ export interface TickDeps extends Deps {
   worktreeHead(path: string): Promise<string | null>;
   /**
    * Move a Blocked worktree's card out (`taskStatusSetArgs`): status id, a
-   * comment saying what changed, and `--unread`. Never a review worktree.
+   * comment saying what changed, and `--unread`. Never a review worktree
+   * (`isReviewWorktree` on `branch` and the folder); a refused call throws.
    */
-  setTaskStatus(worktreeId: string, status: string, comment: string): Promise<CmdResult>;
+  setTaskStatus(worktreeId: string, branch: string, status: string, comment: string): Promise<CmdResult>;
   /**
    * Move a development worktree's card to another column (`worktreeStatusArgs`):
-   * status id only, no comment, no unread flag. Never a review worktree.
+   * status id only, no comment, no unread flag. Never a review worktree
+   * (`isReviewWorktree` on `branch` and the folder); a refused call throws.
    */
-  setWorktreeStatus(worktreeId: string, status: string): Promise<CmdResult>;
+  setWorktreeStatus(worktreeId: string, branch: string, status: string): Promise<CmdResult>;
   /** Blocked records written by orca-task-status (`lib/blocked.ts`). */
   readBlocked(): BlockedFile;
   /** Remove one Blocked record, only while it is still the one set at `setAt`. */

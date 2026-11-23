@@ -2,7 +2,7 @@
  * Worktree status step of `prflow tick`: set each development worktree's Orca
  * board column from its sessions and PR (`core/worktree-status.ts`).
  *
- * Skipped: the main checkout, review worktrees (`prflow-review/`, which the
+ * Skipped: the main checkout, review worktrees (`isReviewWorktree`, which the
  * review flow keeps in its own columns), cards in Blocked or Paused, repos no
  * account covers, repos in `prflow.worktreeStatus.ignore` or the shared
  * `orchestrator.ignore`, and items paused with `prflow pause --item`. A card
@@ -11,7 +11,7 @@
  * `prflow.worktreeStatus.dryRun` (default true) or `tick --dry-run` only
  * announces each move once as a `dry-run` event.
  */
-import { isReviewBranch, parseAgents, parseWorktrees, type AgentRow, type OrcaWorktree } from "./adapters/orca.ts";
+import { isReviewWorktree, parseAgents, parseWorktrees, type AgentRow, type OrcaWorktree } from "./adapters/orca.ts";
 import { once } from "./actions.ts";
 import { accountFor, type Config } from "./core/config.ts";
 import { isIgnored, worktreeColumn, type Column } from "./core/worktree-status.ts";
@@ -79,7 +79,7 @@ export function makeWorktreeStatus(deps: TickDeps, store: Store, cfg: Config) {
     const open = store.openDispatches().filter((d) => d.worktree !== null);
     for (const w of rows) {
       const from = w.workspaceStatus ?? null;
-      if (!w.id || isReviewBranch(w.branch)) continue;
+      if (!w.id || isReviewWorktree(w.branch, w.path.split("/").filter(Boolean).at(-1) ?? "")) continue;
       if (from !== null && (from === blocked || from === paused)) continue;
       if (!accountFor(cfg, w.repo)) continue;
       const repoId = w.id.split("::")[0] ?? "";
@@ -114,7 +114,8 @@ export function makeWorktreeStatus(deps: TickDeps, store: Store, cfg: Config) {
         store.appendEvent(ctx.now, { type: "dry-run", item, version: state, kind: "worktree-status", detail: `would move ${detail}` });
         return;
       }
-      const res = await deps.setWorktreeStatus(w.id, status);
+      // A refused call (the guard throws) is reported like a failed one; the tick goes on.
+      const res = await deps.setWorktreeStatus(w.id, w.branch, status).catch((e: unknown) => ({ ok: false, stdout: "", stderr: (e as Error).message }));
       const now = deps.now();
       if (!res.ok) {
         // One failure event per target; the next tick retries quietly.
