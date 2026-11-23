@@ -35,7 +35,8 @@ prflow review post <draft-id> [--event comment|approve|request-changes] --yes
 | The post call is exactly `gh api --method POST repos/<o>/<r>/pulls/<n>/reviews --input <state>/drafts/.../post.json`, with the input under the active state directory | `assertReviewPost`, `scripts/adapters/gh.ts`; `realPostDeps`, `scripts/deps.ts` |
 | `--yes` is required; without it the command prints what it would post and exits 1 | `postDraft`, `scripts/review-cmd.ts` |
 | The review is posted as the draft's account (`GH_TOKEN` from `gh auth token -u <login>`), pinned to the reviewed commit (`commit_id`) | `realPostDeps`, `scripts/deps.ts` |
-| Refuses: a draft that does not parse, a revision already posted, a PR that is not open, a commit the account already reviewed (unless this is a later revision of a posted draft, saved after that review), `approve` after the head moved | `postDraft` |
+| Refuses: a draft that does not parse, a revision already posted, a PR that is not open, a commit the account already reviewed (unless this is a later revision of a posted draft, saved after that review) | `postDraft` |
+| Never approves unreviewed commits: `approve` on a head that moved since the reviewed commit posts as `COMMENT`, the body ending with `approval withheld: new commits since <sha8>; the next review cycle covers them` (`<sha8>` is the reviewed commit); the output and the `review-posted` event say `approve downgraded to COMMENT: approval withheld, head moved to <new8>`. `comment` and `request-changes` post as-is, pinned to the reviewed commit. The next review cycle reviews the new head | `postDraft`, `withholdApproval` |
 | A crash after GitHub accepted the review but before prflow recorded it: the next `post` re-reads the PR and refuses, because the account reviewed that commit after the revision was saved | `postDraft` |
 
 The orchestration layer runs `post` only on the user's explicit instruction.
@@ -52,7 +53,7 @@ approve after a comment review. Code: `scripts/revisions.ts`.
 | Older posts | A draft posted before revisions were tracked has only the `review-posted:<id>` ledger row. It counts as `r1`: the draft is `r1` while its file is not newer than that row, and `r1`'s inline comments come from the `post.json` sent then. The first later post writes `posted.json` |
 | Event | Tick emits `review-drafted` with `revision r<n> (r<n-1> posted)` once per unposted revision of a finished dispatch |
 | Status | A revision that is not posted and was saved after the latest posted review on this head wins status sync: status from its verdict, comment `draft r<n>: <verdict>, not posted`, unread once per revision. Once it is posted, the posted review wins again |
-| Post | `prflow review post` posts a later revision on a head the account already reviewed when the revision was saved after that review. The review body is the summary plus only the inline comments that no earlier posted revision had (same path, lines, and text). Re-posting the same revision, posting when a newer review exists, and `approve` after the head moved are refused. Ledger ref: `review-posted:<id>` for `r1`, `review-posted:<id>:r<n>` after |
+| Post | `prflow review post` posts a later revision on a head the account already reviewed when the revision was saved after that review. The review body is the summary plus only the inline comments that no earlier posted revision had (same path, lines, and text). Re-posting the same revision and posting when a newer review exists are refused; `approve` after the head moved posts as `COMMENT` with the approval-withheld note. Ledger ref: `review-posted:<id>` for `r1`, `review-posted:<id>:r<n>` after |
 
 ## Lifecycle
 
