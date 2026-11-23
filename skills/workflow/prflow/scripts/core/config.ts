@@ -26,6 +26,48 @@ export interface Config {
    * (orca-task-status). Unblocking runs only when `blocked` is set.
    */
   taskStatuses: Partial<Record<State, string>>;
+  /** Board column sync for development worktrees (`scripts/worktree-status.ts`). */
+  worktreeStatus: WorktreeStatusConfig;
+}
+
+export interface WorktreeStatusConfig {
+  /**
+   * Announce column moves without writing them. Defaults to `true`, separate
+   * from `actions.dryRun`, `dispatch.dryRun`, and `review.dryRun`.
+   */
+  dryRun: boolean;
+  /**
+   * Repos (Orca folder name, repo name, or `owner/repo`, case-insensitive) whose
+   * worktrees are never moved: `prflow.worktreeStatus.ignore` plus the shared
+   * `orchestrator.ignore`.
+   */
+  ignore: string[];
+}
+
+export const DEFAULT_WORKTREE_STATUS: WorktreeStatusConfig = { dryRun: true, ignore: [] };
+
+const nonEmptyStrings = (v: unknown): v is string[] => Array.isArray(v) && v.every((x) => typeof x === "string" && x.length > 0);
+
+function parseWorktreeStatus(v: unknown, orchestratorIgnore: unknown, fail: (msg: string) => never, top: (msg: string) => never): WorktreeStatusConfig {
+  const out: WorktreeStatusConfig = { ...DEFAULT_WORKTREE_STATUS, ignore: [] };
+  if (v !== undefined) {
+    if (typeof v !== "object" || v === null || Array.isArray(v)) return fail("worktreeStatus must be an object");
+    for (const [k, x] of Object.entries(v)) {
+      if (k === "$comment") continue;
+      if (k === "dryRun") {
+        if (typeof x !== "boolean") fail("worktreeStatus.dryRun must be a boolean");
+        out.dryRun = x as boolean;
+      } else if (k === "ignore") {
+        if (!nonEmptyStrings(x)) fail("worktreeStatus.ignore must be an array of non-empty strings");
+        out.ignore.push(...(x as string[]));
+      } else fail(`worktreeStatus: unknown key "${k}"`);
+    }
+  }
+  if (orchestratorIgnore !== undefined) {
+    if (!nonEmptyStrings(orchestratorIgnore)) top("orchestrator.ignore must be an array of non-empty strings");
+    for (const r of orchestratorIgnore as string[]) if (!out.ignore.some((x) => x.toLowerCase() === r.toLowerCase())) out.ignore.push(r);
+  }
+  return out;
 }
 
 export { DEFAULT_STATUSES } from "../../../../../lib/task-status.ts";
@@ -256,7 +298,7 @@ export function parseConfig(text: string, source: string): Config {
   const o = toolSection(shared, "prflow", source);
   if (shared.accounts.length === 0) top("accounts must be a non-empty array");
   for (const k of Object.keys(o))
-    if (!["$comment", "limit", "worktrees", "rails", "actions", "dispatch", "review"].includes(k)) fail(`unknown key "${k}"`);
+    if (!["$comment", "limit", "worktrees", "rails", "actions", "dispatch", "review", "worktreeStatus"].includes(k)) fail(`unknown key "${k}"`);
   const accounts = shared.accounts;
   if (o.limit !== undefined && (typeof o.limit !== "number" || !Number.isInteger(o.limit) || o.limit < 1 || o.limit > 1000))
     fail("limit must be an integer from 1 to 1000");
@@ -270,5 +312,6 @@ export function parseConfig(text: string, source: string): Config {
     dispatch: parseDispatch(o.dispatch, fail),
     review: parseReview(o.review, fail),
     taskStatuses: parseTaskStatuses(toolSection(shared, "taskStatus", source), (msg) => top(`taskStatus.${msg}`)),
+    worktreeStatus: parseWorktreeStatus(o.worktreeStatus, toolSection(shared, "orchestrator", source).ignore, fail, top),
   };
 }

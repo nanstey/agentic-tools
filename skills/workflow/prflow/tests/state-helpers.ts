@@ -5,9 +5,9 @@ import { join } from "node:path";
 import { after } from "node:test";
 import { assertReadOnly, assertRerun, rerunArgs } from "../scripts/adapters/gh.ts";
 import { assertDeleteBranch, deleteBranchArgs } from "../scripts/adapters/git.ts";
-import { agentListArgs, archiveArgs, assertArchive, assertOrca, closeArgs, interruptArgs, launchArgs, reviewWorktreeArgs, sendArgs, taskStatusSetArgs, terminalListArgs, waitIdleArgs, worktreeNameArgs, worktreeUnparentArgs } from "../scripts/adapters/orca.ts";
+import { agentListArgs, archiveArgs, assertArchive, assertOrca, closeArgs, interruptArgs, launchArgs, reviewWorktreeArgs, sendArgs, taskStatusSetArgs, terminalListArgs, worktreeStatusArgs, waitIdleArgs, worktreeNameArgs, worktreeUnparentArgs } from "../scripts/adapters/orca.ts";
 import type { BlockedFile } from "../../../../lib/blocked.ts";
-import { DEFAULT_ACTIONS, DEFAULT_DISPATCH, DEFAULT_LIMIT, DEFAULT_RAILS, DEFAULT_REVIEW, type Config, type Rails } from "../scripts/core/config.ts";
+import { DEFAULT_ACTIONS, DEFAULT_DISPATCH, DEFAULT_LIMIT, DEFAULT_RAILS, DEFAULT_REVIEW, DEFAULT_WORKTREE_STATUS, type Config, type Rails } from "../scripts/core/config.ts";
 import type { CmdResult } from "../scripts/scan.ts";
 import { Store } from "../scripts/store.ts";
 import type { TickDeps } from "../scripts/tick.ts";
@@ -37,6 +37,7 @@ export const cfg = (rails: Partial<Rails> = {}, worktrees = false): Config => ({
   dispatch: { ...DEFAULT_DISPATCH, projectContext: [] },
   review: { ...DEFAULT_REVIEW },
   taskStatuses: {},
+  worktreeStatus: { ...DEFAULT_WORKTREE_STATUS, ignore: [] },
 });
 
 export const okJson = (v: unknown): CmdResult => ({ ok: true, stdout: JSON.stringify(v), stderr: "" });
@@ -227,6 +228,14 @@ export function fakeTickDeps(w: World): TickDeps {
       const row = (w.worktrees as { id?: string; workspaceStatus?: string; comment?: string; isUnread?: boolean }[]).find((x) => x.id === worktreeId);
       if (row) { row.workspaceStatus = status; row.comment = comment; row.isUnread = true; }
       return okJson({ ok: true, result: {} });
+    },
+    async setWorktreeStatus(worktreeId, status) {
+      assertOrca(worktreeStatusArgs(worktreeId, status));
+      w.effects.push(`worktree-status ${worktreeId} ${status}`);
+      if (w.orcaFails.worktreeStatus) return fail(w.orcaFails.worktreeStatus);
+      const row = (w.worktrees as { id?: string; workspaceStatus?: string }[]).find((x) => x.id === worktreeId);
+      if (row) row.workspaceStatus = status;
+      return okJson({ ok: true, result: { worktree: { id: worktreeId, workspaceStatus: status } } });
     },
     readBlocked() {
       if (w.blocked === null) throw new Error("Unexpected end of JSON input");

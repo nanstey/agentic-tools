@@ -10,7 +10,9 @@ export type Kind =
   | "cleanup"
   | "waiting"
   /** Moving a Blocked Orca worktree out once its unblock conditions hold. Never a classification. */
-  | "unblock";
+  | "unblock"
+  /** Syncing a development worktree's Orca board column. Never a classification. */
+  | "worktree-status";
 
 /** Spec priority order, most urgent first. */
 export const KIND_PRIORITY: readonly Kind[] = [

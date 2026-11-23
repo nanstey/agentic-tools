@@ -50,6 +50,11 @@
       "sessionReviews": 5,
       "idleCloseHours": 24,
       "statuses": { "draft": "review-draft", "reviewing": "reviewing", "changes": "review-changes", "approved": "review-approved" }
+    },
+    "worktreeStatus": {
+      "$comment": "prflow.worktreeStatus.dryRun: each tick sets every development worktree's Orca board column from its state (a working agent or open prflow dispatch: In Progress; else its PR: Done, Needs Attention, or In Review; no PR: unchanged). Skips the main checkout, prflow-review worktrees, Blocked and Paused cards. Moves are announced only while true; set false to write them. ignore: repos (Orca folder name, repo name, or owner/repo) whose worktrees are never moved; orchestrator.ignore is added to it.",
+      "dryRun": true,
+      "ignore": []
     }
   },
   "repoSync": {

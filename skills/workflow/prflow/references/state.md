@@ -45,11 +45,17 @@ and asks the user), `dry-run` (the action prflow would take), and the review
 events `review-started`, `review-drafted`, and `review-posted`
 (`references/review.md`), and `unblocked` (a Blocked worktree's conditions held
 and prflow moved its card out; detail: path, old and new state, reason, and the
-new comment).
+new comment), and `worktree-status` (prflow moved a development worktree's
+board column; detail: path, old and new state, reason). A `worktree-status`
+event's `kind` is `worktree-status` and its `version` is the new state.
 
 Action events: a live action emits `dispatched` before its command, then
 `rerun`, `archived`, or `unblocked` on success, or `action-failed`. `needs-decision` and
 `dry-run` are emitted once per item version (tracked by unique ledger refs).
+Worktree column moves are not dispatches: a move emits `worktree-status`, or one
+`action-failed` per target, and a dry run announces each change once (tracked in
+`meta` as `worktree_status_dry:<worktree id>`; failures as
+`worktree_status_fail:<worktree id>`).
 
 ## Dispatch lifecycle
 
