@@ -5,7 +5,8 @@ import { dirname, join } from "node:path";
 import { parseArgs } from "node:util";
 import { readOrNull } from "../../../../lib/runtime.ts";
 import { summarizeChecks, version } from "./core/classify.ts";
-import { renderReport, sortItems } from "./core/report.ts";
+import { renderPlanJson, renderReport, sortItems } from "./core/report.ts";
+import { accountFor } from "./core/config.ts";
 import type { PrSnapshot } from "./core/types.ts";
 import { parsePr, prArgs } from "./adapters/gh.ts";
 import { realDeps, type RealDeps } from "./deps.ts";
@@ -207,6 +208,19 @@ async function main(argv: string[]): Promise<number> {
       store.close();
     }
   };
+  /**
+   * Expected draft account per repo from the shared config. Without a readable
+   * config, drafts are listed without the account check, and a warning says so.
+   */
+  const draftAccounts = async (deps: RealDeps): Promise<((repo: string) => string | null) | undefined> => {
+    try {
+      const loaded = await loadConfig({ config: values.config ?? (process.env.AGENTIC_TOOLS_CONFIG || undefined), user: values.user, owners: values.owner, repos: values.repo }, deps.whoami);
+      return (repo) => accountFor(loaded.config, repo)?.login ?? null;
+    } catch (e) {
+      console.error(`prflow: config unavailable, draft accounts not checked: ${e instanceof Error ? e.message : String(e)}`);
+      return undefined;
+    }
+  };
   if (cmd === "status") {
     const s = withStore((store) => status(store, Date.now()));
     console.log(format === "json" ? JSON.stringify(s, null, 2) : renderStatus(s));
@@ -229,13 +243,15 @@ async function main(argv: string[]): Promise<number> {
     const id = positionals[2] ?? "";
     if (sub === "list" && positionals.length === 2) {
       const deps = realDeps();
-      const rows = await withStore((store) => listDrafts(store, readDraftPr(deps)));
+      const expected = await draftAccounts(deps);
+      const rows = await withStore((store) => listDrafts(store, readDraftPr(deps), expected));
       console.log(format === "json" ? JSON.stringify(rows, null, 2) : renderDraftList(rows));
       return 0;
     }
     if (sub === "show" && positionals.length === 3) {
       const deps = realDeps();
-      console.log(await withStore((store) => showDraft(store, id, readDraftPr(deps))));
+      const expected = await draftAccounts(deps);
+      console.log(await withStore((store) => showDraft(store, id, readDraftPr(deps), expected)));
       return 0;
     }
     throw new Error("unknown command: prflow review " + sub + "; usage: prflow review list | show <draft-id>");
@@ -316,7 +332,7 @@ async function main(argv: string[]): Promise<number> {
   }
   const all = sortItems(plan(result));
   const items = values.actionable ? all.filter((c) => c.kind !== "waiting") : all;
-  if (format === "json") console.log(JSON.stringify(items, null, 2));
+  if (format === "json") console.log(renderPlanJson(items));
   else if (!values.actionable || items.length) console.log(renderReport(items));
   return 0;
 }

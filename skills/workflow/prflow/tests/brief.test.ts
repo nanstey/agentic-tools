@@ -45,13 +45,14 @@ describe("brief templates", () => {
     for (const k of ["ci", "comments", "behind"] as const) {
       const b = T[k].body;
       assert.match(b, /Run `\/pr \{\{pr_url\}\}`/);
+      assert.ok(b.includes("This brief authorizes `/pr {{pr_url}}` only, not `/pr merge`, `/pr automerge`, or `force`."));
       assert.doesNotMatch(b, /force-with-lease|git rebase|Never resolve|request or nudge reviewers|Stop after pushing|rerun/i);
       assert.match(b, /\{\{details\}\}/);
     }
   });
 
   it("refuse to render with a missing value or a bad header", () => {
-    assert.throws(() => render(T.ci, {}), /brief ci v3: no value for \{\{repo\}\}/);
+    assert.throws(() => render(T.ci, {}), /brief ci v4: no value for \{\{repo\}\}/);
     assert.throws(() => parseTemplate("ci", "# no header\n"), /first line must be/);
     assert.throws(() => parseTemplate("ci", "<!-- prflow brief: behind v1 -->\nx"), /first line must be/);
   });

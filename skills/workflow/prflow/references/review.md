@@ -134,8 +134,7 @@ set <path> display name <branch>` once per worktree and name instead.
 
 Path: `${state}/drafts/<owner>-<repo>-<n>/<head8>/review.md`. Draft id:
 `<owner>-<repo>-<n>-<head8>`. prflow writes `meta.json` (item, URL, full head
-sha, account, dispatch id) beside it before the reviewer starts. Legacy
-`posted.json` revision history may remain beside a draft.
+sha, account, dispatch id) beside it before the reviewer starts. The reviewer session can write in that folder, so `review list` and `review show` do not trust `meta.json` alone: they check its item, URL, and head against the draft folder and the review dispatch, and its account against the shared config. A mismatch marks the draft invalid, and `show` prints `invalid` for the PR, head, and account. Without a readable config, the account is not checked and a warning says so. Legacy `posted.json` revision history may remain beside a draft.
 
 ```
 <!-- prflow review draft v1 -->

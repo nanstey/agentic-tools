@@ -66,7 +66,7 @@ export interface Io {
 }
 
 const TIMEOUT_MS = 30_000;
-const PR_FIELDS = "number,state,isDraft,mergedAt,reviewDecision,mergeStateStatus,headRefOid,statusCheckRollup";
+const PR_FIELDS = "number,state,isDraft,mergedAt,reviewDecision,mergeStateStatus,headRefOid,headRefName,isCrossRepository,statusCheckRollup";
 
 class Skip extends Error {}
 

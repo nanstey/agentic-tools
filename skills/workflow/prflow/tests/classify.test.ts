@@ -9,7 +9,7 @@ import {
   authorTriggers,
   version,
 } from "../scripts/core/classify.ts";
-import { renderReport } from "../scripts/core/report.ts";
+import { renderPlanJson, renderReport, shown, snapshotOf, tickFingerprint } from "../scripts/core/report.ts";
 import type { PrSnapshot, Role, WorktreeItem } from "../scripts/core/types.ts";
 import { parsePr } from "../scripts/adapters/gh.ts";
 import { AFTER, alice, bot, CASES, comment, HEAD, LATER, ME, me, ok, prResponse, review, run, thread, user, type PrSpec } from "./fixtures.ts";
@@ -137,6 +137,10 @@ describe("review-requested classifier", () => {
   it("leaves own drafts out of the report but keeps drafts requested for review", () => {
     const own = classify(snap({ isDraft: true }), ME);
     const asked = { ...rq({ isDraft: true }), number: 2, key: "Acme/widgets#2" };
+    assert.deepEqual(shown([own, asked]).map((item) => item.number), [2]);
+    assert.deepEqual(JSON.parse(renderPlanJson([own, asked])).map((item: { number: number }) => item.number), [2]);
+    assert.deepEqual(Object.keys(snapshotOf([own, asked])), [asked.key.toLowerCase()]);
+    assert.equal(tickFingerprint([own], [], null), "");
     assert.equal(renderReport([own]), "Nothing to report.");
     assert.match(renderReport([own, asked]), /widgets#2 /);
     assert.doesNotMatch(renderReport([own, asked]), /widgets#1 /);

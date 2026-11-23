@@ -1,7 +1,7 @@
 /** Read and render saved review drafts. Review publication belongs to `/pr review`. */
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
-import { draftSummary, parseDraftId } from "./core/draft.ts";
+import { draftFolder, draftSummary, parseDraftId } from "./core/draft.ts";
 import type { PrSnapshot } from "./core/types.ts";
 import { loadDraft, type LoadedDraft } from "./review.ts";
 import { draftRevision, type Revision } from "./revisions.ts";
@@ -25,6 +25,27 @@ export function draftWasPosted(meta: NonNullable<LoadedDraft["meta"]>, pr: PrSna
 
 const revisionOf = (store: Store, d: LoadedDraft): Revision | null =>
   d.text === null ? null : draftRevision(store, d.paths, d.text);
+
+function metaErrors(store: Store, d: LoadedDraft, expectedAccount?: (repo: string) => string | null): string[] {
+  const m = d.meta;
+  if (!m) return [];
+  // meta.json is reviewer-writable: check field types before using them.
+  const str = (v: unknown): v is string => typeof v === "string";
+  if (!str(m.item) || !str(m.repo) || !str(m.url) || !str(m.headSha) || !str(m.account) || !Number.isInteger(m.number) || m.number < 1 || !Number.isInteger(m.dispatchId))
+    return ["meta mismatch: malformed meta.json"];
+  const errors: string[] = [];
+  if (m.item !== `${m.repo}#${m.number}`) errors.push("item/repo/number");
+  if (m.url !== `https://github.com/${m.repo}/pull/${m.number}`) errors.push("url");
+  if (m.headSha.slice(0, 8) !== d.paths.id.slice(-8)) errors.push("headSha/path");
+  const expected = expectedAccount?.(m.repo);
+  if (expectedAccount && (!expected || m.account.toLowerCase() !== expected.toLowerCase())) errors.push("account");
+  try {
+    if (d.paths.dir.split("/").slice(-2).join("/") !== `${draftFolder(m.repo, m.number)}/${m.headSha.slice(0, 8)}`) errors.push("draft folder path");
+  } catch { errors.push("draft folder path"); }
+  const dispatch = store.dispatch(m.dispatchId);
+  if (!dispatch || dispatch.item.toLowerCase() !== m.item.toLowerCase() || dispatch.version !== m.headSha.slice(0, 8)) errors.push("dispatch item/version");
+  return errors.length ? [`meta mismatch: ${errors.join(", ")}`] : [];
+}
 
 function draftDir(store: Store, id: string): { id: string; dir: string } {
   const p = parseDraftId(id);
@@ -56,7 +77,7 @@ export interface DraftRow {
 }
 
 /** Every draft folder in the state directory, newest PRs last. */
-export async function listDrafts(store: Store, readPr: ReadDraftPr): Promise<DraftRow[]> {
+export async function listDrafts(store: Store, readPr: ReadDraftPr, expectedAccount?: (repo: string) => string | null): Promise<DraftRow[]> {
   const root = join(store.dir, "drafts");
   const rows: DraftRow[] = [];
   let folders: string[] = [];
@@ -67,9 +88,11 @@ export async function listDrafts(store: Store, readPr: ReadDraftPr): Promise<Dra
       if (!parseDraftId(id)) continue;
       const d = load(store, id);
       const r = revisionOf(store, d);
+      const integrity = metaErrors(store, d, expectedAccount);
+      const errors = [...(d.draft?.errors ?? []), ...integrity];
       let posted: boolean | null = false;
       let postedError: string | undefined;
-      if (d.meta) {
+      if (d.meta && integrity.length === 0) {
         try { posted = draftWasPosted(d.meta, await readPr(d.meta)); }
         catch (e) {
           const message = e instanceof Error ? e.message : String(e);
@@ -84,7 +107,7 @@ export async function listDrafts(store: Store, readPr: ReadDraftPr): Promise<Dra
         saved: d.text !== null,
         verdict: d.draft?.verdict ?? null,
         comments: d.draft?.comments.length ?? 0,
-        errors: d.draft?.errors ?? [],
+        errors,
         posted,
         ...(postedError === undefined ? {} : { postedError }),
         revision: r?.rev ?? 1,
@@ -105,17 +128,19 @@ export function renderDraftList(rows: DraftRow[]): string {
 }
 
 /** The saved draft text and GitHub-derived publication status. */
-export async function showDraft(store: Store, id: string, readPr: ReadDraftPr): Promise<string> {
+export async function showDraft(store: Store, id: string, readPr: ReadDraftPr, expectedAccount?: (repo: string) => string | null): Promise<string> {
   const d = load(store, id);
-  const posted = d.meta ? draftWasPosted(d.meta, await readPr(d.meta)) : false;
+  const integrity = metaErrors(store, d, expectedAccount);
+  const posted = d.meta && integrity.length === 0 ? draftWasPosted(d.meta, await readPr(d.meta)) : false;
   const lines = [
     `draft: ${id}`,
-    `PR: ${d.meta?.item ?? "?"} ${d.meta?.url ?? ""}`.trimEnd(),
-    `head: ${d.meta?.headSha ?? "?"}`,
-    `account: ${d.meta?.account ?? "?"}`,
+    `PR: ${integrity.length ? "invalid target" : `${d.meta?.item ?? "?"} ${d.meta?.url ?? ""}`}`,
+    `head: ${integrity.length ? "invalid" : d.meta?.headSha ?? "?"}`,
+    `account: ${integrity.length ? "invalid" : d.meta?.account ?? "?"}`,
     `posted: ${posted ? "yes" : "no"}`,
     `file: ${d.paths.file}`,
   ];
+  if (integrity.length) lines.push(...integrity);
   if (d.text === null) return [...lines, "", "The reviewer has not saved this draft yet."].join("\n");
   if (d.draft) lines.push(`summary: ${draftSummary(id, d.draft, d.paths.file)}`);
   lines.push("", d.text.trimEnd());

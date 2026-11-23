@@ -120,8 +120,8 @@ The lifecycle and every event are in `references/dispatch.md`.
 
 Commands (run on the user's request):
 
-- `prflow review list [--format json]`: every draft, its PR and head, GitHub-derived posted state, revision, verdict suggestion, and comment count.
-- `prflow review show <draft-id>`: the saved draft, account, PR URL, and GitHub-derived posted state.
+- `prflow review list [--format json]`: every draft, its PR and head, GitHub-derived posted state, revision, verdict suggestion, and comment count. Drafts with mismatched metadata or a changed `review.md` are invalid, not ready.
+- `prflow review show <draft-id>`: the saved draft, account, PR URL, and GitHub-derived posted state. Its publish target is checked against configured account coverage, the recorded dispatch, head, and draft path.
 
 The draft format, lifecycle, and events are in `references/review.md`.
 

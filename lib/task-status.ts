@@ -47,6 +47,8 @@ export interface Pr {
   /** CLEAN, BLOCKED, BEHIND, DIRTY, DRAFT, HAS_HOOKS, UNKNOWN, UNSTABLE. */
   mergeStateStatus: string;
   headRefOid: string;
+  isCrossRepository?: boolean;
+  headRefName?: string;
   checks: CheckState[];
   /** Whether GitHub reports unanswered review feedback; unavailable to gh pr view callers. */
   feedback?: boolean;
@@ -79,6 +81,9 @@ export function parsePr(json: string): Pr {
     reviewDecision: typeof raw.reviewDecision === "string" ? raw.reviewDecision : "",
     mergeStateStatus: typeof raw.mergeStateStatus === "string" ? raw.mergeStateStatus : "UNKNOWN",
     headRefOid: typeof raw.headRefOid === "string" ? raw.headRefOid : "",
+    // Absent stays undefined, so cleanup refuses unless gh reported `false`.
+    ...(typeof raw.isCrossRepository === "boolean" ? { isCrossRepository: raw.isCrossRepository } : {}),
+    headRefName: typeof raw.headRefName === "string" ? raw.headRefName : "",
     checks: rollup.map(checkState),
   };
 }

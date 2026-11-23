@@ -7,7 +7,7 @@ import { DEFAULT_STATUSES, parseConfig } from "../scripts/config.ts";
 
 const HEAD = "a".repeat(40);
 const pr = (over: Partial<Pr> = {}): Pr => ({
-  number: 7, state: "OPEN", isDraft: false, mergedAt: null, reviewDecision: "", mergeStateStatus: "CLEAN", headRefOid: HEAD, checks: ["pass"], ...over,
+  number: 7, state: "OPEN", isDraft: false, mergedAt: null, reviewDecision: "", mergeStateStatus: "CLEAN", headRefOid: HEAD, isCrossRepository: false, headRefName: "feat/x", checks: ["pass"], ...over,
 });
 const clean = { dirty: false, head: HEAD };
 const wt = (over: Partial<Worktree> = {}): Worktree => ({
@@ -25,8 +25,8 @@ test("check rollup entries map to pass, fail, cancelled, and pending", () => {
 });
 
 test("parsePr reads gh pr view JSON", () => {
-  const p = parsePr(JSON.stringify({ number: 3, state: "MERGED", isDraft: false, mergedAt: "2026-01-01T00:00:00Z", reviewDecision: null, mergeStateStatus: "UNKNOWN", headRefOid: HEAD, statusCheckRollup: [{ __typename: "StatusContext", state: "SUCCESS" }] }));
-  assert.deepEqual(p, { number: 3, state: "MERGED", isDraft: false, mergedAt: "2026-01-01T00:00:00Z", reviewDecision: "", mergeStateStatus: "UNKNOWN", headRefOid: HEAD, checks: ["pass"] });
+  const p = parsePr(JSON.stringify({ number: 3, state: "MERGED", isDraft: false, mergedAt: "2026-01-01T00:00:00Z", reviewDecision: null, mergeStateStatus: "UNKNOWN", headRefOid: HEAD, isCrossRepository: false, headRefName: "", statusCheckRollup: [{ __typename: "StatusContext", state: "SUCCESS" }] }));
+  assert.deepEqual(p, { number: 3, state: "MERGED", isDraft: false, mergedAt: "2026-01-01T00:00:00Z", reviewDecision: "", mergeStateStatus: "UNKNOWN", headRefOid: HEAD, isCrossRepository: false, headRefName: "", checks: ["pass"] });
   assert.throws(() => parsePr('{"number":1,"state":"WEIRD"}'), /unexpected PR state/);
 });
 
@@ -63,6 +63,11 @@ test("main checkouts and prflow review worktrees are skipped", () => {
 test("cleanup requires a merged PR and HEAD at the merged head, but not a clean tree", () => {
   const merged = pr({ state: "MERGED", mergedAt: "2026-01-01T00:00:00Z" });
   assert.equal(cleanupBlocker(wt(), "p", merged, clean), null);
+  assert.match(cleanupBlocker(wt(), "p", pr({ state: "MERGED", mergedAt: "x", isCrossRepository: true }), clean) ?? "", /cross-repository/);
+  // gh output without the field never counts as same-repository.
+  const unknown = parsePr(JSON.stringify({ number: 7, state: "MERGED", mergedAt: "x", headRefOid: HEAD, headRefName: "feat/x", statusCheckRollup: [] }));
+  assert.match(cleanupBlocker(wt(), "p", unknown, clean) ?? "", /cross-repository/);
+  assert.match(cleanupBlocker(wt(), "p", pr({ state: "MERGED", mergedAt: "x", headRefName: "same-name" }), clean) ?? "", /does not match local branch/);
   assert.match(cleanupBlocker(wt(), "p", null, clean) ?? "", /no PR/);
   assert.match(cleanupBlocker(wt(), "p", pr(), clean) ?? "", /not merged/);
   assert.match(cleanupBlocker(wt(), "p", pr({ state: "MERGED" }), clean) ?? "", /not merged/);

@@ -60,7 +60,7 @@ function harness(world: World) {
       if (cmd === "orca" && args[1] === "rm") return world.rm ?? ok('{"ok":true}');
       if (cmd === "gh" && args[0] === "pr") {
         if (world.pr === null || world.pr === undefined) return { ok: false, stdout: "", stderr: 'no pull requests found for branch "feat/x"' };
-        return ok(JSON.stringify({ number: 7, state: "OPEN", isDraft: false, mergedAt: null, reviewDecision: "", mergeStateStatus: "CLEAN", headRefOid: HEAD, statusCheckRollup: [], ...world.pr }));
+        return ok(JSON.stringify({ number: 7, state: "OPEN", isDraft: false, mergedAt: null, reviewDecision: "", mergeStateStatus: "CLEAN", headRefOid: HEAD, headRefName: "feat/x", isCrossRepository: false, statusCheckRollup: [], ...world.pr }));
       }
       throw new Error(`unexpected call: ${key}`);
     },

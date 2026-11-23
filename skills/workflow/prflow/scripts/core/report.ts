@@ -31,7 +31,10 @@ export function row(c: Classification, showAccount = false, changed: string | nu
  * Own draft PRs are scanned only so an open dispatch can follow a PR that its
  * session drafted; they are not report rows, as before drafts were scanned.
  */
-const shown = (items: Classification[]): Classification[] => items.filter((c) => !(c.role === "author" && c.isDraft));
+export const shown = (items: Classification[]): Classification[] => items.filter((c) => !(c.role === "author" && c.isDraft));
+
+/** JSON plan output follows the same visibility rule as text reports. */
+export const renderPlanJson = (items: Classification[]): string => JSON.stringify(shown(items), null, 2);
 
 /** Text report grouped by status and next action. Empty groups are omitted. */
 export function renderReport(all: Classification[]): string {
@@ -67,7 +70,7 @@ export type Snapshot = Record<string, SeenRow>;
 
 export function snapshotOf(items: Classification[]): Snapshot {
   const out: Snapshot = {};
-  for (const c of items) out[c.key.toLowerCase()] = { version: c.version, title: c.title, kind: c.kind, checksPending: c.checksPending ?? false };
+  for (const c of shown(items)) out[c.key.toLowerCase()] = { version: c.version, title: c.title, kind: c.kind, checksPending: c.checksPending ?? false };
   return out;
 }
 
@@ -112,7 +115,7 @@ export function tickFingerprint(actionable: Classification[], waiting: Classific
     return [c.key, kind, v, ...c.triggers.map((t) => `${t.kind}:${t.detail ?? ""}`)].join(" ");
   };
   const sticky = waiting.filter((c) => c.role === "reviewer" && c.checksPending && prev?.[c.key.toLowerCase()]?.kind === "review-requested");
-  return [...actionable.map((c) => line(c, c.kind)), ...sticky.map((c) => line(c, "review-requested"))].sort().join("\n");
+  return [...shown(actionable).map((c) => line(c, c.kind)), ...shown(sticky).map((c) => line(c, "review-requested"))].sort().join("\n");
 }
 
 /** A review request whose draft is ready for the user's decision. */

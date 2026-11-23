@@ -88,9 +88,10 @@ Running it on a card that is already Blocked replaces the record and comment. An
 
 ## Cleanup
 
-`cleanup` follows the same rule as the `pr` skill's merge cleanup: after verifying the PR is `MERGED` with `mergedAt` and local `HEAD` equals the merged PR head, it removes this worktree with `orca-ide worktree rm --worktree id:<id> --force --json`. Untracked and uncommitted files are discarded. It refuses, exiting 1, unless every condition holds:
+`cleanup` follows the same rule as the `pr` skill's merge cleanup: after verifying the PR is `MERGED` with `mergedAt`, is not cross-repository, has a head branch matching the local branch, and local `HEAD` equals the merged PR head, it removes this worktree with `orca-ide worktree rm --worktree id:<id> --force --json`. Untracked and uncommitted files are discarded. It refuses, exiting 1, unless every condition holds:
 
 - The PR for the branch is `MERGED` with a `mergedAt` time.
+- `isCrossRepository` is `false` and `headRefName` equals the local branch.
 - Local `HEAD` equals the merged PR head, so no later commit is lost.
 - The Paused status id is configured and the card is not Paused, the worktree has no child worktrees, and it is not a main checkout or prflow review worktree.
 

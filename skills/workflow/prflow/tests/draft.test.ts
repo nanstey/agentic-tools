@@ -88,21 +88,45 @@ describe("GitHub-derived draft posted status", () => {
     const s = tempStore();
     try {
       assert.deepEqual(parseDraftId(ID), { folder: "Acme-x-5", head8: HEAD.slice(0, 8) });
-      const paths = draftPaths(s.dir, META.repo, META.number, HEAD.slice(0, 8));
-      writeMeta(paths, META);
+      const firstDispatch = s.createDispatch(META.item, HEAD.slice(0, 8), "review-requested", 1);
+      const meta = { ...META, dispatchId: firstDispatch.id };
+      const paths = draftPaths(s.dir, meta.repo, meta.number, HEAD.slice(0, 8));
+      writeMeta(paths, meta);
       const { writeFileSync, mkdirSync } = await import("node:fs");
       mkdirSync(paths.dir, { recursive: true });
       writeFileSync(paths.file, DRAFT);
-      const otherMeta = { ...META, id: `Acme-y-6-${HEAD.slice(0, 8)}`, item: "Acme/y#6", repo: "Acme/y", number: 6, url: "https://github.com/Acme/y/pull/6" };
+      s.addLedger({ at: 2, item: meta.item, version: HEAD.slice(0, 8), kind: "review-requested", outcome: "drafted", detail: `${ID}`, dispatchId: firstDispatch.id, source: "prflow", ref: `review-drafted:${firstDispatch.id}` });
+      const otherDispatch = s.createDispatch("Acme/y#6", HEAD.slice(0, 8), "review-requested", 1);
+      const otherMeta = { ...META, dispatchId: otherDispatch.id, id: `Acme-y-6-${HEAD.slice(0, 8)}`, item: "Acme/y#6", repo: "Acme/y", number: 6, url: "https://github.com/Acme/y/pull/6" };
       const otherPaths = draftPaths(s.dir, otherMeta.repo, otherMeta.number, HEAD.slice(0, 8));
       writeMeta(otherPaths, otherMeta);
       mkdirSync(otherPaths.dir, { recursive: true });
       writeFileSync(otherPaths.file, DRAFT);
+      s.addLedger({ at: 2, item: otherMeta.item, version: HEAD.slice(0, 8), kind: "review-requested", outcome: "drafted", detail: `${otherMeta.id}`, dispatchId: otherDispatch.id, source: "prflow", ref: `review-drafted:${otherDispatch.id}` });
       const read = async () => snapshot([{ at: "2026-01-02T00:00:00Z", state: "COMMENTED", body: "", author: { login: ME, typename: "User" }, commitOid: HEAD }]);
-      const rows = await listDrafts(s, read);
+      const rows = await listDrafts(s, read, () => ME);
       assert.equal(rows.length, 2);
       assert.equal(rows.find((row) => row.item === META.item)?.posted, true);
+      assert.deepEqual(rows.find((row) => row.item === META.item)?.errors, []);
       assert.match(renderDraftList(rows), /posted/);
+      for (const tampered of [{ ...meta, number: 9 }, { ...meta, url: "https://github.com/Acme/x/pull/9" }, { ...meta, account: "attacker" }]) {
+        writeMeta(paths, tampered);
+        const invalid = await listDrafts(s, read, () => ME);
+        assert.match(invalid.find((row) => row.id === ID)?.errors.join(" ") ?? "", /meta mismatch:/);
+        assert.match(await showDraft(s, ID, read, () => ME), /PR: invalid target/);
+      }
+      writeMeta(paths, { ...meta, headSha: 42 } as unknown as typeof meta);
+      assert.match((await listDrafts(s, read, () => ME)).find((row) => row.id === ID)?.errors.join(" ") ?? "", /malformed meta\.json/);
+      writeMeta(paths, { ...meta, account: "attacker" });
+      const leaked = await showDraft(s, ID, read, () => ME);
+      assert.match(leaked, /^account: invalid$/m);
+      assert.match(leaked, /^head: invalid$/m);
+      assert.doesNotMatch(leaked, /attacker/);
+      writeMeta(paths, meta);
+      // An edit to an unposted draft stays valid: the reviewer may revise it.
+      writeFileSync(paths.file, `${DRAFT}\nchanged`);
+      assert.deepEqual((await listDrafts(s, read, () => ME)).find((row) => row.id === ID)?.errors, []);
+      writeFileSync(paths.file, DRAFT);
       const degraded = await listDrafts(s, async (meta) => {
         if (meta.item === META.item) throw new Error("cannot read Acme/x#5:\n  offline");
         return null;
