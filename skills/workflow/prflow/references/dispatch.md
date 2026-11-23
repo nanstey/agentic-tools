@@ -35,8 +35,10 @@ Every `orca-ide` call passes `assertOrca`; anything else throws before it runs.
 `orca-ide agent read` cannot read Pi terminal transcripts, so a session's state
 and last message come from `agent list` (`state`, `lastAssistantMessage`,
 `updatedAt`), joined to `terminal list` (`handle`, `lastOutputAt`) on
-`paneKey = <tabId>:<leafId>`. A Pi terminal with no agent row has state
-`unknown`. Launches always use `--surface terminal` so prflow can mail, stop,
+`paneKey = <tabId>:<leafId>`. A terminal whose pane is not mounted in the
+Orca window (`orphaned: true`) lists synthetic `pty:` tab and leaf ids, so it
+joins on its `recordedPaneKey` instead. A Pi terminal with no agent row has
+state `unknown`. Launches always use `--surface terminal` so prflow can mail, stop,
 and close the session. Escape is the only raw input prflow ever types; Pi ends
 its turn on it. A brief is sent only after `terminal wait` sees the prompt.
 
@@ -102,7 +104,9 @@ Rules that hold throughout:
   `working`, `blocked`, `waiting`, or `unknown`. After `busyWaitMinutes` (45)
   a lone busy Pi terminal is stopped with Escape, and messaged only once
   `terminal wait` shows its prompt. A briefed session in `unknown` state with
-  no activity is left to the lease rather than the busy limit.
+  no activity is left to the lease rather than the busy limit. Once the work
+  is settled (for a reviewer, a parseable draft is saved), a session in
+  `unknown` state closes the dispatch at once: `unknown` is not proof of work.
 - Only the session an earlier attempt of the same dispatch used is ever closed,
   and never while it is busy (including `unknown`): the retry waits
   `busyWaitMinutes`, then interrupts and restarts it in place.

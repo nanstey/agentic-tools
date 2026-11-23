@@ -506,6 +506,9 @@ export async function monitorOne(c: Ctx, d: Dispatch, rules: MonitorRules): Prom
     store.upsertSession({ handle: s.handle, item: d.item, dispatchId: d.id, at: now, lastOutputAt: s.lastActivityAt, state: s.state });
   }
 
+  // Settled work with no Orca agent status: `unknown` is not proof of work, and
+  // the Pi TUI's own output would otherwise renew the lease every tick.
+  if (moved && s.state === "unknown") return done(moved, s);
   if (isBusy(s)) {
     const busyFor = now - since;
     // An unknown state with no activity is not proof of work; the lease decides.

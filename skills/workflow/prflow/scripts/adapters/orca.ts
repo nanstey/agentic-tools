@@ -312,13 +312,17 @@ export function parseAgents(json: string): AgentRow[] {
   }));
 }
 
-/** `orca-ide terminal list --worktree <id> --json`. */
+/**
+ * `orca-ide terminal list --worktree <id> --json`. A terminal whose pane is not
+ * mounted in the Orca window (`orphaned: true`) reports synthetic `pty:` tab and
+ * leaf ids; its agent row keeps the pane it was recorded in, `recordedPaneKey`.
+ */
 export function parseTerminals(json: string): TerminalRow[] {
   const r = result<{ terminals?: Record<string, unknown>[] }>(json, "orca-ide terminal list");
   return (r.terminals ?? []).map((t) => ({
     handle: String(t.handle ?? ""),
     worktreeId: String(t.worktreeId ?? ""),
-    paneKey: `${String(t.tabId ?? "")}:${String(t.leafId ?? "")}`,
+    paneKey: t.orphaned === true && typeof t.recordedPaneKey === "string" && t.recordedPaneKey ? t.recordedPaneKey : `${String(t.tabId ?? "")}:${String(t.leafId ?? "")}`,
     agentIdentity: typeof t.agentIdentity === "string" ? t.agentIdentity : null,
     lastOutputAt: numOrNull(t.lastOutputAt),
   }));
