@@ -116,20 +116,40 @@ export function parseDraft(text: string): Draft {
   return { verdict, summary, comments, errors };
 }
 
-/** The `POST /repos/{o}/{r}/pulls/{n}/reviews` body, pinned to the reviewed commit. */
-export function reviewPayload(d: Draft, event: Verdict, commitId: string): Record<string, unknown> {
+const DISCLOSURE = /^> \[!NOTE\]\r?\n> 🤖 Written by [^\n]*'s Agent[ \t]*(\r?\n|$)/;
+
+/** The agent disclosure that starts every review body and inline comment posted under a user's identity (`pr` skill, `references/disclosure.md`). */
+export function disclosure(login: string): string {
+  return `> [!NOTE]\n> 🤖 Written by ${login}'s Agent`;
+}
+
+/** `text` led by the agent disclosure for `login`, unless it already starts with one. */
+export function disclose(text: string, login: string): string {
+  const t = text.trim();
+  if (DISCLOSURE.test(t)) return t;
+  return t ? `${disclosure(login)}\n\n${t}` : disclosure(login);
+}
+
+/** `text` without a leading agent disclosure. */
+export function stripDisclosure(text: string): string {
+  return text.trim().replace(DISCLOSURE, "").trim();
+}
+
+/** The `POST /repos/{o}/{r}/pulls/{n}/reviews` body, pinned to the reviewed commit, with the agent disclosure for `login` leading the body and every inline comment. */
+export function reviewPayload(d: Draft, event: Verdict, commitId: string, login: string): Record<string, unknown> {
   if (d.errors.length) throw new Error(`draft cannot be posted: ${d.errors.join("; ")}`);
   if (!/^[0-9a-f]{40}$/.test(commitId)) throw new Error(`bad commit id ${commitId}`);
+  if (!login.trim()) throw new Error("no account to disclose the review as");
   return {
     commit_id: commitId,
     event: EVENTS[event],
-    body: d.summary,
+    body: disclose(d.summary, login),
     comments: d.comments.map((c) => ({
       path: c.path,
       line: c.line,
       side: "RIGHT",
       ...(c.startLine !== null ? { start_line: c.startLine, start_side: "RIGHT" } : {}),
-      body: c.body,
+      body: disclose(c.body, login),
     })),
   };
 }

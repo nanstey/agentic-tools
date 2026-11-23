@@ -149,7 +149,7 @@ export async function postDraft(store: Store, deps: PostDeps, id: string, o: Pos
   const before = new Set(revision.earlier.flatMap((r) => r.comments));
   const fresh = d.draft.comments.filter((c) => !before.has(commentKey(c)));
   const skipped = d.draft.comments.length - fresh.length;
-  let payload = reviewPayload({ ...d.draft, comments: fresh }, o.event, meta.headSha);
+  let payload = reviewPayload({ ...d.draft, comments: fresh }, o.event, meta.headSha, meta.account);
   const input = join(d.paths.dir, "post.json");
   const command = `gh ${reviewPostArgs(meta.repo, meta.number, input).join(" ")} (as ${meta.account})`;
   const what = `${fresh.length} inline comment(s)${skipped ? ` (${skipped} already posted with an earlier revision)` : ""}`;

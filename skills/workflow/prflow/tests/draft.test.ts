@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, utimesSync, writeFileSync } from "
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import { assertReadOnly, assertReviewPost, reviewPostArgs } from "../scripts/adapters/gh.ts";
-import { draftId, parseDraft, parseDraftId, reviewPayload } from "../scripts/core/draft.ts";
+import { disclose, draftId, parseDraft, parseDraftId, reviewPayload, stripDisclosure } from "../scripts/core/draft.ts";
 import type { PostDeps } from "../scripts/deps.ts";
 import { draftPaths, writeMeta } from "../scripts/review.ts";
 import { listDrafts, postDraft, renderDraftList, showDraft } from "../scripts/review-cmd.ts";
@@ -33,7 +33,7 @@ describe("parseDraft", () => {
       { path: "src/a.ts", line: 12, startLine: null, body: "F1: this drops the error." },
       { path: "src/b.ts", line: 9, startLine: 3, body: "Nit: name this." },
     ]);
-    assert.doesNotMatch(JSON.stringify(reviewPayload(d, "comment", HEAD)), /report mode/);
+    assert.doesNotMatch(JSON.stringify(reviewPayload(d, "comment", HEAD, ME)), /report mode/);
   });
 
   it("accepts None. for no inline comments", () => {
@@ -54,18 +54,30 @@ describe("parseDraft", () => {
   });
 
   it("builds the GitHub payload pinned to the commit, and refuses a broken draft", () => {
-    assert.deepEqual(reviewPayload(parseDraft(DRAFT), "request-changes", HEAD), {
+    const note = `> [!NOTE]\n> 🤖 Written by ${ME}'s Agent\n\n`;
+    assert.deepEqual(reviewPayload(parseDraft(DRAFT), "request-changes", HEAD, ME), {
       commit_id: HEAD,
       event: "REQUEST_CHANGES",
-      body: "One blocking finding: F1 in src/a.ts.",
+      body: `${note}One blocking finding: F1 in src/a.ts.`,
       comments: [
-        { path: "src/a.ts", line: 12, side: "RIGHT", body: "F1: this drops the error." },
-        { path: "src/b.ts", line: 9, side: "RIGHT", start_line: 3, start_side: "RIGHT", body: "Nit: name this." },
+        { path: "src/a.ts", line: 12, side: "RIGHT", body: `${note}F1: this drops the error.` },
+        { path: "src/b.ts", line: 9, side: "RIGHT", start_line: 3, start_side: "RIGHT", body: `${note}Nit: name this.` },
       ],
     });
-    assert.equal(reviewPayload(parseDraft(DRAFT), "approve", HEAD).event, "APPROVE");
-    assert.throws(() => reviewPayload(parseDraft("x"), "comment", HEAD), /cannot be posted/);
-    assert.throws(() => reviewPayload(parseDraft(DRAFT), "comment", "abc"), /bad commit id/);
+    assert.equal(reviewPayload(parseDraft(DRAFT), "approve", HEAD, ME).event, "APPROVE");
+    assert.throws(() => reviewPayload(parseDraft("x"), "comment", HEAD, ME), /cannot be posted/);
+    assert.throws(() => reviewPayload(parseDraft(DRAFT), "comment", "abc", ME), /bad commit id/);
+    assert.throws(() => reviewPayload(parseDraft(DRAFT), "comment", HEAD, " "), /no account/);
+  });
+
+  it("adds the agent disclosure once, and strips it for comment identity", () => {
+    const once = disclose("Looks good.", "noelcf");
+    assert.equal(once, "> [!NOTE]\n> 🤖 Written by noelcf's Agent\n\nLooks good.");
+    assert.equal(disclose(once, "noelcf"), once);
+    assert.equal(disclose(`\n${once}\n`, "other"), once);
+    assert.equal(disclose("", "noelcf"), "> [!NOTE]\n> 🤖 Written by noelcf's Agent");
+    assert.equal(stripDisclosure(once), "Looks good.");
+    assert.equal(stripDisclosure("Looks good."), "Looks good.");
   });
 });
 
@@ -200,6 +212,7 @@ describe("prflow review post", () => {
     const body = JSON.parse(moved.posts[0]?.[3] ?? "{}");
     assert.equal(body.event, "COMMENT");
     assert.equal(body.commit_id, HEAD);
+    assert.match(body.body, /^> \[!NOTE\]\n> 🤖 Written by octocat's Agent\n\n/);
     assert.match(body.body, /\n\napproval withheld: new commits since c0ffee11; the next review cycle covers them$/);
     const ev = s.readEventsFrom(0).events.find((e) => e.type === "review-posted");
     assert.match(ev?.detail ?? "", /approve downgraded to COMMENT/);
@@ -226,7 +239,10 @@ describe("prflow review post", () => {
     const f = fake({});
     const r = await postDraft(s, postDeps(f), ID, { event: "approve", yes: true });
     assert.equal(r.code, 0);
-    assert.equal(JSON.parse(f.posts[0]?.[3] ?? "{}").event, "APPROVE");
+    const body = JSON.parse(f.posts[0]?.[3] ?? "{}");
+    assert.equal(body.event, "APPROVE");
+    assert.match(body.body, /^> \[!NOTE\]\n> 🤖 Written by octocat's Agent\n\n/);
+    for (const c of body.comments) assert.match(c.body, /^> \[!NOTE\]\n> 🤖 Written by octocat's Agent\n\n/);
     assert.doesNotMatch(r.out, /downgraded/);
   });
 
@@ -299,7 +315,7 @@ describe("prflow review post: draft revisions", () => {
     const s = tempStore();
     const p = seed(s);
     // An older prflow posted it: a ledger row and post.json, no posted.json.
-    writeFileSync(join(p.dir, "post.json"), JSON.stringify(reviewPayload(parseDraft(DRAFT), "comment", HEAD)));
+    writeFileSync(join(p.dir, "post.json"), JSON.stringify(reviewPayload(parseDraft(DRAFT), "comment", HEAD, ME)));
     s.addLedger({ at: Date.now() + 60_000, item: "Acme/x#5", version: "c0ffee11", kind: "review-requested", outcome: "posted", detail: "old", source: "prflow", ref: `review-posted:${ID}` });
     assert.match((await postDraft(s, postDeps(fakeWith([commented()])), ID, { event: "comment", yes: true })).out, /revision r1 was already posted/);
     writeFileSync(p.file, APPROVE);

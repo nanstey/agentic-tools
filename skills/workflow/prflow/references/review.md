@@ -35,6 +35,7 @@ prflow review post <draft-id> [--event comment|approve|request-changes] --yes
 | The post call is exactly `gh api --method POST repos/<o>/<r>/pulls/<n>/reviews --input <state>/drafts/.../post.json`, with the input under the active state directory | `assertReviewPost`, `scripts/adapters/gh.ts`; `realPostDeps`, `scripts/deps.ts` |
 | `--yes` is required; without it the command prints what it would post and exits 1 | `postDraft`, `scripts/review-cmd.ts` |
 | The review is posted as the draft's account (`GH_TOKEN` from `gh auth token -u <login>`), pinned to the reviewed commit (`commit_id`) | `realPostDeps`, `scripts/deps.ts` |
+| The review body and every inline comment start with the agent disclosure for the draft's account (`> [!NOTE]` then `> 🤖 Written by <login>'s Agent`, as in the `pr` skill's `references/disclosure.md`). A body that already starts with it is not given a second one; inline comment identity across revisions ignores it | `reviewPayload`, `disclose`, `scripts/core/draft.ts`; `commentKey`, `scripts/revisions.ts` |
 | Refuses: a draft that does not parse, a revision already posted, a PR that is not open, a commit the account already reviewed (unless this is a later revision of a posted draft, saved after that review) | `postDraft` |
 | Never approves unreviewed commits: `approve` on a head that moved since the reviewed commit posts as `COMMENT`, the body ending with `approval withheld: new commits since <sha8>; the next review cycle covers them` (`<sha8>` is the reviewed commit); the output and the `review-posted` event say `approve downgraded to COMMENT: approval withheld, head moved to <new8>`. `comment` and `request-changes` post as-is, pinned to the reviewed commit. The next review cycle reviews the new head | `postDraft`, `withholdApproval` |
 | A crash after GitHub accepted the review but before prflow recorded it: the next `post` re-reads the PR and refuses, because the account reviewed that commit after the revision was saved | `postDraft` |
@@ -183,7 +184,7 @@ Posted on that range.
 Never posted.
 ```
 
-`None.` under Inline comments means none. Inline comments can target a line or range, for example `### path/to/other.ext:10-14`.
+`None.` under Inline comments means none. Inline comments can target a line or range, for example `### path/to/other.ext:10-14`. The draft needs no agent disclosure: `prflow review post` starts the body and each inline comment with it.
 
 ## Events
 
