@@ -16,7 +16,7 @@ import { listDrafts, renderDraftList, showDraft } from "./review-cmd.ts";
 import { plan, scan, type ScanResult } from "./scan.ts";
 import { decideWatch, fingerprint } from "./core/watch.ts";
 import { importLegacy, pause, recover, renderStatus, resume, status, type LegacyFile } from "./commands.ts";
-import { defaultStateDir, Store } from "./store.ts";
+import { defaultStateDir, Store, withStore as withStoreIn, withStoreAsync as withStoreAsyncIn } from "./store.ts";
 import { tick } from "./tick.ts";
 import { makeAct, makeVerify } from "./actions.ts";
 import { makeUnblock } from "./unblock.ts";
@@ -200,14 +200,8 @@ async function main(argv: string[]): Promise<number> {
   if (values.item !== undefined && !ITEM_KEY.test(values.item)) throw new Error("--item must be owner/repo#number");
   if (values.item !== undefined && values.all) throw new Error("use --item or --all, not both");
   const stateDir = values["state-dir"] ?? defaultStateDir();
-  const withStore = <T>(fn: (store: Store) => T): T => {
-    const store = Store.open(stateDir);
-    try {
-      return fn(store);
-    } finally {
-      store.close();
-    }
-  };
+  const withStore = <T>(fn: (store: Store) => T): T => withStoreIn(stateDir, fn);
+  const withStoreAsync = <T>(fn: (store: Store) => Promise<T>): Promise<T> => withStoreAsyncIn(stateDir, fn);
   /**
    * Expected draft account per repo from the shared config. Without a readable
    * config, drafts are listed without the account check, and a warning says so.
@@ -244,14 +238,14 @@ async function main(argv: string[]): Promise<number> {
     if (sub === "list" && positionals.length === 2) {
       const deps = realDeps();
       const expected = await draftAccounts(deps);
-      const rows = await withStore((store) => listDrafts(store, readDraftPr(deps), expected));
+      const rows = await withStoreAsync((store) => listDrafts(store, readDraftPr(deps), expected));
       console.log(format === "json" ? JSON.stringify(rows, null, 2) : renderDraftList(rows));
       return 0;
     }
     if (sub === "show" && positionals.length === 3) {
       const deps = realDeps();
       const expected = await draftAccounts(deps);
-      console.log(await withStore((store) => showDraft(store, id, readDraftPr(deps), expected)));
+      console.log(await withStoreAsync((store) => showDraft(store, id, readDraftPr(deps), expected)));
       return 0;
     }
     throw new Error("unknown command: prflow review " + sub + "; usage: prflow review list | show <draft-id>");
