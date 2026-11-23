@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { BlockedRecord } from "../../../../lib/blocked.ts";
-import { assertOrca, taskStatusSetArgs } from "../scripts/adapters/orca.ts";
+import { assertOrca, assertTaskStatusSet, taskStatusSetArgs } from "../scripts/adapters/orca.ts";
 import { DEFAULT_STATUSES, type Config } from "../scripts/core/config.ts";
 import type { Store } from "../scripts/store.ts";
 import { tick } from "../scripts/tick.ts";
@@ -33,9 +33,10 @@ function blockedWorld(conditions: string[] | null, over: Partial<World> = {}): W
   });
 }
 
-async function runTick(w: World, s: Store, o: { dryRun?: boolean; config?: Config } = {}) {
+async function runTick(w: World, s: Store, o: { dryRun?: boolean; config?: Config; wrap?: (d: ReturnType<typeof fakeTickDeps>) => void } = {}) {
   const c = o.config ?? config();
   const deps = fakeTickDeps(w);
+  o.wrap?.(deps);
   const unblock = makeUnblock(deps, s, c);
   const out = await tick(deps, s, c, { dryRun: o.dryRun ?? false }, { act: async (ctx, _r, _i, opts) => unblock(ctx, opts) });
   w.clock += 15 * MIN;
@@ -212,6 +213,50 @@ describe("unblock", () => {
     assert.match((await runTick(w, s)).stdout, /unblocked Acme\/widgets#1/);
   });
 
+  it("unblocks a development worktree whose folder starts with prflow-review-", async () => {
+    const id = "repo1::/w/prflow-review-list-store";
+    const w = blockedWorld(null, {
+      worktrees: [row({ id, path: "/w/prflow-review-list-store", branch: "refs/heads/prflow-review-list-store" })],
+      worktreeHeads: { "/w/prflow-review-list-store": HEAD },
+      blocked: { version: 1, records: { [id]: record(["checks-pass"], { worktreeId: id, path: "/w/prflow-review-list-store", branch: "prflow-review-list-store" }) } },
+    });
+    const out = await runTick(w, tempStore());
+    assert.equal(out.exitCode, 0, out.stderr);
+    assert.deepEqual(statusWrites(w), [`task-status ${id} completed unblocked: checks passed at c0ffee11`]);
+  });
+
+  it("fails only the dispatch when the status write is refused, without failing the tick", async () => {
+    const w = blockedWorld(["checks-pass"]);
+    const s = tempStore();
+    const out = await runTick(w, s, {
+      wrap: (d) => {
+        d.setTaskStatus = async (wid) => { throw new Error(`prflow: orca-ide worktree set --worktree id:${wid} is not the allowed unblock status call`); };
+      },
+    });
+    assert.equal(out.exitCode, 0, out.stderr);
+    assert.match(out.stdout, /action-failed Acme\/widgets#1 unblock #1: orca-ide worktree set: prflow: .* is not the allowed unblock status call/);
+    assert.equal(s.findDispatch("Acme/widgets#1", `blocked@${SET_AT}`, "unblock")?.state, "failed");
+  });
+
+  it("reports a worktree whose unblock check throws and still unblocks the others", async () => {
+    const other = "repo1::/w/other";
+    const w = blockedWorld(null, {
+      worktrees: [row(), row({ id: other, path: "/w/other", branch: "refs/heads/other" })],
+      worktreeHeads: { "/w/feat": HEAD, "/w/other": HEAD },
+      blocked: { version: 1, records: { [ID]: record(["checks-pass"]), [other]: record(["checks-pass"], { worktreeId: other, path: "/w/other", branch: "other" }) } },
+    });
+    const s = tempStore();
+    const out = await runTick(w, s, {
+      wrap: (d) => {
+        const real = d.gitDirty.bind(d);
+        d.gitDirty = async (path) => { if (path === "/w/feat") throw new Error("git exploded"); return real(path); };
+      },
+    });
+    assert.equal(out.exitCode, 0, out.stderr);
+    assert.match(out.stdout, /action-failed acme\/widgets@feat unblock: \/w\/feat: git exploded/);
+    assert.deepEqual(statusWrites(w), [`task-status ${other} completed unblocked: checks passed at c0ffee11`]);
+  });
+
   it("does nothing without a Blocked status id or with worktrees off, and reports an unreadable record file", async () => {
     const off = blockedWorld(["checks-pass"]);
     await runTick(off, tempStore(), { config: config({ taskStatuses: { ...DEFAULT_STATUSES } }) });
@@ -226,6 +271,9 @@ describe("unblock", () => {
     assertOrca(taskStatusSetArgs(ID, "status-7", "unblocked: checks passed at c0ffee11"));
     assert.throws(() => assertOrca(taskStatusSetArgs("repo1::/w/prflow-review-widgets-1", "status-7", "x")), /not the allowed unblock status call/);
     assert.throws(() => assertOrca(taskStatusSetArgs(ID, "status-7", "")), /not the allowed unblock status call/);
+    assertOrca(taskStatusSetArgs("repo1::/w/prflow-review-list-store", "status-7", "x"));
+    assertTaskStatusSet(taskStatusSetArgs("repo1::/w/prflow-review-list-store", "status-7", "x"), "prflow-review-list-store");
+    assert.throws(() => assertTaskStatusSet(taskStatusSetArgs(ID, "status-7", "x"), "prflow-review/widgets-1"), /not the allowed unblock status call/);
     assert.throws(() => assertOrca(taskStatusSetArgs(ID, "status-7", "a\nb")), /not the allowed unblock status call/);
     assert.throws(() => assertOrca(taskStatusSetArgs(ID, "Bad!", "x")), /not the allowed unblock status call/);
     assert.throws(() => assertOrca(taskStatusSetArgs(ID, "status-7", "x").filter((a) => a !== "--unread")), /not the allowed/);

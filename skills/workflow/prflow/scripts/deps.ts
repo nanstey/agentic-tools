@@ -111,8 +111,8 @@ export function realDeps(): RealDeps {
     async setReviewWorktree(path, branch, status, comment, unread) { if (!isReviewBranch(branch)) throw new Error("prflow: review status requires a prflow-review branch"); const args = worktreeSetArgs(path, status, comment, unread); assertWorktreeSet(args, path); return orca(args); },
     async nameReviewWorktree(path, branch, name) { if (!isReviewBranch(branch)) throw new Error("prflow: review rename requires a prflow-review branch"); const args = worktreeNameArgs(path, name); assertWorktreeName(args, path); return orca(args); },
     async worktreeHead(path) { const r = await run("git", ["-C", path, "rev-parse", "HEAD"], process.env); return r.ok ? r.stdout.trim() : null; },
-    async setTaskStatus(worktreeId, status, comment) { const args = taskStatusSetArgs(worktreeId, status, comment); assertTaskStatusSet(args); return orca(args); },
-    async setWorktreeStatus(worktreeId, status) { const args = worktreeStatusArgs(worktreeId, status); assertWorktreeStatusSet(args); return orca(args); },
+    async setTaskStatus(worktreeId, branch, status, comment) { const args = taskStatusSetArgs(worktreeId, status, comment); assertTaskStatusSet(args, branch); return orca(args); },
+    async setWorktreeStatus(worktreeId, branch, status) { const args = worktreeStatusArgs(worktreeId, status); assertWorktreeStatusSet(args, branch); return orca(args); },
     readBlocked: () => readBlocked(blockedStatePath()),
     clearBlocked: (worktreeId, setAt) => clearBlocked(blockedStatePath(), worktreeId, setAt),
     async gitDirty(path) {

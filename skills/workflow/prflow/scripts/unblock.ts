@@ -15,7 +15,7 @@
 import { evaluate, parseConditions, type BlockedRecord, type Condition, type Facts, type OwnPrFacts } from "../../../../lib/blocked.ts";
 import { checkState, prDecision, type CheckState, type Pr } from "../../../../lib/task-status.ts";
 import { parsePr, parsePrRefs, prArgs } from "./adapters/gh.ts";
-import { isReviewBranch, parseWorktrees, type OrcaWorktree } from "./adapters/orca.ts";
+import { isReviewWorktree, parseWorktrees, type OrcaWorktree } from "./adapters/orca.ts";
 import { dryRunBlocked, dryRunSlot, once } from "./actions.ts";
 import { accountFor, type Config } from "./core/config.ts";
 import { leaseUntil } from "./core/rails.ts";
@@ -27,6 +27,7 @@ import type { TickDeps, TickOptions } from "./tick.ts";
 /** Longest comment the Orca allowlist accepts (`assertTaskStatusSet`). */
 const MAX_COMMENT = 200;
 
+const folderOf = (path: string): string => path.split("/").filter(Boolean).at(-1) ?? "";
 const clip = (s: string, n = MAX_COMMENT) => (s.length > n ? `${s.slice(0, n - 3)}...` : s);
 
 const toCheckState = (c: Check): CheckState =>
@@ -190,7 +191,8 @@ async function one(c: Ctx, w: OrcaWorktree, rec: BlockedRecord | undefined): Pro
     finishDispatch(store, deps.now(), d, "done", `${w.path} was re-blocked with new conditions`);
     return;
   }
-  const res = await deps.setTaskStatus(w.id, status, comment);
+  // A refused call (the guard throws) fails this dispatch only, never the tick.
+  const res = await deps.setTaskStatus(w.id, w.branch, status, comment).catch((e: unknown) => ({ ok: false, stdout: "", stderr: (e as Error).message }));
   const now = deps.now();
   if (!res.ok) {
     const why = `orca-ide worktree set: ${res.stderr.trim() || res.stdout.trim()}`;
@@ -208,7 +210,7 @@ export function makeUnblock(deps: TickDeps, store: Store, cfg: Config) {
   return async (ctx: TickContext, opts: TickOptions): Promise<void> => {
     const blocked = cfg.taskStatuses.blocked;
     if (!cfg.worktrees || !blocked || blocked === cfg.taskStatuses.paused) return;
-    const rows = parseWorktrees(await deps.orcaWorktrees(), []).filter((w) => w.id && w.workspaceStatus === blocked && !isReviewBranch(w.branch));
+    const rows = parseWorktrees(await deps.orcaWorktrees(), []).filter((w) => w.id && w.workspaceStatus === blocked && !isReviewWorktree(w.branch, folderOf(w.path)));
     if (!rows.length) return;
     let records: Record<string, BlockedRecord>;
     try {
@@ -221,6 +223,16 @@ export function makeUnblock(deps: TickDeps, store: Store, cfg: Config) {
       return;
     }
     const c: Ctx = { deps, store, cfg, ctx, dryRun: opts.dryRun };
-    for (const w of rows) await one(c, w, records[w.id]);
+    // One worktree's failure is reported and skipped; the rest still run.
+    for (const w of rows) {
+      try {
+        await one(c, w, records[w.id]);
+      } catch (e) {
+        const item = `${w.repo}@${w.branch}`;
+        const detail = clip(`${w.path}: ${(e as Error).message}`, 300);
+        if (store.addLedger({ at: ctx.now, item, version: "unblock", kind: "unblock", outcome: "failed", detail, source: "prflow", ref: `failed:unblock:${w.id}:${detail}` }))
+          store.appendEvent(ctx.now, { type: "action-failed", item, version: "unblock", kind: "unblock", detail });
+      }
+    }
   };
 }

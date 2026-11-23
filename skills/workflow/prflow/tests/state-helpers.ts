@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { after } from "node:test";
 import { assertReadOnly } from "../scripts/adapters/gh.ts";
 import { assertDeleteBranch, deleteBranchArgs } from "../scripts/adapters/git.ts";
-import { agentListArgs, archiveArgs, assertArchive, assertOrca, closeArgs, interruptArgs, launchArgs, reviewWorktreeArgs, sendArgs, taskStatusSetArgs, terminalListArgs, worktreeStatusArgs, waitIdleArgs, worktreeNameArgs, worktreeUnparentArgs } from "../scripts/adapters/orca.ts";
+import { agentListArgs, archiveArgs, assertArchive, assertOrca, assertTaskStatusSet, assertWorktreeStatusSet, closeArgs, interruptArgs, launchArgs, reviewWorktreeArgs, sendArgs, taskStatusSetArgs, terminalListArgs, worktreeStatusArgs, waitIdleArgs, worktreeNameArgs, worktreeUnparentArgs } from "../scripts/adapters/orca.ts";
 import type { BlockedFile } from "../../../../lib/blocked.ts";
 import { DEFAULT_ACTIONS, DEFAULT_DISPATCH, DEFAULT_LIMIT, DEFAULT_RAILS, DEFAULT_REVIEW, DEFAULT_WORKTREE_STATUS, type Config, type Rails } from "../scripts/core/config.ts";
 import type { CmdResult } from "../scripts/scan.ts";
@@ -219,7 +219,8 @@ export function fakeTickDeps(w: World): TickDeps {
     async worktreeHead(path) {
       return path in w.worktreeHeads ? (w.worktreeHeads[path] ?? null) : "a".repeat(40);
     },
-    async setTaskStatus(worktreeId, status, comment) {
+    async setTaskStatus(worktreeId, branch, status, comment) {
+      assertTaskStatusSet(taskStatusSetArgs(worktreeId, status, comment), branch);
       assertOrca(taskStatusSetArgs(worktreeId, status, comment));
       w.effects.push(`task-status ${worktreeId} ${status} ${comment}`);
       if (w.orcaFails.status) return fail(w.orcaFails.status);
@@ -227,7 +228,8 @@ export function fakeTickDeps(w: World): TickDeps {
       if (row) { row.workspaceStatus = status; row.comment = comment; row.isUnread = true; }
       return okJson({ ok: true, result: {} });
     },
-    async setWorktreeStatus(worktreeId, status) {
+    async setWorktreeStatus(worktreeId, branch, status) {
+      assertWorktreeStatusSet(worktreeStatusArgs(worktreeId, status), branch);
       assertOrca(worktreeStatusArgs(worktreeId, status));
       w.effects.push(`worktree-status ${worktreeId} ${status}`);
       if (w.orcaFails.worktreeStatus) return fail(w.orcaFails.worktreeStatus);

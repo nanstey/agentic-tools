@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { assertOrca, worktreeStatusArgs } from "../scripts/adapters/orca.ts";
+import { assertOrca, assertWorktreeStatusSet, worktreeStatusArgs } from "../scripts/adapters/orca.ts";
 import { parsePr } from "../scripts/adapters/gh.ts";
 import { DEFAULT_STATUSES, type Config } from "../scripts/core/config.ts";
 import { closedPrColumn, isIgnored, openPrColumn, worktreeColumn } from "../scripts/core/worktree-status.ts";
@@ -72,9 +72,10 @@ function columnWorld(pr: PrSpec | null, over: Partial<World> = {}): World {
   return world({ worktrees: [main(), row()], prs: pr ? { "Acme/widgets#1": prResponse(pr) } : {}, ...over });
 }
 
-async function runTick(w: World, s: Store, o: { dryRun?: boolean; config?: Config } = {}) {
+async function runTick(w: World, s: Store, o: { dryRun?: boolean; config?: Config; wrap?: (d: ReturnType<typeof fakeTickDeps>) => void } = {}) {
   const c = o.config ?? config();
   const deps = fakeTickDeps(w);
+  o.wrap?.(deps);
   const step = makeWorktreeStatus(deps, s, c);
   const out = await tick(deps, s, c, { dryRun: true, worktreeStatusDryRun: o.dryRun ?? false }, { act: async (ctx, r, _i, opts) => step(ctx, r, opts) });
   w.clock += 15 * MIN;
@@ -189,6 +190,33 @@ describe("worktree status step", () => {
     }
   });
 
+  it("moves a development worktree whose folder starts with prflow-review- but whose branch is not a review branch", async () => {
+    const id = `${REPO_ID}::/w/skills/prflow-review-list-store`;
+    const w = columnWorld({}, { worktrees: [main(), row({ id, path: "/w/skills/prflow-review-list-store", branch: "refs/heads/prflow-review-list-store" })] });
+    const out = await runTick(w, tempStore());
+    assert.equal(out.exitCode, 0, out.stderr);
+    assert.deepEqual(writes(w), [`worktree-status ${id} completed`]);
+    assert.match(out.stdout, /prflow-review-list-store: in-progress -> done/);
+  });
+
+  it("reports a refused move and still moves the other worktrees without failing the tick", async () => {
+    const other = `${REPO_ID}::/w/widgets/other`;
+    const w = columnWorld({}, { worktrees: [main(), row(), row({ id: other, path: "/w/widgets/other", branch: "refs/heads/other" })] });
+    const s = tempStore();
+    const out = await runTick(w, s, {
+      wrap: (d) => {
+        const real = d.setWorktreeStatus.bind(d);
+        d.setWorktreeStatus = async (wid, branch, status) => {
+          if (wid === ID) throw new Error(`prflow: orca-ide worktree set --worktree id:${wid} is not the allowed worktree status call`);
+          return real(wid, branch, status);
+        };
+      },
+    });
+    assert.equal(out.exitCode, 0, out.stderr);
+    assert.match(out.stdout, /action-failed Acme\/widgets#1 worktree-status: orca-ide worktree set \/w\/widgets\/feat: prflow: .* is not the allowed worktree status call/);
+    assert.deepEqual(writes(w), [`worktree-status ${other} completed`]);
+  });
+
   it("moves nothing when the agent list cannot be read", async () => {
     const w = columnWorld({}, { orcaFails: { agents: "orca not running" } });
     await runTick(w, tempStore());
@@ -242,6 +270,10 @@ describe("worktree status Orca call", () => {
     assertOrca(worktreeStatusArgs(ID, "status-7"));
     assert.throws(() => assertOrca(worktreeStatusArgs(`${REPO_ID}::/w/review/prflow-review-widgets-1`, "completed")), /not the allowed worktree status call/);
     assert.throws(() => assertOrca(worktreeStatusArgs(ID, "Bad Status")), /not the allowed worktree status call/);
+    // A development folder that only starts with prflow-review- is not a review worktree.
+    assertOrca(worktreeStatusArgs(`${REPO_ID}::/w/skills/prflow-review-list-store`, "completed"));
+    assertWorktreeStatusSet(worktreeStatusArgs(`${REPO_ID}::/w/skills/prflow-review-list-store`, "completed"), "prflow-review-list-store");
+    assert.throws(() => assertWorktreeStatusSet(worktreeStatusArgs(ID, "completed"), "prflow-review/widgets-1"), /not the allowed worktree status call/);
     assert.throws(() => assertOrca(worktreeStatusArgs(`${REPO_ID}::/w/../etc`, "completed")), /not the allowed worktree status call/);
     assert.throws(() => assertOrca(["worktree", "set", "--worktree", `id:${ID}`, "--workspace-status", "completed", "--force"]), /not the allowed/);
   });
