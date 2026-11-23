@@ -70,6 +70,11 @@ export interface TickDeps extends Deps {
    * comment saying what changed, and `--unread`. Never a review worktree.
    */
   setTaskStatus(worktreeId: string, status: string, comment: string): Promise<CmdResult>;
+  /**
+   * Move a development worktree's card to another column (`worktreeStatusArgs`):
+   * status id only, no comment, no unread flag. Never a review worktree.
+   */
+  setWorktreeStatus(worktreeId: string, status: string): Promise<CmdResult>;
   /** Blocked records written by orca-task-status (`lib/blocked.ts`). */
   readBlocked(): BlockedFile;
   /** Remove one Blocked record, only while it is still the one set at `setAt`. */
@@ -83,6 +88,8 @@ export interface TickOptions {
   dispatchDryRun?: boolean;
   /** No review worktree is created and no reviewer launched, nudged, closed, or archived; only announced. Default `true`. */
   reviewDryRun?: boolean;
+  /** No worktree board column is written; moves are only announced. Default `true`. */
+  worktreeStatusDryRun?: boolean;
 }
 
 export interface TickOutput {

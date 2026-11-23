@@ -28,7 +28,9 @@ export type EventType =
   /** `prflow review post` published a draft to GitHub (never from tick). */
   | "review-posted"
   /** A Blocked worktree's unblock conditions held and prflow moved its card out. */
-  | "unblocked";
+  | "unblocked"
+  /** prflow moved a development worktree's board column to match its sessions and PR. */
+  | "worktree-status";
 
 export interface PrflowEvent {
   /** ISO timestamp. */

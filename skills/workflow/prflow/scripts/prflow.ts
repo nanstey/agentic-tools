@@ -18,6 +18,7 @@ import { defaultStateDir, Store } from "./store.ts";
 import { tick } from "./tick.ts";
 import { makeAct, makeVerify } from "./actions.ts";
 import { makeUnblock } from "./unblock.ts";
+import { makeWorktreeStatus } from "./worktree-status.ts";
 import { loadTemplates, makeAgentFlow } from "./agents.ts";
 import { loadConfig, SKILL_DIR } from "./config.ts";
 
@@ -72,8 +73,9 @@ const USAGE = `Usage: prflow <command> [options]
                  "actions": {"dryRun": false}; Pi dispatch (ci, comments,
                  behind briefs) only when it sets "dispatch": {"dryRun":
                  false}; reviewer sessions (review-requested) only when it
-                 sets "review": {"dryRun": false}. Otherwise they are
-                 announced. Tick never posts to GitHub.
+                 sets "review": {"dryRun": false}; worktree board column
+                 moves only when it sets "worktreeStatus": {"dryRun": false}.
+                 Otherwise they are announced. Tick never posts to GitHub.
   status         Print items, open dispatches, pauses, and the last tick.
   pause          Pause prflow (default, or --all) or one item (--item).
   resume         Resume prflow, one item (--item), or prflow and every
@@ -114,9 +116,9 @@ Options:
   --item <owner/repo#N>      pause, resume: one item
   --all                      pause: the whole system; resume: the system and every item
   --reason <text>            pause: reason recorded in the event
-  --dry-run                  tick: announce actions, Pi dispatches, and reviewer
-                             sessions without running them, even when the
-                             config enables them
+  --dry-run                  tick: announce actions, Pi dispatches, reviewer
+                             sessions, and worktree column moves without running
+                             them, even when the config enables them
   --event <event>            review post: comment (default), approve, or
                              request-changes
   --yes                      review post: really post
@@ -284,12 +286,14 @@ async function main(argv: string[]): Promise<number> {
       const dryRun = values["dry-run"] || cfg.actions.dryRun;
       const dispatchDryRun = values["dry-run"] || cfg.dispatch.dryRun;
       const reviewDryRun = values["dry-run"] || cfg.review.dryRun;
+      const worktreeStatusDryRun = values["dry-run"] || cfg.worktreeStatus.dryRun;
       const safe = makeAct(deps, store);
       const unblock = makeUnblock(deps, store, cfg);
+      const columns = makeWorktreeStatus(deps, store, cfg);
       const templates = loadTemplates(join(SKILL_DIR, "templates", "briefs"));
       const agents = makeAgentFlow(deps, store, cfg, templates);
       const reviews = makeReviewFlow(deps, store, cfg, templates);
-      const out = await tick(deps, store, cfg, { dryRun, dispatchDryRun, reviewDryRun }, {
+      const out = await tick(deps, store, cfg, { dryRun, dispatchDryRun, reviewDryRun, worktreeStatusDryRun }, {
         monitor: async (...a) => {
           await agents.monitor(...a);
           await reviews.monitor(...a);
@@ -300,6 +304,7 @@ async function main(argv: string[]): Promise<number> {
           await unblock(a[0], a[3]);
           await agents.act(...a);
           await reviews.act(...a);
+          await columns(a[0], a[1], a[3]);
         },
         annotate: reviews.annotate,
       });

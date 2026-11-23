@@ -3,9 +3,9 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import { defaultPaths, loadConfig } from "../scripts/config.ts";
-import { accountFor, DEFAULT_ACTIONS, DEFAULT_DISPATCH, DEFAULT_RAILS, DEFAULT_REVIEW, DEFAULT_STATUSES, parseConfig, projectFor } from "../scripts/core/config.ts";
+import { accountFor, DEFAULT_ACTIONS, DEFAULT_DISPATCH, DEFAULT_RAILS, DEFAULT_REVIEW, DEFAULT_STATUSES, DEFAULT_WORKTREE_STATUS, parseConfig, projectFor } from "../scripts/core/config.ts";
 
-const prflowKeys = ["limit", "worktrees", "rails", "actions", "dispatch", "review"];
+const prflowKeys = ["limit", "worktrees", "rails", "actions", "dispatch", "review", "worktreeStatus"];
 const parse = (v: unknown) => {
   const value = v as Record<string, unknown>;
   const prflow = Object.fromEntries(Object.entries(value).filter(([key]) => prflowKeys.includes(key)));
@@ -57,7 +57,23 @@ describe("parseConfig", () => {
       dispatch: DEFAULT_DISPATCH,
       review: DEFAULT_REVIEW,
       taskStatuses: DEFAULT_STATUSES,
+      worktreeStatus: DEFAULT_WORKTREE_STATUS,
     });
+  });
+
+  it("defaults worktree status sync to dry run and merges orchestrator.ignore into its ignore list", () => {
+    assert.deepEqual(DEFAULT_WORKTREE_STATUS, { dryRun: true, ignore: [] });
+    const cfg = parse({ accounts: [{ login: "a" }], actions: { dryRun: false }, dispatch: { dryRun: false }, review: { dryRun: false } });
+    assert.equal(cfg.worktreeStatus.dryRun, true);
+    const shared = parseConfig(
+      JSON.stringify({ accounts: [{ login: "a" }], orchestrator: { ignore: ["expedition", "Acme/Mine"] }, prflow: { worktreeStatus: { dryRun: false, ignore: ["acme/mine", "other"] } } }),
+      "cfg.json",
+    );
+    assert.deepEqual(shared.worktreeStatus, { dryRun: false, ignore: ["acme/mine", "other", "expedition"] });
+    assert.throws(() => parse({ accounts: [{ login: "a" }], worktreeStatus: { dryRun: "no" } }), /prflow\.worktreeStatus\.dryRun must be a boolean/);
+    assert.throws(() => parse({ accounts: [{ login: "a" }], worktreeStatus: { ignore: [""] } }), /prflow\.worktreeStatus\.ignore must be an array/);
+    assert.throws(() => parse({ accounts: [{ login: "a" }], worktreeStatus: { columns: {} } }), /prflow\.worktreeStatus: unknown key "columns"/);
+    assert.throws(() => parseConfig('{"accounts":[{"login":"a"}],"orchestrator":{"ignore":"x"}}', "cfg.json"), /cfg\.json: orchestrator\.ignore must be an array/);
   });
 
   it("defaults review to dry run with 2 reviewers, separately from dispatch and actions", () => {

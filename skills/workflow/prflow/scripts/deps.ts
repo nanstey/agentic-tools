@@ -4,7 +4,7 @@ import { blockedStatePath, clearBlocked, readBlocked } from "../../../../lib/blo
 import type { CmdResult } from "../../../../lib/runtime.ts";
 import { assertReadOnly, assertRerun, assertReviewPost, rerunArgs, reviewPostArgs } from "./adapters/gh.ts";
 import { assertDeleteBranch, assertReviewFetch, assertReviewReset, deleteBranchArgs, reviewFetchArgs, reviewResetArgs } from "./adapters/git.ts";
-import { agentListArgs, archiveArgs, assertArchive, assertOrca, assertTaskStatusSet, assertWorktreeName, assertWorktreeSet, assertWorktreeUnparent, closeArgs, detachedEnv, interruptArgs, launchArgs, reviewWorktreeArgs, sendArgs, taskStatusSetArgs, terminalListArgs, waitIdleArgs, worktreeListArgs, worktreeNameArgs, worktreeSetArgs, worktreeUnparentArgs, isReviewBranch } from "./adapters/orca.ts";
+import { agentListArgs, archiveArgs, assertArchive, assertOrca, assertTaskStatusSet, assertWorktreeName, assertWorktreeSet, assertWorktreeStatusSet, assertWorktreeUnparent, closeArgs, detachedEnv, interruptArgs, launchArgs, reviewWorktreeArgs, sendArgs, taskStatusSetArgs, terminalListArgs, waitIdleArgs, worktreeListArgs, worktreeNameArgs, worktreeSetArgs, worktreeUnparentArgs, worktreeStatusArgs, isReviewBranch } from "./adapters/orca.ts";
 import type { TickDeps } from "./tick.ts";
 
 /** Default limit for one child process; `setChildTimeout` overrides it from config. */
@@ -140,6 +140,7 @@ export function realDeps(): RealDeps {
     async nameReviewWorktree(path, branch, name) { if (!isReviewBranch(branch)) throw new Error("prflow: review rename requires a prflow-review branch"); const args = worktreeNameArgs(path, name); assertWorktreeName(args, path); return orca(args); },
     async worktreeHead(path) { const r = await run("git", ["-C", path, "rev-parse", "HEAD"], process.env); return r.ok ? r.stdout.trim() : null; },
     async setTaskStatus(worktreeId, status, comment) { const args = taskStatusSetArgs(worktreeId, status, comment); assertTaskStatusSet(args); return orca(args); },
+    async setWorktreeStatus(worktreeId, status) { const args = worktreeStatusArgs(worktreeId, status); assertWorktreeStatusSet(args); return orca(args); },
     readBlocked: () => readBlocked(blockedStatePath()),
     clearBlocked: (worktreeId, setAt) => clearBlocked(blockedStatePath(), worktreeId, setAt),
     async gitDirty(path) {

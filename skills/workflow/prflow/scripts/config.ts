@@ -4,7 +4,7 @@ import { configPaths as sharedConfigPaths } from "../../../../lib/config.ts";
 
 import { readOrNull } from "../../../../lib/runtime.ts";
 import type { Read } from "../../../../lib/runtime.ts";
-import { DEFAULT_ACTIONS, DEFAULT_DISPATCH, DEFAULT_LIMIT, DEFAULT_RAILS, DEFAULT_REVIEW, DEFAULT_STATUSES, parseConfig, type Config } from "./core/config.ts";
+import { DEFAULT_ACTIONS, DEFAULT_DISPATCH, DEFAULT_LIMIT, DEFAULT_RAILS, DEFAULT_REVIEW, DEFAULT_STATUSES, DEFAULT_WORKTREE_STATUS, parseConfig, type Config } from "./core/config.ts";
 
 export const SKILL_DIR = dirname(import.meta.dirname);
 
@@ -45,6 +45,7 @@ export async function loadConfig(
       dispatch: { ...DEFAULT_DISPATCH, projectContext: [] },
       review: { ...DEFAULT_REVIEW },
       taskStatuses: { ...DEFAULT_STATUSES },
+      worktreeStatus: { ...DEFAULT_WORKTREE_STATUS, ignore: [] },
     },
     source,
   });

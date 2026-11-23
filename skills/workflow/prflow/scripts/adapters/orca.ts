@@ -476,6 +476,26 @@ export function assertTaskStatusSet(args: readonly string[]): void {
   if (!ok) throw new Error(`prflow: orca-ide ${args.join(" ")} is not the allowed unblock status call`);
 }
 
+/**
+ * `orca-ide worktree set` that moves an ordinary (non-review) worktree's card
+ * to the column its sessions and PR give (`scripts/worktree-status.ts`): by
+ * id, status only. The card's comment and unread flag stay as they are.
+ */
+export const worktreeStatusArgs = (worktreeId: string, status: string): string[] => [
+  "worktree", "set", "--worktree", `id:${worktreeId}`, "--workspace-status", status, "--json",
+];
+
+/** Throws unless `args` is exactly `worktreeStatusArgs` for a non-review worktree id. */
+export function assertWorktreeStatusSet(args: readonly string[]): void {
+  const sel = args[3] ?? "";
+  const id = sel.startsWith("id:") ? sel.slice(3) : "";
+  const folder = id.split("::")[1]?.split("/").at(-1) ?? "";
+  const status = args[5] ?? "";
+  const ok = args.length === 7 && safePath(id) && !folder.startsWith("prflow-review-") && /^[a-z0-9][a-z0-9-]{0,40}$/.test(status) &&
+    same(args, worktreeStatusArgs(id, status));
+  if (!ok) throw new Error(`prflow: orca-ide ${args.join(" ")} is not the allowed worktree status call`);
+}
+
 /** Throws unless `args` is one of the exact calls above, the review worktree creation, or the archive call. */
 export function assertOrca(args: readonly string[]): void {
   const sel = (args[2] === "--worktree" ? args[3] : args[7]) ?? "";
@@ -494,7 +514,8 @@ export function assertOrca(args: readonly string[]): void {
   if (args[0] === "worktree" && args[1] === "set") {
     if (args[4] === "--display-name") return assertWorktreeName(args);
     if (args[4] === "--no-parent") return assertWorktreeUnparent(args);
-    return (args[3] ?? "").startsWith("id:") ? assertTaskStatusSet(args) : assertWorktreeSet(args);
+    if ((args[3] ?? "").startsWith("id:")) return args.length === 7 ? assertWorktreeStatusSet(args) : assertTaskStatusSet(args);
+    return assertWorktreeSet(args);
   }
   try {
     assertArchive(args);
