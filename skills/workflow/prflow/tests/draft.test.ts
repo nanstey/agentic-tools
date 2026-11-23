@@ -8,6 +8,7 @@ import type { PrSnapshot } from "../scripts/core/types.ts";
 import { draftWasPosted, listDrafts, renderDraftList, showDraft } from "../scripts/review-cmd.ts";
 import { draftPaths, writeMeta } from "../scripts/review.ts";
 import { DRAFT, HEAD, ME } from "./fixtures.ts";
+import { withStore, withStoreAsync } from "../scripts/store.ts";
 import { tempStore } from "./state-helpers.ts";
 
 const ID = `Acme-x-5-${HEAD.slice(0, 8)}`;
@@ -139,5 +140,37 @@ describe("GitHub-derived draft posted status", () => {
       assert.match(await showDraft(s, ID, read), /posted: yes/);
       assert.match(await showDraft(s, ID, async () => null), /posted: no/);
     } finally { s.close(); }
+  });
+
+  it("keeps the CLI store open while list and show await GitHub reads", async () => {
+    const s = tempStore();
+    const dir = s.dir;
+    try {
+      const { writeFileSync, mkdirSync } = await import("node:fs");
+      // Two drafts: the list reads the store again after the first GitHub read.
+      for (const [repo, number] of [["Acme/x", 5], ["Acme/y", 6]] as const) {
+        const item = `${repo}#${number}`;
+        const dispatch = s.createDispatch(item, HEAD.slice(0, 8), "review-requested", 1);
+        const meta = { ...META, dispatchId: dispatch.id, id: draftId(repo, number, HEAD.slice(0, 8)), item, repo, number, url: `https://github.com/${repo}/pull/${number}` };
+        const paths = draftPaths(s.dir, repo, number, HEAD.slice(0, 8));
+        writeMeta(paths, meta);
+        mkdirSync(paths.dir, { recursive: true });
+        writeFileSync(paths.file, DRAFT);
+        s.addLedger({ at: 2, item, version: HEAD.slice(0, 8), kind: "review-requested", outcome: "drafted", detail: meta.id, dispatchId: dispatch.id, source: "prflow", ref: `review-drafted:${dispatch.id}` });
+      }
+    } finally { s.close(); }
+    // A real gh read yields to the event loop before resolving.
+    const slowRead = async () => {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      return null;
+    };
+    const rows = await withStoreAsync(dir, (store) => listDrafts(store, slowRead, () => ME));
+    assert.equal(rows.length, 2);
+    for (const row of rows) {
+      assert.deepEqual(row.errors, []);
+      assert.equal(row.posted, false);
+    }
+    assert.match(await withStoreAsync(dir, (store) => showDraft(store, ID, slowRead, () => ME)), /posted: no/);
+    assert.throws(() => withStore(dir, (store) => listDrafts(store, slowRead, () => ME)), /use withStoreAsync/);
   });
 });

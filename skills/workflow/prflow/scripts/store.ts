@@ -247,6 +247,35 @@ export function lockStale(value: string, now: number): boolean {
   return !pidAlive(pid) || now - at >= LOCK_HUNG_MS;
 }
 
+/**
+ * Runs `fn` with a store opened in `dir` and closes it when `fn` returns.
+ * `fn` must be synchronous: a returned promise would outlive the store, so it
+ * throws and points to `withStoreAsync`.
+ */
+export function withStore<T>(dir: string, fn: (store: Store) => T): T {
+  const store = Store.open(dir);
+  try {
+    const result = fn(store);
+    if (result instanceof Promise) {
+      result.catch(() => undefined);
+      throw new Error("withStore callback returned a promise; use withStoreAsync");
+    }
+    return result;
+  } finally {
+    store.close();
+  }
+}
+
+/** Runs async `fn` with a store opened in `dir` and closes it after `fn` settles. */
+export async function withStoreAsync<T>(dir: string, fn: (store: Store) => Promise<T>): Promise<T> {
+  const store = Store.open(dir);
+  try {
+    return await fn(store);
+  } finally {
+    store.close();
+  }
+}
+
 export class Store {
   readonly dir: string;
   readonly db: DatabaseSync;
