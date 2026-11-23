@@ -66,7 +66,6 @@ export function cleanupBlocker(wt: Worktree, pausedId: string | undefined, pr: P
   if (wt.childWorktreeIds.length > 0) return "worktree has child worktrees";
   if (pr === null) return "no PR for this branch";
   if (pr.state !== "MERGED" || pr.mergedAt === null) return `PR #${pr.number} is not merged`;
-  if (local.dirty) return "uncommitted changes in the worktree";
   if (!pr.headRefOid || local.head !== pr.headRefOid) return `local HEAD has commits that are not in merged PR #${pr.number}`;
   return null;
 }

@@ -1,8 +1,7 @@
 /** Normalized, I/O-free shapes the classifier works on. */
 
 export type Kind =
-  | "merge-ready"
-  | "rerun"
+  | "mergeable"
   | "ci"
   | "comments"
   | "behind"
@@ -16,8 +15,7 @@ export type Kind =
 
 /** Spec priority order, most urgent first. */
 export const KIND_PRIORITY: readonly Kind[] = [
-  "merge-ready",
-  "rerun",
+  "mergeable",
   "ci",
   "comments",
   "behind",
@@ -80,6 +78,8 @@ export interface PrSnapshot {
   state: string;
   isDraft: boolean;
   headSha: string;
+  /** Recent PR commits in GitHub's chronological order, when available. */
+  commitOids?: string[];
   /** Head branch name; `null` when unknown. */
   branch?: string | null;
   headCommittedDate: string;
@@ -108,7 +108,7 @@ export interface WorktreeItem {
 
 /** One reason an own PR needs action, with optional detail (job ids or a timestamp). */
 export interface Trigger {
-  kind: "comments" | "ci" | "rerun" | "behind" | "merge";
+  kind: "comments" | "ci" | "behind" | "merge";
   detail?: string;
 }
 
@@ -133,6 +133,8 @@ export interface Classification {
   notes?: string[];
   /** Some check on the head is still running (PRs only). */
   checksPending?: boolean;
+  /** True for drafts; they have no author triggers but stay listed during dispatches. */
+  isDraft?: boolean;
   /** Review request on a PR another human already approved with no changes requested. */
   lowPriority?: boolean;
 }

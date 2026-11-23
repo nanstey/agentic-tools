@@ -94,6 +94,9 @@ test("waiting only for CI is In Review, not Blocked: checks-pass alone always ho
   assert.deepEqual(ev(["checks-pass"], facts(own())), { holds: true, met: ["checks passed at 1a2b3c4d"], unmet: [], stuck: null });
   assert.deepEqual(ev(["checks-pass"], facts(own({ checks: ["pending"], required: ["pending"] }))).met, ["PR #1 checks pending; waiting for CI is In Review, not Blocked"]);
   assert.deepEqual(ev(["checks-pass"], facts(own({ checks: ["fail"] }))).met, ["PR #1 checks failing; waiting for CI is In Review, not Blocked"]);
+  assert.deepEqual(ev(["checks-pass"], facts(own({ checks: ["cancelled"] }))).met, ["PR #1 checks cancelled; waiting for CI is In Review, not Blocked"]);
+  // With another condition, cancelled checks do not pass checks-pass.
+  assert.deepEqual(ev(["checks-pass", "pr-approved"], facts(own({ checks: ["cancelled"], reviewDecision: "APPROVED" }))).unmet, ["PR #1 has cancelled checks"]);
   assert.equal(ev(["checks-pass"], facts(null)).holds, false);
   assert.equal(ev(["checks-pass"], facts(own({ state: "CLOSED" }))).stuck, "PR #1 closed without merging");
 });

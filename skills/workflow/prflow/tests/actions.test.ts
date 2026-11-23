@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { makeAct, makeVerify, rerunTargets } from "../scripts/actions.ts";
+import { makeAct, makeVerify } from "../scripts/actions.ts";
 import { parsePr } from "../scripts/adapters/gh.ts";
 import { pause, resume } from "../scripts/commands.ts";
 import type { Store } from "../scripts/store.ts";
@@ -8,9 +8,9 @@ import { tick, type TickDeps } from "../scripts/tick.ts";
 import { HEAD, ME, ok, prResponse, run, status } from "./fixtures.ts";
 import { cfg, fakeTickDeps, MIN, okJson, T0, tempStore, world, type World } from "./state-helpers.ts";
 
-const RUN_URL = (id: number, job = 1) => `https://github.com/Acme/x/actions/runs/${id}/job/${job}`;
-const cancelled = (name: string, runId: number) => run(name, "COMPLETED", "CANCELLED", RUN_URL(runId));
-const RERUN_PR = prResponse({ decision: null, checks: [ok("lint"), cancelled("e2e", 42)] });
+const WT_REF = "pr view 5 -R acme/x --json number,state,title,url,headRefOid";
+const prRef = (number: number, state: string) => okJson({ number, state, title: `t${number}`, url: `https://github.com/Acme/x/pull/${number}`, headRefOid: "abc" });
+const wtRow = (path: string, pr = 5) => ({ path, branch: `refs/heads/b${pr}`, projectId: "github:acme/x", linkedPR: pr });
 
 const events = (s: Store) => s.readEventsFrom(0).events.map((e) => `${e.type} ${e.item ?? "-"}${e.dispatchId !== null ? ` #${e.dispatchId}` : ""}${e.detail ? `: ${e.detail}` : ""}`);
 
@@ -19,169 +19,6 @@ async function runTick(w: World, s: Store, opts: { dryRun?: boolean; worktrees?:
   const c = cfg(opts.rails, opts.worktrees ?? false);
   return tick(deps, s, c, { dryRun: opts.dryRun ?? false }, { act: makeAct(deps, s), verify: makeVerify(c.worktrees) });
 }
-
-describe("rerunTargets", () => {
-  it("collects run ids of cancelled or failed Actions jobs in the PR's repo", () => {
-    const pr = parsePr(
-      JSON.stringify(
-        prResponse({
-          checks: [
-            cancelled("a", 42),
-            run("b", "COMPLETED", "CANCELLED", RUN_URL(42, 2)),
-            run("c", "COMPLETED", "FAILURE", RUN_URL(7)),
-            ok("d"),
-            run("e", "COMPLETED", "CANCELLED", "https://ci.example/build/1"),
-            run("f", "COMPLETED", "CANCELLED", "https://github.com/Other/repo/actions/runs/9/job/1"),
-            status("g", "ERROR"),
-          ],
-        }),
-      ),
-      "Acme/x",
-      1,
-      "author",
-      ME,
-    );
-    assert.ok(pr);
-    assert.deepEqual(rerunTargets(pr), { runIds: ["42", "7"], unknown: ["e", "f"] });
-  });
-});
-
-describe("rerun action", () => {
-  it("dry run announces the exact command once and changes nothing", async () => {
-    const s = tempStore();
-    const w = world({ prs: { "Acme/x#1": RERUN_PR } });
-    const out = (await runTick(w, s, { dryRun: true })).stdout;
-    assert.match(out, /dry-run Acme\/x#1 rerun: would run: gh run rerun 42 --failed -R Acme\/x/);
-    assert.deepEqual(w.effects, []);
-    assert.equal(s.findDispatch("Acme/x#1", s.items()[0]?.version ?? "", "rerun"), null);
-    w.clock += 15 * MIN;
-    assert.equal((await runTick(w, s, { dryRun: true })).stdout, "");
-  });
-
-  it("writes the dispatch row and event before rerunning, then records done", async () => {
-    const s = tempStore();
-    const w = world({ prs: { "Acme/x#1": RERUN_PR } });
-    const base = fakeTickDeps(w);
-    const seen: string[] = [];
-    const deps: TickDeps = {
-      ...base,
-      async rerunFailed(login, repo, id) {
-        const d = s.openDispatches()[0];
-        seen.push(`${d?.state} ${events(s).at(-1)}`);
-        return base.rerunFailed(login, repo, id);
-      },
-    };
-    const out = (await runTick(w, s, { deps })).stdout;
-    assert.deepEqual(seen, ["launched dispatched Acme/x#1 #1: gh run rerun 42 --failed -R Acme/x"]);
-    assert.deepEqual(w.effects, ["rerun Acme/x 42"]);
-    assert.equal(s.dispatch(1)?.state, "done");
-    assert.match(out, /rerun Acme\/x#1 rerun #1: reran failed and cancelled jobs in run 42/);
-  });
-
-  it("reruns a version cancelled again up to rerunsPerVersion times, then pauses the item once", async () => {
-    const s = tempStore();
-    const w = world({ prs: { "Acme/x#1": RERUN_PR } });
-    await runTick(w, s);
-    // Still cancelled at the same version on the next tick: second rerun.
-    w.clock += 15 * MIN;
-    const second = (await runTick(w, s)).stdout;
-    assert.deepEqual(w.effects, ["rerun Acme/x 42", "rerun Acme/x 42"]);
-    assert.match(second, /dispatched Acme\/x#1 rerun #2: gh run rerun 42/);
-    assert.match(s.dispatch(2)?.version ?? "", /~r2$/);
-    // Cancelled again after two reruns: no third, the item is paused.
-    w.clock += 15 * MIN;
-    const third = (await runTick(w, s)).stdout;
-    assert.equal(w.effects.length, 2);
-    assert.match(third, /paused Acme\/x#1 rerun: checks cancelled again after 2 reruns at this version/);
-    assert.match(third, /## Needs your decision \(1\)\n- Acme\/x#1 paused: checks cancelled again/);
-    // After resume, the same version is neither rerun nor paused again.
-    resume(s, w.clock, { item: "Acme/x#1" });
-    w.clock += 15 * MIN;
-    await runTick(w, s);
-    assert.equal(w.effects.length, 2);
-    assert.equal(s.item("Acme/x#1")?.paused, false);
-  });
-
-  it("honours a configured rerunsPerVersion and resets on a new version", async () => {
-    const s = tempStore();
-    const w = world({ prs: { "Acme/x#1": RERUN_PR } });
-    await runTick(w, s, { rails: { rerunsPerVersion: 1 } });
-    w.clock += 15 * MIN;
-    await runTick(w, s, { rails: { rerunsPerVersion: 1 } });
-    assert.equal(w.effects.length, 1);
-    resume(s, w.clock, { item: "Acme/x#1" });
-    w.prs["Acme/x#1"] = prResponse({ decision: null, head: "b".repeat(40), checks: [cancelled("e2e", 43)] });
-    w.clock += 15 * MIN;
-    await runTick(w, s, { rails: { rerunsPerVersion: 1 } });
-    assert.deepEqual(w.effects, ["rerun Acme/x 42", "rerun Acme/x 43"]);
-  });
-
-  it("never reruns while a run is still in progress or its status is unknown", async () => {
-    for (const st of ["in_progress", "queued", null]) {
-      const s = tempStore();
-      const w = world({ prs: { "Acme/x#1": RERUN_PR }, runs: { "42": st } });
-      await runTick(w, s);
-      assert.deepEqual(w.effects, [], String(st));
-      assert.equal(s.openDispatches().length + s.ledger().length, 0);
-    }
-  });
-
-  it("never reruns while any PR check is pending", async () => {
-    const s = tempStore();
-    const w = world({ prs: { "Acme/x#1": prResponse({ decision: null, checks: [cancelled("e2e", 42), run("t", "IN_PROGRESS", null)] }) } });
-    await runTick(w, s);
-    assert.deepEqual(w.effects, []);
-  });
-
-  it("records a failed rerun, retries next tick, then abandons and pauses the item", async () => {
-    const s = tempStore();
-    const w = world({ prs: { "Acme/x#1": RERUN_PR }, rerunFails: { "42": "HTTP 403" } });
-    const out = (await runTick(w, s, { rails: { maxAttempts: 2 } })).stdout;
-    assert.match(out, /action-failed Acme\/x#1 rerun #1: run 42: HTTP 403/);
-    assert.equal(s.dispatch(1)?.state, "failed");
-    w.clock += 15 * MIN;
-    await runTick(w, s, { rails: { maxAttempts: 2 } });
-    assert.equal(s.dispatch(1)?.attempts, 2);
-    w.clock += 15 * MIN;
-    const third = (await runTick(w, s, { rails: { maxAttempts: 2 } })).stdout;
-    assert.equal(w.effects.length, 2);
-    assert.equal(s.dispatch(1)?.state, "abandoned");
-    assert.match(third, /abandoned Acme\/x#1 rerun #1/);
-    assert.match(third, /## Needs your decision \(1\)\n- Acme\/x#1 paused: dispatch #1 abandoned/);
-  });
-
-  it("asks once when cancelled checks have no Actions run to rerun", async () => {
-    const s = tempStore();
-    const w = world({ prs: { "Acme/x#1": prResponse({ decision: null, checks: [run("ext", "COMPLETED", "CANCELLED", "https://ci.example/1")] }) } });
-    assert.match((await runTick(w, s)).stdout, /needs-decision Acme\/x#1 rerun: cancelled checks have no GitHub Actions run prflow can rerun \(ext\)/);
-    w.clock += 15 * MIN;
-    assert.equal((await runTick(w, s)).stdout, "");
-    assert.deepEqual(w.effects, []);
-  });
-
-  it("does nothing for paused items or a paused prflow", async () => {
-    const s = tempStore();
-    const w = world({ prs: { "Acme/x#1": RERUN_PR } });
-    pause(s, T0, { item: "Acme/x#1" }, "hands off");
-    await runTick(w, s);
-    pause(s, T0, {}, "all off");
-    await runTick(w, s, { dryRun: true });
-    assert.deepEqual(w.effects, []);
-    assert.ok(!events(s).some((e) => e.startsWith("dry-run") || e.startsWith("dispatched")));
-  });
-
-  it("skips a rerun the legacy automation already made at this head", async () => {
-    const s = tempStore();
-    s.addLedger({ at: T0, item: "Acme/x#1", version: HEAD.slice(0, 8), kind: "rerun", outcome: "legacy-dispatched", source: "legacy:pr-comment-watch", ref: "x" });
-    const w = world({ prs: { "Acme/x#1": RERUN_PR } });
-    await runTick(w, s);
-    assert.deepEqual(w.effects, []);
-  });
-});
-
-const WT_REF = "pr view 5 -R acme/x --json number,state,title,url,headRefOid";
-const wtRow = (path: string, pr = 5) => ({ path, branch: `refs/heads/b${pr}`, projectId: "github:acme/x", linkedPR: pr });
-const prRef = (number: number, state: string) => okJson({ number, state, title: `t${number}`, url: `https://github.com/Acme/x/pull/${number}`, headRefOid: "abc" });
 
 describe("cleanup action", () => {
   const merged = (over: Partial<World> = {}) => world({ worktrees: [wtRow("/w/a")], refs: { [WT_REF]: prRef(5, "MERGED") }, ...over });
@@ -278,47 +115,7 @@ describe("cleanup action", () => {
   });
 });
 
-describe("dry run cap", () => {
-  it("announces actions beyond the per-tick cap in later ticks", async () => {
-    const s = tempStore();
-    const paths = ["/w/a", "/w/b", "/w/c"];
-    const w = world({
-      worktrees: paths.map((p, i) => wtRow(p, 5 + i)),
-      refs: Object.fromEntries(paths.map((_, i) => [WT_REF.replace("view 5", `view ${5 + i}`), prRef(5 + i, "MERGED")])),
-    });
-    const dry = async () => (await runTick(w, s, { worktrees: true, dryRun: true, rails: { startsPerTick: 2 } })).stdout.match(/dry-run .*/g) ?? [];
-    assert.equal((await dry()).length, 2);
-    w.clock += 15 * MIN;
-    assert.deepEqual((await dry()).map((l) => l.slice(0, 30)), ["dry-run Acme/x#7 cleanup: woul"]);
-    w.clock += 15 * MIN;
-    assert.deepEqual(await dry(), []);
-    assert.deepEqual(w.effects, []);
-  });
-});
-
 describe("reconcile after a crash", () => {
-  it("settles an interrupted rerun when checks are running again on the same head", async () => {
-    const s = tempStore();
-    const w = world({ prs: { "Acme/x#1": prResponse({ decision: null, checks: [run("e2e", "IN_PROGRESS", null)] }) } });
-    s.createDispatch("Acme/x#1", `${HEAD.slice(0, 8)}-whatever`, "rerun", T0);
-    const out = (await runTick(w, s)).stdout;
-    assert.equal(s.dispatch(1)?.state, "done");
-    assert.match(out, /recovered Acme\/x#1 rerun #1: done: checks are running again on the same head/);
-  });
-
-  it("settles an interrupted multi-run rerun only when every targeted run is running again", async () => {
-    const s = tempStore();
-    const v = `${HEAD.slice(0, 8)}-x`;
-    const d = s.createDispatch("Acme/x#1", v, "rerun", T0);
-    s.transition(d.id, "launched", T0, { leaseUntil: T0 + 45 * MIN, detail: "runs 42,7" });
-    const w = world({ prs: { "Acme/x#1": prResponse({ decision: null, checks: [run("a", "IN_PROGRESS", null, RUN_URL(42)), cancelled("b", 7)] }) } });
-    await runTick(w, s);
-    assert.equal(s.dispatch(1)?.state, "launched", "run 7 was never rerun");
-    w.prs["Acme/x#1"] = prResponse({ decision: null, checks: [run("a", "IN_PROGRESS", null, RUN_URL(42)), run("b", "QUEUED", null, RUN_URL(7))] });
-    w.clock += 15 * MIN;
-    assert.match((await runTick(w, s)).stdout, /recovered Acme\/x#1 rerun #1: done: run 42, 7 running again/);
-  });
-
   it("settles an interrupted cleanup when the worktree is gone", async () => {
     const s = tempStore();
     s.createDispatch("Acme/x#5", "MERGED:/w/a", "cleanup", T0);
@@ -328,8 +125,8 @@ describe("reconcile after a crash", () => {
 
   it("leaves an unconfirmed action open until its lease runs out, then marks it stale", async () => {
     const s = tempStore();
-    const w = world({ prs: { "Acme/x#1": RERUN_PR } });
-    s.createDispatch("Acme/x#1", "deadbeef-00000000", "rerun", T0);
+    const w = world();
+    s.createDispatch("Acme/x#1", "deadbeef-00000000", "cleanup", T0);
     await runTick(w, s);
     assert.equal(s.dispatch(1)?.state, "planned");
     w.clock = T0 + 46 * MIN;

@@ -29,11 +29,10 @@
       "childTimeoutSeconds": 60,
       "leaseMinutes": 45,
       "maxAttempts": 3,
-      "rerunsPerVersion": 2,
       "busyWaitMinutes": 45
     },
     "actions": {
-      "$comment": "prflow.actions.dryRun: tick actions (rerun cancelled CI, archive clean worktrees) are announced only while true. Set false to act.",
+      "$comment": "prflow.actions.dryRun: tick actions (archive clean worktrees) are announced only while true. Set false to act.",
       "dryRun": true
     },
     "dispatch": {
@@ -44,7 +43,7 @@
       ]
     },
     "review": {
-      "$comment": "prflow.review.dryRun: reviewer sessions use one persistent Orca worktree per PR and save per-head drafts under the state directory. Announced only while true; set false to create worktrees and launch reviewers. Tick never posts; use prflow review post <draft-id> --yes, or set orchestrator.review.autoPost. prflow.review.statuses: Orca board status ids for review worktrees. All four are custom columns (Review Draft, Reviewing, Review Changes, Review Approved) you create in Orca; their ids are generated per machine. Read each id with orca-ide worktree current --json (workspaceStatus) from a worktree in that column. See skills/agent/orca-orchestrator/references/board.md.",
+      "$comment": "prflow.review.dryRun: reviewer sessions use one persistent Orca worktree per PR and save per-head drafts under the state directory. Announced only while true; set false to create worktrees and launch reviewers. Tick never posts; publish ready drafts with `/pr review <url>` and the draft's Packet section as the matching packet. prflow.review.statuses: Orca board status ids for review worktrees. All four are custom columns (Review Draft, Reviewing, Review Changes, Review Approved) you create in Orca; their ids are generated per machine. Read each id with orca-ide worktree current --json (workspaceStatus) from a worktree in that column. See skills/agent/orca-orchestrator/references/board.md.",
       "dryRun": true,
       "maxConcurrent": 2,
       "sessionReviews": 5,
@@ -63,7 +62,7 @@
     "ignore": ["my-archived-repo"]
   },
   "orchestrator": {
-    "$comment": "orca-orchestrator bot policy. review.autoPost: when true, each run posts every ready review draft with its draft verdict (prflow review post <id> --event <verdict> --yes) and reports the links; when false (default) drafts are only summarised for the user. ignore: repos (Orca display name, folder name, or owner/repo) the orchestrator never reports on or acts on; default []. Print the effective values with node skills/agent/orca-orchestrator/scripts/config.ts.",
+    "$comment": "orca-orchestrator bot policy. review.autoPost: when true, each run publishes ready review drafts through `/pr review <url>` with the draft's Packet section as the matching packet and reports the links; when false (default) drafts are only summarised for the user. ignore: repos (Orca display name, folder name, or owner/repo) the orchestrator never reports on or acts on; default []. Print the effective values with node skills/agent/orca-orchestrator/scripts/config.ts.",
     "review": { "autoPost": false },
     "ignore": ["my-archived-repo"]
   },

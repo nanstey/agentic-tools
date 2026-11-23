@@ -1,8 +1,8 @@
 /**
  * Review flow for `review-requested`: one persistent Orca worktree per PR,
  * with reviewer dispatches versioned per head. The reviewer writes a DRAFT under the
- * state directory and posts nothing; `prflow review post` (never tick) is the
- * only way a draft reaches GitHub.
+ * state directory and posts nothing; `/pr review` is the only way a draft
+ * reaches GitHub.
  *
  * Act (after the agent flow), per PR where the account is a requested
  * reviewer, not draft, required checks finished, head not yet reviewed:
@@ -96,7 +96,7 @@ export interface LoadedDraft {
   text: string | null;
   draft: Draft | null;
   meta: DraftMeta | null;
-  /** Saved and parseable, so it can be shown and posted. */
+  /** Saved and parseable, so it can be shown and passed to `/pr review`. */
   ok: boolean;
 }
 
@@ -606,7 +606,7 @@ export function makeReviewFlow(deps: TickDeps, store: Store, cfg: Config, templa
         return {
           ...i,
           owner: "you",
-          nextAction: `review draft ready (verdict suggestion ${draft.draft.verdict}, ${n} inline comment${n === 1 ? "" : "s"}): \`prflow review show ${draft.paths.id}\`; nothing is posted until you ask for \`prflow review post ${draft.paths.id} --yes\``,
+          nextAction: `review draft ready (verdict suggestion ${draft.draft.verdict}, ${n} inline comment${n === 1 ? "" : "s"}): \`prflow review show ${draft.paths.id}\`; publish with \`/pr review <pr_url>\` using this saved draft as the matching packet`,
         };
       });
     },

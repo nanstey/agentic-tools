@@ -16,8 +16,6 @@ import type { Dispatch, ItemRow, Store } from "./store.ts";
 export interface TickDeps extends Deps {
   /** Milliseconds since the epoch. */
   now(): number;
-  /** `gh run rerun <runId> --failed -R <repo>` as `login`; the only GitHub write. */
-  rerunFailed(login: string, repo: string, runId: string): Promise<CmdResult>;
   /**
    * Commits in the worktree at `path` that are on no remote, `0` when HEAD is the
    * PR head (`prHeadSha`) or an ancestor of it, `null` when unknown.
@@ -82,7 +80,7 @@ export interface TickDeps extends Deps {
 }
 
 export interface TickOptions {
-  /** No external side effects for the safe actions (rerun, cleanup); they are only announced. */
+  /** No external side effects for cleanup; actions are only announced. */
   dryRun: boolean;
   /** No Pi session is launched, messaged, nudged, or closed; briefs are only announced. Default `true`. */
   dispatchDryRun?: boolean;

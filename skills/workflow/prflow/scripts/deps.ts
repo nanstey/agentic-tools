@@ -1,8 +1,7 @@
-import { resolve } from "node:path";
 import { run as runProcess, withoutTokens } from "../../../../lib/runtime.ts";
 import { blockedStatePath, clearBlocked, readBlocked } from "../../../../lib/blocked.ts";
 import type { CmdResult } from "../../../../lib/runtime.ts";
-import { assertReadOnly, assertRerun, assertReviewPost, rerunArgs, reviewPostArgs } from "./adapters/gh.ts";
+import { assertReadOnly } from "./adapters/gh.ts";
 import { assertDeleteBranch, assertReviewFetch, assertReviewReset, deleteBranchArgs, reviewFetchArgs, reviewResetArgs } from "./adapters/git.ts";
 import { agentListArgs, archiveArgs, assertArchive, assertOrca, assertTaskStatusSet, assertWorktreeName, assertWorktreeSet, assertWorktreeStatusSet, assertWorktreeUnparent, closeArgs, detachedEnv, interruptArgs, launchArgs, reviewWorktreeArgs, sendArgs, taskStatusSetArgs, terminalListArgs, waitIdleArgs, worktreeListArgs, worktreeNameArgs, worktreeSetArgs, worktreeUnparentArgs, worktreeStatusArgs, isReviewBranch } from "./adapters/orca.ts";
 import type { TickDeps } from "./tick.ts";
@@ -47,7 +46,9 @@ function ghAccess() {
   const envFor = (login: string) => {
     let p = envs.get(login);
     if (!p) {
-      p = run("gh", ["auth", "token", "-u", login], withoutTokens()).then(async (tok) => {
+      const args = ["auth", "token", "-u", login];
+      assertReadOnly(args);
+      p = run("gh", args, withoutTokens()).then(async (tok) => {
         if (tok.ok && tok.stdout.trim())
           return { ...withoutTokens(), GH_TOKEN: tok.stdout.trim(), GH_PROMPT_DISABLED: "1" };
         const active = await whoami().catch(() => "");
@@ -65,35 +66,6 @@ function ghAccess() {
     return typeof env === "string" ? { ok: false, stdout: "", stderr: env } : run("gh", args, env);
   };
   return { whoami, envFor, gh };
-}
-
-/**
- * Dependencies of `prflow review post`, the only path that writes a review to
- * GitHub. Tick never builds these; `TickDeps` has no review write.
- */
-export interface PostDeps {
-  now(): number;
-  /** A read-only gh call as `login`. */
-  gh(login: string, args: string[]): Promise<CmdResult>;
-  /** `gh api --method POST repos/<repo>/pulls/<n>/reviews --input <path>` as `login` (`assertReviewPost`). */
-  postReview(login: string, repo: string, number: number, input: string): Promise<CmdResult>;
-}
-
-/** `stateDir`: the post input must be a `post.json` under its `drafts/` folder. */
-export function realPostDeps(stateDir: string): PostDeps {
-  const g = ghAccess();
-  const drafts = `${resolve(stateDir, "drafts")}/`;
-  return {
-    now: () => Date.now(),
-    gh: g.gh,
-    async postReview(login, repo, number, input) {
-      const args = reviewPostArgs(repo, number, input);
-      assertReviewPost(args);
-      if (!resolve(input).startsWith(drafts) || resolve(input) !== input) throw new Error(`prflow: review post input ${input} is not under ${drafts}`);
-      const env = await g.envFor(login);
-      return typeof env === "string" ? { ok: false, stdout: "", stderr: env } : run("gh", args, env);
-    },
-  };
 }
 
 /**
@@ -146,12 +118,6 @@ export function realDeps(): RealDeps {
     async gitDirty(path) {
       const r = await run("git", ["status", "--porcelain"], process.env, path);
       return r.ok ? r.stdout.split("\n").filter(Boolean).length : null;
-    },
-    async rerunFailed(login, repo, runId) {
-      const args = rerunArgs(repo, runId);
-      assertRerun(args);
-      const env = await envFor(login);
-      return typeof env === "string" ? { ok: false, stdout: "", stderr: env } : run("gh", args, env);
     },
     async gitUnpushed(path, prHeadSha) {
       const head = await run("git", ["rev-parse", "HEAD"], process.env, path);

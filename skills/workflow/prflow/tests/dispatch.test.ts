@@ -7,11 +7,11 @@ import type { Store } from "../scripts/store.ts";
 import { MIN, T0, tempStore } from "./state-helpers.ts";
 
 const ctx = (now = T0, rails: Partial<Rails> = {}, tickId = 1): TickContext => ({ now, tickId, rails: { ...DEFAULT_RAILS, ...rails }, starts: 0 });
-const req = (item = "Acme/x#1", version = "aaaaaaaa-11111111", kind: StartRequest["kind"] = "rerun"): StartRequest => ({
+const req = (item = "Acme/x#1", version = "aaaaaaaa-11111111", kind: StartRequest["kind"] = "ci"): StartRequest => ({
   item,
   version,
   kind,
-  event: { type: "rerun", detail: "test" },
+  event: { type: "dispatched", detail: "test" },
 });
 const types = (s: Store) => s.readEventsFrom(0).events.map((e) => `${e.type}${e.item ? ` ${e.item}` : ""}`);
 
@@ -33,7 +33,7 @@ describe("beginDispatch", () => {
     assert.equal(c.starts, 1);
     assert.deepEqual(s.ledger().map((l) => l.outcome), ["started"]);
     const [ev] = s.readEventsFrom(0).events;
-    assert.deepEqual({ ...ev, ts: "" }, { ts: "", type: "rerun", item: "Acme/x#1", version: "aaaaaaaa-11111111", kind: "rerun", dispatchId: r.dispatch.id, sessionHandle: null, detail: "test" });
+    assert.deepEqual({ ...ev, ts: "" }, { ts: "", type: "dispatched", item: "Acme/x#1", version: "aaaaaaaa-11111111", kind: "ci", dispatchId: r.dispatch.id, sessionHandle: null, detail: "test" });
   });
 
   it("is idempotent on (item, version, kind) while open and after done", () => {
@@ -41,7 +41,7 @@ describe("beginDispatch", () => {
     assert.ok(beginDispatch(s, ctx(), req()).ok);
     const again = beginDispatch(s, ctx(), req("acme/X#1"));
     assert.deepEqual(again, { ok: false, reason: "dispatch #1 planned" });
-    const d = s.findDispatch("Acme/x#1", "aaaaaaaa-11111111", "rerun");
+    const d = s.findDispatch("Acme/x#1", "aaaaaaaa-11111111", "ci");
     assert.ok(d);
     finishDispatch(s, T0, s.transition(d.id, "launched", T0), "done", null);
     assert.deepEqual(beginDispatch(s, ctx(), req()), { ok: false, reason: "dispatch #1 done" });
@@ -134,14 +134,14 @@ describe("beginDispatch", () => {
 describe("transition", () => {
   it("rejects transitions the state machine forbids", () => {
     const s = tempStore();
-    const d = s.createDispatch("Acme/x#1", "v", "rerun", T0);
+    const d = s.createDispatch("Acme/x#1", "v", "ci", T0);
     assert.throws(() => s.transition(d.id, "done", T0), /planned -> done is not allowed/);
     assert.throws(() => s.transition(99, "launched", T0), /not found/);
   });
 
   it("renews leases only for open dispatches", () => {
     const s = tempStore();
-    const d = s.transition(s.createDispatch("Acme/x#1", "v", "rerun", T0).id, "launched", T0, { leaseUntil: T0 + MIN });
+    const d = s.transition(s.createDispatch("Acme/x#1", "v", "ci", T0).id, "launched", T0, { leaseUntil: T0 + MIN });
     assert.equal(s.renewLease(d.id, T0 + 10 * MIN, T0 + MIN).leaseUntil, T0 + 10 * MIN);
     s.transition(d.id, "done", T0);
     assert.throws(() => s.renewLease(d.id, T0 + 20 * MIN, T0), /not open/);
@@ -149,8 +149,8 @@ describe("transition", () => {
 
   it("rejects a duplicate (item, version, kind) row", () => {
     const s = tempStore();
-    s.createDispatch("Acme/x#1", "v", "rerun", T0);
-    assert.throws(() => s.createDispatch("acme/x#1", "v", "rerun", T0), /UNIQUE/);
+    s.createDispatch("Acme/x#1", "v", "ci", T0);
+    assert.throws(() => s.createDispatch("acme/x#1", "v", "ci", T0), /UNIQUE/);
   });
 });
 
@@ -158,8 +158,8 @@ describe("reconcile", () => {
   it("marks dispatches stale after the lease and emits session-stale", () => {
     const s = tempStore();
     const c = ctx();
-    const a = s.transition(s.createDispatch("Acme/a#1", "v", "rerun", T0).id, "launched", T0, { leaseUntil: leaseUntil(c.rails, T0) });
-    s.createDispatch("Acme/b#2", "v", "rerun", T0); // planned, crashed before the side effect was confirmed
+    const a = s.transition(s.createDispatch("Acme/a#1", "v", "ci", T0).id, "launched", T0, { leaseUntil: leaseUntil(c.rails, T0) });
+    s.createDispatch("Acme/b#2", "v", "ci", T0); // planned, crashed before the side effect was confirmed
     reconcile(s, ctx(T0 + 44 * MIN));
     assert.equal(s.openDispatches().length, 2);
     reconcile(s, ctx(T0 + 46 * MIN));
@@ -170,7 +170,7 @@ describe("reconcile", () => {
 
   it("settles dispatches the verifier can confirm and emits recovered", () => {
     const s = tempStore();
-    s.createDispatch("Acme/a#1", "v", "rerun", T0);
+    s.createDispatch("Acme/a#1", "v", "ci", T0);
     reconcile(s, ctx(T0 + MIN), () => ({ state: "done", detail: "checks running again" }));
     assert.equal(s.dispatch(1)?.state, "done");
     assert.deepEqual(types(s), ["recovered Acme/a#1"]);

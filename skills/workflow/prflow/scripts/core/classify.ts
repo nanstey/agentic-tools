@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { checkState } from "../../../../../lib/pr-state.ts";
 import {
   KIND_PRIORITY,
   type Actor,
@@ -10,10 +11,6 @@ import {
   type Trigger,
   type WorktreeItem,
 } from "./types.ts";
-
-const BAD_CHECK_RUN = ["FAILURE", "TIMED_OUT", "STARTUP_FAILURE", "ACTION_REQUIRED"];
-const BAD_STATUS = ["FAILURE", "ERROR"];
-const PENDING_STATUS = ["PENDING", "EXPECTED"];
 
 export interface CheckSummary {
   pending: boolean;
@@ -29,12 +26,6 @@ export function jobId(url: string | null, name: string): string {
   return (url ?? "").replace(/.*\//, "") || name;
 }
 
-function isPending(c: Check): boolean {
-  return c.typename === "CheckRun"
-    ? c.status !== "COMPLETED"
-    : PENDING_STATUS.includes(c.state);
-}
-
 /**
  * Summarize checks. Every check counts the same; repo-specific caveats belong in
  * each repo's docs.
@@ -48,19 +39,17 @@ export function summarizeChecks(checks: Check[]): CheckSummary {
     requiredPending: 0,
   };
   for (const c of checks) {
-    if (isPending(c)) {
+    const state = c.typename === "CheckRun"
+      ? checkState({ __typename: "CheckRun", status: c.status, conclusion: c.conclusion })
+      : checkState({ __typename: "StatusContext", state: c.state });
+    if (state === "pending") {
       s.pending = true;
       if (c.isRequired) s.requiredPending++;
       continue;
     }
-    const conclusion = c.typename === "CheckRun" ? c.conclusion : c.state;
-    const bad =
-      c.typename === "CheckRun"
-        ? BAD_CHECK_RUN.includes(conclusion ?? "")
-        : BAD_STATUS.includes(conclusion ?? "");
     const id = jobId(c.url, c.name);
-    if (bad) s.failed.push(id);
-    else if (conclusion === "CANCELLED") s.cancelled.push(id);
+    if (state === "fail") s.failed.push(id);
+    else if (state === "cancelled") s.cancelled.push(id);
   }
   return s;
 }
@@ -158,7 +147,7 @@ export function authorTriggers(pr: PrSnapshot, me: string): Trigger[] {
   const s = summarizeChecks(pr.checks);
   if (!s.pending) {
     if (s.failed.length) out.push({ kind: "ci", detail: [...s.failed].sort().join(",") });
-    else if (s.cancelled.length) out.push({ kind: "rerun", detail: [...s.cancelled].sort().join(",") });
+    else if (s.cancelled.length) out.push({ kind: "ci", detail: `cancelled: ${[...s.cancelled].sort().join(",")}` });
     else if (pr.mergeStateStatus === "BEHIND" || pr.mergeStateStatus === "DIRTY")
       out.push({ kind: "behind" });
     else if (pr.mergeStateStatus === "CLEAN" && pr.reviewDecision === "APPROVED")
@@ -180,8 +169,7 @@ export function version(pr: PrSnapshot): string {
 }
 
 const TRIGGER_KIND: Record<Trigger["kind"], Kind> = {
-  merge: "merge-ready",
-  rerun: "rerun",
+  merge: "mergeable",
   ci: "ci",
   comments: "comments",
   behind: "behind",
@@ -202,16 +190,14 @@ function checkStatus(pr: PrSnapshot): string {
 
 function authorPlan(kind: Kind, t: Trigger | undefined): Pick<Classification, "nextAction" | "owner"> {
   switch (kind) {
-    case "merge-ready":
-      return { nextAction: "ready for you to merge (prflow never merges)", owner: "you" };
-    case "rerun":
-      return { nextAction: `gh run rerun --failed (${t?.detail ?? ""})`, owner: "prflow" };
+    case "mergeable":
+      return { nextAction: "GitHub reports approved, checks green, and merge state CLEAN; run /pr to decide readiness", owner: "you" };
     case "ci":
-      return { nextAction: `send CI fix brief, following the repo's CI docs (${t?.detail ?? ""})`, owner: "agent" };
+      return { nextAction: `send PR lifecycle brief (${t?.detail ?? ""})`, owner: "agent" };
     case "comments":
-      return { nextAction: `send fix-and-reply brief (latest ${t?.detail ?? ""})`, owner: "agent" };
+      return { nextAction: `send /pr lifecycle brief (latest ${t?.detail ?? ""})`, owner: "agent" };
     case "behind":
-      return { nextAction: "send brief to rebase onto the base", owner: "agent" };
+      return { nextAction: "send /pr lifecycle brief", owner: "agent" };
     default:
       return { nextAction: "none", owner: "others" };
   }
@@ -236,6 +222,7 @@ function base(pr: PrSnapshot) {
     role: pr.role,
     account: pr.account,
     checksPending: summarizeChecks(pr.checks).pending,
+    isDraft: pr.isDraft,
   };
 }
 

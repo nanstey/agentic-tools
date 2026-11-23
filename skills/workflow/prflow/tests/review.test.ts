@@ -8,8 +8,7 @@ import { importLegacy, pause, recover } from "../scripts/commands.ts";
 import { SKILL_DIR } from "../scripts/config.ts";
 import type { Config } from "../scripts/core/config.ts";
 import { draftPaths, makeReviewFlow } from "../scripts/review.ts";
-import { commentKey, recordPosted, textHash } from "../scripts/revisions.ts";
-import { parseDraft } from "../scripts/core/draft.ts";
+import { textHash } from "../scripts/revisions.ts";
 import type { Store } from "../scripts/store.ts";
 import { tick, type TickDeps } from "../scripts/tick.ts";
 import { AFTER, alice, DRAFT, HEAD, ME, ok, prResponse, review, run, user } from "./fixtures.ts";
@@ -94,13 +93,12 @@ describe("review dispatch: dry run", () => {
   it("is the default and announces the exact target and brief once, creating nothing", async () => {
     const { w, s } = setup();
     const out = (await runTick(w, s, { omitFlag: true })).stdout;
-    assert.match(out, new RegExp(`dry-run Acme/x#5 review-requested: would create top-level Orca worktree prflow-review-${SLUG} on branch prflow-review/${SLUG} \\(orca-ide worktree create --repo id:rid1 --name prflow-review-${SLUG} --branch prflow-review/${SLUG} --pr 5 --no-parent --setup run --json, without the caller's Orca identity\\) for Acme/x, name it feature, then fetch origin pull/5/head, reset --hard ${HEAD}, verify HEAD, and launch a fresh Pi reviewer there; set status reviewing, comment reviewing ${H8}; draft Acme-x-5-${H8} to ${s.dir.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/drafts/Acme-x-5/${H8}/review\\.md; brief review v2:\\n# Draft a review of Acme/x#5 at ${H8}`));
-    assert.match(out, /run `\/pr review https:\/\/github\.com\/Acme\/widgets\/pull\/1 report`\. Report mode never publishes\./);
+    assert.match(out, new RegExp(`dry-run Acme/x#5 review-requested: would create top-level Orca worktree prflow-review-${SLUG} on branch prflow-review/${SLUG} \\(orca-ide worktree create --repo id:rid1 --name prflow-review-${SLUG} --branch prflow-review/${SLUG} --pr 5 --no-parent --setup run --json, without the caller's Orca identity\\) for Acme/x, name it feature, then fetch origin pull/5/head, reset --hard ${HEAD}, verify HEAD, and launch a fresh Pi reviewer there; set status reviewing, comment reviewing ${H8}; draft Acme-x-5-${H8} to ${s.dir.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/drafts/Acme-x-5/${H8}/review\\.md; brief review v4:\\n# Draft a review of Acme/x#5 at ${H8}`));
+    assert.match(out, /Run `\/pr review https:\/\/github\.com\/Acme\/widgets\/pull\/1 report`/);
     assert.match(out, /Do not post anything to GitHub/);
     assert.match(out, /orca-ide worktree set --worktree active --workspace-status <id> --comment/);
-    assert.match(out, /### path\/to\/other\.ext:10-14/);
+    assert.match(out, /### src\/auth\.ts:12-14/);
     assert.match(out, new RegExp(`reset --hard ${HEAD}`));
-    assert.match(out, /Use `GH_TOKEN="\$\(gh auth token -u octocat\)"` on every `gh` call\. Never run `gh auth switch`\./);
     assert.match(out, /Do not change your own workflow, skills, prompts, or agent configuration/);
     assert.deepEqual(w.effects, []);
     assert.deepEqual(s.openDispatches(), []);
@@ -157,7 +155,7 @@ describe("review dispatch: live", () => {
       },
     };
     const out = (await runTick(w, s, { live: true, deps })).stdout;
-    assert.match(seen[0] ?? "", /^planned dispatched #1: brief review v2: create top-level Orca worktree prflow-review-x-5 .*; set status reviewing, comment reviewing c0ffee11 meta=true$/);
+    assert.match(seen[0] ?? "", /^planned dispatched #1: brief review v4: create top-level Orca worktree prflow-review-x-5 .*; set status reviewing, comment reviewing c0ffee11 meta=true$/);
     // The new worktree shows reviewing in the same tick, not Orca's default column until the next one.
     assert.deepEqual(w.effects, [`create-worktree ${SLUG}`, `name ${RPATH} feature`, `review-fetch ${RPATH} 5`, `review-reset ${RPATH} ${HEAD}`, `launch ${RWT}`, `status ${RPATH} reviewing reviewing ${H8} `]);
     const d = s.dispatch(1);
@@ -529,7 +527,7 @@ describe("review dispatch: draft and reap", () => {
     assert.match(out, new RegExp(`review-drafted Acme/x#5 review-requested #1: draft ${id}: verdict suggestion request-changes, 2 inline comments, .*/drafts/Acme-x-5/${H8}/review\\.md`));
     assert.doesNotMatch(out, /archived Acme\/x#5/);
     assert.equal(w.effects.some((e) => e.startsWith("archive") || e.startsWith("delete-branch")), false);
-    assert.match(out, new RegExp(`## Needs your decision \\(1\\)\\n- Acme/x#5 "Fixture PR" \\| review-requested: .* \\| next: review draft ready \\(verdict suggestion request-changes, 2 inline comments\\): \`prflow review show ${id}\`; nothing is posted until you ask for \`prflow review post ${id} --yes\` \\| owner: you`));
+    assert.match(out, /publish with `\/pr review <pr_url>` using this saved draft as the matching packet/);
     w.clock += 15 * MIN;
     assert.equal((await runTick(w, s, { live: true })).stdout, "");
     assert.equal(w.effects.some((e) => e.startsWith("archive")), false);
@@ -676,10 +674,11 @@ describe("review worktree status sync", () => {
 
 describe("review draft revisions", () => {
   const APPROVE = DRAFT.replace("Verdict: request-changes", "Verdict: approve").replace("One blocking finding: F1 in src/a.ts.", "Fixed; approving.");
-  /** prflow posted the draft as it is now (revision `rev`). */
+  /** Legacy revision metadata read from before publication moved to the `pr` skill. */
   function markPosted(s: Store, text: string, rev: number, event: string) {
     const p = draftPaths(s.dir, "Acme/x", 5, H8);
-    recordPosted(s, p, { rev, hash: textHash(text), event, at: T0, comments: parseDraft(text).comments.map(commentKey) });
+    mkdirSync(p.dir, { recursive: true });
+    writeFileSync(join(p.dir, "posted.json"), `${JSON.stringify({ revisions: [{ rev, hash: textHash(text), event, at: T0, comments: [] }] })}\n`);
   }
 
   it("a draft rewritten after its post is a new revision that wins status sync until it is posted", async () => {
@@ -858,21 +857,8 @@ describe("tick can never post a review", () => {
     assert.equal(s.dispatch(1)?.state, "done");
     assert.equal(used.has("postReview"), false);
     assert.equal(ghCalls.some((a) => a.some((x) => /\/reviews\b|addPullRequestReview|submitPullRequestReview|--method|-X/.test(x))), false);
-    assert.equal(types(s).includes("review-posted"), false);
   });
 
-  it("has no review write in TickDeps, and no tick module imports the post path", () => {
-    // @ts-expect-error TickDeps has no postReview; only PostDeps (prflow review post) does.
-    const k: keyof TickDeps = "postReview";
-    assert.equal(k, "postReview");
-    for (const f of ["tick.ts", "agents.ts", "review.ts", "actions.ts", "dispatch.ts", "scan.ts", "commands.ts", "store.ts"]) {
-      const src = readFileSync(join(SKILL_DIR, "scripts", f), "utf8");
-      assert.doesNotMatch(src, /review-cmd|realPostDeps|postReview|reviewPostArgs|assertReviewPost/, f);
-    }
-    const cli = readFileSync(join(SKILL_DIR, "scripts", "prflow.ts"), "utf8");
-    assert.equal(cli.match(/realPostDeps\(/g)?.length, 1);
-    assert.match(cli, /if \(sub === "post" && positionals\.length === 3\) \{[\s\S]*?realPostDeps\(resolve\(stateDir\)\)/);
-  });
 });
 
 describe("report noise", () => {

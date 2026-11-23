@@ -6,7 +6,7 @@ describe("parseLegacy", () => {
   it("parses pr-comment-watch lines with kind and optional detail", () => {
     const { entries, bad } = parseLegacy(
       "pr-comment-watch",
-      ["Acme/x#271@9cc2a137:comments:2026-09-24T19:10:57Z", "Acme/x#271@9cc2a137:ci", "Acme/x#2@aaaaaaaa:merge", "Acme/x#3@bbbbbbbb:behind", "Acme/x#4@cccccccc:rerun", "Acme/x#271@9cc2a137:ci", ""].join("\n"),
+      ["Acme/x#271@9cc2a137:comments:2026-09-24T19:10:57Z", "Acme/x#271@9cc2a137:ci", "Acme/x#2@aaaaaaaa:merge", "Acme/x#3@bbbbbbbb:behind", "Acme/x#4@cccccccc:ci", "Acme/x#271@9cc2a137:ci", ""].join("\n"),
     );
     assert.deepEqual(bad, []);
     assert.deepEqual(
@@ -14,9 +14,9 @@ describe("parseLegacy", () => {
       [
         ["Acme/x#271", "9cc2a137", "comments", "2026-09-24T19:10:57Z"],
         ["Acme/x#271", "9cc2a137", "ci", null],
-        ["Acme/x#2", "aaaaaaaa", "merge-ready", null],
+        ["Acme/x#2", "aaaaaaaa", "mergeable", null],
         ["Acme/x#3", "bbbbbbbb", "behind", null],
-        ["Acme/x#4", "cccccccc", "rerun", null],
+        ["Acme/x#4", "cccccccc", "ci", null],
       ],
     );
   });
@@ -27,7 +27,7 @@ describe("parseLegacy", () => {
   });
 
   it("rejects unknown kinds, kinds in pr-watch, and malformed lines", () => {
-    assert.deepEqual(parseLegacy("pr-comment-watch", "A/x#1@aaaaaaaa:explode\nA/x#1@aaaaaaaa\nnope").bad, ["A/x#1@aaaaaaaa:explode", "A/x#1@aaaaaaaa", "nope"]);
+    assert.deepEqual(parseLegacy("pr-comment-watch", "A/x#1@aaaaaaaa:explode\nA/x#1@aaaaaaaa:rerun\nA/x#1@aaaaaaaa\nnope").bad, ["A/x#1@aaaaaaaa:explode", "A/x#1@aaaaaaaa:rerun", "A/x#1@aaaaaaaa", "nope"]);
     assert.deepEqual(parseLegacy("pr-watch", "A/x#1@aaaaaaaa:ci\nA/x#1@zz").bad, ["A/x#1@aaaaaaaa:ci", "A/x#1@zz"]);
   });
 });

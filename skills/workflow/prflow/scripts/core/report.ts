@@ -3,8 +3,8 @@ import type { Classification, Kind } from "./types.ts";
 
 /** Report groups, most urgent first. Phase 1 has no sessions, so "In flight" is always empty. */
 export const GROUPS: readonly { title: string; kinds: readonly Kind[] }[] = [
-  { title: "Needs your decision", kinds: ["merge-ready"] },
-  { title: "Ready to act", kinds: ["rerun", "ci", "comments", "behind", "review-requested"] },
+  { title: "Needs your decision", kinds: ["mergeable"] },
+  { title: "Ready to act", kinds: ["ci", "comments", "behind", "review-requested"] },
   { title: "Blocked on others", kinds: ["waiting"] },
   { title: "Cleanup", kinds: ["cleanup"] },
 ];
@@ -27,8 +27,15 @@ export function row(c: Classification, showAccount = false, changed: string | nu
   return `- ${c.repo}#${c.number} ${JSON.stringify(c.title)} | ${c.kind}: ${c.status}${diff} | next: ${c.nextAction} | owner: ${c.owner}${acct}${notes}`;
 }
 
+/**
+ * Own draft PRs are scanned only so an open dispatch can follow a PR that its
+ * session drafted; they are not report rows, as before drafts were scanned.
+ */
+const shown = (items: Classification[]): Classification[] => items.filter((c) => !(c.role === "author" && c.isDraft));
+
 /** Text report grouped by status and next action. Empty groups are omitted. */
-export function renderReport(items: Classification[]): string {
+export function renderReport(all: Classification[]): string {
+  const items = shown(all);
   const showAccount = new Set(items.map((c) => c.account)).size > 1;
   const out: string[] = [];
   for (const g of GROUPS) {
@@ -117,13 +124,14 @@ const decided = (c: Classification) => c.kind === "review-requested" && c.owner 
  * Ready to act, In flight, Blocked on others, Cleanup. Empty string when there is
  * nothing to show.
  */
-export function renderTickReport(items: Classification[], x: TickExtras): string {
+export function renderTickReport(all: Classification[], x: TickExtras): string {
+  const items = shown(all);
   const showAccount = new Set(items.map((c) => c.account)).size > 1;
   const render = (list: Classification[]) => sortItems(list).map((c) => row(c, showAccount, x.changes?.get(c.key.toLowerCase()) ?? null));
   const rows = (kinds: readonly Kind[]) => render(items.filter((c) => kinds.includes(c.kind) && !decided(c)));
   const sections: [string, string[]][] = [
-    ["Needs your decision", [...rows(["merge-ready"]), ...render(items.filter(decided)), ...x.paused]],
-    ["Ready to act", rows(["rerun", "ci", "comments", "behind", "review-requested"])],
+    ["Needs your decision", [...rows(["mergeable"]), ...render(items.filter(decided)), ...x.paused]],
+    ["Ready to act", rows(["ci", "comments", "behind", "review-requested"])],
     ["In flight", x.inFlight],
     ["Blocked on others", rows(["waiting"])],
     ["Cleanup", rows(["cleanup"])],

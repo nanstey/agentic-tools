@@ -1,16 +1,17 @@
 #!/usr/bin/env node
 import { closeSync, mkdirSync, openSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join } from "node:path";
 import { parseArgs } from "node:util";
 import { readOrNull } from "../../../../lib/runtime.ts";
 import { summarizeChecks, version } from "./core/classify.ts";
 import { renderReport, sortItems } from "./core/report.ts";
 import type { PrSnapshot } from "./core/types.ts";
-import { realDeps, realPostDeps } from "./deps.ts";
-import { VERDICTS, type Verdict } from "./core/draft.ts";
+import { parsePr, prArgs } from "./adapters/gh.ts";
+import { realDeps, type RealDeps } from "./deps.ts";
+import type { DraftMeta } from "./core/draft.ts";
 import { makeReviewFlow } from "./review.ts";
-import { listDrafts, postDraft, renderDraftList, showDraft } from "./review-cmd.ts";
+import { listDrafts, renderDraftList, showDraft } from "./review-cmd.ts";
 import { plan, scan, type ScanResult } from "./scan.ts";
 import { decideWatch, fingerprint } from "./core/watch.ts";
 import { importLegacy, pause, recover, renderStatus, resume, status, type LegacyFile } from "./commands.ts";
@@ -69,7 +70,7 @@ const USAGE = `Usage: prflow <command> [options]
   tick           For schedulers: scan, reconcile, act, and report. Prints new
                  events since the last tick, then the report when it changed;
                  nothing when nothing happened. Exit 1 on failure. Actions
-                 (rerun, worktree cleanup) run only when the config sets
+                 (worktree cleanup) run only when the config sets
                  "actions": {"dryRun": false}; Pi dispatch (ci, comments,
                  behind briefs) only when it sets "dispatch": {"dryRun":
                  false}; reviewer sessions (review-requested) only when it
@@ -86,12 +87,7 @@ const USAGE = `Usage: prflow <command> [options]
                  next tick retries it while the PR still needs that work.
   review list    List saved review drafts.
   review show <draft-id>
-                 Print one draft and what posting it would send.
-  review post <draft-id> [--event comment|approve|request-changes] --yes
-                 Post one draft as a GitHub review, pinned to the reviewed
-                 commit, as the draft's account. The only GitHub review write;
-                 tick never calls it. Refuses without --yes. Default event:
-                 comment.
+                 Print one saved draft and its GitHub-derived posted status.
   import-legacy  Import the legacy automations' dispatched.txt files into the
                  ledger (idempotent; reads them only).
   config         Print the resolved accounts and where they came from.
@@ -119,9 +115,6 @@ Options:
   --dry-run                  tick: announce actions, Pi dispatches, reviewer
                              sessions, and worktree column moves without running
                              them, even when the config enables them
-  --event <event>            review post: comment (default), approve, or
-                             request-changes
-  --yes                      review post: really post
   -h, --help                 Show this help`;
 
 function scanLine(p: PrSnapshot): string {
@@ -159,9 +152,20 @@ async function watch(statePath: string, runScan: () => Promise<ScanResult>): Pro
 }
 
 const COMMANDS = ["scan", "plan", "watch", "tick", "status", "pause", "resume", "recover", "review", "import-legacy", "config"];
+const readDraftPr = (deps: RealDeps) => async (meta: DraftMeta) => {
+  const r = await deps.gh(meta.account, prArgs(meta.repo, meta.number));
+  if (!r.ok) throw new Error(`cannot read ${meta.item}: ${r.stderr.trim()}`);
+  const pr = parsePr(r.stdout, meta.repo, meta.number, "reviewer", meta.account);
+  if (!pr) throw new Error(`cannot read ${meta.item}: PR not found`);
+  return pr;
+};
 const ITEM_KEY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+#\d+$/;
 
 async function main(argv: string[]): Promise<number> {
+  if (argv[0] === "review" && argv[1] === "post") {
+    console.error("unknown command: prflow review post");
+    return 2;
+  }
   const { values, positionals } = parseArgs({
     args: argv,
     allowPositionals: true,
@@ -180,8 +184,6 @@ async function main(argv: string[]): Promise<number> {
       all: { type: "boolean", default: false },
       reason: { type: "string" },
       "dry-run": { type: "boolean", default: false },
-      event: { type: "string", default: "comment" },
-      yes: { type: "boolean", default: false },
       help: { type: "boolean", short: "h", default: false },
     },
   });
@@ -226,27 +228,17 @@ async function main(argv: string[]): Promise<number> {
     const sub = positionals[1] ?? "";
     const id = positionals[2] ?? "";
     if (sub === "list" && positionals.length === 2) {
-      const rows = withStore((store) => listDrafts(store));
+      const deps = realDeps();
+      const rows = await withStore((store) => listDrafts(store, readDraftPr(deps)));
       console.log(format === "json" ? JSON.stringify(rows, null, 2) : renderDraftList(rows));
       return 0;
     }
     if (sub === "show" && positionals.length === 3) {
-      console.log(withStore((store) => showDraft(store, id)));
+      const deps = realDeps();
+      console.log(await withStore((store) => showDraft(store, id, readDraftPr(deps))));
       return 0;
     }
-    if (sub === "post" && positionals.length === 3) {
-      const event = values.event as Verdict;
-      if (!VERDICTS.includes(event)) throw new Error("--event must be comment, approve, or request-changes");
-      const store = Store.open(stateDir);
-      try {
-        const r = await postDraft(store, realPostDeps(resolve(stateDir)), id, { event, yes: values.yes });
-        (r.code === 0 ? console.log : console.error)(r.out);
-        return r.code;
-      } finally {
-        store.close();
-      }
-    }
-    throw new Error("usage: prflow review list | show <draft-id> | post <draft-id> [--event comment|approve|request-changes] --yes");
+    throw new Error("unknown command: prflow review " + sub + "; usage: prflow review list | show <draft-id>");
   }
   if (cmd === "import-legacy") {
     const base = process.env.XDG_STATE_HOME || join(homedir(), ".local", "state");

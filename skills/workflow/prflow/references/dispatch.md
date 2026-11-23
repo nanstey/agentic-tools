@@ -12,9 +12,8 @@ reuse this monitor and recovery; see `references/review.md`. Code: `scripts/agen
 | `prflow.dispatch.dryRun` | `true` | No launch, message, nudge, or close. Each brief is announced once per item version as a `dry-run` event with its exact target and text |
 | `tick --dry-run` | off | Forces dry run for both the safe actions and dispatch |
 
-`prflow.dispatch.dryRun` is separate from `prflow.actions.dryRun`, so reruns and cleanup can
-go live while dispatch stays announced. Keep dispatch in dry run while any
-other automation still sends the same briefs.
+Set `prflow.dispatch.dryRun` to `false` to launch or message sessions. Keep
+dispatch in dry run while another automation still sends the same briefs.
 
 ## Orca calls
 
@@ -51,9 +50,9 @@ instead of sending it half-filled.
 
 | Kind | Details filled in |
 | --- | --- |
-| `ci` | Each failed check: name, log URL, and up to 20 error lines from `gh run view --job <id> --log-failed` (first 5 Actions jobs) |
+| `ci` | Each failed or cancelled check: name, log URL, and up to 20 error lines from `gh run view --job <id> --log-failed` (first 5 Actions jobs) |
 | `comments` | Human comments and reviews newer than the head commit and the author's last reply, and unresolved threads whose last comment is a human's: author, `file:line`, URL, text. Informational approvals are left out |
-| `behind` | BEHIND or DIRTY. The brief has the agent read the PR's current base (`gh pr view --json baseRefName`), rebase onto `origin/<base>` (dropping merged parent commits in a stack), and push with `--force-with-lease`, the only force-push any brief allows |
+| `behind` | BEHIND or DIRTY merge state; the brief runs `/pr <url>` |
 | `nudge` | Sent once to an idle session whose work is unfinished |
 | `restart` | Wraps a full brief for a session prflow restarts in place: why, then a request for an immediate update (what it was doing, what is done, what is left) before it starts again |
 

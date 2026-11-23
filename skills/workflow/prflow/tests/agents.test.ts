@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import { makeAct, makeVerify } from "../scripts/actions.ts";
+import { parsePr } from "../scripts/adapters/gh.ts";
+import { authorTriggers } from "../scripts/core/classify.ts";
 import { chooseTarget, loadTemplates, makeAgentFlow } from "../scripts/agents.ts";
 import { pause, recover } from "../scripts/commands.ts";
 import { SKILL_DIR } from "../scripts/config.ts";
@@ -54,15 +56,22 @@ describe("agent dispatch: dry run", () => {
   it("is the default and announces the exact brief and target once, sending nothing", async () => {
     const { w, s } = setup(CI_PR);
     const out = (await runTick(w, s, { omitDispatchFlag: true })).stdout;
-    assert.match(out, /dry-run Acme\/x#1 ci: would launch a fresh Pi session in \/w\/x1; brief ci v1:\n# Fix failing CI on Acme\/x#1/);
+    assert.match(out, /dry-run Acme\/x#1 ci: would launch a fresh Pi session in \/w\/x1; brief ci v3:\n# CI needs attention on Acme\/x#1/);
     assert.match(out, /- \*\*test\*\*: https:\/\/github\.com\/Acme\/x\/actions\/runs\/42\/job\/777/);
     assert.match(out, /Error: expected 2, got 3/);
-    assert.match(out, /Never merge, enable auto-merge, approve, dismiss reviews, or force-push\./);
+    assert.match(out, /Run `\/pr https:\/\/github\.com\/Acme\/widgets\/pull\/1` for the full PR lifecycle\./);
     assert.match(out, /Do not change your own workflow, skills, prompts, or agent configuration/);
     assert.deepEqual(w.effects, []);
     assert.deepEqual(s.openDispatches(), []);
     w.clock += 15 * MIN;
     assert.equal((await runTick(w, s, { omitDispatchFlag: true })).stdout, "");
+  });
+
+  it("lists a STALE check as a failed job", async () => {
+    const stale = prResponse({ decision: null, checks: [run("stale-job", "COMPLETED", "STALE", JOB)] });
+    const { w, s } = setup(stale);
+    const out = (await runTick(w, s)).stdout;
+    assert.ok(out.includes(`- **stale-job**: ${JOB}`));
   });
 
   it("names the idle session it would message, and waits silently while one is busy", async () => {
@@ -71,10 +80,9 @@ describe("agent dispatch: dry run", () => {
     w.agents = [agent("s1", "t1", "done", T0 - MIN, "all done")];
     w.clock += 15 * MIN;
     const out = (await runTick(w, s)).stdout;
-    assert.match(out, /dry-run Acme\/x#1 behind: would message idle Pi session term_a in \/w\/x1 with orchestration send; brief behind v2/);
-    assert.match(out, /It was `main` when this brief was written/);
-    assert.match(out, /rebase `feature` onto `origin\/<base>`/);
-    assert.match(out, /git push --force-with-lease origin feature/);
+    assert.match(out, /dry-run Acme\/x#1 behind: would message idle Pi session term_a in \/w\/x1 with orchestration send; brief behind v4/);
+    assert.match(out, /GitHub reports the branch as BEHIND `main`/);
+    assert.match(out, /Run `\/pr https:\/\/github\.com\/Acme\/widgets\/pull\/1` for the full PR lifecycle\./);
     assert.deepEqual(w.effects, []);
   });
 
@@ -98,7 +106,7 @@ describe("agent dispatch: dry run", () => {
     const out = (await runTick(w, s)).stdout;
     assert.match(out, /- \*\*alice\*\* commented \(2026-01-10 13:00Z\) https:\/\/github\.com\/Acme\/x\/pull\/1#c1\n {2}> comment 1/);
     assert.match(out, /- Unresolved thread on `src\/a\.ts:7`, last comment https:\/\/github\.com\/Acme\/x\/pull\/1#c2\n {2}- \*\*alice\*\* \(2026-01-10 14:00Z\)/);
-    assert.match(out, /Reply to each item you addressed/);
+    assert.match(out, /Run `\/pr https:\/\/github\.com\/Acme\/widgets\/pull\/1`/);
   });
 });
 
@@ -132,12 +140,12 @@ describe("agent dispatch: live", () => {
       },
     };
     const out = (await runTick(w, s, { live: true, deps })).stdout;
-    assert.deepEqual(seen, ["launched dispatched #1: brief ci v1: launch a fresh Pi session in /w/x1"]);
+    assert.deepEqual(seen, ["launched dispatched #1: brief ci v3: launch a fresh Pi session in /w/x1"]);
     assert.deepEqual(w.effects, [`launch ${WT}`]);
     const d = s.dispatch(1);
     assert.equal(d?.state, "launched");
     assert.equal(d?.sessionHandle, "term_new1");
-    assert.match(w.sent[0] ?? "", /^launch repo1::\/w\/x1 \| # Fix failing CI on Acme\/x#1/);
+    assert.match(w.sent[0] ?? "", /^launch repo1::\/w\/x1 \| # CI needs attention on Acme\/x#1/);
     assert.match(out, /## In flight \(1\)\n- Acme\/x#1 ci #1 \| session term_new1 \| launched \| age 0m \| lease until 17:45Z \| attempt 1/);
   });
 
@@ -145,14 +153,14 @@ describe("agent dispatch: live", () => {
     const { w, s } = setup(CI_PR, { terminals: { [WT]: [term("term_a", "t1", T0 - 60 * MIN)] }, agents: [agent("s1", "t1", "done", T0 - 60 * MIN)] });
     await runTick(w, s, { live: true });
     assert.deepEqual(w.effects, ["send term_a"]);
-    assert.match(w.sent[0] ?? "", /^term_a \| prflow: ci on Acme\/x#1 \| # Fix failing CI/);
+    assert.match(w.sent[0] ?? "", /^term_a \| prflow: ci on Acme\/x#1 \| # CI needs attention/);
     assert.equal(s.dispatch(1)?.sessionHandle, "term_a");
   });
 
   it("never prompts a busy session: the dispatch stays planned until it is idle", async () => {
     const { w, s } = setup(CI_PR, { terminals: { [WT]: [term("term_a", "t1", T0)] }, agents: [agent("s1", "t1", "working", T0)] });
     const out = (await runTick(w, s, { live: true })).stdout;
-    assert.match(out, /dispatched Acme\/x#1 ci #1: brief ci v1: planned; wait: Pi session term_a is working/);
+    assert.match(out, /dispatched Acme\/x#1 ci #1: brief ci v3: planned; wait: Pi session term_a is working/);
     assert.deepEqual(w.effects, []);
     assert.equal(s.dispatch(1)?.state, "planned");
 
@@ -187,7 +195,7 @@ describe("agent dispatch: live", () => {
     w.terminals[WT] = [term("term_new1", "tab1", T0), term("term_b", "tb", w.clock)];
     w.agents = [agent("s9", "tab1", "done", T0), agent("sb", "tb", "working", w.clock)];
     const out = (await runTick(w, s, { live: true })).stdout;
-    assert.match(out, /dispatched Acme\/x#1 ci #1: brief ci v1: planned; wait: Pi session term_b is working/);
+    assert.match(out, /dispatched Acme\/x#1 ci #1: brief ci v3: planned; wait: Pi session term_b is working/);
     assert.equal(s.dispatch(1)?.state, "planned");
     assert.equal(s.dispatch(1)?.attempts, 2);
     w.agents = [agent("s9", "tab1", "done", T0), agent("sb", "tb", "done", w.clock)];
@@ -294,7 +302,7 @@ describe("agent dispatch: live", () => {
     const msg = w.sent.at(-1) ?? "";
     assert.match(msg, /^term_new1 \| prflow: ci on Acme\/x#1 \| prflow is restarting work on Acme\/x#1 in this session/);
     assert.match(msg, /First, before anything else, reply with an immediate update/);
-    assert.match(msg, /# Fix failing CI on Acme\/x#1/);
+    assert.match(msg, /# CI needs attention on Acme\/x#1/);
     assert.match(msg, /This is attempt 2\. Attempt 1 ended: still working 45m after the brief/);
   });
 
@@ -314,7 +322,7 @@ describe("agent dispatch: live", () => {
     assert.ok(w.calls.some((c) => c.join(" ") === "orca terminal wait term_a"));
     assert.equal(s.dispatch(1)?.state, "launched");
     assert.equal(s.dispatch(1)?.attempts, 1);
-    assert.match(w.sent.at(-1) ?? "", /immediate update[\s\S]*# Fix failing CI/);
+    assert.match(w.sent.at(-1) ?? "", /immediate update[\s\S]*# CI needs attention/);
   });
 
   it("never interrupts when several Pi sessions are busy, and gives up one lease later", async () => {
@@ -498,6 +506,21 @@ describe("agent dispatch: live", () => {
     assert.deepEqual(w.effects, []);
   });
 
+  it("keeps an open dispatch active when the PR becomes a draft", async () => {
+    const { w, s } = setup(CI_PR);
+    await runTick(w, s, { live: true });
+    w.prs[KEY] = prResponse({ isDraft: true, decision: null, checks: [ok("lint"), run("test", "COMPLETED", "FAILURE", JOB)] });
+    w.terminals[WT] = [term("term_new1", "tab1", T0)];
+    w.agents = [agent("s9", "tab1", "done", T0, "still working")];
+    w.clock += 5 * MIN;
+    await runTick(w, s, { live: true });
+    assert.ok(s.openDispatches().some((d) => d.id === 1));
+    assert.doesNotMatch(events(s).join("\\n"), /session-finished/);
+    const draft = parsePr(JSON.stringify(w.prs[KEY]), "Acme/x", 1, "author", "octocat");
+    assert.ok(draft);
+    assert.deepEqual(authorTriggers(draft, "octocat"), []);
+  });
+
   it("finishes when the PR leaves the scan while the session is gone", async () => {
     const { w, s } = setup(CI_PR);
     await runTick(w, s, { live: true });
@@ -505,7 +528,7 @@ describe("agent dispatch: live", () => {
     w.terminals[WT] = [];
     w.clock += 10 * MIN;
     const out = (await runTick(w, s, { live: true })).stdout;
-    assert.match(out, /session-finished Acme\/x#1 ci #1: the PR is no longer an open, non-draft PR of yours; session term_new1 is gone/);
+    assert.match(out, /session-finished Acme\/x#1 ci #1: the PR is no longer open; session term_new1 is gone/);
   });
 
   it("uses the head sha in the brief", async () => {

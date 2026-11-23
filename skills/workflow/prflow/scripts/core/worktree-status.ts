@@ -1,13 +1,12 @@
 /**
  * Board column rules for development worktrees. Pure: no I/O.
  *
- * A running session wins: In Progress. Otherwise the worktree's PR decides:
- * merged, or ready to merge (prflow's `merge-ready`): Done; closed unmerged,
- * failing checks, a merge conflict, changes requested, or unanswered review
- * feedback: Needs Attention; any other open PR: In Review. No PR, or a draft
- * PR, leaves the card where it is (`null`).
+ * A running session wins: In Progress. Otherwise the worktree's PR decides.
+ * The shared open-PR mapping is in lib/pr-state.ts. A draft PR, or no PR,
+ * leaves the card where it is (`null`).
  */
-import { summarizeChecks, unansweredFeedback } from "./classify.ts";
+import { checkState, prColumn } from "../../../../../lib/pr-state.ts";
+import { unansweredFeedback } from "./classify.ts";
 import type { PrSnapshot } from "./types.ts";
 
 export type Column = "in-progress" | "needs-attention" | "in-review" | "done";
@@ -25,17 +24,12 @@ export interface ClosedPr {
 
 /** Column for an open PR (`null` for a draft, which waits on its author). */
 export function openPrColumn(pr: PrSnapshot): ColumnDecision | null {
-  const n = `PR #${pr.number}`;
   if (pr.isDraft) return null;
-  const s = summarizeChecks(pr.checks);
-  if (s.failed.length) return { state: "needs-attention", reason: `${n} has failing checks` };
-  if (pr.mergeStateStatus === "DIRTY") return { state: "needs-attention", reason: `${n} has merge conflicts` };
-  if (pr.reviewDecision === "CHANGES_REQUESTED") return { state: "needs-attention", reason: `${n} has changes requested` };
-  if (pr.role === "author" && unansweredFeedback(pr, pr.account) !== null) return { state: "needs-attention", reason: `${n} has unanswered review comments` };
-  if (!s.pending && !s.cancelled.length && pr.mergeStateStatus === "CLEAN" && pr.reviewDecision === "APPROVED")
-    return { state: "done", reason: `${n} is ready to merge` };
-  if (s.pending) return { state: "in-review", reason: `${n} is waiting for checks` };
-  return { state: "in-review", reason: `${n} is waiting for review or merge (${pr.mergeStateStatus.toLowerCase()})` };
+  const feedback = pr.role === "author" && unansweredFeedback(pr, pr.account) !== null;
+  const checks = pr.checks.map((check) => check.typename === "CheckRun"
+    ? checkState({ __typename: "CheckRun", status: check.status, conclusion: check.conclusion })
+    : checkState({ __typename: "StatusContext", state: check.state }));
+  return prColumn({ number: pr.number, reviewDecision: pr.reviewDecision, mergeStateStatus: pr.mergeStateStatus, checks, feedback });
 }
 
 export function closedPrColumn(pr: ClosedPr): ColumnDecision | null {

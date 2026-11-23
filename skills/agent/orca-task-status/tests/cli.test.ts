@@ -22,6 +22,7 @@ interface World {
   isMain?: boolean;
   branch?: string;
   dirty?: boolean;
+  untracked?: boolean;
   head?: string;
   pr?: Record<string, unknown> | null;
   current?: CmdResult;
@@ -45,7 +46,7 @@ function harness(world: World) {
       calls.push([cmd, ...args]);
       const key = [cmd, ...args].join(" ");
       if (key === "git rev-parse --show-toplevel") return ok("/w/t\n");
-      if (key === "git status --porcelain") return ok(world.dirty ? " M x\n" : "");
+      if (key === "git status --porcelain") return ok(world.untracked ? "?? untracked\n" : world.dirty ? " M x\n" : "");
       if (key === "git rev-parse HEAD") return ok(`${world.head ?? HEAD}\n`);
       if (key === "git remote get-url origin") return ok("git@github.com-work:acme/widgets.git\n");
       if (key === "orca worktree current --json") {
@@ -122,26 +123,25 @@ test("end reads the PR with the branch and repo slug and never removes", async (
   assert.match(h.out(), /cleanup: eligible/);
 });
 
-test("end reports why a merged worktree is not eligible for cleanup", async () => {
-  const h = harness({ status: "in-progress", dirty: true, pr: { state: "MERGED", mergedAt: "2026-01-01T00:00:00Z" } });
+test("end reports cleanup eligibility despite untracked or uncommitted files", async () => {
+  const h = harness({ status: "in-progress", untracked: true, pr: { state: "MERGED", mergedAt: "2026-01-01T00:00:00Z" } });
   assert.equal(await main(["end"], h.io), 0);
-  assert.match(h.out(), /cleanup: not eligible \(uncommitted/);
+  assert.match(h.out(), /cleanup: eligible/);
 });
 
-test("cleanup removes a merged, clean worktree by id without --force", async () => {
-  const h = harness({ status: "in-progress", pr: { state: "MERGED", mergedAt: "2026-01-01T00:00:00Z" } });
+test("cleanup force-removes a merged worktree by captured id, including untracked files", async () => {
+  const h = harness({ status: "in-progress", untracked: true, pr: { state: "MERGED", mergedAt: "2026-01-01T00:00:00Z" } });
   assert.equal(await main(["cleanup"], h.io), 0, h.err());
   assert.deepEqual(sets(h.calls), ["completed"]);
   const rm = h.calls.find((c) => c[2] === "rm")!;
-  assert.deepEqual(rm, ["orca", "worktree", "rm", "--worktree", "id:r::/w/t", "--json"]);
+  assert.deepEqual(rm, ["orca", "worktree", "rm", "--worktree", "id:r::/w/t", "--force", "--json"]);
 });
 
-test("cleanup refuses unmerged, dirty, unpushed, or paused worktrees", async () => {
+test("cleanup refuses unmerged, unpushed, or paused worktrees", async () => {
   const merged = { state: "MERGED", mergedAt: "2026-01-01T00:00:00Z" };
   const cases: World[] = [
     { pr: null },
     { pr: {} },
-    { pr: merged, dirty: true },
     { pr: merged, head: "b".repeat(40) },
     { pr: merged, status: "status-paused" },
   ];

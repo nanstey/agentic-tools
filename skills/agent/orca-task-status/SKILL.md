@@ -50,10 +50,13 @@ The CLI reads `gh pr view <branch> --repo <owner/repo>` with the shared-config a
 | --- | --- |
 | No PR for the branch | `needs-attention` |
 | PR merged | `done` |
-| PR closed without merging, uncommitted changes, local `HEAD` not equal to the PR head, draft PR, failing check, changes requested, or merge conflicts | `needs-attention` |
-| A check is pending | `in-review` |
-| Approved or no review required, and GitHub reports `CLEAN` or `HAS_HOOKS` | `done` |
+| PR closed without merging, uncommitted changes, local `HEAD` not equal to the PR head, or draft PR | `needs-attention` |
+| For an open, non-draft PR: failing check, `DIRTY`, `CHANGES_REQUESTED`, or unanswered review feedback | `needs-attention` |
+| Pending or cancelled checks (unless another attention condition applies) | `in-review` |
+| No pending, cancelled, or failing checks; review decision is empty or `APPROVED`; merge state is `CLEAN` or `HAS_HOOKS` | `done` |
 | Otherwise (review required, branch behind, unknown) | `in-review` |
+
+The shared open-PR rule is implemented in `lib/pr-state.ts` (`prColumn`) and also drives prflow's worktree status. `gh pr view` does not provide unanswered-feedback detection here, so orca-task-status passes `feedback: false`.
 
 A `gh` failure other than "no pull requests found" exits 1 and writes nothing. Then choose the state yourself and run `set <state>`.
 
@@ -63,7 +66,7 @@ A `gh` failure other than "no pull requests found" exits 1 and writes nothing. T
 
 | Condition | Holds when |
 | --- | --- |
-| `checks-pass` | This branch's PR has no pending or failing required checks. When the repo marks no check required, every check counts. Use it only with another condition. |
+| `checks-pass` | This branch's PR has no pending, failing, or cancelled required checks. When the repo marks no check required, every check counts. Use it only with another condition. |
 | `pr-approved` | This branch's PR is approved (`reviewDecision` `APPROVED`). |
 | `pr-merged <owner/repo#n>` | That PR merged. Also written `pr-merged=<owner/repo#n>`. |
 | `manual` | Never. Only a person unblocks it. It cannot be combined with other conditions. |
@@ -85,10 +88,9 @@ Running it on a card that is already Blocked replaces the record and comment. An
 
 ## Cleanup
 
-`cleanup` removes this worktree from Orca with `worktree rm --worktree id:<id> --json` (no `--force`, no `--delete-branch`). It refuses, exiting 1, unless every condition holds:
+`cleanup` follows the same rule as the `pr` skill's merge cleanup: after verifying the PR is `MERGED` with `mergedAt` and local `HEAD` equals the merged PR head, it removes this worktree with `orca-ide worktree rm --worktree id:<id> --force --json`. Untracked and uncommitted files are discarded. It refuses, exiting 1, unless every condition holds:
 
 - The PR for the branch is `MERGED` with a `mergedAt` time.
-- `git status --porcelain` is empty, untracked files included.
 - Local `HEAD` equals the merged PR head, so no later commit is lost.
 - The Paused status id is configured and the card is not Paused, the worktree has no child worktrees, and it is not a main checkout or prflow review worktree.
 
@@ -106,7 +108,7 @@ The board status ids come from the shared agentic-tools config (`--config <path>
 - Never set Blocked without a reason and a condition that ends the wait. Prefer a checkable condition to `manual`.
 - Never set Paused unless the user asked. Never leave Paused without `--resume`, and use `--resume` only when the user asked for work on this task.
 - Never run `cleanup` while instructions for this task remain, after a refusal, or in a subagent.
-- Never remove a worktree with `--force`, `--delete-branch`, or a selector other than the captured `id:`.
+- Never use `--delete-branch` or a worktree selector other than the captured `id:`. Cleanup uses `--force` only after its merged-PR and HEAD checks.
 - A skipped or failed status write never blocks the user's task. Report it once and continue.
 
 ## Output Style

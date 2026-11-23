@@ -14,10 +14,11 @@ const wt = (over: Partial<Worktree> = {}): Worktree => ({
   id: "r::/w/t", path: "/w/t", branch: "feat/x", isMainWorktree: false, workspaceStatus: "in-progress", comment: "", childWorktreeIds: [], ...over,
 });
 
-test("check rollup entries map to pass, fail, and pending", () => {
+test("check rollup entries map to pass, fail, cancelled, and pending", () => {
   assert.equal(checkState({ __typename: "CheckRun", status: "COMPLETED", conclusion: "SUCCESS" }), "pass");
   assert.equal(checkState({ __typename: "CheckRun", status: "COMPLETED", conclusion: "SKIPPED" }), "pass");
   assert.equal(checkState({ __typename: "CheckRun", status: "COMPLETED", conclusion: "FAILURE" }), "fail");
+  assert.equal(checkState({ __typename: "CheckRun", status: "COMPLETED", conclusion: "CANCELLED" }), "cancelled");
   assert.equal(checkState({ __typename: "CheckRun", status: "IN_PROGRESS", conclusion: "" }), "pending");
   assert.equal(checkState({ __typename: "StatusContext", state: "ERROR" }), "fail");
   assert.equal(checkState({ __typename: "StatusContext", state: "PENDING" }), "pending");
@@ -59,13 +60,13 @@ test("main checkouts and prflow review worktrees are skipped", () => {
   assert.match(skipReason(wt({ branch: "prflow-review/acme-7" })) ?? "", /prflow/);
 });
 
-test("cleanup requires a merged PR, a clean checkout, and HEAD at the merged head", () => {
+test("cleanup requires a merged PR and HEAD at the merged head, but not a clean tree", () => {
   const merged = pr({ state: "MERGED", mergedAt: "2026-01-01T00:00:00Z" });
   assert.equal(cleanupBlocker(wt(), "p", merged, clean), null);
   assert.match(cleanupBlocker(wt(), "p", null, clean) ?? "", /no PR/);
   assert.match(cleanupBlocker(wt(), "p", pr(), clean) ?? "", /not merged/);
   assert.match(cleanupBlocker(wt(), "p", pr({ state: "MERGED" }), clean) ?? "", /not merged/);
-  assert.match(cleanupBlocker(wt(), "p", merged, { dirty: true, head: HEAD }) ?? "", /uncommitted/);
+  assert.equal(cleanupBlocker(wt(), "p", merged, { dirty: true, head: HEAD }), null);
   assert.match(cleanupBlocker(wt(), "p", merged, { dirty: false, head: "b".repeat(40) }) ?? "", /not in merged PR/);
   assert.match(cleanupBlocker(wt({ workspaceStatus: "p" }), "p", merged, clean) ?? "", /paused/);
   assert.match(cleanupBlocker(wt(), undefined, merged, clean) ?? "", /Paused status id is not configured/);

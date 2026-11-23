@@ -38,7 +38,7 @@ describe("fingerprint", () => {
   });
   it("changes with kind, version, or trigger detail", () => {
     const base = fingerprint([item()]);
-    assert.notEqual(fingerprint([item({ kind: "rerun" })]), base);
+    assert.notEqual(fingerprint([item({ kind: "mergeable" })]), base);
     assert.notEqual(fingerprint([item({ version: "c0ffee11-bbbbbbbb" })]), base);
     assert.notEqual(fingerprint([item({ triggers: [{ kind: "ci", detail: "e2e-id" }] })]), base);
   });

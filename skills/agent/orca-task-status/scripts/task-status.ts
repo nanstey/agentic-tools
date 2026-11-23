@@ -33,8 +33,8 @@ export const USAGE = `Usage: task-status.ts <command> [options]
   set <state> [--resume]           Set one state: ${STATES.join(", ")}.
                                    set blocked needs --reason and --until.
   show                             Print the current status and PR-derived status.
-  cleanup                          Remove this worktree when its PR merged and
-                                   nothing is left locally. Run it last: it ends the session.
+  cleanup                          Remove this worktree after its PR merged and HEAD matches.
+                                   Run it last: it ends the session.
 
 Options:
   --resume         Allow leaving Paused (only when the user asked to work on the task).
@@ -222,7 +222,7 @@ async function cleanup(ctx: Ctx): Promise<number> {
   }
   if (cfg.statuses.done && wt.workspaceStatus !== cfg.statuses.done) await setState(ctx, "done", `PR #${pr!.number} merged`, false);
   io.out(`removing worktree ${wt.id}; this ends the session\n`);
-  const r = await io.run(ctx.orca, ["worktree", "rm", "--worktree", `id:${wt.id}`, "--json"], { cwd: dirname(ctx.top) });
+  const r = await io.run(ctx.orca, ["worktree", "rm", "--worktree", `id:${wt.id}`, "--force", "--json"], { cwd: dirname(ctx.top) });
   if (!r.ok) {
     io.err(`orca-task-status: orca worktree rm failed: ${(r.stderr || r.stdout).trim()}\n`);
     return 1;

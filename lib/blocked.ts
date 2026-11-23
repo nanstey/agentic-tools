@@ -244,7 +244,7 @@ export function evaluate(conditions: readonly Condition[], facts: Facts): Evalua
   const pr = facts.pr;
   if (pr && pr.state !== "CLOSED" && waitsOnlyOnCi(conditions)) {
     const set = pr.required.length ? pr.required : pr.checks;
-    const ci = set.includes("fail") ? "failing" : set.includes("pending") ? "pending" : "passed";
+    const ci = set.includes("fail") ? "failing" : set.includes("cancelled") ? "cancelled" : set.includes("pending") ? "pending" : "passed";
     const what = ci === "passed" ? `checks passed at ${pr.headSha.slice(0, 8)}` : `PR #${pr.number} checks ${ci}; waiting for CI is In Review, not Blocked`;
     return { holds: true, met: [what], unmet: [], stuck: null };
   }
@@ -272,6 +272,7 @@ export function evaluate(conditions: readonly Condition[], facts: Facts): Evalua
       const set = pr.required.length ? pr.required : pr.checks;
       const what = pr.required.length ? "required checks" : "checks";
       if (set.includes("fail")) unmet.push(`PR #${pr.number} has failing ${what}`);
+      else if (set.includes("cancelled")) unmet.push(`PR #${pr.number} has cancelled ${what}`);
       else if (set.includes("pending")) unmet.push(`PR #${pr.number} has pending ${what}`);
       else met.push(`checks passed at ${pr.headSha.slice(0, 8)}`);
     } else if (c.kind === "pr-approved") {

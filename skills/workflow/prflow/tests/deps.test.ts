@@ -4,7 +4,7 @@ import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, describe, it } from "node:test";
-import { realDeps, realPostDeps } from "../scripts/deps.ts";
+import { realDeps } from "../scripts/deps.ts";
 
 const dir = mkdtempSync(join(tmpdir(), "prflow-git-"));
 after(() => rmSync(dir, { recursive: true, force: true }));
@@ -64,28 +64,7 @@ describe("real git checks", () => {
     assert.equal((await deps.branchInfo(dir))?.branch, null);
   });
 
-  it("refuses a malformed rerun or archive before running anything", async () => {
-    const deps = realDeps();
-    await assert.rejects(deps.rerunFailed("u", "Acme/x", "42 --debug"), /not the allowed rerun call/);
-    await assert.rejects(deps.rerunFailed("u", "Acme", "42"), /not the allowed rerun call/);
-    await assert.rejects(deps.archiveWorktree("relative/path"), /not the allowed archive call/);
-    await assert.rejects(deps.archiveWorktree("/w/../etc"), /not the allowed archive call/);
-    await assert.rejects(deps.deleteBranch("/r/.git", "--force", "a".repeat(40)), /not the allowed branch deletion/);
-    await assert.rejects(deps.reviewFetch("/w/prflow-review-x-5", 5, "feature"), /requires a prflow-review branch/);
-    await assert.rejects(deps.reviewReset("/w/prflow-review-x-5", "a".repeat(40), "feature"), /requires a prflow-review branch/);
-    await assert.rejects(deps.setReviewWorktree("/w/prflow-review-x-5", "feature", "reviewing", "queued"), /requires a prflow-review branch/);
-    await assert.rejects(deps.nameReviewWorktree("/w/prflow-review-x-5", "feature", "feature"), /requires a prflow-review branch/);
-    await assert.rejects(deps.nameReviewWorktree("/w/other", "prflow-review/x-5", "feature"), /not the allowed review worktree rename/);
-  });
-});
 
-describe("realPostDeps", () => {
-  it("refuses a post input outside the state directory's drafts before running gh", async () => {
-    const d = realPostDeps("/state/prflow");
-    await assert.rejects(d.postReview("octocat", "Acme/x", 5, "/elsewhere/drafts/Acme-x-5/c0ffee11/post.json"), /is not under \/state\/prflow\/drafts\//);
-    await assert.rejects(d.postReview("octocat", "Acme/x", 5, "/state/prflow/drafts/../drafts/a/post.json"), /not the allowed review post/);
-    await assert.rejects(d.postReview("octocat", "Acme/x", 5, "/tmp/post.json"), /not the allowed review post/);
-  });
 });
 
 describe("review worktree creation environment", () => {

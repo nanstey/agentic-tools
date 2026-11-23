@@ -50,16 +50,15 @@ interface Job {
 async function searchAccount(deps: Deps, cfg: Config, a: Account, errors: string[]): Promise<Job[]> {
   const base = ["--state", "open", "--limit", String(cfg.limit), "--json", "number,repository"];
   const runs = scopes(a).flatMap((scope) => [
-    { role: "author" as const, args: ["search", "prs", "--author", a.login, "--draft=false", ...base, ...scope] },
+    { role: "author" as const, args: ["search", "prs", "--author", a.login, ...base, ...scope] },
     { role: "reviewer" as const, args: ["search", "prs", "--review-requested", a.login, ...base, ...scope] },
     { role: "reviewer" as const, args: ["search", "prs", "--reviewed-by", a.login, ...base, ...scope] },
-    { role: null, args: ["search", "prs", "--author", a.login, ...base, ...scope] },
   ]);
   const results = await Promise.all(runs.map((r) => search(deps, a.login, r.args, errors)));
   // A repo belongs to exactly one account; drop hits in repos another account covers.
   const mine = (repo: string) => accountFor(cfg, repo)?.login === a.login;
-  const authored = new Set(runs.flatMap((r, i) => r.role === null ? (results[i] ?? []).map((hit) => `${hit.repo}#${hit.number}`.toLowerCase()) : []));
-  return runs.flatMap((r, i) => r.role === null ? [] :
+  const authored = new Set(runs.flatMap((r, i) => r.role === "author" ? (results[i] ?? []).map((hit) => `${hit.repo}#${hit.number}`.toLowerCase()) : []));
+  return runs.flatMap((r, i) =>
     (results[i] ?? []).filter((hit) => mine(hit.repo) && !(r.role === "reviewer" && authored.has(`${hit.repo}#${hit.number}`.toLowerCase()))).map((hit) => ({ hit, role: r.role, account: a.login })),
   );
 }
@@ -127,7 +126,7 @@ async function scanWorktrees(deps: Deps, cfg: Config, errors: string[]): Promise
 }
 
 /**
- * Read-only scan for every configured account: its open non-draft PRs and review
+ * Read-only scan for every configured account: its open authored PRs and review
  * requests within its scope, plus Orca worktrees of closed PRs in covered repos.
  * A PR found by several searches is fetched once; the first account and the
  * author role win.
