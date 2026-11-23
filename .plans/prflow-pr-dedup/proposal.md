@@ -3,6 +3,48 @@
 Status: decisions recorded (section 4), restructured around a strict pr/prflow boundary; re-analyzed after rebase onto `09a5867` (#198, O11); not implemented. Branch: `prflow-pr-dedup`.
 Paths are relative to the repository root.
 
+## Outcome
+
+Agents that work on PRs get one set of rules, from `pr`. prflow sessions, orca-orchestrator, and
+orca-task-status stop giving contradicting instructions (threads, drafts, rebases, reruns, review
+posting, cleanup), and an Orca card no longer flips between columns depending on who wrote it last.
+
+## Acceptance
+
+Regression for all items: `npm test` passes in `skills/workflow/prflow`, `skills/workflow/repo-sync`,
+`skills/agent/orca-task-status`, and `skills/agent/orca-orchestrator` (each also runs `lib/tests`);
+`bash install/tests/skill-links.test.sh` and `python3 .plans/unified-review/tests/test_unified_review_contract.py`
+pass.
+
+- **A1** (code) WHEN prflow renders a `ci`, `comments`, or `behind` brief THEN it contains the trigger
+  details and `/pr <pr_url>` and none of: `force-with-lease`, `git rebase`, `Never resolve`,
+  `request or nudge reviewers`, `Stop after pushing`, `rerun`. Check: `tests/brief.test.ts`.
+- **A2** (code) WHEN prflow renders a reviewer brief THEN it runs `/pr review <pr_url> report` and has no
+  `merge-base` diff and no Summary/Inline content rules of its own. Check: `tests/brief.test.ts`.
+- **A3** (code) WHEN a PR with an open prflow dispatch becomes a draft THEN the dispatch is not marked
+  done and the item stays in progress; a draft with no prflow dispatch still has no triggers. Check: a
+  new test in `tests/agents.test.ts` or `tests/classify.test.ts` that fails before the change.
+- **A4** (code) WHEN a PR's only non-passing checks are cancelled (none failed or pending) THEN prflow
+  emits a `ci` trigger naming the cancelled jobs and runs no `gh` write; `grep -rn "assertRerun\|run rerun\|rerunsPerVersion" skills/workflow/prflow/scripts config.example.json` prints nothing.
+- **A5** (code) WHEN `prflow review post <id> --yes` is run THEN it exits non-zero as an unknown
+  command and posts nothing; `grep -rn assertReviewPost skills/workflow/prflow/scripts` prints nothing;
+  `review list` and `review show` still pass their tests, and a draft whose account already reviewed
+  its head is listed as posted.
+- **A6** (code) WHEN prflow classifies an approved, green, `CLEAN` PR THEN its kind is `mergeable`;
+  `grep -rn merge-ready skills/workflow/prflow skills/agent/orca-orchestrator` prints nothing.
+- **A7** (code) WHEN `prDecision` and `openPrColumn` get the same PR (each row of the O11 table) THEN
+  they return the same column (ignoring local dirty/HEAD checks and drafts). Check: a shared table test
+  in `lib/tests`.
+- **A8** (judge) WHEN `pr`'s `ci.md`, `merge.md`, and `monitor.md` meet a cancelled check THEN they rerun
+  it once per head before counting it as failed. Check: read those three files.
+- **A9** (code) WHEN orca-task-status `cleanup` runs on a merged PR whose local `HEAD` equals the merged
+  head and the tree has untracked files THEN it calls `worktree rm --worktree id:<id> --force --json`;
+  WHEN `HEAD` differs THEN it refuses. Check: `skills/agent/orca-task-status/tests`.
+- **A10** (code) `grep -n "gh pr review\|resolveReviewThread\|never resolve" skills/agent/orca-orchestrator/SKILL.md`
+  prints nothing, and the orchestrator posts drafts with `/pr review <url>` and the saved packet.
+- **A11** (code) The `pr` and `prflow` frontmatter descriptions match section 3 and their `README.md` rows.
+- **A12** (judge) `pr` contains no mention of prflow (`grep -rn prflow skills/dev/pr` prints nothing).
+
 ## Summary
 
 The two skills overlap less in code than in rules. `pr` is prose only (`skills/dev/pr/`, no scripts).
@@ -281,7 +323,6 @@ fifth version. Under D5, cancelled checks mean "rerun pending", which matches `o
 | C8 | **Post-merge removal (D3).** `pr merge.md:52-60` keeps `--force`. orca-task-status `cleanup` (outside the pr/prflow boundary, but same act) points to that rule and uses `--force` after its merged and HEAD checks, instead of keeping its own conflicting rule (`SKILL.md:88`, `:109`). prflow's archive of unused leftover worktrees is a different act and keeps no-`--force` | — | Medium | Low | Medium: uncommitted files in a merged worktree are lost (accepted) |
 | C9 | **Descriptions and README** (below); rows at `README.md:56`, `:76` | Description nouns that name `pr` actions | Medium | Low | Low |
 | C10 | **Orchestrator points, does not restate.** Replace PR rules at `orca-orchestrator/SKILL.md:67,69,84,104,106` with links to `pr` or prflow | Restated rules | Medium | Low | Low |
-| C11 | **CI coverage gap.** Add `lib/tests` to `.github/workflows/ci.yml` | — | Low | Low | Low |
 
 Removed from the earlier draft: caller constraints for `pr` (rule 6), and prflow applying `pr`'s
 event rules or writing its markers (rule 5; replaced by C4). The shared disclosure constant is gone
@@ -293,7 +334,7 @@ with C4.
 2. C5, C6, C10, C9: rule edits, renames, pointers.
 3. C7: ship before `prflow.worktreeStatus.dryRun` is turned off.
 4. C4: largest deletion; needs the posting workflow tested end to end.
-5. C8, C11.
+5. C8.
 
 ### Description rewrites
 
@@ -333,7 +374,7 @@ The `pr` description no longer points at prflow (rule 6).
 3. C7: `lib/pr-state.ts`; switch `lib/task-status.ts`, `core/worktree-status.ts`, `unblock.ts`.
 4. C4: delete the post path and guards; update `references/review.md` (prflow), orchestrator step 5,
    and `SKILL.md` Review Drafts and Safety Rules; test `/pr review <url>` with a saved packet.
-5. C8, C11.
+5. C8.
 6. Re-run `install.sh`.
 
 ## 6. Tests affected
@@ -350,7 +391,7 @@ The `pr` description no longer points at prflow (rule 6).
 | `skills/workflow/prflow/tests/unblock.test.ts`, `worktree-status.test.ts` | Shared column rule (C7) |
 | `skills/agent/orca-task-status/tests/core.test.ts`, `cli.test.ts` | `prDecision` edges (C7), `cleanup` with `--force` (C8) |
 | `skills/agent/orca-orchestrator/tests/*` | `merge-ready` to `mergeable` in the feed (C6) |
-| `lib/tests/*` | New `lib/pr-state.ts` (C7); add to CI (C11) |
+| `lib/tests/*` | New `lib/pr-state.ts` (C7); already run by each workspace's `npm test` |
 | `.plans/unified-review/tests/test_unified_review_contract.py` | Asserts `pr` reference text; re-run after C5 |
 | `install/tests/skill-links.test.sh` | Unchanged paths; re-run as a check |
 
