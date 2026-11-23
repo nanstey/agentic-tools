@@ -1,9 +1,6 @@
 # prflow review drafts
 
-How `prflow tick` turns a `review-requested` PR into a saved draft review, and
-how a draft reaches GitHub. Code: `scripts/review.ts` (flow),
-`scripts/review-cmd.ts` (`prflow review`), `scripts/core/draft.ts` (format and
-payload), `templates/briefs/review.md` and `review-nudge.md` (briefs).
+How `prflow tick` turns a `review-requested` PR into a saved draft review and shows whether GitHub has a matching submitted review. Code: `scripts/review.ts` (flow), `scripts/review-cmd.ts` (read-only list/show), `scripts/core/draft.ts` (format and parsing), `templates/briefs/review.md` and `review-nudge.md` (briefs).
 
 ## Switch
 
@@ -19,42 +16,24 @@ payload), `templates/briefs/review.md` and `review-nudge.md` (briefs).
 `prflow.review.dryRun` is separate from `prflow.dispatch.dryRun` and `prflow.actions.dryRun`. Keep it
 on while the "Bryce PR review watch" Orca automation still launches reviewers.
 
-## Posting gate
+## Posting
 
-Tick never posts. The reviewer brief forbids every GitHub write. Its only Orca write is the one-time worktree status/unread update after saving a draft. The reviewer runs the `pr` skill's review in `report` mode, which never publishes.
-The only review write is:
+prflow only stores and shows drafts. The reviewer runs `/pr review <pr_url> report` to produce the packet; publication happens by running `/pr review <pr_url>` as the draft's account and passing the draft's `## Packet` section as the matching packet. The `pr` skill owns freshness checks, event selection, disclosure, deduplication, and the GitHub write. See the `pr` skill's `references/review.md`.
 
-```
-prflow review post <draft-id> [--event comment|approve|request-changes] --yes
-```
+Draft status is read from the PR's existing review snapshot: a draft is posted when its account has a submitted, non-pending review at the reviewed commit, or at a later current PR head in a review submitted since the draft was created. `review list` and `review show` perform read-only GitHub reads to report this status. If one PR cannot be read, `review list` reports `posted: unknown (<short error>)` for that row and continues. `review show` reports a read error rather than guessing.
 
-| Guard | Where |
-| --- | --- |
-| `TickDeps` has no review write; tick modules never import the post path | `scripts/tick.ts`, `tests/review.test.ts` |
-| Tick's `gh` calls pass the read-only allowlist, which rejects `gh api --method POST` | `assertReadOnly`, `scripts/adapters/gh.ts` |
-| The post call is exactly `gh api --method POST repos/<o>/<r>/pulls/<n>/reviews --input <state>/drafts/.../post.json`, with the input under the active state directory | `assertReviewPost`, `scripts/adapters/gh.ts`; `realPostDeps`, `scripts/deps.ts` |
-| `--yes` is required; without it the command prints what it would post and exits 1 | `postDraft`, `scripts/review-cmd.ts` |
-| The review is posted as the draft's account (`GH_TOKEN` from `gh auth token -u <login>`), pinned to the reviewed commit (`commit_id`) | `realPostDeps`, `scripts/deps.ts` |
-| The review body and every inline comment start with the agent disclosure for the draft's account (`> [!NOTE]` then `> 🤖 Written by <login>'s Agent`, as in the `pr` skill's `references/disclosure.md`). A body that already starts with it is not given a second one; inline comment identity across revisions ignores it | `reviewPayload`, `disclose`, `scripts/core/draft.ts`; `commentKey`, `scripts/revisions.ts` |
-| Refuses: a draft that does not parse, a revision already posted, a PR that is not open, a commit the account already reviewed (unless this is a later revision of a posted draft, saved after that review) | `postDraft` |
-| Never approves unreviewed commits: `approve` on a head that moved since the reviewed commit posts as `COMMENT`, the body ending with `approval withheld: new commits since <sha8>; the next review cycle covers them` (`<sha8>` is the reviewed commit); the output and the `review-posted` event say `approve downgraded to COMMENT: approval withheld, head moved to <new8>`. `comment` and `request-changes` post as-is, pinned to the reviewed commit. The next review cycle reviews the new head | `postDraft`, `withholdApproval` |
-| A crash after GitHub accepted the review but before prflow recorded it: the next `post` re-reads the PR and refuses, because the account reviewed that commit after the revision was saved | `postDraft` |
-
-The orchestration layer runs `post` only on the user's explicit instruction.
-The default event is `comment`; the draft's verdict is only a suggestion.
+The reviewer may make no GitHub writes. Its only Orca write is the one-time worktree status/unread update after saving a draft. Every `gh` call uses the read-only allowlist (`assertReadOnly`, `scripts/adapters/gh.ts`).
 
 ## Revisions
 
-A reviewer may rewrite its draft after it was posted, for example when told to
-approve after a comment review. Code: `scripts/revisions.ts`.
+A reviewer may rewrite a saved draft. Code: `scripts/revisions.ts`.
 
 | Rule | Behaviour |
 | --- | --- |
-| Revision | Each posted text is a revision, recorded in `posted.json` beside the draft: number, sha256 of the text, event, time, and inline comments. A saved text that matches no posted revision is the next, unposted revision (`r2`, `r3`, ...) |
-| Older posts | A draft posted before revisions were tracked has only the `review-posted:<id>` ledger row. It counts as `r1`: the draft is `r1` while its file is not newer than that row, and `r1`'s inline comments come from the `post.json` sent then. The first later post writes `posted.json` |
-| Event | Tick emits `review-drafted` with `revision r<n> (r<n-1> posted)` once per unposted revision of a finished dispatch |
-| Status | A revision that is not posted and was saved after the latest posted review on this head wins status sync: status from its verdict, comment `draft r<n>: <verdict>, not posted`, unread once per revision. Once it is posted, the posted review wins again |
-| Post | `prflow review post` posts a later revision on a head the account already reviewed when the revision was saved after that review. The review body is the summary plus only the inline comments that no earlier posted revision had (same path, lines, and text). Re-posting the same revision and posting when a newer review exists are refused; `approve` after the head moved posts as `COMMENT` with the approval-withheld note. Ledger ref: `review-posted:<id>` for `r1`, `review-posted:<id>:r<n>` after |
+| Revision | Legacy `posted.json` and ledger history may show revision numbers; current publication uses `/pr review` and does not create prflow revision history |
+| Event | Tick emits `review-drafted` when a finished dispatch saves a draft |
+| Status | GitHub's current submitted review takes precedence; otherwise the saved draft status and verdict are shown |
+
 
 ## Lifecycle
 
@@ -149,21 +128,19 @@ set <path> display name <branch>` once per worktree and name instead.
 | Submitted `CHANGES_REQUESTED` | `changes` | `changes requested at <head8>` |
 | Submitted `COMMENTED` | `reviewing` | `commented at <head8>` |
 | Saved draft | based on verdict | `draft: <verdict>, <n> inline, not posted` |
-| Draft revision `r<n>` saved after the latest posted review, not posted | based on verdict | `draft r<n>: <verdict>, not posted` |
+| Legacy draft revision metadata | based on verdict | Legacy status text may include a revision number |
 
 ## Draft
 
 Path: `${state}/drafts/<owner>-<repo>-<n>/<head8>/review.md`. Draft id:
 `<owner>-<repo>-<n>-<head8>`. prflow writes `meta.json` (item, URL, full head
-sha, account, dispatch id) beside it before the reviewer starts,
-`post.json` (the exact payload) when posting, and `posted.json` (posted
-revisions) after each successful post.
+sha, account, dispatch id) beside it before the reviewer starts. The reviewer session can write in that folder, so `review list` and `review show` do not trust `meta.json` alone: they check its item, URL, and head against the draft folder and the review dispatch, and its account against the shared config. A mismatch marks the draft invalid, and `show` prints `invalid` for the PR, head, and account. Without a readable config, the account is not checked and a warning says so. Legacy `posted.json` revision history may remain beside a draft.
 
 ```
 <!-- prflow review draft v1 -->
 # Review of owner/repo#N at <head8>
 
-Verdict: approve | request-changes | comment
+Verdict: comment
 
 ## Summary
 
@@ -182,9 +159,13 @@ Posted on that range.
 ## Notes for Noel
 
 Never posted.
+
+## Packet
+
+The verbatim complete output of `/pr review <pr_url> report`; publication passes this section as the matching packet.
 ```
 
-`None.` under Inline comments means none. Inline comments can target a line or range, for example `### path/to/other.ext:10-14`. The draft needs no agent disclosure: `prflow review post` starts the body and each inline comment with it.
+Exactly one verdict word is required: `comment`, `approve`, or `request-changes`. `None.` under Inline comments means none. Inline paths are relative to the repository root and can target a line or range, for example `### path/to/other.ext:10-14`. Publication formatting and disclosure belong to the `pr` skill.
 
 ## Events
 
@@ -192,7 +173,6 @@ Never posted.
 | --- | --- |
 | `dispatched` | A reviewer is planned (before the worktree is created) |
 | `review-started` | The reviewer launched: session, worktree, draft path |
-| `review-drafted` | The draft is saved: id, verdict suggestion, inline comment count, path; again with `revision r<n>` when a posted draft is rewritten |
+| `review-drafted` | The draft is saved: id, verdict suggestion, inline comment count, and path |
 | `archived` | The PR is closed or merged and the review worktree is safe to archive |
-| `review-posted` | `prflow review post` published the draft (and revision, after `r1`): event, comment count, review URL |
 | `dry-run`, `needs-decision`, `nudged`, `session-finished`, `session-stale`, `action-failed`, `abandoned`, `paused`, `rail-tripped` | As for Pi dispatch (`references/dispatch.md`) |

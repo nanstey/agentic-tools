@@ -90,6 +90,7 @@ export function logExcerpt(log: string): string {
 export interface FailedJob {
   name: string;
   url: string | null;
+  cancelled?: boolean;
   /** `logExcerpt` output, or why there is none. */
   cause: string;
 }
@@ -97,6 +98,7 @@ export interface FailedJob {
 export function ciDetails(jobs: FailedJob[]): string {
   return jobs
     .map((j) => {
+      if (j.cancelled) return `- **${j.name}**: ${j.url ?? "(no check URL)"}\n  This check was cancelled.`;
       const fence = j.cause.includes("```") ? "~~~~" : "```";
       return `- **${j.name}**: ${j.url ?? "(no log URL)"}\n  Likely cause, from \`gh run view --log-failed\`:\n\n${fence}\n${j.cause}\n${fence}`;
     })
@@ -123,7 +125,7 @@ export function reviewProjectContextText(p: ProjectContext | null): string {
 }
 
 export function otherTriggersText(kinds: string[]): string {
-  return kinds.length ? `\nAlso open on this PR: ${kinds.join(", ")}. prflow sends a separate brief for each once this one is done; you need not act on them now.\n` : "";
+  return kinds.length ? `\nAlso open on this PR: ${kinds.join(", ")}.\n` : "";
 }
 
 /** For a retry: what the earlier attempt left behind. */

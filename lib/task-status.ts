@@ -4,6 +4,8 @@
  * out of Blocked once its unblock condition holds), so both apply one rule set.
  */
 
+import { checkState, prColumn, type CheckState } from "./pr-state.ts";
+
 export const STATES = ["paused", "blocked", "in-progress", "needs-attention", "in-review", "done"] as const;
 export type State = (typeof STATES)[number];
 
@@ -32,7 +34,8 @@ export function parseTaskStatuses(section: Record<string, unknown>, fail: (msg: 
   return statuses;
 }
 
-export type CheckState = "pass" | "fail" | "pending";
+export { checkState } from "./pr-state.ts";
+export type { CheckState } from "./pr-state.ts";
 
 export interface Pr {
   number: number;
@@ -44,7 +47,11 @@ export interface Pr {
   /** CLEAN, BLOCKED, BEHIND, DIRTY, DRAFT, HAS_HOOKS, UNKNOWN, UNSTABLE. */
   mergeStateStatus: string;
   headRefOid: string;
+  isCrossRepository?: boolean;
+  headRefName?: string;
   checks: CheckState[];
+  /** Whether GitHub reports unanswered review feedback; unavailable to gh pr view callers. */
+  feedback?: boolean;
 }
 
 export interface Local {
@@ -58,23 +65,6 @@ export interface Decision {
   reason: string;
 }
 
-const FAILED_CONCLUSIONS = new Set(["FAILURE", "TIMED_OUT", "CANCELLED", "ACTION_REQUIRED", "STARTUP_FAILURE", "STALE"]);
-const PASSED_CONCLUSIONS = new Set(["SUCCESS", "NEUTRAL", "SKIPPED"]);
-
-/** One `statusCheckRollup` entry (CheckRun or StatusContext) as pass, fail, or pending. */
-export function checkState(entry: Record<string, unknown>): CheckState {
-  if (entry.__typename === "StatusContext" || ("state" in entry && !("conclusion" in entry))) {
-    const s = String(entry.state ?? "");
-    if (s === "SUCCESS") return "pass";
-    if (s === "FAILURE" || s === "ERROR") return "fail";
-    return "pending";
-  }
-  if (entry.status !== "COMPLETED") return "pending";
-  const c = String(entry.conclusion ?? "");
-  if (FAILED_CONCLUSIONS.has(c)) return "fail";
-  if (PASSED_CONCLUSIONS.has(c)) return "pass";
-  return "pending";
-}
 
 /** Parse `gh pr view --json number,state,isDraft,mergedAt,reviewDecision,mergeStateStatus,headRefOid,statusCheckRollup`. */
 export function parsePr(json: string): Pr {
@@ -91,6 +81,9 @@ export function parsePr(json: string): Pr {
     reviewDecision: typeof raw.reviewDecision === "string" ? raw.reviewDecision : "",
     mergeStateStatus: typeof raw.mergeStateStatus === "string" ? raw.mergeStateStatus : "UNKNOWN",
     headRefOid: typeof raw.headRefOid === "string" ? raw.headRefOid : "",
+    // Absent stays undefined, so cleanup refuses unless gh reported `false`.
+    ...(typeof raw.isCrossRepository === "boolean" ? { isCrossRepository: raw.isCrossRepository } : {}),
+    headRefName: typeof raw.headRefName === "string" ? raw.headRefName : "",
     checks: rollup.map(checkState),
   };
 }
@@ -104,12 +97,5 @@ export function prDecision(pr: Pr | null, local: Local): Decision {
   if (local.dirty) return { state: "needs-attention", reason: "uncommitted changes in the worktree" };
   if (pr.headRefOid && local.head !== pr.headRefOid) return { state: "needs-attention", reason: `local HEAD differs from the ${n} head` };
   if (pr.isDraft) return { state: "needs-attention", reason: `${n} is a draft` };
-  if (pr.checks.includes("fail")) return { state: "needs-attention", reason: `${n} has failing checks` };
-  if (pr.reviewDecision === "CHANGES_REQUESTED") return { state: "needs-attention", reason: `${n} has changes requested` };
-  if (pr.mergeStateStatus === "DIRTY") return { state: "needs-attention", reason: `${n} has merge conflicts` };
-  if (pr.checks.includes("pending")) return { state: "in-review", reason: `${n} is waiting for checks` };
-  const approved = pr.reviewDecision === "APPROVED" || pr.reviewDecision === "";
-  if (approved && (pr.mergeStateStatus === "CLEAN" || pr.mergeStateStatus === "HAS_HOOKS"))
-    return { state: "done", reason: `${n} is ready to merge` };
-  return { state: "in-review", reason: `${n} is waiting for review or merge (${pr.mergeStateStatus.toLowerCase()})` };
+  return prColumn({ ...pr, feedback: pr.feedback ?? false });
 }

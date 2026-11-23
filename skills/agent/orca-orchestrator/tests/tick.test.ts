@@ -75,14 +75,14 @@ test("nothing to read exits 1 and writes no feed", async () => {
 });
 
 test("tool output becomes the feed: exit 0, path printed, latest updated", async () => {
-  const w = world({ FAKE_SYNC_OUT: "pulled tiger-team-sync\n", FAKE_WATCH_OUT: "## Needs you\n- a/b#1 merge-ready\n" });
+  const w = world({ FAKE_SYNC_OUT: "pulled tiger-team-sync\n", FAKE_WATCH_OUT: "## Needs you\n- a/b#1 mergeable\n" });
   assert.equal(await w.go(), EXIT.feed);
   const path = w.out().trim();
   assert.equal(path, join(w.opts.stateDir, "feed", "2026-11-20T20-30-00-000Z.txt"));
   const feed = readFileSync(path, "utf8");
   assert.equal(readFileSync(join(w.opts.stateDir, "latest.txt"), "utf8"), feed);
   assert.match(feed, /## repo-sync\n\npulled tiger-team-sync/);
-  assert.match(feed, /## prflow watch\n\n## Needs you\n- a\/b#1 merge-ready/);
+  assert.match(feed, /## prflow watch\n\n## Needs you\n- a\/b#1 mergeable/);
 });
 
 test("--config reaches both tools", async () => {

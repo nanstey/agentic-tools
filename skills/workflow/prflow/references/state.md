@@ -11,7 +11,7 @@ All state lives in one directory, `${XDG_STATE_HOME:-~/.local/state}/prflow/`
 | `paused` | Present while prflow is paused; holds the reason |
 | `events.jsonl` | Append-only event feed for the orchestration layer |
 | `watch-<name>.txt` | `prflow watch` state (unchanged from phase 1) |
-| `drafts/<owner>-<repo>-<n>/<head8>/` | One review draft: `review.md` (written by the reviewer), `meta.json` and `post.json` (written by prflow); see `references/review.md` |
+| `drafts/<owner>-<repo>-<n>/<head8>/` | One review draft: `review.md` (written by the reviewer) and `meta.json` (written by prflow); see `references/review.md` |
 
 Only prflow writes these files, except each `review.md`, which its reviewer session writes. Use `pause`, `resume`, `recover`, `review`, and `import-legacy`.
 
@@ -38,11 +38,11 @@ One JSON object per line:
 
 Every key is always present; unknown values are `null`. `item` is `null` for
 events about prflow itself. Types: `dispatched`, `nudged`, `interrupted`, `recovered`,
-`session-finished`, `session-stale`, `abandoned`, `rerun`, `archived`,
+`session-finished`, `session-stale`, `abandoned`, `archived`,
 `docs-committed`, `paused`, `resumed`, `rail-tripped`, `action-failed` (an
 action failed; its dispatch is `failed`), `needs-decision` (prflow will not act
 and asks the user), `dry-run` (the action prflow would take), and the review
-events `review-started`, `review-drafted`, and `review-posted`
+events `review-started` and `review-drafted`
 (`references/review.md`), and `unblocked` (a Blocked worktree's conditions held
 and prflow moved its card out; detail: path, old and new state, reason, and the
 new comment), and `worktree-status` (prflow moved a development worktree's
@@ -50,7 +50,7 @@ board column; detail: path, old and new state, reason). A `worktree-status`
 event's `kind` is `worktree-status` and its `version` is the new state.
 
 Action events: a live action emits `dispatched` before its command, then
-`rerun`, `archived`, or `unblocked` on success, or `action-failed`. `needs-decision` and
+`archived` or `unblocked` on success, or `action-failed`. `needs-decision` and
 `dry-run` are emitted once per item version (tracked by unique ledger refs).
 Worktree column moves are not dispatches: a move emits `worktree-status`, or one
 `action-failed` per target, and a dry run announces each change once (tracked in
@@ -98,7 +98,6 @@ All limits come from the config `prflow.rails` object; see `SKILL.md` for defaul
 | Poll budget: `pollBudgetSeconds` | A scan that takes longer fails the tick |
 | Child timeout: `childTimeoutSeconds` | Each `gh`, `git`, or `orca-ide` process is killed after this and counts as failed |
 | Pause | While prflow is paused, `tick` does nothing: no scan, no actions, no output. Its events print on the first tick after `prflow resume`. A paused item is still scanned and reported but starts nothing |
-| Reruns: `rerunsPerVersion` (default 2) | Checks cancelled again at the same item version are rerun up to this many times (dispatch versions `<version>`, `<version>~r2`, ...). Then the item is paused once with a reason; after `prflow resume --item` that version is not rerun again. A new head or new comments start a fresh count |
 | Dry run | Config `prflow.actions.dryRun`, `prflow.dispatch.dryRun`, and `prflow.review.dryRun` (each default `true`) or `tick --dry-run`: no side effects; dry-run announcements honour `startsPerTick` |
 | Busy wait: `busyWaitMinutes` | A busy Pi session may hold up a brief this long; then prflow interrupts it and restarts it with the brief (`references/dispatch.md`) |
 
@@ -109,12 +108,10 @@ All limits come from the config `prflow.rails` object; see `SKILL.md` for defaul
    besides the failed run and the backoff is written, and the exit code is 1.
 3. Record items, watch open agent dispatches' and reviewers' Pi sessions
    (`references/dispatch.md`, `references/review.md`), record saved reviewer
-   drafts and sync review statuses, then reconcile open dispatches: a `rerun`
-   is done when the same head has checks running again, a `cleanup` when its
+   drafts and sync review statuses, then reconcile open dispatches: a `cleanup` is done when its
    worktree is no longer listed; review worktrees remain until PR close/merge.
-4. Act: reruns first, then worktree cleanups (see `SKILL.md`, Actions), then
-   Pi dispatch (see `SKILL.md`, Pi Dispatch), then reviewers (`SKILL.md`,
-   Review Drafts).
+4. **Act.** Run Pi dispatch (see `SKILL.md`, Pi Dispatch), then reviewers
+   (`SKILL.md`, Review Drafts).
 5. Print new events since the last successful tick, then the grouped report
    when its fingerprint changed (lease times are not part of it). A report
    that becomes empty prints `Nothing to report.` A PR whose checks are still

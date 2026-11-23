@@ -237,8 +237,6 @@ export interface Rails {
   leaseMinutes: number;
   /** Starts of one dispatch (item, version, kind) before it is abandoned. */
   maxAttempts: number;
-  /** Reruns of one item version's cancelled checks; then the item is paused. */
-  rerunsPerVersion: number;
   /**
    * How long a busy Pi session may hold up a brief: a session busy in the
    * worktree before delivery, or the briefed session still busy after it.
@@ -260,7 +258,6 @@ export const DEFAULT_RAILS: Rails = {
   childTimeoutSeconds: 60,
   leaseMinutes: 45,
   maxAttempts: 3,
-  rerunsPerVersion: 2,
   busyWaitMinutes: 45,
 };
 

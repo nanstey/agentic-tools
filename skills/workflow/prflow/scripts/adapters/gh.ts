@@ -5,7 +5,8 @@ import type { Actor, Check, PrSnapshot, Review, Role } from "../core/types.ts";
  */
 export const PR_QUERY = `query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){
 title url state isDraft headRefOid headRefName mergeStateStatus reviewDecision mergeable
-commits(last:1){nodes{commit{committedDate statusCheckRollup{contexts(first:100){nodes{__typename
+recentCommits:commits(last:100){nodes{commit{oid}}}
+commits(last:1){nodes{commit{oid committedDate statusCheckRollup{contexts(first:100){nodes{__typename
  ... on CheckRun{name status conclusion detailsUrl isRequired(pullRequestNumber:$n)}
  ... on StatusContext{context state targetUrl isRequired(pullRequestNumber:$n)}}}}}}}
 comments(last:50){nodes{createdAt author{login __typename}}}
@@ -15,22 +16,6 @@ reviewRequests(first:50){nodes{requestedReviewer{__typename ... on User{login} .
 
 const REPO = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const RUN_ID = /^[1-9]\d{0,19}$/;
-
-/** `gh run view <id> -R <owner/repo> --json <fields>`, exactly; nothing else. */
-export const runViewArgs = (repo: string, runId: string): string[] => ["run", "view", runId, "-R", repo, "--json", "status,conclusion"];
-
-function isRunView(args: readonly string[]): boolean {
-  return (
-    args.length === 7 &&
-    args[0] === "run" &&
-    args[1] === "view" &&
-    RUN_ID.test(args[2] ?? "") &&
-    args[3] === "-R" &&
-    REPO.test(args[4] ?? "") &&
-    args[5] === "--json" &&
-    /^[a-zA-Z]+(,[a-zA-Z]+)*$/.test(args[6] ?? "")
-  );
-}
 
 /** `gh run view --job <id> -R <owner/repo> --log-failed`: the failed steps' log of one job. */
 export const jobLogArgs = (repo: string, jobId: string): string[] => ["run", "view", "--job", jobId, "-R", repo, "--log-failed"];
@@ -43,7 +28,7 @@ function isJobLog(args: readonly string[]): boolean {
 export function assertReadOnly(args: readonly string[]): void {
   const [a, b] = args;
   if (a === "run") {
-    if (!isRunView(args) && !isJobLog(args)) throw new Error(`prflow: gh ${args.join(" ")} is not an allowed read call`);
+    if (!isJobLog(args)) throw new Error(`prflow: gh ${args.join(" ")} is not an allowed read call`);
     return;
   }
   const ok =
@@ -68,45 +53,6 @@ export function assertReadOnly(args: readonly string[]): void {
         throw new Error("prflow: file-valued fields are not allowed");
     }
   }
-}
-
-/** The one GitHub write prflow makes: rerun the failed and cancelled jobs of one workflow run. */
-export const rerunArgs = (repo: string, runId: string): string[] => ["run", "rerun", runId, "--failed", "-R", repo];
-
-/** Throws unless `args` is exactly `run rerun <id> --failed -R <owner/repo>`. */
-export function assertRerun(args: readonly string[]): void {
-  const ok =
-    args.length === 6 &&
-    args[0] === "run" &&
-    args[1] === "rerun" &&
-    RUN_ID.test(args[2] ?? "") &&
-    args[3] === "--failed" &&
-    args[4] === "-R" &&
-    REPO.test(args[5] ?? "");
-  if (!ok) throw new Error(`prflow: gh ${args.join(" ")} is not the allowed rerun call`);
-}
-
-/**
- * The one review write, used only by `prflow review post` (never by tick):
- * `gh api --method POST repos/<o>/<r>/pulls/<n>/reviews --input <draft dir>/post.json`.
- */
-export const reviewPostArgs = (repo: string, number: number, input: string): string[] => ["api", "--method", "POST", `repos/${repo}/pulls/${number}/reviews`, "--input", input];
-
-/** Throws unless `args` is exactly the review post above, reading a `post.json` under a `drafts` folder. */
-export function assertReviewPost(args: readonly string[]): void {
-  const m = /^repos\/([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)\/pulls\/([1-9]\d{0,9})\/reviews$/.exec(args[3] ?? "");
-  const input = args[5] ?? "";
-  const ok =
-    args.length === 6 &&
-    !!m?.[1] &&
-    REPO.test(m[1]) &&
-    input.startsWith("/") &&
-    input.endsWith("/post.json") &&
-    input.includes("/drafts/") &&
-    !input.split("/").includes("..") &&
-    !/[\n\0]/.test(input) &&
-    reviewPostArgs(m[1], Number(m[2]), input).every((x, i) => x === args[i]);
-  if (!ok) throw new Error(`prflow: gh ${args.join(" ")} is not the allowed review post`);
 }
 
 export interface SearchHit {
@@ -134,7 +80,8 @@ interface RawPr {
   headRefName?: string | null;
   mergeStateStatus: string;
   reviewDecision: string | null;
-  commits: { nodes: { commit: { committedDate: string; statusCheckRollup: { contexts: { nodes: RawContext[] } } | null } }[] };
+  commits: { nodes: { commit: { oid: string; committedDate: string; statusCheckRollup: { contexts: { nodes: RawContext[] } } | null } }[] };
+  recentCommits: { nodes: { commit: { oid: string } }[] };
   comments: { nodes: { createdAt: string; author: RawActor }[] };
   reviews: { nodes: { submittedAt: string | null; state: string; body: string | null; commit: { oid: string } | null; author: RawActor }[] };
   reviewThreads: { nodes: { isResolved: boolean; comments: { nodes: { createdAt: string; author: RawActor }[] } }[] };
@@ -154,7 +101,7 @@ export function parsePr(json: string, repo: string, number: number, role: Role, 
   const out = JSON.parse(json) as { data?: { repository?: { pullRequest?: RawPr | null } | null } };
   const pr = out.data?.repository?.pullRequest;
   if (!pr) return null;
-  const commit = pr.commits.nodes[0]?.commit;
+  const commit = pr.commits.nodes.at(-1)?.commit;
   if (!commit) return null;
   const reviews: Review[] = pr.reviews.nodes.map((r) => ({
     at: r.submittedAt,
@@ -173,6 +120,7 @@ export function parsePr(json: string, repo: string, number: number, role: Role, 
     state: pr.state,
     isDraft: pr.isDraft,
     headSha: pr.headRefOid,
+    commitOids: pr.recentCommits.nodes.map((n) => n.commit.oid),
     branch: pr.headRefName ?? null,
     headCommittedDate: commit.committedDate,
     mergeStateStatus: pr.mergeStateStatus,

@@ -44,7 +44,7 @@ Delegate to `/pr info`, `/pr comments`, `/pr ci`, `/pr ready`, `/pr rebase` (or 
 
 - `/pr info` is authoritative for PR number, repository, and `headRefOid`; never infer the head from a local ref.
 - Discover expected checks and classify dependencies with `ci.md`; query observed jobs with `gh pr checks <number> --required`. Accept results only when surrounding `/pr info` snapshots confirm unchanged base/head and trusted policy. Empty results are not proof of no expected checks.
-- Required jobs must satisfy their policy obligation. Pending/queued/running states are not success; failed/cancelled/timed-out/action-required jobs require `/pr ci`. Skipped/neutral jobs need trusted applicability evidence, not a blanket terminal-state pass.
+- Required jobs must satisfy their policy obligation. Pending/queued/running states are not success; failed/cancelled/timed-out/action-required jobs require `/pr ci`, which reruns cancelled jobs once per head (`ci.md` step 3). Skipped/neutral jobs need trusted applicability evidence, not a blanket terminal-state pass.
 - Treat pagination, authentication, rate-limit, API, or incomplete-data failures as `blocked`; never infer clean state from incomplete feedback or CI data.
 - In `monitor` mode, sleep with `sleep <interval-seconds>` only after a `pending` cycle. Never use a watch mode that hides the head OID or bypasses same-head confirmation.
 

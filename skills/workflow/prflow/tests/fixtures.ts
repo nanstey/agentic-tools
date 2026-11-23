@@ -78,10 +78,12 @@ export function prResponse(s: PrSpec = {}): unknown {
           mergeStateStatus: s.merge ?? "CLEAN",
           reviewDecision: s.decision === undefined ? "APPROVED" : s.decision,
           mergeable: "MERGEABLE",
+          recentCommits: { nodes: [{ commit: { oid: s.head ?? HEAD } }] },
           commits: {
             nodes: [
               {
                 commit: {
+                  oid: s.head ?? HEAD,
                   committedDate: s.committedDate ?? HEAD_AT,
                   statusCheckRollup: checks === null ? null : { contexts: { nodes: checks } },
                 },
@@ -111,14 +113,14 @@ export interface Case {
 /** Author-PR cases: expected triggers and the chosen kind. */
 export const CASES: Case[] = [
   // merge
-  { name: "clean approved green", pr: {}, lines: ["merge"], kind: "merge-ready" },
-  { name: "clean approved, no rollup", pr: { checks: null }, lines: ["merge"], kind: "merge-ready" },
-  { name: "clean approved, empty rollup", pr: { checks: [] }, lines: ["merge"], kind: "merge-ready" },
+  { name: "clean approved green", pr: {}, lines: ["merge"], kind: "mergeable" },
+  { name: "clean approved, no rollup", pr: { checks: null }, lines: ["merge"], kind: "mergeable" },
+  { name: "clean approved, empty rollup", pr: { checks: [] }, lines: ["merge"], kind: "mergeable" },
   { name: "clean, review required", pr: { decision: "REVIEW_REQUIRED" }, lines: [], kind: "waiting" },
   { name: "clean, no decision", pr: { decision: null }, lines: [], kind: "waiting" },
   { name: "blocked approved", pr: { merge: "BLOCKED" }, lines: [], kind: "waiting" },
   { name: "unstable approved", pr: { merge: "UNSTABLE" }, lines: [], kind: "waiting" },
-  { name: "skipped and neutral are green", pr: { checks: [run("a", "COMPLETED", "SKIPPED"), run("b", "COMPLETED", "NEUTRAL")] }, lines: ["merge"], kind: "merge-ready" },
+  { name: "skipped and neutral are green", pr: { checks: [run("a", "COMPLETED", "SKIPPED"), run("b", "COMPLETED", "NEUTRAL")] }, lines: ["merge"], kind: "mergeable" },
   // pending
   { name: "check run in progress", pr: { checks: [ok("a"), run("b", "IN_PROGRESS", null)] }, lines: [], kind: "waiting" },
   { name: "check run queued with failure", pr: { checks: [run("a", "COMPLETED", "FAILURE"), run("b", "QUEUED", null)] }, lines: [], kind: "waiting" },
@@ -146,25 +148,25 @@ export const CASES: Case[] = [
   { name: "trailing slash url falls back to name", pr: { checks: [run("lint", "COMPLETED", "FAILURE", "https://x/y/")] }, lines: ["ci:lint"], kind: "ci" },
   { name: "failure beats behind", pr: { merge: "DIRTY", checks: [run("t", "COMPLETED", "FAILURE")] }, lines: ["ci:t-id"], kind: "ci" },
   // rerun
-  { name: "cancelled", pr: { checks: [ok("a"), run("e2e", "COMPLETED", "CANCELLED")] }, lines: ["rerun:e2e-id"], kind: "rerun" },
-  { name: "cancelled sorted", pr: { checks: [run("b", "COMPLETED", "CANCELLED"), status("ok", "SUCCESS"), run("a", "COMPLETED", "CANCELLED")] }, lines: ["rerun:a-id,b-id"], kind: "rerun" },
+  { name: "cancelled", pr: { checks: [ok("a"), run("e2e", "COMPLETED", "CANCELLED")] }, lines: ["ci:cancelled: e2e-id"], kind: "ci" },
+  { name: "cancelled sorted", pr: { checks: [run("b", "COMPLETED", "CANCELLED"), status("ok", "SUCCESS"), run("a", "COMPLETED", "CANCELLED")] }, lines: ["ci:cancelled: a-id,b-id"], kind: "ci" },
   { name: "failure beats cancelled", pr: { checks: [run("b", "COMPLETED", "CANCELLED"), status("x", "ERROR")] }, lines: ["ci:x-id"], kind: "ci" },
-  { name: "cancelled beats behind", pr: { merge: "BEHIND", checks: [run("x", "COMPLETED", "CANCELLED")] }, lines: ["rerun:x-id"], kind: "rerun" },
+  { name: "cancelled beats behind", pr: { merge: "BEHIND", checks: [run("x", "COMPLETED", "CANCELLED")] }, lines: ["ci:cancelled: x-id"], kind: "ci" },
   // behind
   { name: "behind", pr: { merge: "BEHIND" }, lines: ["behind"], kind: "behind" },
   { name: "dirty", pr: { merge: "DIRTY", decision: "REVIEW_REQUIRED" }, lines: ["behind"], kind: "behind" },
   // comments
-  { name: "human comment after head", pr: { comments: [comment(alice, AFTER)] }, lines: [`comments:${AFTER}`, "merge"], kind: "merge-ready" },
-  { name: "human comment before head", pr: { comments: [comment(alice, BEFORE)] }, lines: ["merge"], kind: "merge-ready" },
+  { name: "human comment after head", pr: { comments: [comment(alice, AFTER)] }, lines: [`comments:${AFTER}`, "merge"], kind: "mergeable" },
+  { name: "human comment before head", pr: { comments: [comment(alice, BEFORE)] }, lines: ["merge"], kind: "mergeable" },
   { name: "bot and ghost comments ignored", pr: { decision: null, comments: [comment(bot("ci-bot"), AFTER), comment(null, AFTER)] }, lines: [], kind: "waiting" },
   { name: "own later reply answers", pr: { decision: null, comments: [comment(alice, AFTER), comment(me, LATER)] }, lines: [], kind: "waiting" },
   { name: "own earlier comment does not answer", pr: { decision: null, comments: [comment(me, AFTER), comment(alice, LATER)] }, lines: [`comments:${LATER}`], kind: "comments" },
   { name: "own reply at same second does not answer", pr: { decision: null, comments: [comment(alice, AFTER), comment(me, AFTER)] }, lines: [`comments:${AFTER}`], kind: "comments" },
   { name: "latest of several", pr: { decision: null, comments: [comment(alice, LATER), comment(user("bob"), AFTER)] }, lines: [`comments:${LATER}`], kind: "comments" },
-  { name: "approval without body ignored", pr: { reviews: [review(alice, "APPROVED", AFTER)] }, lines: ["merge"], kind: "merge-ready" },
-  { name: "approval with body is informational", pr: { reviews: [review(alice, "APPROVED", AFTER, "nit: rename")] }, lines: ["merge"], kind: "merge-ready" },
-  { name: "approval asking for changes counts", pr: { reviews: [review(alice, "APPROVED", AFTER, "## Changes needed\n\n1. rename")] }, lines: [`comments:${AFTER}`, "merge"], kind: "merge-ready" },
-  { name: "approval does not hide an unresolved thread", pr: { reviews: [review(alice, "APPROVED", AFTER, "lgtm")], threads: [thread(false, comment(alice, AFTER))] }, lines: [`comments:${AFTER}`, "merge"], kind: "merge-ready" },
+  { name: "approval without body ignored", pr: { reviews: [review(alice, "APPROVED", AFTER)] }, lines: ["merge"], kind: "mergeable" },
+  { name: "approval with body is informational", pr: { reviews: [review(alice, "APPROVED", AFTER, "nit: rename")] }, lines: ["merge"], kind: "mergeable" },
+  { name: "approval asking for changes counts", pr: { reviews: [review(alice, "APPROVED", AFTER, "## Changes needed\n\n1. rename")] }, lines: [`comments:${AFTER}`, "merge"], kind: "mergeable" },
+  { name: "approval does not hide an unresolved thread", pr: { reviews: [review(alice, "APPROVED", AFTER, "lgtm")], threads: [thread(false, comment(alice, AFTER))] }, lines: [`comments:${AFTER}`, "merge"], kind: "mergeable" },
   { name: "changes requested without body counts", pr: { decision: "CHANGES_REQUESTED", reviews: [review(alice, "CHANGES_REQUESTED", AFTER)] }, lines: [`comments:${AFTER}`], kind: "comments" },
   { name: "bot review ignored", pr: { decision: null, reviews: [review(bot("copilot"), "COMMENTED", AFTER, "summary")] }, lines: [], kind: "waiting" },
   { name: "own review answers", pr: { decision: null, comments: [comment(alice, AFTER)], reviews: [review(me, "COMMENTED", LATER)] }, lines: [], kind: "waiting" },

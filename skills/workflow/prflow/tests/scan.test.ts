@@ -64,20 +64,19 @@ describe("scopes", () => {
 });
 
 describe("scan", () => {
-  it("searches own non-draft PRs and review requests scoped to owners", async () => {
+  it("searches authored PRs including drafts and review requests scoped to owners", async () => {
     const { deps, calls } = fakeDeps({});
     await scan(deps, DEFAULT_CONFIG);
-    const [own, asked, reviewed, ownAll] = calls;
-    assert.deepEqual(own, [ME, ["search", "prs", "--author", ME, "--draft=false", "--state", "open", "--limit", "50", "--json", "number,repository", "--owner", "Acme"]]);
+    const [own, asked, reviewed] = calls;
+    assert.deepEqual(own, [ME, ["search", "prs", "--author", ME, "--state", "open", "--limit", "50", "--json", "number,repository", "--owner", "Acme"]]);
     assert.deepEqual(asked, [ME, ["search", "prs", "--review-requested", ME, "--state", "open", "--limit", "50", "--json", "number,repository", "--owner", "Acme"]]);
     assert.deepEqual(reviewed, [ME, ["search", "prs", "--reviewed-by", ME, "--state", "open", "--limit", "50", "--json", "number,repository", "--owner", "Acme"]]);
-    assert.deepEqual(ownAll, [ME, ["search", "prs", "--author", ME, "--state", "open", "--limit", "50", "--json", "number,repository", "--owner", "Acme"]]);
   });
 
   it("drops the owner filter for an unscoped account", async () => {
     const { deps, calls } = fakeDeps({});
     await scan(deps, config([account(ME)], false));
-    assert.equal(calls.length, 4);
+    assert.equal(calls.length, 3);
     assert.ok(calls.every(([, c]) => !c.includes("--owner") && !c.includes("--repo")));
   });
 
@@ -90,7 +89,7 @@ describe("scan", () => {
     const r = await scan(deps, config(DEFAULT_CONFIG.accounts, false));
     assert.deepEqual(r.prs.map((p) => `${p.repo}#${p.number}:${p.role}:${p.account}`), [`Acme/x#1:author:${ME}`, `Acme/y#3:reviewer:${ME}`]);
     assert.deepEqual(r.errors, [`${ME}: Acme/x#2: Could not resolve`]);
-    assert.deepEqual(plan(r).map((c) => c.kind), ["merge-ready", "review-requested"]);
+    assert.deepEqual(plan(r).map((c) => c.kind), ["mergeable", "review-requested"]);
   });
 
   it("runs each account with its own login and scope", async () => {
@@ -113,12 +112,9 @@ describe("scan", () => {
     const searches = calls.filter(([, a]) => a[0] === "search").map(([l, a]) => `${l} ${a.slice(2, 4).join(" ")} ${a.slice(-2).join(" ")}`);
     assert.deepEqual(searches.sort(), [
       "me --author me --json number,repository",
-      "me --author me --json number,repository",
       "me --review-requested me --json number,repository",
       "me --reviewed-by me --json number,repository",
       "work --author work --owner Acme",
-      "work --author work --owner Acme",
-      "work --author work --repo Partner/shared",
       "work --author work --repo Partner/shared",
       "work --review-requested work --owner Acme",
       "work --review-requested work --repo Partner/shared",
@@ -133,16 +129,18 @@ describe("scan", () => {
   });
 
   it("excludes the account's own PRs from reviewed-by results", async () => {
-    const { deps } = fakeDeps({ ownAll: [hit("Acme/x", 9)], reviewed: [hit("Acme/x", 9)], prs: { "Acme/x#9": okJson(prResponse()) } });
+    const { deps } = fakeDeps({ ownAll: [hit("Acme/x", 9)], reviewed: [hit("Acme/x", 9)], prs: { "Acme/x#9": okJson(prResponse({ isDraft: true })) } });
     const r = await scan(deps, config(DEFAULT_CONFIG.accounts, false));
-    assert.deepEqual(r.prs, []);
+    assert.equal(r.prs.length, 1);
+    assert.equal(r.prs[0]?.role, "author");
+    assert.equal(r.prs[0]?.isDraft, true);
   });
 
   it("reports a failed search as an error", async () => {
     const { deps } = fakeDeps({});
     const d: Deps = { ...deps, gh: async (l, a) => (a[0] === "search" ? fail("rate limited") : deps.gh(l, a)) };
     const r = await scan(d, config(DEFAULT_CONFIG.accounts, false));
-    assert.equal(r.errors.length, 4);
+    assert.equal(r.errors.length, 3);
     assert.match(r.errors[0] ?? "", /^octocat: .*rate limited/);
   });
 

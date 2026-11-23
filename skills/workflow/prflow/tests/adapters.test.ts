@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { assertReadOnly, assertRerun, parsePr, parsePrRefs, parseSearch, prArgs, PR_QUERY, rerunArgs, runViewArgs } from "../scripts/adapters/gh.ts";
+import { assertReadOnly, jobLogArgs, parsePr, parsePrRefs, parseSearch, prArgs, PR_QUERY } from "../scripts/adapters/gh.ts";
 import { assertDeleteBranch, assertReviewFetch, assertReviewReset, deleteBranchArgs, reviewFetchArgs, reviewResetArgs } from "../scripts/adapters/git.ts";
 import { archiveArgs, assertArchive, parseWorktrees, repoFromPrUrl, repoFromProjectId } from "../scripts/adapters/orca.ts";
 import { HEAD, prResponse, status } from "./fixtures.ts";
@@ -21,7 +21,6 @@ describe("assertReadOnly", () => {
       ["pr", "merge", "1"],
       ["pr", "review", "1", "--approve"],
       ["pr", "comment", "1"],
-      ["run", "rerun", "1", "--failed"],
       ["auth", "switch"],
       ["api", "repos/o/r/pulls/1/merge", "-X", "PUT"],
       ["api", "graphql", "-f", "query=mutation{x}"],
@@ -49,6 +48,7 @@ describe("gh parsing", () => {
     const p = parsePr(JSON.stringify(prResponse({ checks: [status("ci", "SUCCESS", null, true)], requests: ["octocat"] })), "A/b", 1, "reviewer", "octocat");
     assert.ok(p);
     assert.equal(p.headSha, HEAD);
+    assert.deepEqual(p.commitOids, [HEAD]);
     assert.equal(p.role, "reviewer");
     assert.deepEqual(p.checks, [{ typename: "StatusContext", name: "ci", state: "SUCCESS", url: null, isRequired: true }]);
     assert.deepEqual(p.reviewRequests, ["octocat"]);
@@ -67,7 +67,7 @@ describe("gh parsing", () => {
 
   it("builds the per-PR query args and requests every field the rules use", () => {
     assert.deepEqual(prArgs("A/b", 7).slice(4), ["-F", "o=A", "-F", "r=b", "-F", "n=7"]);
-    for (const f of ["isDraft", "headRefOid", "mergeStateStatus", "reviewDecision", "committedDate", "comments(last:50)", "reviews(last:50)", "reviewThreads(first:100)", "contexts(first:100)"])
+    for (const f of ["isDraft", "headRefOid", "mergeStateStatus", "reviewDecision", "commits(last:100)", "committedDate", "comments(last:50)", "reviews(last:50)", "reviewThreads(first:100)", "contexts(first:100)"])
       assert.ok(PR_QUERY.includes(f), f);
   });
 
@@ -115,8 +115,8 @@ describe("orca parsing", () => {
 
 describe("phase 3 allowlist", () => {
   const writes: string[][] = [
-    ["run", "rerun", "42", "--failed", "-R", "Acme/x"],
-    ["run", "rerun", "42", "-R", "Acme/x"],
+    ["run", "ci", "42", "--failed", "-R", "Acme/x"],
+    ["run", "ci", "42", "-R", "Acme/x"],
     ["run", "cancel", "42", "-R", "Acme/x"],
     ["run", "delete", "42", "-R", "Acme/x"],
     ["run", "watch", "42", "-R", "Acme/x"],
@@ -134,28 +134,12 @@ describe("phase 3 allowlist", () => {
     ["auth", "switch"],
   ];
 
-  it("lets gh run view through only in its exact read shape", () => {
-    assert.doesNotThrow(() => assertReadOnly(runViewArgs("Acme/x", "42")));
+  it("lets gh job log reads through only in their exact shape", () => {
+    assert.doesNotThrow(() => assertReadOnly(jobLogArgs("Acme/x", "42")));
     for (const a of writes) assert.throws(() => assertReadOnly(a), /prflow/, a.join(" "));
   });
 
-  it("allows exactly one write: gh run rerun <id> --failed -R <owner/repo>", () => {
-    assert.deepEqual(rerunArgs("Acme/x", "42"), ["run", "rerun", "42", "--failed", "-R", "Acme/x"]);
-    assert.doesNotThrow(() => assertRerun(rerunArgs("Acme/x", "42")));
-    const others = [
-      ...writes.slice(1),
-      ["run", "rerun", "42", "--failed"],
-      ["run", "rerun", "42", "--failed", "-R", "Acme/x", "--debug"],
-      ["run", "rerun", "--job", "7", "-R", "Acme/x"],
-      ["run", "rerun", "42", "--failed", "-R", "Acme"],
-      ["run", "rerun", "0", "--failed", "-R", "Acme/x"],
-      ["run", "rerun", "-1", "--failed", "-R", "Acme/x"],
-      ["run", "rerun", "42", "--failed", "-R", "Acme/x;rm"],
-      ["run", "rerun", "42", "-R", "Acme/x", "--failed"],
-      ["api", "graphql", "-f", "query=query{viewer{login}}"],
-    ];
-    for (const a of others) assert.throws(() => assertRerun(a), /not the allowed rerun call/, a.join(" "));
-  });
+
 
   it("allows exactly one Orca write: worktree rm by absolute path, never forced", () => {
     assert.deepEqual(archiveArgs("/w/a"), ["worktree", "rm", "--worktree", "path:/w/a", "--json"]);

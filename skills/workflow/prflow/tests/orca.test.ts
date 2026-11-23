@@ -187,7 +187,7 @@ describe("gh job log read", () => {
       ["run", "view", "--job", "777", "-R", "Acme/x", "--log"],
       ["run", "view", "--job", "x", "-R", "Acme/x", "--log-failed"],
       ["run", "view", "--job", "777", "-R", "Acme/x", "--log-failed", "--web"],
-      ["run", "rerun", "--job", "777", "-R", "Acme/x", "--log-failed"],
+      ["run", "ci", "--job", "777", "-R", "Acme/x", "--log-failed"],
     ])
       assert.throws(() => assertReadOnly(a), /prflow/, a.join(" "));
   });

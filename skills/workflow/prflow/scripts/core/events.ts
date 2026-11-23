@@ -9,7 +9,6 @@ export type EventType =
   | "session-finished"
   | "session-stale"
   | "abandoned"
-  | "rerun"
   | "archived"
   | "docs-committed"
   | "paused"
@@ -25,8 +24,6 @@ export type EventType =
   | "review-started"
   /** A reviewer session saved its draft review (draft id, verdict suggestion, comment count, path). */
   | "review-drafted"
-  /** `prflow review post` published a draft to GitHub (never from tick). */
-  | "review-posted"
   /** A Blocked worktree's unblock conditions held and prflow moved its card out. */
   | "unblocked"
   /** prflow moved a development worktree's board column to match its sessions and PR. */
@@ -60,7 +57,7 @@ export function makeEvent(now: number, e: EventInput): PrflowEvent {
   };
 }
 
-/** One feed line, e.g. `- 2026-01-10 12:00Z rail-tripped A/x#1 rerun: loop breaker ...`. */
+/** One feed line, e.g. `- 2026-01-10 12:00Z rail-tripped A/x#1 ci: loop breaker ...`. */
 export function renderEvent(e: PrflowEvent): string {
   const ts = e.ts.slice(0, 16).replace("T", " ") + "Z";
   const subject = [e.item ?? "prflow", e.kind, e.dispatchId !== null ? `#${e.dispatchId}` : null].filter(Boolean).join(" ");

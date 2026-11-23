@@ -50,6 +50,7 @@ import {
   type Template,
 } from "./core/brief.ts";
 import { summarizeChecks } from "./core/classify.ts";
+import { checkState } from "../../../../lib/pr-state.ts";
 import { projectFor, type Config } from "./core/config.ts";
 import { leaseExpired, leaseUntil, MINUTE_MS } from "./core/rails.ts";
 import type { Classification, Kind, PrSnapshot } from "./core/types.ts";
@@ -209,13 +210,14 @@ export function chooseTarget(sessions: PiSession[], prior: string | null, o: Tar
 
 /**
  * Whether the PR moved on from what the dispatch was for: no longer listed
- * (closed, merged, or draft), a new version, or the trigger is gone.
+ * (closed or merged), a new version, or the trigger is gone. Drafts have no
+ * triggers, but an open dispatch remains active while a PR is drafted.
  */
 export function settled(d: Dispatch, item: Classification | undefined): string | null {
-  if (!item) return "the PR is no longer an open, non-draft PR of yours";
+  if (!item) return "the PR is no longer open";
   if (item.version.slice(0, 8) !== d.version.slice(0, 8)) return `new head ${item.version.slice(0, 8)}`;
   if (item.version !== d.version) return "new feedback or replies on the same head";
-  if (!item.triggers.some((t) => t.kind === d.kind)) return `${d.kind} no longer applies`;
+  if (!item.isDraft && !item.triggers.some((t) => t.kind === d.kind)) return `${d.kind} no longer applies`;
   return null;
 }
 
@@ -238,18 +240,18 @@ export function ev(d: Dispatch) {
 const JOB_URL = /^https:\/\/github\.com\/([^/]+\/[^/]+)\/actions\/runs\/\d+\/job\/(\d+)/;
 
 async function failedJobs(c: Ctx, item: Classification, pr: PrSnapshot): Promise<FailedJob[]> {
-  const bad = ["FAILURE", "TIMED_OUT", "STARTUP_FAILURE", "ACTION_REQUIRED", "ERROR"];
   const jobs: FailedJob[] = [];
   for (const k of pr.checks) {
-    const conclusion = k.typename === "CheckRun" ? (k.status === "COMPLETED" ? k.conclusion : null) : k.state;
-    if (!bad.includes(conclusion ?? "")) continue;
+    const state = checkState(k as unknown as Record<string, unknown>);
+    if (state !== "fail" && state !== "cancelled") continue;
     const m = JOB_URL.exec(k.url ?? "");
+    const cancelled = state === "cancelled";
     let cause = "no GitHub Actions log; open the URL";
-    if (m?.[2] && same(m[1] ?? "", pr.repo) && jobs.length < 5) {
+    if (!cancelled && m?.[2] && same(m[1] ?? "", pr.repo) && jobs.length < 5) {
       const r = await c.deps.gh(item.account, jobLogArgs(pr.repo, m[2]));
       cause = r.ok ? logExcerpt(r.stdout) || "the failed steps' log is empty" : `log unavailable: ${short(r.stderr, 200)}`;
     }
-    jobs.push({ name: k.name, url: k.url, cause });
+    jobs.push({ name: k.name, url: k.url, cause, ...(cancelled ? { cancelled: true } : {}) });
   }
   return jobs;
 }
@@ -268,7 +270,7 @@ async function buildBrief(c: Ctx, item: Classification, pr: PrSnapshot, wt: Orca
     const jobs = await failedJobs(c, item, pr);
     details = jobs.length ? ciDetails(jobs) : "(prflow found no failed check; read the PR's checks.)";
   } else details = behindDetails(pr.mergeStateStatus, facts.baseRef);
-  const others = item.triggers.map((t) => (t.kind === "merge" ? "merge-ready" : t.kind)).filter((k) => k !== kind && k !== "merge-ready");
+  const others = item.triggers.map((t) => (t.kind === "merge" ? "mergeable" : t.kind)).filter((k) => k !== kind && k !== "mergeable");
   const attempt = prior ? prior.attempts + 1 : 1;
   return render(c.templates[kind], {
     repo: pr.repo,

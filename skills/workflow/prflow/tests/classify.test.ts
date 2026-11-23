@@ -9,7 +9,7 @@ import {
   authorTriggers,
   version,
 } from "../scripts/core/classify.ts";
-import { renderReport } from "../scripts/core/report.ts";
+import { renderPlanJson, renderReport, shown, snapshotOf, tickFingerprint } from "../scripts/core/report.ts";
 import type { PrSnapshot, Role, WorktreeItem } from "../scripts/core/types.ts";
 import { parsePr } from "../scripts/adapters/gh.ts";
 import { AFTER, alice, bot, CASES, comment, HEAD, LATER, ME, me, ok, prResponse, review, run, thread, user, type PrSpec } from "./fixtures.ts";
@@ -30,6 +30,12 @@ describe("author classifier fixtures", () => {
     });
   }
 
+  it("routes cancelled checks to CI with the cancelled job names", () => {
+    const c = classifyAuthored(snap({ checks: [ok("lint"), run("e2e", "COMPLETED", "CANCELLED"), run("browser", "COMPLETED", "CANCELLED")] }), ME);
+    assert.equal(c.kind, "ci");
+    assert.deepEqual(c.triggers, [{ kind: "ci", detail: "cancelled: browser-id,e2e-id" }]);
+  });
+
   it("ignores own pending review instead of crashing (would crash a naive timestamp compare)", () => {
     const pr = snap({ decision: null, comments: [comment(alice, AFTER)], reviews: [review(me, "PENDING", null)] });
     assert.deepEqual(authorTriggers(pr, ME), [{ kind: "comments", detail: AFTER }]);
@@ -37,10 +43,10 @@ describe("author classifier fixtures", () => {
 
   it("reports every trigger but picks the highest-priority kind", () => {
     const c = classifyAuthored(snap({ comments: [comment(alice, AFTER)] }), ME);
-    assert.equal(c.kind, "merge-ready");
+    assert.equal(c.kind, "mergeable");
     assert.deepEqual(c.triggers.map((t) => t.kind), ["comments", "merge"]);
     assert.equal(c.owner, "you");
-    assert.match(c.nextAction, /never merges/);
+    assert.match(c.nextAction, /GitHub reports approved/);
     assert.match(c.status, /also: comments/);
   });
 
@@ -126,6 +132,18 @@ describe("review-requested classifier", () => {
     assert.equal(rq({ reviews: [review(alice, "APPROVED", AFTER, "", HEAD), review(alice, "DISMISSED", LATER, "", HEAD)] }).lowPriority, undefined);
     assert.equal(rq({ reviews: [review(alice, "APPROVED", AFTER, "", HEAD), review(alice, "COMMENTED", LATER, "one more", HEAD)] }).lowPriority, true);
     assert.equal(rq({ reviews: [review(bot("ci"), "APPROVED", AFTER, "", HEAD)] }).lowPriority, undefined);
+  });
+
+  it("leaves own drafts out of the report but keeps drafts requested for review", () => {
+    const own = classify(snap({ isDraft: true }), ME);
+    const asked = { ...rq({ isDraft: true }), number: 2, key: "Acme/widgets#2" };
+    assert.deepEqual(shown([own, asked]).map((item) => item.number), [2]);
+    assert.deepEqual(JSON.parse(renderPlanJson([own, asked])).map((item: { number: number }) => item.number), [2]);
+    assert.deepEqual(Object.keys(snapshotOf([own, asked])), [asked.key.toLowerCase()]);
+    assert.equal(tickFingerprint([own], [], null), "");
+    assert.equal(renderReport([own]), "Nothing to report.");
+    assert.match(renderReport([own, asked]), /widgets#2 /);
+    assert.doesNotMatch(renderReport([own, asked]), /widgets#1 /);
   });
 
   it("sorts low-priority requests after the others", () => {
@@ -217,15 +235,15 @@ describe("informational approvals (real case, anonymized)", () => {
     threads: [thread(false, comment(reviewer, "2026-11-16T19:08:38Z"), comment(me, "2026-11-16T19:18:04Z"))],
   };
 
-  it("is not a comments trigger; the PR is merge-ready with the approval body as a note", () => {
+  it("is not a comments trigger; the PR is mergeable with the approval body as a note", () => {
     const pr = snap(spec);
     assert.deepEqual(authorTriggers(pr, ME), [{ kind: "merge" }]);
     const c = classifyAuthored(pr, ME);
-    assert.equal(c.kind, "merge-ready");
+    assert.equal(c.kind, "mergeable");
     assert.deepEqual(c.notes, [
       "approved by reviewer-b 2026-11-18 19:11Z: Looks good to me. The docs and promo-code changes landed. Merge only after a release that includes #393 is in production. Optional: the sandbox still uses the old path.",
     ]);
-    assert.match(renderReport([c]), /merge-ready: .* \| note: approved by reviewer-b 2026-11-18 19:11Z: Looks good to me\./);
+    assert.match(renderReport([c]), /mergeable: .* \| note: approved by reviewer-b 2026-11-18 19:11Z: Looks good to me\./);
   });
 
   it("still counts an approval that asks for changes, and drops the note", () => {

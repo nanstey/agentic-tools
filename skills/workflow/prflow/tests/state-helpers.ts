@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after } from "node:test";
-import { assertReadOnly, assertRerun, rerunArgs } from "../scripts/adapters/gh.ts";
+import { assertReadOnly } from "../scripts/adapters/gh.ts";
 import { assertDeleteBranch, deleteBranchArgs } from "../scripts/adapters/git.ts";
 import { agentListArgs, archiveArgs, assertArchive, assertOrca, closeArgs, interruptArgs, launchArgs, reviewWorktreeArgs, sendArgs, taskStatusSetArgs, terminalListArgs, worktreeStatusArgs, waitIdleArgs, worktreeNameArgs, worktreeUnparentArgs } from "../scripts/adapters/orca.ts";
 import type { BlockedFile } from "../../../../lib/blocked.ts";
@@ -61,8 +61,6 @@ export interface World {
   unpushed: Record<string, number | null>;
   /** `gh run view` status by run id (default "completed"); `null` fails the call. */
   runs: Record<string, string | null>;
-  /** Failing rerun or archive results by run id or path. */
-  rerunFails: Record<string, string>;
   archiveFails: Record<string, string>;
   /** Branch checked out per worktree path (default from the worktree row); `null` for detached. */
   heads: Record<string, string | null>;
@@ -128,7 +126,7 @@ export function briefFromPr(pr: unknown): unknown {
 
 export function world(over: Partial<World> = {}): World {
   return {
-    clock: T0, prs: {}, reviewPrs: {}, worktrees: [], refs: {}, dirty: {}, unpushed: {}, runs: {}, rerunFails: {}, archiveFails: {}, heads: {}, reviewHeads: {}, reviewFetchedHeads: {}, branchFails: {},
+    clock: T0, prs: {}, reviewPrs: {}, worktrees: [], refs: {}, dirty: {}, unpushed: {}, runs: {}, archiveFails: {}, heads: {}, reviewHeads: {}, reviewFetchedHeads: {}, branchFails: {},
     agents: [], terminals: {}, orcaFails: {}, logs: {}, briefs: {}, blocked: { version: 1, records: {} }, worktreeHeads: {}, sent: [], effects: [], calls: [], ...over,
   };
 }
@@ -247,12 +245,6 @@ export function fakeTickDeps(w: World): TickDeps {
       delete w.blocked!.records[worktreeId];
       w.effects.push(`clear-blocked ${worktreeId}`);
       return true;
-    },
-    async rerunFailed(_login, repo, runId) {
-      assertRerun(rerunArgs(repo, runId));
-      w.effects.push(`rerun ${repo} ${runId}`);
-      const err = w.rerunFails[runId];
-      return err ? fail(err) : { ok: true, stdout: "", stderr: "" };
     },
     async archiveWorktree(path) {
       assertArchive(archiveArgs(path));

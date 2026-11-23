@@ -1,43 +1,27 @@
 /**
- * Safe actions for `prflow tick`: `rerun` (gh run rerun --failed) and `cleanup`
- * (archive a clean Orca worktree of a merged or closed PR, and delete eligible
- * local branches, including review branches after either close or merge).
+ * Safe actions for `prflow tick`: `cleanup` (archive a clean Orca worktree of a
+ * merged or closed PR, and delete eligible local branches, including review
+ * branches after either close or merge).
  *
  * Live actions go through `beginDispatch`, which writes the dispatch row, a
  * `started` ledger row, and a `dispatched` event before the side effect. The
- * outcome then moves the row to `done` or `failed` with a `rerun`, `archived`,
- * or `action-failed` event. A crash in between leaves an open row that the next
+ * outcome then moves the row to `done` or `failed` with an `archived` or
+ * `action-failed` event. A crash in between leaves an open row that the next
  * tick reconciles (`verify`) or marks stale when its lease runs out.
  *
  * Dry runs make the same read-only checks and announce each action once per
  * item version as a `dry-run` event, without writing a dispatch.
  */
-import { rerunArgs, runViewArgs } from "./adapters/gh.ts";
+
 import { deleteBranchArgs, safeBranch } from "./adapters/git.ts";
 import { archiveArgs, isBusy, isReviewBranch, parseAgents, parseTerminals, parseWorktrees, piSessions } from "./adapters/orca.ts";
-import { classifyWorktree, summarizeChecks } from "./core/classify.ts";
+import { classifyWorktree } from "./core/classify.ts";
 import { leaseUntil } from "./core/rails.ts";
-import type { Classification, Kind, PrSnapshot, WorktreeItem } from "./core/types.ts";
-import { beginDispatch, finishDispatch, legacyHandled, pauseItem, type TickContext } from "./dispatch.ts";
+import type { Classification, Kind, WorktreeItem } from "./core/types.ts";
+import { beginDispatch, finishDispatch, legacyHandled, type TickContext } from "./dispatch.ts";
 import type { ScanResult } from "./scan.ts";
 import type { Dispatch, Store } from "./store.ts";
 import type { Act, TickDeps, TickOptions, Verify } from "./tick.ts";
-
-const RUN_URL = /^https:\/\/github\.com\/([^/]+\/[^/]+)\/actions\/runs\/(\d+)(?:\/|$)/;
-
-/** Workflow run ids behind the PR's cancelled or failed GitHub Actions check runs. */
-export function rerunTargets(pr: PrSnapshot): { runIds: string[]; unknown: string[] } {
-  const runIds = new Set<string>();
-  const unknown: string[] = [];
-  for (const c of pr.checks) {
-    if (c.typename !== "CheckRun" || c.status !== "COMPLETED") continue;
-    if (c.conclusion === "SUCCESS" || c.conclusion === "SKIPPED" || c.conclusion === "NEUTRAL") continue;
-    const m = RUN_URL.exec(c.url ?? "");
-    if (m?.[2] && m[1]?.toLowerCase() === pr.repo.toLowerCase()) runIds.add(m[2]);
-    else unknown.push(c.name);
-  }
-  return { runIds: [...runIds].sort(), unknown };
-}
 
 const short = (s: string, n = 300) => (s.length > n ? `${s.slice(0, n)}...` : s);
 
@@ -69,7 +53,7 @@ async function live(
   r: Run,
   req: { item: string; version: string; kind: Kind; trigger: string | null; command: string; target?: string },
   effect: () => Promise<{ ok: boolean; detail: string }>,
-  success: "rerun" | "archived",
+  success: "archived",
 ): Promise<void> {
   const { store, ctx } = r;
   const start = beginDispatch(store, ctx, { item: req.item, version: req.version, kind: req.kind, trigger: req.trigger, event: { type: "dispatched", detail: req.command } });
@@ -97,80 +81,6 @@ export function dryRunSlot(r: Pick<Run, "store" | "ctx">, ref: string): boolean 
   if (r.ctx.starts >= r.ctx.rails.startsPerTick) return false;
   r.ctx.starts++;
   return true;
-}
-
-/**
- * Dispatch version for the next rerun of `version`: the first rerun uses the
- * item version itself, later ones `<version>~r<n>`. `null` once
- * `rerunsPerVersion` reruns are done (the checks were cancelled again each time).
- */
-export function nextRerunVersion(store: Store, item: string, version: string, limit: number): string | null {
-  for (let n = 1; n <= limit; n++) {
-    const v = n === 1 ? version : `${version}~r${n}`;
-    if (store.findDispatch(item, v, "rerun")?.state !== "done") return v;
-  }
-  return null;
-}
-
-async function rerun(r: Run, c: Classification, pr: PrSnapshot): Promise<void> {
-  const { deps, store, ctx } = r;
-  const trigger = c.triggers.find((t) => t.kind === "rerun")?.detail ?? null;
-  // Never while any check is still running.
-  if (summarizeChecks(pr.checks).pending) return;
-  const limit = ctx.rails.rerunsPerVersion;
-  const version = nextRerunVersion(store, c.key, c.version, limit);
-  if (version === null) {
-    // Cancelled again after every allowed rerun: pause once per version and ask.
-    if (r.dryRun || store.systemPaused() !== null || store.item(c.key)?.paused) return;
-    const ref = `rerun-limit:${c.key}:${c.version}`;
-    if (store.addLedger({ at: ctx.now, item: c.key, version: c.version, kind: "rerun", outcome: "abandoned", detail: `${limit} reruns`, source: "prflow", ref }))
-      pauseItem(store, ctx.now, c.key, `checks cancelled again after ${limit} reruns at this version; rerun by hand or push a fix, then \`prflow resume --item ${c.key}\``, { version: c.version, kind: "rerun" });
-    return;
-  }
-  if (dryRunBlocked(store, c.key, version, "rerun", trigger)) return;
-  const { runIds, unknown } = rerunTargets(pr);
-  if (runIds.length === 0) {
-    once(store, ctx.now, `ask:rerun:${c.key}:${c.version}`, "needs-decision", {
-      type: "needs-decision",
-      item: c.key,
-      version: c.version,
-      kind: "rerun",
-      detail: `cancelled checks have no GitHub Actions run prflow can rerun (${unknown.join(", ")}); rerun them by hand`,
-    });
-    return;
-  }
-  // Re-check each run: GitHub must report it completed.
-  for (const id of runIds) {
-    const v = await deps.gh(c.account, runViewArgs(c.repo, id));
-    if (!v.ok) return;
-    let status: string | undefined;
-    try {
-      status = (JSON.parse(v.stdout) as { status?: string }).status;
-    } catch {
-      return;
-    }
-    if (status !== "completed") return;
-  }
-  const command = runIds.map((id) => `gh ${rerunArgs(c.repo, id).join(" ")}`).join("; ");
-  if (r.dryRun) {
-    const ref = `dry-run:rerun:${c.key}:${version}`;
-    if (!dryRunSlot(r, ref)) return;
-    once(store, ctx.now, ref, "dry-run", { type: "dry-run", item: c.key, version, kind: "rerun", detail: `would run: ${command}` });
-    return;
-  }
-  await live(
-    r,
-    { item: c.key, version, kind: "rerun", trigger, command, target: `runs ${runIds.join(",")}` },
-    async () => {
-      const failed: string[] = [];
-      for (const id of runIds) {
-        const res = await deps.rerunFailed(c.account, c.repo, id);
-        if (!res.ok) failed.push(`run ${id}: ${res.stderr.trim()}`);
-      }
-      return failed.length ? { ok: false, detail: failed.join("; ") } : { ok: true, detail: `reran failed and cancelled jobs in run ${runIds.join(", ")}` };
-    },
-    "rerun",
-  );
 }
 
 /** Dispatch version for a cleanup: PR state plus the worktree path (one PR may have several). */
@@ -260,36 +170,17 @@ async function cleanup(r: Run, w: WorktreeItem): Promise<void> {
   );
 }
 
-/** The tick's action step: reruns first, then worktree cleanups. */
+/** The tick's action step: archive eligible worktrees. */
 export function makeAct(deps: TickDeps, store: Store): Act {
-  return async (ctx: TickContext, result: ScanResult, items: Classification[], opts: TickOptions) => {
+  return async (ctx: TickContext, result: ScanResult, _items: Classification[], opts: TickOptions) => {
     const r: Run = { deps, store, ctx, dryRun: opts.dryRun };
-    const prs = new Map(result.prs.map((p) => [`${p.repo}#${p.number}`, p]));
-    for (const c of items) {
-      const pr = prs.get(c.key);
-      if (c.kind === "rerun" && pr && pr.role === "author") await rerun(r, c, pr);
-    }
     for (const w of result.worktrees) await cleanup(r, w);
   };
 }
 
-/**
- * Settle open rerun and cleanup dispatches left by an interrupted tick:
- * a rerun is done when the same head has checks running again; a cleanup is
- * done when its worktree is no longer listed (only when worktrees were scanned).
- */
+/** Settle cleanup dispatches when the archived worktree is no longer listed. */
 export function makeVerify(worktreesScanned: boolean): (result: ScanResult) => Verify {
   return (result) => (d: Dispatch) => {
-    if (d.kind === "rerun") {
-      const pr = result.prs.find((p) => `${p.repo}#${p.number}`.toLowerCase() === d.item.toLowerCase());
-      if (!pr || pr.headSha.slice(0, 8) !== d.version.slice(0, 8)) return null;
-      // Every targeted run must be running again; a crash may have rerun only some.
-      const ids = /^runs (\d+(?:,\d+)*)$/.exec(d.detail ?? "")?.[1]?.split(",");
-      const running = (id: string) => pr.checks.some((c) => c.typename === "CheckRun" && c.status !== "COMPLETED" && RUN_URL.exec(c.url ?? "")?.[2] === id);
-      if (ids ? ids.every(running) : summarizeChecks(pr.checks).pending)
-        return { state: "done", detail: ids ? `run ${ids.join(", ")} running again on the same head` : "checks are running again on the same head" };
-      return null;
-    }
     if (d.kind === "cleanup" && worktreesScanned) {
       const path = d.version.slice(d.version.indexOf(":") + 1);
       if (!result.worktrees.some((w) => w.path === path)) return { state: "done", detail: `worktree ${path} is no longer listed` };

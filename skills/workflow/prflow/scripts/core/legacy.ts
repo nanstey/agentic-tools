@@ -2,7 +2,7 @@
  * Parse the legacy automations' `dispatched.txt` files into ledger entries. Pure.
  *
  * - `pr-comment-watch/dispatched.txt`: `owner/repo#N@sha8:kind[:detail]`, where kind
- *   is ci, comments, behind, rerun, or merge and detail is the comment timestamp.
+ *   is ci, comments, behind, or merge (a legacy `rerun` line is reported as bad) and detail is the comment timestamp.
  * - `pr-watch/dispatched.txt`: `owner/repo#N@sha8`, one reviewer session per head.
  */
 import type { Kind } from "./types.ts";
@@ -26,8 +26,7 @@ const COMMENT_KINDS: Record<string, Kind> = {
   ci: "ci",
   comments: "comments",
   behind: "behind",
-  rerun: "rerun",
-  merge: "merge-ready",
+  merge: "mergeable",
 };
 
 export function parseLegacy(source: LegacySource, text: string): { entries: LegacyEntry[]; bad: string[] } {

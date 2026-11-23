@@ -65,8 +65,9 @@ export function cleanupBlocker(wt: Worktree, pausedId: string | undefined, pr: P
   if (wt.workspaceStatus === pausedId) return "task is paused";
   if (wt.childWorktreeIds.length > 0) return "worktree has child worktrees";
   if (pr === null) return "no PR for this branch";
+  if (pr.isCrossRepository !== false) return `PR #${pr.number} is cross-repository; cleanup requires a same-repository PR`;
+  if (pr.headRefName !== wt.branch) return `PR #${pr.number} head branch ${pr.headRefName || "(unknown)"} does not match local branch ${wt.branch}`;
   if (pr.state !== "MERGED" || pr.mergedAt === null) return `PR #${pr.number} is not merged`;
-  if (local.dirty) return "uncommitted changes in the worktree";
   if (!pr.headRefOid || local.head !== pr.headRefOid) return `local HEAD has commits that are not in merged PR #${pr.number}`;
   return null;
 }
