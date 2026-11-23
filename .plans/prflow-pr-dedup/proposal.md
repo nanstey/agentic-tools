@@ -1,6 +1,6 @@
 # Plan: deduplicate the `pr` and `prflow` skills
 
-Status: decisions recorded (section 4); re-analyzed after rebase onto `09a5867` (#198, O11); not implemented. Branch: `prflow-pr-dedup`.
+Status: decisions recorded (section 4), restructured around a strict pr/prflow boundary; re-analyzed after rebase onto `09a5867` (#198, O11); not implemented. Branch: `prflow-pr-dedup`.
 Paths are relative to the repository root.
 
 ## Summary
@@ -11,10 +11,11 @@ sometimes contradicting form, the steps that `pr` owns: fixing CI, answering rev
 rebasing, and drafting a review. Three other places (orca-orchestrator, orca-task-status, and
 `lib/task-status.ts`) add their own versions of merge readiness, thread policy, and worktree cleanup.
 
-Direction (decided): `pr` is the single source of truth for acting on a PR, and its defaults win
-every conflict. prflow watches, classifies, and dispatches; its briefs pass the exact trigger
-details and have the session run the full `pr` workflow. Consistency comes before brief size;
-a later pass reworks the PR information hierarchy for gradual disclosure (section 7).
+Direction (decided): a strict boundary, not policy adoption. `pr` is the only place that says how
+to act on a PR. prflow never restates, re-implements, or narrows a `pr` rule, in briefs or in code;
+it detects, records, and hands off. Where prflow today encodes PR policy, the plan deletes it
+rather than aligning it. Consistency comes before brief size; a later pass reworks the PR
+information hierarchy for gradual disclosure (section 7).
 
 Top findings:
 
@@ -232,103 +233,123 @@ fifth version. Under D5, cancelled checks mean "rerun pending", which matches `o
 - `pr create`, `description`, `screenshots`, `split`, `stack`, `verification`, `ready`, and `merge`
   have no prflow counterpart.
 
-## 3. Target split
+## 3. Boundary and target split
 
-- **`pr` owns acting on one PR** from its branch or worktree: create, publish, describe, rebase,
-  restack, stack, fix CI (including cancelled-check reruns), handle threads (reply, resolve,
-  re-request), review (draft or publish, with event selection and dedup), ready, merge, and
-  post-merge worktree removal. Its defaults are the policy everywhere.
-- **`prflow` owns watching many PRs**: scan, classify, ledger, rails, rerun of cancelled CI as a
-  scheduled side effect, unblock, dispatch to sessions, reviewer sessions and review worktrees,
-  draft storage, the guarded post command, and archive of leftover worktrees. Its briefs say *what*
-  is wrong, with the exact feedback, and run the full `pr` workflow. They never restate or narrow
-  `pr` steps.
-- **Other skills** (orca-orchestrator, orca-task-status) point to `pr` for PR rules instead of
-  restating them.
-- **Shared code** (`lib/`): PR-state facts used by scripts (check state including `cancelled`,
-  merge readiness, disclosure text). `pr` is prose; the code implements the definitions `pr` states.
+### Boundary rules
+
+1. **pr owns every rule about acting on a PR**: CI fixes and reruns, threads, rebase and stacks,
+   drafts and readiness, review content, review event and dedup, merge, and post-merge removal.
+2. **prflow owns watching and handing off**: scan, classify, ledger, rails, dispatch, session
+   management, review worktrees, draft storage and listing, board-column sync, unblock, and archive of
+   worktrees no session uses.
+3. **prflow states facts, not procedure.** A brief is the PR identity, the trigger details (failing
+   jobs and log lines, exact feedback, base and head), and one `/pr` command. No steps, no
+   PR rules, no "never resolve", "never force-push", or "stop after pushing".
+4. **prflow labels GitHub facts as facts.** Its kinds describe what GitHub reports (for example
+   `mergeable`: approved, checks green, merge state `CLEAN`). They are triggers for routing, never
+   gates. Only `pr` decides readiness.
+5. **prflow makes no PR-content writes.** No review posts, replies, or thread changes. Writes to a PR
+   happen inside a `pr` run. Exceptions are listed in D6.
+6. **pr does not know prflow exists.** No prflow modes, flags, or wording in `pr`. prflow uses only
+   `pr`'s public inputs: `/pr <url>`, `/pr review <url> report`, and `/pr review <url>` with a
+   matching packet (`review.md:25`, `gates.md:13`).
+7. **Shared `lib/` holds GitHub fact parsing and board rules shared by prflow and orca-task-status**,
+   never `pr` policy.
+8. **Other skills point, they do not restate.** orca-orchestrator and orca-task-status link to the
+   owning skill for PR or prflow rules.
+
+### Coupling surface (the only allowed contact points)
+
+| prflow uses | Owned by `pr` |
+| --- | --- |
+| `/pr <url>` in `ci`, `comments`, `behind` briefs | Lifecycle: picks and runs unmet phases |
+| `/pr review <url> report` in the reviewer brief | Report output (packet) |
+| `/pr review <url>` with the saved packet, run by the posting agent | Publication: event, marker, dedup, disclosure |
+| Reads PR state from GitHub (drafts, reviews, markers) | — |
 
 ### Changes
 
-| # | Change | Value | Effort | Risk |
-| --- | --- | --- | --- | --- |
-| C1 | **Thread policy = `pr` default (D1).** Delete "Never resolve a review thread" and "Do not request or nudge reviewers" from `templates/briefs/comments.md:20,27`; replace the rules at `orca-orchestrator/SKILL.md:84,106` with a pointer to `pr/references/comments.md`. Update `tests/brief.test.ts:54` | High | Low | Low |
-| C2 | **Briefs run the full `pr` workflow (D4).** Rewrite `templates/briefs/ci.md`, `comments.md`, `behind.md`: keep the header and trigger details (prflow's value), replace the "What to do" steps with "Run `/pr {{pr_url}}`" (the lifecycle, which detects and runs the unmet phases: `ci`, `comments`, `rebase`/`restack`, review rounds, `ready`, monitor, ending at merge-ready). Keep only prflow-specific session rules: stay on `{{branch}}`, never merge, report back. Delete the brief's own rebase and force-push rule (`behind.md:15-19`). Bump each template version | High | Medium | Medium: longer sessions, more context; verify on a live dry run |
-| C3 | **Drafts during a dispatch (D4 consequence).** `pr` drafts the PR before changes (`gates.md:77`) and restores it through `/pr ready`. prflow must keep tracking it: `classify.ts:154` and the dispatch monitor treat a draft PR with an open prflow dispatch as `in-progress`, not as "trigger gone, done". Drafts with no prflow dispatch stay ignored | High | Low | Low |
-| C4 | **Review brief (D4).** Delete step 3 context gathering (`briefs/review.md:17`, which uses a local merge-base that `pr review.md:53` forbids). Keep "confirm HEAD", "run `/pr review <url> report`", and the draft file format; the draft's Summary and Inline rules point to `pr/references/review.md:182-210` | Medium | Low | Low |
-| C5 | **One review publication engine with `pr` rules (D2).** `prflow review post` applies `pr`'s event selection (`review.md:231-242`: approve only on a complete `clean` packet with green CI, else comment or request changes), writes the `pr-review: v2` marker (`review.md:219-230`), and skips a post whose marker already exists (`:251-277`). `--event` can lower the event, never raise it past what `pr` allows. Add a changed-verdict path and delete the manual `gh pr review` recipe at `orca-orchestrator/SKILL.md:67`. Update `assertReviewPost` tests | Medium-high | Medium | Medium: GitHub write path |
-| C6 | **Cancelled checks are rerun (D5).** `pr` reruns each cancelled run once per head (`gh run rerun <id>`, failed jobs only) before treating it as failed: edit `ci.md` steps 2-3, `merge.md:20`, `monitor.md:47`. prflow keeps its scheduled rerun and its `ci` brief drops "Never rerun CI by hand" (`briefs/ci.md:24`). A run already rerun once on this head counts as failed | Medium | Low | Low |
-| C7 | **Shared PR-state module and one card-column rule (fixes O8, O11).** `lib/pr-state.ts` holds `checkState` with an explicit `cancelled` state, a `mergeReady` predicate matching `pr`'s rules, and one `prColumn` function. `prDecision` (`lib/task-status.ts`) and `openPrColumn` (`core/worktree-status.ts`) both become thin callers of `prColumn`; `core/classify.ts` (`merge-ready`) and `unblock.ts` use `mergeReady`. Settle the table in O11 once: accept empty `reviewDecision` and `HAS_HOOKS` as ready (GitHub enforces required reviews), cancelled = In Review (D5), unanswered feedback = Needs Attention, draft = left as is for prflow and Needs Attention for the agent's own `end` (local dirty/HEAD checks stay in `prDecision`). The orchestrator worker spec (`SKILL.md:69`) points to it | High | Medium | Medium: changes card columns and report kinds at the edges |
-| C8 | **Disclosure constant** in `lib/disclosure.ts`, used by `core/draft.ts`; the orchestrator text (`SKILL.md:67,104`) points to `pr/references/disclosure.md` | Low | Low | Low |
-| C9 | **Post-merge removal = `pr merge` force removal (D3).** `pr merge.md:52-60` stays the rule. orca-task-status `cleanup` aligns with it: remove with `--force` once the PR is merged and local `HEAD` equals the merged head (no unpushed work), dropping the clean-tree precondition and the "never `--force`" safety rule (`SKILL.md:88`, `:109`). Keep the never-`--delete-branch` rule. Update `harness/pi/APPEND_SYSTEM.md:11`, `harness/omp/APPEND_SYSTEM.md:11` only if wording changes | Medium | Low | Medium: uncommitted files in a merged worktree are discarded (accepted by D3) |
-| C10 | **Descriptions and README** (below), rows at `README.md:56`, `:76` | Medium | Low | Low |
-| C11 | **CI coverage gap.** Add `lib/tests` to the `.github/workflows/ci.yml` matrix | Low | Low | Low |
+| # | Change | Deletes from prflow | Value | Effort | Risk |
+| --- | --- | --- | --- | --- | --- |
+| C1 | **Briefs are facts plus one command (D1, D4).** `templates/briefs/ci.md`, `comments.md`, `behind.md`: keep header and trigger details; "What to do" becomes "Run `/pr {{pr_url}}`". Delete every rule and step: rebase and `--force-with-lease` (`behind.md:15-19`), CI fix steps and "never rerun" (`ci.md:15-24`), "never resolve" and "do not request reviewers" (`comments.md:20,27`), "stop after pushing", branch and merge rules (pr guards both; bare `/pr` stops at merge-ready). Bump versions | ~40 brief lines | High | Low | Medium: longer sessions; verify on a live dry run |
+| C2 | **prflow does not interpret draft state during its own dispatch.** An open prflow dispatch keeps the item `in-progress` whatever the PR's state; done detection waits for the session to finish, not for the trigger to vanish (`classify.ts:154`, `scripts/agents.ts` done check). prflow never needs to know why `pr` drafted the PR | — | High | Low | Low |
+| C3 | **Reviewer brief.** Delete step 3 context gathering (`briefs/review.md:17`, a local merge-base that `pr` forbids) and the Summary/Inline content rules (`:29-46`). The draft file is `/pr review <url> report`'s packet plus prflow metadata (PR, head, account) | ~25 brief lines | Medium | Low | Low |
+| C4 | **Publication moves to pr (D2).** Delete `prflow review post`, its payload builder, disclosure, moved-head downgrade, and `assertReviewPost` (`scripts/review-cmd.ts` post path, `scripts/core/draft.ts` payload and `DISCLOSURE`, `scripts/adapters/gh.ts:96`). The user's agent or the orchestrator (`autoPost`) posts by running `/pr review <url>` with the saved packet as the account; `pr` selects the event, writes the `pr-review: v2` marker, and dedups. prflow keeps `review list`/`show` and learns a draft was posted from GitHub (the account's review on that head, or the marker). Delete the manual `gh pr review` recipe at `orca-orchestrator/SKILL.md:67` | ~250 lines of code and tests; tick's only GitHub review write | High | Medium | Medium: changes the posting workflow; `pr` must accept a saved packet from another session (`gates.md:13` freshness applies) |
+| C5 | **Cancelled checks: pr reruns (D5).** Edit `pr` `ci.md` steps 2-3, `merge.md:20`, `monitor.md:47`: rerun each cancelled run once per head before treating it as failed. prflow's own rerun action follows D6 | — | Medium | Low | Low |
+| C6 | **prflow kinds are facts.** Rename `merge-ready` to `mergeable` in `core/classify.ts:183`, the report, the feed, and orca-orchestrator, and document it as GitHub state, not `pr` readiness. The merge decision still runs `/pr merge`, which applies its own gates | — | Medium | Low | Low: feed consumers |
+| C7 | **One board-column rule in `lib/` (O8, O11).** `lib/pr-state.ts` holds check-state parsing (explicit `cancelled`) and one `prColumn` function. `prDecision` (`lib/task-status.ts`) and `openPrColumn` (`core/worktree-status.ts`) both call it; `unblock.ts` uses it. It encodes GitHub facts and board placement only: empty `reviewDecision` and `HAS_HOOKS` count as mergeable (GitHub enforces required reviews), cancelled is In Review, unanswered feedback is Needs Attention. Local dirty and HEAD checks stay in `prDecision`. Orchestrator `SKILL.md:69` points to it | Duplicate check parsing | High | Medium | Medium: card columns at the edges |
+| C8 | **Post-merge removal (D3).** `pr merge.md:52-60` keeps `--force`. orca-task-status `cleanup` (outside the pr/prflow boundary, but same act) points to that rule and uses `--force` after its merged and HEAD checks, instead of keeping its own conflicting rule (`SKILL.md:88`, `:109`). prflow's archive of unused leftover worktrees is a different act and keeps no-`--force` | — | Medium | Low | Medium: uncommitted files in a merged worktree are lost (accepted) |
+| C9 | **Descriptions and README** (below); rows at `README.md:56`, `:76` | Description nouns that name `pr` actions | Medium | Low | Low |
+| C10 | **Orchestrator points, does not restate.** Replace PR rules at `orca-orchestrator/SKILL.md:67,69,84,104,106` with links to `pr` or prflow | Restated rules | Medium | Low | Low |
+| C11 | **CI coverage gap.** Add `lib/tests` to `.github/workflows/ci.yml` | — | Low | Low | Low |
+
+Removed from the earlier draft: caller constraints for `pr` (rule 6), and prflow applying `pr`'s
+event rules or writing its markers (rule 5; replaced by C4). The shared disclosure constant is gone
+with C4.
 
 ### Ranked order
 
-1. C1, C6: rule-only changes that remove live conflicts.
-   C7's column rule (O11) is also live once `prflow.worktreeStatus.dryRun` is off; ship it before turning that on.
-2. C2, C3, C4: briefs run `pr`; prflow follows drafts it caused. Ship C3 with or before C2.
-3. C10, C11.
-4. C8, C7: code dedup with tests.
-5. C9, then C5: session-ending and GitHub write paths last.
+1. C1, C2, C3: briefs become facts plus a command; prflow stops misreading drafts. Ship C2 first.
+2. C5, C6, C10, C9: rule edits, renames, pointers.
+3. C7: ship before `prflow.worktreeStatus.dryRun` is turned off.
+4. C4: largest deletion; needs the posting workflow tested end to end.
+5. C8, C11.
 
 ### Description rewrites
 
 `pr`:
 
 > Acts on one pull request from its branch or worktree: creates, publishes, describes, rebases or
-> restacks, fixes CI, handles review threads, reviews, marks ready, merges, and manages stacks. Use
-> when working on a specific PR yourself or when a brief asks you to run a `/pr` command. For
-> watching many PRs or dispatching PR work to sessions, use prflow.
+> restacks, fixes CI, handles review threads, reviews and publishes reviews, marks ready, merges, and
+> manages stacks. Use when working on a specific PR or when asked to run a `/pr` command.
 
 `prflow`:
 
 > Watches open PRs, review requests, and leftover worktrees across accounts: classifies each, keeps a
-> ledger behind safety rails, reruns cancelled CI, archives merged worktrees, unblocks Blocked cards,
-> keeps worktree board columns in step with their PRs, and briefs Pi sessions and reviewer sessions that do the work with the `pr` skill. Use when asking
-> which PRs need attention, running or scheduling a tick, managing prflow dispatches and pauses, or
-> listing, showing, or posting review drafts. Not for fixing one PR yourself; use pr.
+> ledger behind safety rails, keeps worktree board columns in step with their PRs, unblocks Blocked
+> cards, archives unused merged worktrees, and hands PR work and review drafting to Pi sessions that
+> run the `pr` skill. Use when asking which PRs need attention, running or scheduling a tick, managing
+> dispatches and pauses, or listing and showing review drafts.
+
+The `pr` description no longer points at prflow (rule 6).
 
 ## 4. Decisions
 
 | # | Question | Decision | Effect |
 | --- | --- | --- | --- |
-| D1 | Thread resolution and reviewer re-request | `pr` default: resolve threads and re-request reviewers | C1 |
-| D2 | Review event rules for posted drafts | `pr` default event selection | C5 |
-| D3 | Post-merge worktree removal | Force removal, as `pr merge` does | C9 |
-| D4 | Brief weight | Load the full `pr` workflow; consistency first. Gradual disclosure is a follow-up | C2, C3, C4, section 7 |
-| D5 | Cancelled checks | Rerun | C6, C7 |
+| D1 | Thread resolution and reviewer re-request | `pr` default; prflow states nothing about threads | C1 |
+| D2 | Review event rules for posted drafts | `pr` default, applied by `pr` itself at publication | C4 |
+| D3 | Post-merge worktree removal | Force removal, as `pr merge` does | C8 |
+| D4 | Brief weight | Load the full `pr` workflow; consistency first. Gradual disclosure is a follow-up | C1, C3, section 7 |
+| D5 | Cancelled checks | Rerun, owned by `pr` | C5 |
+| D6 | prflow's own cancelled-check rerun (`gh run rerun --failed`, `assertRerun`) | **Open.** It is a PR write outside `pr` (rule 5). Options: (a) delete it; cancelled becomes a `ci` dispatch that runs `/pr <url>` (strict, but a full session for a one-line rerun); (b) keep it as the one listed exception, since it needs no judgment and no session. Recommendation: (b), documented as the only prflow PR write | C5 |
 
 ## 5. Migration steps
 
-1. C1, C6: edit `templates/briefs/comments.md`, `ci.md` (bump versions), `orca-orchestrator/SKILL.md`,
-   `pr/references/ci.md`, `merge.md`, `monitor.md`. Bundle in one commit: the brief and `pr` rules
-   are lock-step (AGENTS.md commit policy).
-2. C3 then C2, C4: `core/classify.ts`, `scripts/agents.ts` draft handling with tests; rewrite
-   `ci.md`, `comments.md`, `behind.md`, `review.md` briefs; update `references/dispatch.md` brief
-   table and `SKILL.md`. Run `prflow tick --dry-run` and read the announced briefs.
-3. C10, C11: descriptions, `README.md`, `ci.yml`.
-4. C8, C7: `lib/disclosure.ts`, `lib/pr-state.ts`; switch `core/draft.ts`, `core/classify.ts`,
-   `unblock.ts`, `lib/task-status.ts`; lib tests.
-5. C9: orca-task-status `cleanup` script and `SKILL.md`; harness prompts if wording changes.
-6. C5: post path in `core/draft.ts`, `review-cmd.ts`, `adapters/gh.ts`; drop the orchestrator recipe.
-7. Re-run `install.sh` to refresh installed skills.
+1. C2, then C1 and C3: `core/classify.ts`, `scripts/agents.ts` with tests; rewrite briefs and bump
+   versions; update `references/dispatch.md` brief table and `SKILL.md` Pi Dispatch. Run
+   `prflow tick --dry-run` and read the announced briefs.
+2. C5 (`pr` only), C6, C10, C9, in one bundled commit per skill where lock-step (AGENTS.md policy).
+3. C7: `lib/pr-state.ts`; switch `lib/task-status.ts`, `core/worktree-status.ts`, `unblock.ts`.
+4. C4: delete the post path and guards; update `references/review.md` (prflow), orchestrator step 5,
+   and `SKILL.md` Review Drafts and Safety Rules; test `/pr review <url>` with a saved packet.
+5. C8, C11.
+6. Re-run `install.sh`.
 
 ## 6. Tests affected
 
 | Test | Why |
 | --- | --- |
-| `skills/workflow/prflow/tests/brief.test.ts:25-61` | Asserts brief text (`Stop after pushing`, `--force-with-lease`, `Never resolve a review thread`, `/pr review ... report`, version headers) (C1, C2, C4) |
-| `skills/workflow/prflow/tests/review.test.ts:98` | Reviewer brief's `/pr review` line (C4) |
-| `skills/workflow/prflow/tests/draft.test.ts`, `review.test.ts` | Disclosure, marker, event selection, post payload (C5, C8) |
-| `skills/workflow/prflow/tests/classify.test.ts` | Draft-with-dispatch, check summary, `merge-ready` (C3, C7) |
-| `skills/workflow/prflow/tests/unblock.test.ts` | `prDecision`/`checkState` (C7) |
-| `skills/workflow/prflow/tests/agents.test.ts`, `dispatch.test.ts` | Brief versions, rendered briefs, done detection on drafts (C2, C3) |
-| `skills/workflow/prflow/tests/worktree-status.test.ts` | Card columns from PR state (C7; added by #198) |
-| `skills/agent/orca-task-status/tests/core.test.ts`, `cli.test.ts` | `prDecision` edges (C7), `cleanup` force removal (C9) |
-| `lib/tests/shared.test.ts`, `blocked.test.ts` | New lib modules (C7, C8); add to CI (C11) |
-| `.plans/unified-review/tests/test_unified_review_contract.py` | Asserts `pr` reference text; re-run after C6 |
+| `skills/workflow/prflow/tests/brief.test.ts:25-61` | Asserts brief rules that C1 and C3 delete (`Stop after pushing`, `--force-with-lease`, `Never resolve a review thread`); replace with assertions that briefs hold facts plus one `/pr` command and no rules |
+| `skills/workflow/prflow/tests/review.test.ts` | Reviewer brief line (C3); post-path tests deleted (C4) |
+| `skills/workflow/prflow/tests/draft.test.ts` | Payload, disclosure, and `assertReviewPost` tests deleted; draft parse kept (C4) |
+| `skills/workflow/prflow/tests/classify.test.ts` | Open-dispatch drafts, `mergeable` rename (C2, C6) |
+| `skills/workflow/prflow/tests/agents.test.ts`, `dispatch.test.ts` | Brief versions, done detection while drafted (C1, C2) |
+| `skills/workflow/prflow/tests/unblock.test.ts`, `worktree-status.test.ts` | Shared column rule (C7) |
+| `skills/agent/orca-task-status/tests/core.test.ts`, `cli.test.ts` | `prDecision` edges (C7), `cleanup` with `--force` (C8) |
+| `skills/agent/orca-orchestrator/tests/*` | `merge-ready` to `mergeable` in the feed (C6) |
+| `lib/tests/*` | New `lib/pr-state.ts` (C7); add to CI (C11) |
+| `.plans/unified-review/tests/test_unified_review_contract.py` | Asserts `pr` reference text; re-run after C5 |
 | `install/tests/skill-links.test.sh` | Unchanged paths; re-run as a check |
 
 ## 7. Follow-up: PR information hierarchy
