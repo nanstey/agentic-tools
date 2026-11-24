@@ -61,6 +61,8 @@ export interface TickDeps extends Deps {
   setReviewWorktree(path: string, branch: string, status: string, comment: string, unread?: "--unread" | "--read"): Promise<CmdResult>;
   /** `orca-ide worktree set --display-name` on a review worktree (`worktreeNameArgs`): the PR's head branch name. */
   nameReviewWorktree(path: string, branch: string, name: string): Promise<CmdResult>;
+  /** `orca-ide worktree set --pr <n>` on a review worktree (`worktreeLinkPrArgs`), so Orca shows its PR card. */
+  linkReviewWorktree(path: string, branch: string, pr: number): Promise<CmdResult>;
   /** `git rev-parse HEAD` in the worktree at `path`; `null` when unknown. */
   worktreeHead(path: string): Promise<string | null>;
   /**

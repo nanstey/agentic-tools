@@ -93,7 +93,7 @@ describe("review dispatch: dry run", () => {
   it("is the default and announces the exact target and brief once, creating nothing", async () => {
     const { w, s } = setup();
     const out = (await runTick(w, s, { omitFlag: true })).stdout;
-    assert.match(out, new RegExp(`dry-run Acme/x#5 review-requested: would create top-level Orca worktree prflow-review-${SLUG} on branch prflow-review/${SLUG} \\(orca-ide worktree create --repo id:rid1 --name prflow-review-${SLUG} --branch prflow-review/${SLUG} --pr 5 --no-parent --setup run --json, without the caller's Orca identity\\) for Acme/x, name it feature, then fetch origin pull/5/head, reset --hard ${HEAD}, verify HEAD, and launch a fresh Pi reviewer there; set status reviewing, comment reviewing ${H8}; draft Acme-x-5-${H8} to ${s.dir.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/drafts/Acme-x-5/${H8}/review\\.md; brief review v4:\\n# Draft a review of Acme/x#5 at ${H8}`));
+    assert.match(out, new RegExp(`dry-run Acme/x#5 review-requested: would create top-level Orca worktree prflow-review-${SLUG} on branch prflow-review/${SLUG} \\(orca-ide worktree create --repo id:rid1 --name prflow-review-${SLUG} --branch prflow-review/${SLUG} --pr 5 --no-parent --setup run --json, without the caller's Orca identity\\) for Acme/x, name it feature, then fetch origin pull/5/head, reset --hard ${HEAD}, verify HEAD, and launch a fresh Pi reviewer there; set status reviewing, comment reviewing ${H8}; draft Acme-x-5-${H8} to ${s.dir.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/drafts/Acme-x-5/${H8}/review\\.md; brief review v5:\\n# Draft a review of Acme/x#5 at ${H8}`));
     assert.match(out, /Run `\/pr review https:\/\/github\.com\/Acme\/widgets\/pull\/1 report`/);
     assert.match(out, /Do not post anything to GitHub/);
     assert.match(out, /orca-ide worktree set --worktree active --workspace-status <id> --comment/);
@@ -155,9 +155,9 @@ describe("review dispatch: live", () => {
       },
     };
     const out = (await runTick(w, s, { live: true, deps })).stdout;
-    assert.match(seen[0] ?? "", /^planned dispatched #1: brief review v4: create top-level Orca worktree prflow-review-x-5 .*; set status reviewing, comment reviewing c0ffee11 meta=true$/);
+    assert.match(seen[0] ?? "", /^planned dispatched #1: brief review v5: create top-level Orca worktree prflow-review-x-5 .*; set status reviewing, comment reviewing c0ffee11 meta=true$/);
     // The new worktree shows reviewing in the same tick, not Orca's default column until the next one.
-    assert.deepEqual(w.effects, [`create-worktree ${SLUG}`, `name ${RPATH} feature`, `review-fetch ${RPATH} 5`, `review-reset ${RPATH} ${HEAD}`, `launch ${RWT}`, `status ${RPATH} reviewing reviewing ${H8} `]);
+    assert.deepEqual(w.effects, [`create-worktree ${SLUG}`, `link ${RPATH} 5`, `name ${RPATH} feature`, `review-fetch ${RPATH} 5`, `review-reset ${RPATH} ${HEAD}`, `launch ${RWT}`, `status ${RPATH} reviewing reviewing ${H8} `]);
     const d = s.dispatch(1);
     assert.equal(d?.kind, "review-requested");
     assert.equal(d?.version, H8);
@@ -176,7 +176,7 @@ describe("review dispatch: live", () => {
     await runTick(w, s, { live: true });
     w.clock += 15 * MIN;
     await runTick(w, s, { live: true });
-    assert.deepEqual(w.effects, [`create-worktree ${SLUG}`, `name ${RPATH} feature`, `review-fetch ${RPATH} 5`, `review-reset ${RPATH} ${HEAD}`, `launch ${RWT}`, `status ${RPATH} reviewing reviewing ${H8} `]);
+    assert.deepEqual(w.effects, [`create-worktree ${SLUG}`, `link ${RPATH} 5`, `name ${RPATH} feature`, `review-fetch ${RPATH} 5`, `review-reset ${RPATH} ${HEAD}`, `launch ${RWT}`, `status ${RPATH} reviewing reviewing ${H8} `]);
 
     w.reviewPrs[KEY] = REQ({ head: NEW_HEAD });
     w.unpushed[RPATH] = 1; // Before fetch, the new head is not an ancestor in the realistic fake.
@@ -409,7 +409,7 @@ describe("review dispatch: monitor and recovery", () => {
       await runTick(w, s, { live: true });
     }
     assert.equal(s.dispatch(1)?.state, "working");
-    assert.deepEqual(w.effects.slice(0, 5), [`create-worktree ${SLUG}`, `name ${RPATH} feature`, `review-fetch ${RPATH} 5`, `review-reset ${RPATH} ${HEAD}`, `launch ${RWT}`]);
+    assert.deepEqual(w.effects.slice(0, 6), [`create-worktree ${SLUG}`, `link ${RPATH} 5`, `name ${RPATH} feature`, `review-fetch ${RPATH} 5`, `review-reset ${RPATH} ${HEAD}`, `launch ${RWT}`]);
   });
 
   it("nudges once when idle without a draft, then retries in the same worktree with a fresh session", async () => {
@@ -439,7 +439,7 @@ describe("review dispatch: monitor and recovery", () => {
     w.clock += 15 * MIN;
     session(w, RWT, "term_new1", "done", w.clock - MIN);
     await runTick(w, s, { live: true });
-    assert.match(w.sent.at(-1) ?? "", /it does not parse \(first line must be <!-- prflow review draft v1 -->; missing or unknown Verdict line/);
+    assert.match(w.sent.at(-1) ?? "", /it does not parse \(first line must be <!-- prflow review draft v2 -->; missing or unknown Verdict line/);
   });
 
   it("abandons after maxAttempts and pauses the item", async () => {
@@ -520,11 +520,18 @@ describe("review dispatch: draft and reap", () => {
     return { w, s };
   }
 
+  it("reports an incomplete draft as not a full review", async () => {
+    const { w, s } = await drafted(DRAFT.replace("Verdict: request-changes\nCoverage: complete", "Verdict: comment\nCoverage: incomplete (risk-review, refactor, security, bugs, candidate verifier: not dispatched)"));
+    const out = (await runTick(w, s, { live: true })).stdout;
+    assert.match(out, /review-drafted Acme\/x#5 review-requested #1: draft Acme-x-5-c0ffee11: verdict suggestion comment, review INCOMPLETE \(risk-review, refactor, security, bugs, candidate verifier: not dispatched\), 2 inline comments/);
+    assert.match(out, /next: review draft INCOMPLETE \(.*\): not a full review, so it cannot approve or request changes .*rerun the reviewer or review by hand/);
+  });
+
   it("records review-drafted and preserves the clean worktree while the PR is open", async () => {
     const { w, s } = await drafted();
     const out = (await runTick(w, s, { live: true })).stdout;
     const id = `Acme-x-5-${H8}`;
-    assert.match(out, new RegExp(`review-drafted Acme/x#5 review-requested #1: draft ${id}: verdict suggestion request-changes, 2 inline comments, .*/drafts/Acme-x-5/${H8}/review\\.md`));
+    assert.match(out, new RegExp(`review-drafted Acme/x#5 review-requested #1: draft ${id}: verdict suggestion request-changes, review complete, 2 inline comments, .*/drafts/Acme-x-5/${H8}/review\\.md`));
     assert.doesNotMatch(out, /archived Acme\/x#5/);
     assert.equal(w.effects.some((e) => e.startsWith("archive") || e.startsWith("delete-branch")), false);
     assert.match(out, /publish with `\/pr review <pr_url>` using this saved draft as the matching packet/);
@@ -647,6 +654,36 @@ describe("review worktree status sync", () => {
     const out = (await runTick(dryWorld, dryStore)).stdout;
     assert.match(out, /would set \/w\/review\/prflow-review-x-5 display name feature \(was unset\)/);
     assert.equal(dryWorld.effects.some((e) => e.startsWith("name ")), false);
+  });
+
+  it("links an existing review worktree with no linkedPR to its PR, retries a failure, and dry run only announces", async () => {
+    const unlinked = () => ({ ...row(), linkedPR: null, displayName: "feature" });
+    const { w, s } = setup({ worktrees: [MAIN, unlinked()] });
+    w.orcaFails.link = "offline";
+    await runTick(w, s, { live: true });
+    w.clock += 15 * MIN;
+    await runTick(w, s, { live: true });
+    assert.equal(w.effects.filter((e) => e === `link ${RPATH} 5`).length, 2, "retried on the next tick");
+    assert.equal(s.readEventsFrom(0).events.filter((e) => e.type === "action-failed" && /--pr 5: offline/.test(e.detail ?? "")).length, 1);
+    delete w.orcaFails.link;
+    w.clock += 15 * MIN;
+    await runTick(w, s, { live: true });
+    w.clock += 15 * MIN;
+    await runTick(w, s, { live: true });
+    assert.equal(w.effects.filter((e) => e === `link ${RPATH} 5`).length, 3, "no relink once linkedPR is set");
+
+    const { w: dryWorld, s: dryStore } = setup({ worktrees: [MAIN, unlinked()] });
+    const out = (await runTick(dryWorld, dryStore)).stdout;
+    assert.match(out, /would link \/w\/review\/prflow-review-x-5 to PR #5 \(orca-ide worktree set --pr 5\)/);
+    assert.equal(dryWorld.effects.some((e) => e.startsWith("link ")), false);
+  });
+
+  it("shows an incomplete draft as incomplete in the status comment", async () => {
+    const draftWorld = world({ reviewPrs: { [KEY]: REQ() }, worktrees: [MAIN, row()] });
+    const draftStore = tempStore();
+    saveDraft(draftStore, DRAFT.replace("Verdict: request-changes\nCoverage: complete", "Verdict: comment\nCoverage: incomplete (bugs row: Agent refused)"));
+    await runTick(draftWorld, draftStore, { live: true });
+    assert.ok(draftWorld.effects.includes(`status ${RPATH} reviewing draft: comment, incomplete, 2 inline, not posted --unread`));
   });
 
   it("follows a renamed head branch and reports a failed rename once", async () => {

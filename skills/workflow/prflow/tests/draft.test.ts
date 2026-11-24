@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
-import { DRAFT_HEADER, draftId, parseDraft, parseDraftId } from "../scripts/core/draft.ts";
+import { DRAFT_HEADER, DRAFT_HEADER_V1, draftId, parseDraft, parseDraftId } from "../scripts/core/draft.ts";
 import type { DraftMeta } from "../scripts/core/draft.ts";
 import type { PrSnapshot } from "../scripts/core/types.ts";
 import { draftWasPosted, listDrafts, renderDraftList, showDraft } from "../scripts/review-cmd.ts";
@@ -53,6 +53,45 @@ describe("draft ids and parsing", () => {
     // A Verdict line quoted inside the packet never stands in for the header verdict.
     const quoted = parseDraft(`${DRAFT_HEADER}\nVerdict: **approve**\n\n## Summary\nOk.\n\n## Inline comments\nNone.\n\n## Packet\nVerdict: approve\n`);
     assert.equal(quoted.verdict, null);
+  });
+});
+
+describe("draft coverage", () => {
+  const v2 = (verdict: string, coverage: string | null, packet = "") =>
+    `${DRAFT_HEADER}\n# Review\n\nVerdict: ${verdict}\n${coverage === null ? "" : `Coverage: ${coverage}\n`}\n## Summary\n\nOk.\n\n## Inline comments\n\nNone.\n${packet ? `\n## Packet\n\n${packet}\n` : ""}`;
+
+  it("reads a complete review", () => {
+    const d = parseDraft(v2("approve", "complete", "Verdict: clean\nCoverage: all rows done."));
+    assert.deepEqual(d.errors, []);
+    assert.equal(d.coverage, "complete");
+  });
+
+  it("requires the Coverage line in a v2 draft", () => {
+    assert.match(parseDraft(v2("approve", null)).errors.join(" "), /missing Coverage line/);
+  });
+
+  it("reads an incomplete review, its gaps, and allows only comment", () => {
+    const d = parseDraft(v2("comment", "incomplete (bugs: Agent refused twice)"));
+    assert.deepEqual(d.errors, []);
+    assert.equal(d.coverage, "incomplete");
+    assert.equal(d.coverageGaps, "bugs: Agent refused twice");
+    assert.match(parseDraft(v2("approve", "incomplete (bugs: Agent refused)")).errors.join(" "), /an incomplete review can only suggest comment, not approve/);
+    assert.match(parseDraft(v2("comment", "incomplete")).errors.join(" "), /must name what did not run/);
+  });
+
+  it("trusts the packet verdict over a complete Coverage line, and only the packet's first verdict", () => {
+    assert.match(parseDraft(v2("approve", "complete", "Verdict: incomplete (no child reviewers)")).errors.join(" "), /Coverage says complete but the packet verdict is incomplete/);
+    const quoted = parseDraft(v2("approve", "complete", "Verdict: clean\n\nEarlier packet said:\nVerdict: incomplete (old)"));
+    assert.deepEqual(quoted.errors, []);
+  });
+
+  it("reads a legacy v1 draft: coverage from its packet, else unknown", () => {
+    const v1 = (packet: string) => `${DRAFT_HEADER_V1}\nVerdict: comment\n\n## Summary\n\nOk.\n\n## Inline comments\n\nNone.\n\n## Packet\n\n${packet}\n`;
+    const self = parseDraft(v1("Process: coordinator read the diff.\nVerdict: incomplete (no verified request; coverage gaps)."));
+    assert.deepEqual(self.errors, []);
+    assert.equal(self.coverage, "incomplete");
+    assert.equal(self.coverageGaps, "packet verdict is incomplete");
+    assert.equal(parseDraft(v1("Verdict: clean")).coverage, "unknown");
   });
 });
 
@@ -110,6 +149,9 @@ describe("GitHub-derived draft posted status", () => {
       assert.equal(rows.find((row) => row.item === META.item)?.posted, true);
       assert.deepEqual(rows.find((row) => row.item === META.item)?.errors, []);
       assert.match(renderDraftList(rows), /posted/);
+      assert.match(renderDraftList(rows), /verdict suggestion request-changes \| review complete \|/);
+      assert.equal(rows[0]?.coverage, "complete");
+      assert.match(await showDraft(s, ID, read, () => ME), /^coverage: complete$/m);
       for (const tampered of [{ ...meta, number: 9 }, { ...meta, url: "https://github.com/Acme/x/pull/9" }, { ...meta, account: "attacker" }]) {
         writeMeta(paths, tampered);
         const invalid = await listDrafts(s, read, () => ME);

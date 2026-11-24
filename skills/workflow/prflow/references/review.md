@@ -16,6 +16,21 @@ How `prflow tick` turns a `review-requested` PR into a saved draft review and sh
 `prflow.review.dryRun` is separate from `prflow.dispatch.dryRun` and `prflow.actions.dryRun`. Keep it
 on while the "Bryce PR review watch" Orca automation still launches reviewers.
 
+## Full review
+
+The review brief (`templates/briefs/review.md`, v5) makes every reviewer a full
+`review-code` coordinator: it dispatches each row the chosen depth requires,
+the candidate verifier, and the advisory validator as separate foreground
+`Agent` children, never `skip` depth, and at least `standard` unless a later
+head's delta over a complete earlier draft is trivial. The reviewer must not do
+a row's work itself. If a row or the verifier still cannot run after one
+corrected retry, the reviewer records the failure: `Coverage: incomplete
+(...)`, Verdict `comment`, and a reply that starts `REVIEW INCOMPLETE:`.
+
+Before v5 the brief only said to run `/pr review <url> report`, and reviewers
+with the `Agent` tool chose a cheaper inline self-review, which left every
+packet `incomplete` and every publication a `COMMENT`.
+
 ## Posting
 
 prflow only stores and shows drafts. The reviewer runs `/pr review <pr_url> report` to produce the packet; publication happens by running `/pr review <pr_url>` as the draft's account and passing the draft's `## Packet` section as the matching packet. The `pr` skill owns freshness checks, event selection, disclosure, deduplication, and the GitHub write. See the `pr` skill's `references/review.md`.
@@ -74,7 +89,7 @@ entries for a head (`prflow import-legacy`) count as done.
 | Display name | The PR's head branch (`headRefName`, e.g. `c/t219-converted-giftcert-followup`) |
 | Branch | `prflow-review/<repo>-<n>` (local only, never pushed) |
 | Base | Before each review, prflow fetches `pull/<n>/head`, resets to the exact PR SHA, and verifies HEAD |
-| Link | `--pr <n>`, `--no-parent`, `--setup run` |
+| Link | `--pr <n>`, `--no-parent`, `--setup run`, then `worktree set --pr <n>` so Orca's `linkedPR` shows the PR card |
 | Lineage | Top-level in the repo, never under the caller (see below) |
 | Status at start | `prflow.review.statuses.reviewing`, `reviewing <head8>`, as soon as the reviewer is launched or messaged |
 
@@ -91,6 +106,15 @@ worktree set --worktree path:<review path> --no-parent --json`
 (`assertWorktreeUnparent`: a `prflow-review-` folder only). A failure is
 reported once and does not stop the review. prflow creates no other worktrees;
 Pi dispatch uses existing worktrees.
+
+`worktree create --pr <n>` records the PR only in Orca's `linkedItems`; Orca
+shows the PR card from `linkedPR`. So right after the create, prflow links the
+worktree with `orca-ide worktree set --worktree path:<review path> --pr <n>
+--json` (`assertWorktreeLinkPr`: a `prflow-review-` folder and a positive PR
+number only). Status sync does the same for any open PR's review worktree whose
+`linkedPR` is empty, which repairs worktrees created before this step. A failed
+link is reported once, does not stop the review, and is retried next tick.
+Review dry run announces `would link <path> to PR #<n>` instead.
 
 Status sync runs before new reviewers start, so prflow sets a review worktree
 it just launched or messaged a reviewer in to `reviewing <head8>` itself,
@@ -128,6 +152,7 @@ set <path> display name <branch>` once per worktree and name instead.
 | Submitted `CHANGES_REQUESTED` | `changes` | `changes requested at <head8>` |
 | Submitted `COMMENTED` | `reviewing` | `commented at <head8>` |
 | Saved draft | based on verdict | `draft: <verdict>, <n> inline, not posted` |
+| Saved incomplete draft | `reviewing` | `draft: comment, incomplete, <n> inline, not posted` |
 | Legacy draft revision metadata | based on verdict | Legacy status text may include a revision number |
 
 ## Draft
@@ -137,10 +162,11 @@ Path: `${state}/drafts/<owner>-<repo>-<n>/<head8>/review.md`. Draft id:
 sha, account, dispatch id) beside it before the reviewer starts. The reviewer session can write in that folder, so `review list` and `review show` do not trust `meta.json` alone: they check its item, URL, and head against the draft folder and the review dispatch, and its account against the shared config. A mismatch marks the draft invalid, and `show` prints `invalid` for the PR, head, and account. Without a readable config, the account is not checked and a warning says so. Legacy `posted.json` revision history may remain beside a draft.
 
 ```
-<!-- prflow review draft v1 -->
+<!-- prflow review draft v2 -->
 # Review of owner/repo#N at <head8>
 
 Verdict: comment
+Coverage: complete
 
 ## Summary
 
@@ -165,7 +191,16 @@ Never posted.
 The verbatim complete output of `/pr review <pr_url> report`; publication passes this section as the matching packet.
 ```
 
-Exactly one verdict word is required: `comment`, `approve`, or `request-changes`. `None.` under Inline comments means none. Inline paths are relative to the repository root and can target a line or range, for example `### path/to/other.ext:10-14`. Publication formatting and disclosure belong to the `pr` skill.
+Exactly one verdict word is required: `comment`, `approve`, or `request-changes`.
+The `Coverage:` line is required in v2 drafts: `complete` when every required
+`review-code` row and the candidate verifier ran as child agents, else
+`incomplete (<what did not run, and why>)`. An incomplete draft may only
+suggest `comment`, and a `complete` line contradicted by the packet's own
+first `Verdict:` line (`incomplete`) makes the draft invalid. Legacy v1 drafts
+still parse; their coverage is `incomplete` when the packet verdict says so,
+else `unknown`. `review list`, `review show`, the `review-drafted` event, the
+report's next action, and the worktree status comment all show an incomplete
+review as incomplete, so it is never mistaken for a full one. `None.` under Inline comments means none. Inline paths are relative to the repository root and can target a line or range, for example `### path/to/other.ext:10-14`. Publication formatting and disclosure belong to the `pr` skill.
 
 ## Events
 
@@ -173,6 +208,6 @@ Exactly one verdict word is required: `comment`, `approve`, or `request-changes`
 | --- | --- |
 | `dispatched` | A reviewer is planned (before the worktree is created) |
 | `review-started` | The reviewer launched: session, worktree, draft path |
-| `review-drafted` | The draft is saved: id, verdict suggestion, inline comment count, and path |
+| `review-drafted` | The draft is saved: id, verdict suggestion, coverage (`complete`, `INCOMPLETE (<gaps>)`, or `coverage unknown`), inline comment count, and path |
 | `archived` | The PR is closed or merged and the review worktree is safe to archive |
 | `dry-run`, `needs-decision`, `nudged`, `session-finished`, `session-stale`, `action-failed`, `abandoned`, `paused`, `rail-tripped` | As for Pi dispatch (`references/dispatch.md`) |

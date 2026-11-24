@@ -84,6 +84,10 @@ describe("review worktree creation environment", () => {
       assert.match(seen, /worktree create --repo id:rid1 --name prflow-review-x-5 --branch prflow-review\/x-5 --pr 5 --no-parent --setup run --json/);
       await assert.rejects(realDeps().unparentReviewWorktree("/w/prflow-review-x-5", "feature"), /requires a prflow-review branch/);
       await assert.rejects(realDeps().unparentReviewWorktree("/w/other", "prflow-review/x-5"), /not the allowed review worktree unparent call/);
+      await assert.rejects(realDeps().linkReviewWorktree("/w/prflow-review-x-5", "feature", 5), /requires a prflow-review branch/);
+      await assert.rejects(realDeps().linkReviewWorktree("/w/other", "prflow-review/x-5", 5), /not the allowed review worktree PR link/);
+      assert.equal((await realDeps().linkReviewWorktree("/w/prflow-review-x-5", "prflow-review/x-5", 5)).ok, true);
+      assert.match(readFileSync(dump, "utf8"), /worktree set --worktree path:\/w\/prflow-review-x-5 --pr 5 --json/);
     } finally {
       for (const k of Object.keys(process.env)) if (!(k in saved)) delete process.env[k];
       Object.assign(process.env, saved);
