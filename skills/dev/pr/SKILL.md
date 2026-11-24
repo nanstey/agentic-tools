@@ -21,7 +21,7 @@ Subcommands follow the order a PR moves through. Bare `/pr` detects the first un
 | 2 | Publish | Commit and push changes to the PR branch | `/pr push [target]` | [`push.md`](references/push.md) |
 | 3 | Describe | Body and screenshots match the head | `/pr description [target]`, `/pr screenshots [target]` | [`description.md`](references/description.md), [`screenshots.md`](references/screenshots.md) |
 | 4 | Sync | Current with base; stack in order | `/pr rebase [target]`, `/pr restack [target]`, `/pr stack [target-or-operation]`, `/pr split [target]` | [`rebase.md`](references/rebase.md), [`restack.md`](references/restack.md), [`stack.md`](references/stack.md), [`split.md`](references/split.md) |
-| 5 | CI | Required checks pass | `/pr ci [target]` | [`ci.md`](references/ci.md) |
+| 5 | CI | No required check failing or missing | `/pr ci [target]` | [`ci.md`](references/ci.md) |
 | 6 | Review | Quality and security review, depth scaled to the change | `/pr review [target] [fix\|comment\|report]` | [`review.md`](references/review.md) → `review-code` |
 | 7 | Threads | Review comments addressed | `/pr comments [target]` | [`comments.md`](references/comments.md) |
 | 8 | Verify | Claims have cited evidence | `/pr verification [target] [report\|fix\|comment]` | [`verification.md`](references/verification.md) |

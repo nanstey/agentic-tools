@@ -28,7 +28,7 @@ Each phase has an entry test. Run a phase only when its test shows it is unmet o
 | 2 | Publish | Local commits are unpushed or the tree has validated changes | `/pr push` |
 | 3 | Describe | Body is a placeholder, lacks `## Summary`/`## Changes`/`## Testing`, or is stale for this head; UI changed with no current screenshots | `/pr description` (owns `/pr screenshots`) |
 | 4 | Sync | Behind base, conflicting, or a stack layer out of order | Stack member: `/pr stack`. Otherwise `/pr rebase`. After a parent merges: `/pr restack`. `/pr split` only when invoked explicitly. |
-| 5 | CI | Outcome unobserved, or an expected required check failed, is missing, or is still pending | `/pr ci`: fix and publish. Pending independent checks are waited on (poll as monitor does) until terminal before phase 6; `force` proceeds without waiting. |
+| 5 | CI | Outcome unobserved, or an expected required check failed or is missing | `/pr ci`: fix and publish. Do not wait for pending checks: continue to phase 6. prflow tick watches the PR and sends a `ci` brief once checks finish with a failure. Only `automerge` waits, in phase 10. |
 | 6 | Review | No exact-match complete packet or `clean` docs-only entry for this head | Own PR: `/pr review <PR> fix`. Other author's PR: `/pr review <PR> report` report-only. Review publication requires a mode-less explicit `/pr review` invocation. Depth follows `gates.md` review depth. |
 | 7 | Threads | Unresolved review threads, or a reviewer whose feedback is addressed but who is not re-requested | `/pr comments` |
 | 8 | Verify | Claims lack cited evidence in the body | `/pr verification fix` (own PR) |
@@ -52,7 +52,7 @@ Phase order matches the gate order in `gates.md`: outcome and independent CI bef
 A run ends only as one of:
 
 - `complete`: current head has an exact-match complete `clean` packet (or `clean` docs-only entry) and monitor returned `clean`. The PR is ready for human approval; with `automerge`, it is also merged.
-- `pending`: same packet, but monitor returned `pending` in `mode: once` (usually required CI still running). Not success; the PR is ready for review once CI passes.
+- `pending`: same packet, but monitor returned `pending` in `mode: once` (usually required CI still running). Not success. Do not wait: once checks finish, prflow tick sends a `ci` brief on a failure and updates the board card.
 - `forced`: `force` was applied (including `automerge force` through an unclean monitor). Report it as complete with the overridden gates listed.
 - `blocked`: the `gates.md` blocked form, naming what is left and what unblocks it.
 
