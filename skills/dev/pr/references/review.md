@@ -206,11 +206,14 @@ invocation continues to publication.
      the verdict.
    - Do not include process jargon or review internals, including reviewers/angles, validators,
      confidence, models/providers, refuted findings, or what was not run. Do not list CI status; mention
-     CI only when a failing check is caused by this diff. Also exclude skills, commands, modes, review
-     depth/rows, auth/tool/dispatch failures, sandbox/isolation, coverage status, the packet verdict
-     word `incomplete`, the reason for `COMMENT`, review-process gaps, or invoker-facing reports/directives
+     CI only when a failing check is caused by this diff, or under the `APPROVE` exception below. Also
+     exclude skills, commands, modes, review depth/rows, auth/tool/dispatch failures, sandbox/isolation,
+     coverage status, the packet verdict word `incomplete`, the reason for `COMMENT`, review-process gaps, or invoker-facing reports/directives
      such as `Decision for <name>`, `for you`, or `the decision stays with <invoker>`.
    - Decisions must be neutral. For example: `The PR asks for a decision on X; ...`.
+   - With `APPROVE`, when any required check is failing or still running at `<headRefOid>`, add one
+     short neutral line that names those checks, for example: ``Approving the code; `Storybook gate`
+     is failing at this head (looks unrelated to this diff).`` Never claim or imply that CI passed.
    - Who must decide, invoker next steps, and why no approval belongs only in the caller report.
    - Never post secrets or more than minimal evidence snippets.
    - Optional nits/existing issues stay separate and nonblocking. Never post low-confidence optional
@@ -241,8 +244,9 @@ invocation continues to publication.
 4. **Select the review event.** Select whether and how to publish.
    - Do not publish when the packet is blocked or unavailable, or when depth is `skip`.
    - `comment` selects `COMMENT`.
-   - Otherwise, select `APPROVE` only for a complete `clean` packet with independent required CI
-     passing at `<headRefOid>`. Validator results are advisory and never gate the event.
+   - Otherwise, select `APPROVE` for a complete `clean` packet. Required CI state at `<headRefOid>`
+     never gates the event: failing or pending required checks still select `APPROVE` and are named in
+     the body per step 2. Validator results are advisory and never gate the event.
    - Select `REQUEST_CHANGES` for a complete `changes_required` packet.
    - Select `COMMENT` for an `incomplete` packet or any other state.
    - Never approve or request changes when any required coverage row or candidate verification is
