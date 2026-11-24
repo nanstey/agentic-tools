@@ -48,6 +48,16 @@ remediation only on the viewer's own PR. A standalone clean source packet is not
 4. **Capture the snapshot.** Capture authoritative `baseRefOid`, `headRefOid`, and trusted policy identity. Recheck both base
    and head before any mutation or reuse.
 
+5. **Mark the review in progress.** For an `other` PR in default or `comment` mode, add the viewer's
+   `eyes` reaction to the PR description before source acquisition:
+   `gh api --method POST repos/{owner}/{repo}/issues/{number}/reactions -f content=eyes`.
+   - The call is idempotent. GitHub returns `201` for a new reaction and `200` when the viewer's
+     reaction already exists.
+   - Never edit the PR description or post a comment to signal the review.
+   - A reaction failure is a review-process gap. It never blocks the review.
+   - Skip this step for `own` PRs and `report` mode.
+   - Remove the reaction as specified in [Clear the review marker](#clear-the-review-marker).
+
 ### 2. Obtain source without changing the user's checkout
 
 The PR comparison is always `git diff <baseRefOid>..<headRefOid>`. Never use a local base ref.
@@ -291,10 +301,24 @@ invocation continues to publication.
    publication does not certify readiness. Return the review URL or existing review, event, and
    which IDs were inline/body.
 
+### Clear the review marker
+
+After the review is posted and verified, remove the viewer's `eyes` reaction from the PR description.
+Also remove it on every other exit after the reaction is added, including a deduplication skip, `blocked`, or a
+failure, so the reaction never outlives the run.
+
+1. **Find the viewer's reactions.** List them with
+   `gh api --paginate 'repos/{owner}/{repo}/issues/{number}/reactions?content=eyes&per_page=100' --jq '.[] | select(.user.login == "<viewer>") | .id'`.
+2. **Delete each one.** Run
+   `gh api --method DELETE repos/{owner}/{repo}/issues/{number}/reactions/<id>` for each ID.
+   GitHub returns `204`.
+3. **Report failures.** A removal failure is a review-process gap in the caller report. Never remove
+   other users' reactions.
+
 ## Safety Rules
 
 - Own-PR default review never mutates source/PR state or runs tests. Other-author review publication
-  changes only the GitHub review at the current head. Isolated fetch/worktree preparation is source
+  changes only the GitHub review at the current head and the viewer's temporary `eyes` reaction. Isolated fetch/worktree preparation is source
   acquisition only.
 - Never substitute local refs or uncommitted work for the authoritative PR comparison.
 - Never bypass `review-code` role separation or stricter PR permissions. Only authorized
