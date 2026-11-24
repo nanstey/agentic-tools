@@ -1,6 +1,6 @@
 # Shared PR Gates and Review State
 
-Load this contract for lifecycle, review/fix, CI/comment remediation, monitor, ready, and merge. Each remediating action invocation owns its round state; delegates inside that invocation return updates rather than start another loop.
+Load this contract for lifecycle, review/fix, CI/comment remediation, ready, and merge. Each remediating action invocation owns its round state; delegates inside that invocation return updates rather than start another loop.
 
 ## Snapshot and evidence
 
@@ -48,11 +48,11 @@ All conditions must pass:
 
 A separate validator must check the trusted base/head diff. The validator checks file type/path/mode, frontmatter and fenced code blocks, allowed hunk types, and relative changed links that resolve inside the repository. Any unproven condition is `incomplete`.
 
-Record the exact base/head, trusted policy, validator result, changed-file list, diff stat, link/path results, independent required-CI result, and unresolved-thread snapshot. `clean` requires every check and no unresolved thread. Otherwise record `incomplete` and use normal review coverage. Re-snapshot threads before monitor, ready, or merge uses the entry. A changed base, head, policy, file list, diff, or thread snapshot invalidates the entry.
+Record the exact base/head, trusted policy, validator result, changed-file list, diff stat, link/path results, independent required-CI result, and unresolved-thread snapshot. `clean` requires every check and no unresolved thread. Otherwise record `incomplete` and use normal review coverage. Re-snapshot threads before ready or merge uses the entry. A changed base, head, policy, file list, diff, or thread snapshot invalidates the entry.
 
 ## Force override
 
-`force` is the user's right to push forward. Bare `/pr`, `automerge`, `ready`, and `merge` accept it; other actions ignore it. Monitor never forces fixes: under `force` its non-`clean` result becomes an overridden gate, not a stop.
+`force` is the user's right to push forward. Bare `/pr`, `automerge`, `ready`, and `merge` accept it; other actions ignore it.
 
 - **Soft gates** (overridable): missing or stale review, `changes_required`/`incomplete` verdict, failing or pending or missing required CI, unresolved threads, unverified outcomes, missing human approval, exhausted round limit, description/verification gaps, draft state.
 - **Hard stops** (not overridable): no resolvable PR, closed or already merged PR, no authentication or access, a push or merge GitHub itself refuses with no permitted path, and destructive extras the invocation did not name.
@@ -88,13 +88,12 @@ Propose a narrow fix, split, or revert for large requests. Broad unrelated redes
 
 ## Per-invocation five-round review/fix limit
 
-A `/pr review <target> fix` invocation initializes `limit: 5, round: 1`, its snapshot, retained findings, and evidence. Other remediating action invocations (`monitor`, `ci`, or `comments`) likewise own `limit: 5, round: 1` for heads they publish. A monitor invocation initializes this state on its first cycle only and reuses it across polling cycles. Packet freshness and retained findings persist for exact-match reuse and deduplication, but the round limit never carries across action invocations or sessions.
+A `/pr review <target> fix` invocation initializes `limit: 5, round: 1`, its snapshot, retained findings, and evidence. Other remediating action invocations (`ci` or `comments`) likewise own `limit: 5, round: 1` for heads they publish. Packet freshness and retained findings persist for exact-match reuse and deduplication, but the round limit never carries across action invocations or sessions.
 
 - Round 1 includes initial quality and security visits; both clean visits share the round.
 - Each changed fix head consumes the next round. Reserve that round before editing or publishing; never create a fix head beyond round 5 that cannot receive required review. Batch a round's related remediation into one candidate head.
 - Quality fixes require outcome/required-CI revalidation, then delta and affected-path quality review and applicable security coverage. Security fixes repeat affected quality **and** security, after outcome/CI revalidation.
 - CI, comment, remote, rebase, or synchronization changes invalidate affected evidence and inherit the invoking action's state. Reassess affected impact paths/checks and retained findings; broad base/policy changes need full reassessment, not a reset.
-- Monitor requests only missing/invalidated coverage. Its remediation heads use monitor's own invocation limit; it does not run duplicate full reviews or call a recursive `/pr` lifecycle.
 - Delegates inside an invocation inherit that invocation's state. Never reset it mid-invocation or start a nested/recursive review. Missing state at an invocation start is normal and initializes it; missing state for an in-invocation delegate is a defect and stops `blocked`.
 
 Rounds run back-to-back by default: the caller starts the next round itself and never waits for user confirmation, ending only at convergence or a stop condition.
@@ -107,4 +106,4 @@ Use `blocked: <gate> — <exact missing evidence or failed check>; unblock requi
 
 ## Lifecycle completion gate
 
-[`lifecycle.md`](lifecycle.md) Completion is authoritative: a bare `/pr` or `automerge` run ends only as `complete` (exact-match `clean` packet or docs-only entry for the final head, plus monitor `clean`), `pending` (same packet, monitor `pending` in `mode: once`; not success), `forced` (force applied, overrides listed), or `blocked`. The one-time monitor head reconciliation rule lives there. Setup completion or green CI is never terminal.
+[`lifecycle.md`](lifecycle.md) Completion is authoritative: a bare `/pr` or `automerge` run ends only as `complete` (exact-match `clean` packet or docs-only entry for the final head, plus every expected required check passed), `pending` (same packet, required CI still running; not success), `forced` (force applied, overrides listed), or `blocked`. The one-time head reconciliation rule lives there. Setup completion or green CI is never terminal.

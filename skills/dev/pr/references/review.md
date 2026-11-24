@@ -178,7 +178,7 @@ invocation continues to publication.
    - Continue only within this invocation's five rounds until convergence or `blocked` at round 5
      without another fix head.
 
-7. **Return final state.** Return the updated packet and this invocation's final state to lifecycle/monitor. Callers must not
+7. **Return final state.** Return the updated packet and this invocation's final state to the lifecycle. Callers must not
    treat it as carry-over budget.
    - Do not launch another lifecycle.
    - Do not post comments, reply to or resolve threads, approve, mark ready, or merge.

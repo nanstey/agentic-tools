@@ -11,7 +11,7 @@ Default flow includes fix, validation, commit, and push unless user scopes it do
 1. Current branch.
 2. Matching PR.
 3. Requested scope (full flow or investigation only).
-4. Current outcome/check evidence and the invoking action's round state; honor deferred commit/push when monitor batches remediation.
+4. Current outcome/check evidence and the invoking action's round state; honor deferred commit/push when the caller batches remediation.
 
 ## Workflow
 
@@ -19,16 +19,16 @@ Default flow includes fix, validation, commit, and push unless user scopes it do
 2. Discover expected required checks and dependencies below, then read failed completed checks/runs (`gh pr checks`, `gh run view --log`) for the authoritative base/head/policy.
 3. Rerun cancelled checks before treating them as failures: for each GitHub Actions run with a cancelled job on the current head and no earlier rerun on that head, run `gh run rerun <run-id> --failed -R <owner/repo>` once, then treat it like any pending check. A job cancelled again after that rerun, or a cancelled non-Actions check, counts as failed. Record each rerun in the report.
 4. Group failures by root cause; keep evidence per group and stable finding IDs. Classify as real code issue, already fixed, flaky, external, or unclear; do not fabricate fixes for external/flaky failures.
-5. For code remediation, verify viewer ownership, non-fork pushable source branch/repository, matching branch and authoritative `HEAD`, clean working tree, authorization, and a reserved next review round before edits. Then apply the draft-before-changes rule in `gates.md`. During a monitor batch, only tracked batch changes are permitted; any unexpected change stops. Fix verified requests only, with minimal scope; optional nits require separate explicit selection/authorization and never drive rounds.
+5. For code remediation, verify viewer ownership, non-fork pushable source branch/repository, matching branch and authoritative `HEAD`, clean working tree, authorization, and a reserved next review round before edits. Then apply the draft-before-changes rule in `gates.md`. During a caller's batch, only tracked batch changes are permitted; any unexpected change stops. Fix verified requests only, with minimal scope; optional nits require separate explicit selection/authorization and never drive rounds.
 6. Separate validators recheck acceptance outcomes and touched-area lint/typecheck/tests. Publish only changed code with passing validation through `/pr push`; honor caller-deferred commit/publication.
-7. Every published fix head consumes the reserved next round. Return updated evidence/state and repeat affected outcome/required-CI/quality/security gates before readiness; use the shared source packet, not a nested lifecycle or reset review loop within the invocation. Monitor owns this continuation when called from monitor; a standalone CI run must obtain the affected review coverage before reporting gate completion.
+7. Every published fix head consumes the reserved next round. Return updated evidence/state and repeat affected outcome/required-CI/quality/security gates before readiness; use the shared source packet, not a nested lifecycle or reset review loop within the invocation. The caller owns this continuation when it passed round state; a standalone CI run must obtain the affected review coverage before reporting gate completion.
 8. Report rerun guidance, remaining expected jobs, review coverage, and unresolved blockers. Failed checks or material evidence gaps do not permit readiness.
 
 Stop as blocked on risky architecture/product decisions or ambiguous trade-offs; report the options and do not choose.
 
 ## Expected Required Checks
 
-Use this discovery for lifecycle, review/fix, monitor, ready, and merge. `gh pr checks <number> --required` reports observed jobs, not proof of the complete expected set.
+Use this discovery for lifecycle, review/fix, ready, and merge. `gh pr checks <number> --required` reports observed jobs, not proof of the complete expected set.
 
 1. Pin authoritative base/head and trusted policy. Read applicable repository instructions, branch protection and rulesets (for example `gh api repos/{owner}/{repo}/branches/{base}/protection` and `gh api repos/{owner}/{repo}/rules/branches/{base}`), required checks/workflows, and workflow definitions at the trusted revision where permissions allow. Include required external checks, matrix/reusable workflows, event/path conditions, and documented merge-queue requirements; do not let PR changes weaken the policy used to review them.
 2. Record each expected job, policy source, applicable event/condition, dependency, gate stage, current-head result, and missing evidence. Classify independent jobs, automated-review-dependent jobs, required human-approval jobs, and later merge-queue/release jobs to avoid circular prerequisites. Jobs at later human/queue/release gates are recorded as not yet due until their prerequisites, not skipped/passed or required before readiness; they must pass at their actual gate. Human approval/queue/release gates are not waived or self-granted by readiness.

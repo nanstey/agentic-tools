@@ -1,7 +1,7 @@
 ---
 name: pr
 description: Acts on one pull request from its branch or worktree: creates, publishes, describes, rebases or restacks, fixes and reruns CI, handles review threads, reviews and publishes reviews, marks ready, merges, and manages stacks. Use when working on a specific PR or when asked to run a `/pr` command.
-argument-hint: "[info|create|push|description|screenshots|rebase|restack|split|stack|ci|review|comments|verification|ready|monitor|merge|automerge] [PR-URL-or-number] [fix|comment|report] [force]"
+argument-hint: "[info|create|push|description|screenshots|rebase|restack|split|stack|ci|review|comments|verification|ready|merge|automerge] [PR-URL-or-number] [fix|comment|report] [force]"
 user-invocable: true
 disable-model-invocation: false
 ---
@@ -26,10 +26,9 @@ Subcommands follow the order a PR moves through. Bare `/pr` detects the first un
 | 7 | Threads | Review comments addressed | `/pr comments [target]` | [`comments.md`](references/comments.md) |
 | 8 | Verify | Claims have cited evidence | `/pr verification [target] [report\|fix\|comment]` | [`verification.md`](references/verification.md) |
 | 9 | Ready | Draft becomes ready for review | `/pr ready [target]` | [`ready.md`](references/ready.md) |
-| 10 | Monitor | Re-observe until clean | `/pr monitor [target] [mode: once]` | [`monitor.md`](references/monitor.md) |
-| 11 | Merge | Squash-merge | `/pr merge [target] [force]` | [`merge.md`](references/merge.md) |
+| 10 | Merge | Squash-merge | `/pr merge [target] [force]` | [`merge.md`](references/merge.md) |
 
-`/pr` runs phases 0–10 and stops at merge-ready. `/pr automerge [target]` (the expected command to run the full lifecycle and merge when ready) runs the same lifecycle, then phase 11. After a confirmed merge, `/pr automerge` and `/pr merge` automatically remove the current Orca-managed linked worktree, ending this session by design; report `skipped (Orca unavailable)` or `skipped (outside Orca)` before ending when applicable, and report every other cleanup failure, as specified in [`merge.md`](references/merge.md). Both load [`lifecycle.md`](references/lifecycle.md). Every other action loads exactly its mapped reference.
+`/pr` runs phases 0–9 and stops at merge-ready. `/pr automerge [target]` (the expected command to run the full lifecycle and merge when ready) runs the same lifecycle, then phase 10. After a confirmed merge, `/pr automerge` and `/pr merge` automatically remove the current Orca-managed linked worktree, ending this session by design; report `skipped (Orca unavailable)` or `skipped (outside Orca)` before ending when applicable, and report every other cleanup failure, as specified in [`merge.md`](references/merge.md). Both load [`lifecycle.md`](references/lifecycle.md). Every other action loads exactly its mapped reference.
 
 Reject an unknown action, more than one action word, or legacy `--` action flags. A supplied PR URL or number is the target; otherwise references resolve the current branch. Follow `CLAUDE.md` / `AGENTS.md` on conflict. Default GitHub tool is `gh`.
 
@@ -60,4 +59,4 @@ Invoking an action authorizes the mutations it declares. Destructive extras (pru
 
 ## Output Behavior
 
-Report the action, resolved target, phases run, outcome, what remains to reach merge, and any overridden gates. Bare `/pr` and `automerge` also report the review verdict/head and monitor result.
+Report the action, resolved target, phases run, outcome, what remains to reach merge, and any overridden gates. Bare `/pr` and `automerge` also report the review verdict/head and required-CI state.

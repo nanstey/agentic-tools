@@ -17,7 +17,7 @@ Convert one open draft PR to ready-for-review once current outcome, expected req
 4. Ready-only required jobs need a supported draft/manual trigger or explicitly authorized configuration change; otherwise stop using the `gates.md` blocked form with that requirement as the unblocking condition (`force` records it as overridden and converts). Never mark ready merely to start checks or treat unrun checks as passed. Human approval/jobs, merge queues, and release flag/rollback policy remain later gates; they are not waived by readiness.
 5. Snapshot unresolved review threads (see `merge.md` implementation notes); stop blocked if any remain, except under `force`, which records them as overridden. Re-run `/pr info` and require unchanged base/head/policy and current evidence.
 6. If already ready, report that state without mutation, but claim gate success only if the preceding evidence is complete. Otherwise run `gh pr ready <number>`, re-read, and require `isDraft` false and unchanged base/head.
-7. Return current evidence/state to the caller. A follow-up `/pr monitor` must re-observe the ready snapshot and any new jobs; conversion is neither human approval nor merge authorization.
+7. Return current evidence/state to the caller. prflow tick re-observes the ready PR and any new jobs; conversion is neither human approval nor merge authorization.
 
 ## Safety Rules
 
@@ -29,4 +29,4 @@ Convert one open draft PR to ready-for-review once current outcome, expected req
 
 ## Output Style
 
-Report PR, converted/already-ready/blocked, authoritative base/head/policy, observed outcome and expected-CI evidence, quality/security packet or docs-only evidence entry and round state, thread/request/gap snapshot, and, when blocked, the `gates.md` blocked form with its unblocking condition. State that follow-up monitor observation is required; never claim approval or merge permission.
+Report PR, converted/already-ready/blocked, authoritative base/head/policy, observed outcome and expected-CI evidence, quality/security packet or docs-only evidence entry and round state, thread/request/gap snapshot, and, when blocked, the `gates.md` blocked form with its unblocking condition. State that prflow tick re-observes the PR; never claim approval or merge permission.
