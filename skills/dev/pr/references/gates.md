@@ -1,6 +1,6 @@
 # Shared PR Gates and Review State
 
-Load this contract for lifecycle, review/fix, CI/comment remediation, monitor, ready, and merge. Each remediating action invocation owns its round state; delegates inside that invocation return updates rather than start another loop.
+Load this contract for lifecycle, review/fix, CI/comment remediation, ready, and merge. Each remediating action invocation owns its round state; delegates inside that invocation return updates rather than start another loop.
 
 ## Snapshot and evidence
 
@@ -48,11 +48,11 @@ All conditions must pass:
 
 A separate validator must check the trusted base/head diff. The validator checks file type/path/mode, frontmatter and fenced code blocks, allowed hunk types, and relative changed links that resolve inside the repository. Any unproven condition is `incomplete`.
 
-Record the exact base/head, trusted policy, validator result, changed-file list, diff stat, link/path results, independent required-CI result, and unresolved-thread snapshot. `clean` requires every check and no unresolved thread. Otherwise record `incomplete` and use normal review coverage. Re-snapshot threads before monitor, ready, or merge uses the entry. A changed base, head, policy, file list, diff, or thread snapshot invalidates the entry.
+Record the exact base/head, trusted policy, validator result, changed-file list, diff stat, link/path results, independent required-CI result, and unresolved-thread snapshot. `clean` requires every check and no unresolved thread. Otherwise record `incomplete` and use normal review coverage. Re-snapshot threads before ready or merge uses the entry. A changed base, head, policy, file list, diff, or thread snapshot invalidates the entry.
 
 ## Force override
 
-`force` is the user's right to push forward. Bare `/pr`, `automerge`, `ready`, and `merge` accept it; other actions ignore it. Monitor never forces fixes: under `force` its non-`clean` result becomes an overridden gate, not a stop.
+`force` is the user's right to push forward. Bare `/pr`, `automerge`, `ready`, and `merge` accept it; other actions ignore it.
 
 - **Soft gates** (overridable): missing or stale review, `changes_required`/`incomplete` verdict, failing or pending or missing required CI, unresolved threads, unverified outcomes, missing human approval, exhausted round limit, description/verification gaps, draft state.
 - **Hard stops** (not overridable): no resolvable PR, closed or already merged PR, no authentication or access, a push or merge GitHub itself refuses with no permitted path, and destructive extras the invocation did not name.
@@ -64,11 +64,11 @@ Without `force`, an unmet soft gate is first work for the invoked action's phase
 ## Gate order
 
 1. **Outcome:** observe the applicable acceptance outcomes with cited current evidence. A PR description, claimed test pass, or green CI alone is insufficient.
-2. **Required CI independent of review:** discover expected jobs from actual trusted repository policy, branch protection/rulesets, and workflows; use [`ci.md`](ci.md). All applicable independent jobs must pass before downstream gates.
+2. **Required CI independent of review:** discover expected jobs from actual trusted repository policy, branch protection/rulesets, and workflows; use [`ci.md`](ci.md). A failing or missing applicable independent job holds downstream gates. A pending one does not: later gates proceed, and a later failure comes back through `/pr ci` (prflow tick sends the brief). Merge still requires every job to pass.
 3. **Quality:** `/review-code report` supplies source-verified behavior, tests, contracts, structure, and affected paths; `risk-review` is its quality reviewer. A `clean` docs-only evidence entry may replace this source review only under the docs-only review substitute.
 4. **Security:** triage every PR; complete deeper security checks when effects or uncertainty require them. Escalate critical new risks immediately, without waiting for the normal gate sequence. A `clean` docs-only evidence entry may replace this security coverage only under the docs-only review substitute.
 5. **Automated-review-dependent required CI:** run after its documented review prerequisites; verify all expected results for the current snapshot.
-6. **Human readiness:** current outcome/CI/quality/security evidence, or a `clean` docs-only evidence entry, no unresolved verified requests, and resolved review threads permit `/pr ready` when authorized.
+6. **Human readiness:** current outcome/CI/quality/security evidence (required CI may still be pending, not failing or missing), or a `clean` docs-only evidence entry, no unresolved verified requests, and resolved review threads permit `/pr ready` when authorized.
 
 Reviewers run sequentially in the foreground within a round; judge gate passes in order. Never report security passed while quality has unresolved requests. Failed prerequisites/quality requests are fixed first; if they cannot be, they stop downstream lifecycle/fix/readiness gates unless `force` applies. Standalone findings remain diagnostic, not readiness. Agent-published approvals are never evidence of a required human approval. Human approval, required human-review jobs, merge queues, release flags, and rollback policy remain later gates; readiness never grants approval or merge authority. Classify check dependencies to avoid cycles. Ready-only required jobs need a supported draft/manual trigger or explicitly authorized configuration change; otherwise report `blocked`. Never mark ready merely to start checks, skip them, or infer success from zero observed checks.
 
@@ -88,13 +88,12 @@ Propose a narrow fix, split, or revert for large requests. Broad unrelated redes
 
 ## Per-invocation five-round review/fix limit
 
-A `/pr review <target> fix` invocation initializes `limit: 5, round: 1`, its snapshot, retained findings, and evidence. Other remediating action invocations (`monitor`, `ci`, or `comments`) likewise own `limit: 5, round: 1` for heads they publish. A monitor invocation initializes this state on its first cycle only and reuses it across polling cycles. Packet freshness and retained findings persist for exact-match reuse and deduplication, but the round limit never carries across action invocations or sessions.
+A `/pr review <target> fix` invocation initializes `limit: 5, round: 1`, its snapshot, retained findings, and evidence. Other remediating action invocations (`ci` or `comments`) likewise own `limit: 5, round: 1` for heads they publish. Packet freshness and retained findings persist for exact-match reuse and deduplication, but the round limit never carries across action invocations or sessions.
 
 - Round 1 includes initial quality and security visits; both clean visits share the round.
 - Each changed fix head consumes the next round. Reserve that round before editing or publishing; never create a fix head beyond round 5 that cannot receive required review. Batch a round's related remediation into one candidate head.
 - Quality fixes require outcome/required-CI revalidation, then delta and affected-path quality review and applicable security coverage. Security fixes repeat affected quality **and** security, after outcome/CI revalidation.
 - CI, comment, remote, rebase, or synchronization changes invalidate affected evidence and inherit the invoking action's state. Reassess affected impact paths/checks and retained findings; broad base/policy changes need full reassessment, not a reset.
-- Monitor requests only missing/invalidated coverage. Its remediation heads use monitor's own invocation limit; it does not run duplicate full reviews or call a recursive `/pr` lifecycle.
 - Delegates inside an invocation inherit that invocation's state. Never reset it mid-invocation or start a nested/recursive review. Missing state at an invocation start is normal and initializes it; missing state for an in-invocation delegate is a defect and stops `blocked`.
 
 Rounds run back-to-back by default: the caller starts the next round itself and never waits for user confirmation, ending only at convergence or a stop condition.
@@ -107,4 +106,4 @@ Use `blocked: <gate> — <exact missing evidence or failed check>; unblock requi
 
 ## Lifecycle completion gate
 
-[`lifecycle.md`](lifecycle.md) Completion is authoritative: a bare `/pr` or `automerge` run ends only as `complete` (exact-match `clean` packet or docs-only entry for the final head, plus monitor `clean`), `pending` (same packet, monitor `pending` in `mode: once`; not success), `forced` (force applied, overrides listed), or `blocked`. The one-time monitor head reconciliation rule lives there. Setup completion or green CI is never terminal.
+[`lifecycle.md`](lifecycle.md) Completion is authoritative: a bare `/pr` or `automerge` run ends only as `complete` (exact-match `clean` packet or docs-only entry for the final head, plus every expected required check passed), `pending` (same packet, required CI still running; not success), `forced` (force applied, overrides listed), or `blocked`. The one-time head reconciliation rule lives there. Setup completion or green CI is never terminal.

@@ -9,7 +9,7 @@ Single publication path for changes to an existing PR branch: commit validated c
 1. PR URL/number; otherwise current branch.
 2. Validated change batch (working-tree changes, finding IDs, validator results), or a head already pushed by a delegate (`/git rebase`, `/pr restack`, `/pr stack`).
 3. The invoking action's round state and current packet/evidence from [`gates.md`](gates.md). Never reset it within the invocation or start a loop.
-4. Optional deferral flag from monitor to batch several remediations into one head.
+4. Optional deferral flag from a caller that batches several remediations into one head.
 
 ## Workflow
 
