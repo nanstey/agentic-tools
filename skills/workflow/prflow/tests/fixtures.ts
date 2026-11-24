@@ -183,10 +183,11 @@ export const CASES: Case[] = [
 ];
 
 /** A saved review draft for `Acme/x#5` at `HEAD`. */
-export const DRAFT = `<!-- prflow review draft v1 -->
+export const DRAFT = `<!-- prflow review draft v2 -->
 # Review of Acme/x#5 at c0ffee11
 
 Verdict: request-changes
+Coverage: complete
 
 ## Summary
 

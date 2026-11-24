@@ -96,6 +96,8 @@ If the chosen depth is `skip`, do not call `review-code`. Record the substitute 
    - Run each required `review-code` row as a separate foreground child reviewer, followed by the validator and the report-only candidate verifier.
    - Collect each child's result before dispatching the next. Record the model and reasoning settings that the harness reports for it, when available. Model choice is informational: do not require a different model or provider family for any reviewer.
    - Missing model information is not a gap and never blocks the review. If the harness cannot run child reviewers, return exactly `blocked: needs a coordinator with Agent-tool dispatch`.
+   - Never do a required row's or the candidate verifier's work inline instead of dispatching it, to save time or cost or for any other reason. Coordinator reading is input for the children, not coverage; a row done inline is `not done`.
+   - If a child call is refused or fails, correct it and retry once. If it still fails, record the row as failed with the error. The packet is `incomplete`, and the caller report starts with that failure.
 
 2. **Pass evidence and constraints.** Give each child reviewer the following information:
    - Review depth and authoritative PR range.

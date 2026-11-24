@@ -1,7 +1,7 @@
 /** Read and render saved review drafts. Review publication belongs to `/pr review`. */
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
-import { draftFolder, draftSummary, parseDraftId } from "./core/draft.ts";
+import { coverageText, draftFolder, draftSummary, parseDraftId, type Coverage } from "./core/draft.ts";
 import type { PrSnapshot } from "./core/types.ts";
 import { loadDraft, type LoadedDraft } from "./review.ts";
 import { draftRevision, type Revision } from "./revisions.ts";
@@ -66,6 +66,10 @@ export interface DraftRow {
   head: string;
   saved: boolean;
   verdict: string | null;
+  /** Whether the review ran every required row; `incomplete` drafts cannot be approved or request changes. */
+  coverage: Coverage | null;
+  /** What did not run, for an incomplete review. */
+  coverageGaps: string;
   comments: number;
   errors: string[];
   /** Whether the draft's account reviewed the PR; `null` when GitHub could not be read. */
@@ -106,6 +110,8 @@ export async function listDrafts(store: Store, readPr: ReadDraftPr, expectedAcco
         head: h,
         saved: d.text !== null,
         verdict: d.draft?.verdict ?? null,
+        coverage: d.draft?.coverage ?? null,
+        coverageGaps: d.draft?.coverageGaps ?? "",
         comments: d.draft?.comments.length ?? 0,
         errors,
         posted,
@@ -123,7 +129,8 @@ export function renderDraftList(rows: DraftRow[]): string {
   return rows.map((r) => {
     const rev = r.revision > 1 ? ` r${r.revision}` : "";
     const state = r.posted === null ? `posted: unknown (${r.postedError ?? "read failed"})` : r.posted ? `posted${rev}` : !r.saved ? "not saved yet" : r.errors.length ? `invalid draft${rev} (${r.errors.join("; ")})` : `ready${rev}`;
-    return `- ${r.id} | ${r.item ?? "?"} at ${r.head} | ${state} | verdict suggestion ${r.verdict ?? "none"} | ${r.comments} inline comment(s) | ${r.path}`;
+    const coverage = r.coverage ? ` | review ${coverageText({ coverage: r.coverage, coverageGaps: r.coverageGaps })}` : "";
+    return `- ${r.id} | ${r.item ?? "?"} at ${r.head} | ${state} | verdict suggestion ${r.verdict ?? "none"}${coverage} | ${r.comments} inline comment(s) | ${r.path}`;
   }).join("\n");
 }
 
@@ -142,7 +149,7 @@ export async function showDraft(store: Store, id: string, readPr: ReadDraftPr, e
   ];
   if (integrity.length) lines.push(...integrity);
   if (d.text === null) return [...lines, "", "The reviewer has not saved this draft yet."].join("\n");
-  if (d.draft) lines.push(`summary: ${draftSummary(id, d.draft, d.paths.file)}`);
+  if (d.draft) lines.push(`coverage: ${coverageText(d.draft)}`, `summary: ${draftSummary(id, d.draft, d.paths.file)}`);
   lines.push("", d.text.trimEnd());
   return lines.join("\n");
 }

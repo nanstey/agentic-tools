@@ -58,7 +58,7 @@ import { chooseTarget, deliver, ev, monitorOne, OrcaView, short, type Ctx, type 
 import { approvalsText, earlierDraftText, previousText, render, reviewProjectContextText } from "./core/brief.ts";
 import { otherApprovals } from "./core/classify.ts";
 import { projectFor, type Config } from "./core/config.ts";
-import { draftFolder, draftId, draftSummary, parseDraft, type Draft, type DraftMeta } from "./core/draft.ts";
+import { coverageText, draftFolder, draftId, draftSummary, parseDraft, type Draft, type DraftMeta } from "./core/draft.ts";
 import { MINUTE_MS, OPEN_STATES } from "./core/rails.ts";
 import type { Classification, PrSnapshot } from "./core/types.ts";
 import { beginDispatch, finishDispatch } from "./dispatch.ts";
@@ -221,10 +221,11 @@ async function startReviewer(c: ReviewCtx, d: Dispatch, item: Classification, pr
     } catch (e) {
       return fail(c, d, (e as Error).message);
     }
-    wt = findReviewWorktree(await c.view.worktrees(), pr.repo, pr.number, slug) ?? (created ? { id: created.id, path: created.path, branch: reviewBranch(slug), repo: pr.repo.toLowerCase(), linkedPr: pr.number } : null);
+    wt = findReviewWorktree(await c.view.worktrees(), pr.repo, pr.number, slug) ?? (created ? { id: created.id, path: created.path, branch: reviewBranch(slug), repo: pr.repo.toLowerCase(), linkedPr: null } : null);
     if (!wt) return fail(c, d, `Orca created ${reviewWorktreeName(slug)} but did not report or list it; the next attempt looks for it by branch`);
     d = c.store.patchDispatch(d.id, { worktree: wt.id }, c.ctx.now);
     if (created?.nested) await unparentWorktree(c, wt, d.item, d.version);
+    if (wt.linkedPr !== pr.number) await linkWorktree(c, wt, pr.number, d.item, d.version);
     if (pr.branch && wt.displayName !== pr.branch) await nameWorktree(c, wt, pr.branch, d.item, d.version);
   }
   if (!isReviewBranch(wt.branch)) return fail(c, d, `refusing to reset non-review branch ${wt.branch}`);
@@ -270,6 +271,29 @@ async function markReviewing(c: Ctx, wt: OrcaWorktree, item: string, version: st
   }
   const detail = `orca-ide worktree set ${wt.path}: ${short(res.stderr.trim() || res.stdout.trim(), 200)}`;
   if (c.store.addLedger({ at: c.ctx.now, item, version, kind: REVIEW_KIND, outcome: "failed", detail, source: "prflow", ref: `failed:review-status:${wt.id}:${status}:${comment}` }))
+    c.store.appendEvent(c.ctx.now, { type: "action-failed", item, version, kind: REVIEW_KIND, detail });
+}
+
+/**
+ * Link a review worktree to its PR (`orca-ide worktree set --pr <n>`): `worktree
+ * create --pr` fills only Orca's `linkedItems`, and Orca shows the PR card from
+ * `linkedPR`. A failure is reported once and never blocks the review; status
+ * sync tries again next tick.
+ */
+async function linkWorktree(c: Ctx, wt: OrcaWorktree, number: number, item: string, version: string): Promise<void> {
+  if (!isReviewBranch(wt.branch)) return;
+  let res;
+  try {
+    res = await c.deps.linkReviewWorktree(wt.path, wt.branch, number);
+  } catch (e) {
+    res = { ok: false, stdout: "", stderr: (e as Error).message };
+  }
+  if (res.ok) {
+    wt.linkedPr = number;
+    return;
+  }
+  const detail = `orca-ide worktree set ${wt.path} --pr ${number}: ${short(res.stderr.trim() || res.stdout.trim(), 200)}`;
+  if (c.store.addLedger({ at: c.ctx.now, item, version, kind: REVIEW_KIND, outcome: "failed", detail, source: "prflow", ref: `failed:review-link:${wt.id}:${number}` }))
     c.store.appendEvent(c.ctx.now, { type: "action-failed", item, version, kind: REVIEW_KIND, detail });
 }
 
@@ -515,6 +539,10 @@ async function syncStatuses(c: ReviewCtx, result: ScanResult, items: Classificat
     const key = `${pr.repo}#${pr.number}`.toLowerCase();
     const item = classifications.get(key);
     const h8 = pr.headSha.slice(0, 8);
+    if (wt.linkedPr === null) {
+      if (c.dryRun) once(c.store, c.ctx.now, `dry-run:review-link:${wt.id}:${pr.number}`, "dry-run", { type: "dry-run", item: key, version: h8, kind: REVIEW_KIND, detail: `would link ${wt.path} to PR #${pr.number} (orca-ide worktree set --pr ${pr.number})` });
+      else await linkWorktree(c, wt, pr.number, key, h8);
+    }
     if (pr.branch && isDisplayName(pr.branch) && wt.displayName !== pr.branch) {
       if (c.dryRun) once(c.store, c.ctx.now, `dry-run:review-name:${wt.id}:${pr.branch}`, "dry-run", { type: "dry-run", item: key, version: h8, kind: REVIEW_KIND, detail: `would set ${wt.path} display name ${pr.branch} (was ${wt.displayName ?? "unset"})` });
       else await nameWorktree(c, wt, pr.branch, key, h8);
@@ -544,7 +572,8 @@ async function syncStatuses(c: ReviewCtx, result: ScanResult, items: Classificat
     } else {
       const verdict = loaded.draft?.verdict ?? "comment";
       status = verdict === "approve" ? c.cfg.review.statuses.approved : verdict === "request-changes" ? c.cfg.review.statuses.changes : c.cfg.review.statuses.reviewing;
-      comment = rev && rev.rev > 1 ? `draft r${rev.rev}: ${verdict}, not posted` : `draft: ${verdict}, ${loaded.draft?.comments.length ?? 0} inline, not posted`;
+      const incomplete = loaded.draft?.coverage === "incomplete" ? ", incomplete" : "";
+      comment = rev && rev.rev > 1 ? `draft r${rev.rev}: ${verdict}${incomplete}, not posted` : `draft: ${verdict}${incomplete}, ${loaded.draft?.comments.length ?? 0} inline, not posted`;
       desiredUnread = true;
       if (!c.store.hasLedgerRef(draftRef) && wt.isUnread !== true) unread = "--unread";
     }
@@ -603,10 +632,16 @@ export function makeReviewFlow(deps: TickDeps, store: Store, cfg: Config, templa
         const draft = loadDraft(pathsOf(store.dir, d));
         if (!draft.ok || !draft.draft) return { ...i, owner: "you", nextAction: `reviewer #${d.id} finished without a usable draft at ${draft.paths.file}; review by hand` };
         const n = draft.draft.comments.length;
+        if (draft.draft.coverage === "incomplete")
+          return {
+            ...i,
+            owner: "you",
+            nextAction: `review draft ${coverageText(draft.draft)}: not a full review, so it cannot approve or request changes (verdict suggestion ${draft.draft.verdict}, ${n} inline comment${n === 1 ? "" : "s"}): \`prflow review show ${draft.paths.id}\`; rerun the reviewer or review by hand`,
+          };
         return {
           ...i,
           owner: "you",
-          nextAction: `review draft ready (verdict suggestion ${draft.draft.verdict}, ${n} inline comment${n === 1 ? "" : "s"}): \`prflow review show ${draft.paths.id}\`; publish with \`/pr review <pr_url>\` using this saved draft as the matching packet`,
+          nextAction: `review draft ready (verdict suggestion ${draft.draft.verdict}, review ${coverageText(draft.draft)}, ${n} inline comment${n === 1 ? "" : "s"}): \`prflow review show ${draft.paths.id}\`; publish with \`/pr review <pr_url>\` using this saved draft as the matching packet`,
         };
       });
     },

@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { after } from "node:test";
 import { assertReadOnly } from "../scripts/adapters/gh.ts";
 import { assertDeleteBranch, deleteBranchArgs } from "../scripts/adapters/git.ts";
-import { agentListArgs, archiveArgs, assertArchive, assertOrca, assertTaskStatusSet, assertWorktreeStatusSet, closeArgs, interruptArgs, launchArgs, reviewWorktreeArgs, sendArgs, taskStatusSetArgs, terminalListArgs, worktreeStatusArgs, waitIdleArgs, worktreeNameArgs, worktreeUnparentArgs } from "../scripts/adapters/orca.ts";
+import { agentListArgs, archiveArgs, assertArchive, assertOrca, assertTaskStatusSet, assertWorktreeStatusSet, closeArgs, interruptArgs, launchArgs, reviewWorktreeArgs, sendArgs, taskStatusSetArgs, terminalListArgs, worktreeStatusArgs, waitIdleArgs, worktreeLinkPrArgs, worktreeNameArgs, worktreeUnparentArgs } from "../scripts/adapters/orca.ts";
 import type { BlockedFile } from "../../../../lib/blocked.ts";
 import { DEFAULT_ACTIONS, DEFAULT_DISPATCH, DEFAULT_LIMIT, DEFAULT_RAILS, DEFAULT_REVIEW, DEFAULT_WORKTREE_STATUS, type Config, type Rails } from "../scripts/core/config.ts";
 import type { CmdResult } from "../scripts/scan.ts";
@@ -216,6 +216,14 @@ export function fakeTickDeps(w: World): TickDeps {
       if (row) row.displayName = name;
       return { ok: true, stdout: "", stderr: "" };
     },
+    async linkReviewWorktree(path, _branch, pr) {
+      assertOrca(worktreeLinkPrArgs(path, pr));
+      w.effects.push(`link ${path} ${pr}`);
+      if (w.orcaFails.link) return fail(w.orcaFails.link);
+      const row = (w.worktrees as { path?: string; linkedPR?: number | null }[]).find((x) => x.path === path);
+      if (row) row.linkedPR = pr;
+      return { ok: true, stdout: "", stderr: "" };
+    },
     async worktreeHead(path) {
       return path in w.worktreeHeads ? (w.worktreeHeads[path] ?? null) : "a".repeat(40);
     },
@@ -312,7 +320,8 @@ export function fakeTickDeps(w: World): TickDeps {
       if (w.orcaFails.create) return fail(w.orcaFails.create);
       const main = (w.worktrees as { repoId?: string; projectId?: string; isMainWorktree?: boolean }[]).find((r) => r.isMainWorktree && r.repoId === repoId);
       const path = `/w/review/prflow-review-${slug}`;
-      const row = { id: `${repoId}::${path}`, path, branch: `refs/heads/prflow-review/${slug}`, projectId: main?.projectId, linkedPR: pr, displayName: `prflow-review-${slug}` };
+      // Like Orca, `create --pr` records the PR in linkedItems only; linkedPR stays empty until `worktree set --pr`.
+      const row = { id: `${repoId}::${path}`, path, branch: `refs/heads/prflow-review/${slug}`, projectId: main?.projectId, linkedPR: null as number | null, linkedItems: [{ provider: "github", type: "pr", number: pr }], displayName: `prflow-review-${slug}` };
       if (!w.createLost) w.worktrees.push(row);
       return okJson(w.createReply ?? { ok: true, result: { worktree: { id: row.id, path } } });
     },

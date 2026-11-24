@@ -3,8 +3,8 @@
  *
  * Reads: `worktree list`, `agent list`, `terminal list`. Writes: archive a
  * worktree, create a review worktree for one PR (without the caller's Orca
- * identity, see `detachedEnv`), update its status or display name or drop a
- * stray parent (review worktrees only), launch Pi
+ * identity, see `detachedEnv`), update its status, display name, or linked
+ * PR, or drop a stray parent (review worktrees only), launch Pi
  * in an existing worktree, mail a running agent with `orchestration send`
  * (never `terminal send`), and close an idle prflow-launched terminal.
  * `assertOrca` rejects every other call.
@@ -471,6 +471,27 @@ export function assertWorktreeName(args: readonly string[], expectedPath?: strin
 }
 
 /**
+ * `orca-ide worktree set` limited to linking a review worktree to its PR.
+ * `worktree create --pr <n>` records the PR only in `linkedItems`; Orca shows
+ * the PR card from `linkedPR`, which this call sets.
+ */
+export const worktreeLinkPrArgs = (path: string, pr: number): string[] => ["worktree", "set", "--worktree", `path:${path}`, "--pr", String(pr), "--json"];
+
+/**
+ * Throws unless `args` is exactly `worktreeLinkPrArgs` for a `prflow-review-`
+ * folder (and `expectedPath` and `expectedPr`, when given) and a positive PR number.
+ */
+export function assertWorktreeLinkPr(args: readonly string[], expectedPath?: string, expectedPr?: number): void {
+  const path = args[3]?.slice("path:".length) ?? "";
+  const pr = Number(args[5]);
+  const ok = args.length === 7 && (args[3] ?? "").startsWith("path:") && (expectedPath === undefined || path === expectedPath) &&
+    path.startsWith("/") && !path.split("/").includes("..") && !/[\n\0]/.test(path) &&
+    (path.split("/").at(-1)?.startsWith("prflow-review-") ?? false) && /^[1-9]\d{0,9}$/.test(args[5] ?? "") &&
+    (expectedPr === undefined || pr === expectedPr) && same(args, worktreeLinkPrArgs(path, pr));
+  if (!ok) throw new Error(`prflow: orca-ide ${args.join(" ")} is not the allowed review worktree PR link`);
+}
+
+/**
  * `orca-ide worktree set` that moves an ordinary (non-review) worktree's card
  * out of Blocked once its unblock conditions hold: by id, with the status the
  * PR-derived rules give, a comment saying what changed, and `--unread`.
@@ -535,6 +556,7 @@ export function assertOrca(args: readonly string[]): void {
   if (args[0] === "worktree" && args[1] === "set") {
     if (args[4] === "--display-name") return assertWorktreeName(args);
     if (args[4] === "--no-parent") return assertWorktreeUnparent(args);
+    if (args[4] === "--pr") return assertWorktreeLinkPr(args);
     if ((args[3] ?? "").startsWith("id:")) return args.length === 7 ? assertWorktreeStatusSet(args) : assertTaskStatusSet(args);
     return assertWorktreeSet(args);
   }
