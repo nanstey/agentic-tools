@@ -47,3 +47,9 @@ test("a fresh head with a null statusCheckRollup reads as zero observed checks",
   assert.deepEqual(pageAt(pr, ["commits", "nodes", "0", "commit", "statusCheckRollup", "contexts"]).nodes, []);
   assert.throws(() => pageAt({ reviews: null }, ["reviews"]), /blocked: PR pagination/);
 });
+
+test("checks wait --required stops at the next flag, so --timeout is not a check name", async () => {
+  const { list } = await import("../scripts/pr.ts");
+  const args = ["wait", "208", "--required", "installer", "pi package patches", "--timeout", "15m"];
+  assert.deepEqual(list(args, "--required"), ["installer", "pi package patches"]);
+});

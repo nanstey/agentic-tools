@@ -38,7 +38,7 @@ function positional(args: string[]): string | undefined {
   return values[0];
 }
 function boolean(args: string[], name: string): boolean { return args.includes(name); }
-function list(args: string[], name: string): string[] {
+export function list(args: string[], name: string): string[] {
   const values: string[] = [];
   for (let i = 0; i < args.length; i++) if (args[i] === name && args[i + 1]) {
     if (name === "--required") { while (args[i + 1] && !args[i + 1]!.startsWith("--") && args[i + 1] !== "force") values.push(args[++i]!); }
@@ -256,7 +256,7 @@ async function checksCommand(args: string[], pr: Awaited<ReturnType<typeof snaps
   if (operation === "inventory") return inventory(pr, runner);
   if (operation === "rerun-cancelled") return rerunCancelled(pr, requireRun(runId), runner);
   if (operation === "wait") {
-    const index = args.indexOf("--required"); const required = index < 0 ? [] : args.slice(index + 1).filter((value) => !value.startsWith("--") && value !== "force");
+    const required = list(args, "--required");
     if (!required.length) return blocked("check arguments", "--required needs at least one check name", "required check names");
     return waitChecks(pr, required, parseTimeout(option(args, "--timeout")), boolean(args, "--force"), runner, clock);
   }
