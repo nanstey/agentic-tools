@@ -1,39 +1,19 @@
-# PR Restack
+# PR restack
 
-Rebase a dependent PR stack onto updated upstream branches while preserving each branch's unique commits.
-This is the manual path: when the repo has GitHub native Stacked PRs enabled (PR `stack` object non-null, or `gh stack` tracking exists), prefer `/pr stack` (`gh stack sync` / `gh stack rebase`) and use this skill only as its fallback.
+Rebase a dependent manual PR stack onto updated upstream branches. Prefer `/pr stack` for native stacks.
 
-## Workflow
+## Inputs
 
-1. Check for a native stack first (see `/pr stack`); if present and usable, delegate there and stop.
-2. Gather inputs: stack order/top branch, known upstream changes, and merge style if known.
-3. Fetch and map stack from PR metadata (`headRefName`, `baseRefName`, PR state).
-4. Determine root base (bottom PR base) and fast-forward local root base to `origin/<root-base>`.
-5. Detect drift per branch (upstream rewritten, merged, advanced, or removed commits).
-6. Build a per-branch plan: current base, new base, commits kept/dropped, risks, lease SHA.
-7. Record the plan in the output; invoking `/pr restack` authorizes executing it. Stop as blocked instead if the plan has a risk flagged below.
-8. Before any mutation, run the draft-before-changes rule in [`gates.md`](gates.md) per affected PR: guard each PR (own, non-fork, reserved round), draft each open non-draft one, and stop blocked on any PR that fails a guard. Then create backup refs for every branch before rewriting.
-9. Execute bottom-up restack:
-   - checkout/reset branch to `origin/<branch>`,
-   - delegate rebase mechanics to `/git rebase` (transplant mode when needed, `push=false`),
-   - let `/git conflicts` handle pauses,
-   - refresh lockfile when package manifests/lockfile changed,
-   - run typecheck before push,
-   - verify branch shape (`range-diff`, branch log) against plan,
-   - force-push with strict lease only,
-   - then run the `/pr push` post-push steps for each updated PR head.
-10. Update PR base when branch targeting changed.
-11. Report one-line result per branch plus backups and follow-ups.
+- Stack order/top branch, upstream changes, and known merge style.
 
-## Safety Rules
+## Steps
 
-- Never execute without a recorded plan.
-- Never use plain `--force`; use `--force-with-lease`.
-- Never rewrite branches without backup refs.
-- Never continue when branch base or intent is ambiguous.
-- Stop as blocked on non-trivial conflicts or unexpected commit drops; report them.
-- Do not proceed to next branch if current branch fails validation.
+1. Probe native stack support with `pr stack probe`; use `/pr stack` when available.
+2. Resolve stack PR facts with `pr snapshot [target]`. Map branches, root base, and drift; record a per-branch plan, risks, and lease SHAs before mutation.
+3. Apply [draft-before-changes](policy.md#draft-before-changes) to each affected PR and create backups before rewriting. Never force-push `main` or `develop`; create or switch to a feature branch before committing there.
+4. Execute bottom-up with `/git rebase`; resolve conflicts with `/git conflicts`, validate and verify branch shape. Push rewritten heads only with leases through `pr push [target] --run <id> --force-with-lease`. Never split dependent groups into parallel branches; flag any secret or credential without echoing its value.
+5. Update changed PR bases, then verify each head and run the `/pr push` post-push steps.
 
-## Output Style
+## Output
 
-Report root base used, the recorded plan, per-branch `old base -> new base` and `before -> after` SHA, push status, updated PR bases, backups created, and unresolved risks.
+Report root base, plan, branch/base and SHA changes, pushes, backups, and unresolved risks.

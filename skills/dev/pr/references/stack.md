@@ -1,82 +1,52 @@
-# GH Stack
+# PR stacks
 
-## Core Contract
+Use this reference to operate on GitHub native stacked PRs. Native stacks are linear and merge only in GitHub's web UI.
 
-Drive GitHub's native stacked-PR tooling for one repository: create, grow, publish, sync, link, inspect, and dissolve stacks.
-Always probe stacked-PR capability first and state the active tier before acting.
-Run every operation non-interactively; interactive TUIs are blocked.
-Delegate conflict resolution to `/git conflicts`, single-branch rebase mechanics to `/git rebase`, and manual stack restacking to `/pr restack`.
-Follow `CLAUDE.md` / `AGENTS.md` on conflict.
+## Inputs
 
-Command and API details load on demand:
+- Operation and target stack, PRs, or branches in bottom-to-top order.
+- Repository (`owner/repo`) when linking; trunk override and draft/ready intent when needed.
+- For collapse, the intended survivor and trunk. Defaults: top PR survives, preserve commits, keep lower branches.
 
-- [`stack-cli.md`](stack-cli.md) — `gh stack` commands, flags, exit codes.
-- [`stack-rest-api.md`](stack-rest-api.md) — Stacks REST endpoints and the PR `stack` object.
-- [`stack-workflows.md`](stack-workflows.md) — merge semantics, day-to-day recipes (mid-stack changes, review feedback, adopting branches), stack structuring guidance.
+## Steps
 
-## Required Inputs
+1. Probe capability before acting with `pr stack probe --repo <owner/repo>`. This script checks `gh-stack`, Stacks API support, and the active stack; it reports T1/T2/T3 and maps probe failures to recovery guidance. For a custom SSH host alias, always pass the explicit `--repo` value.
 
-1. Operation: create, add layer, submit/publish, sync/restack, link, inspect, checkout, collapse, dissolve.
-2. Repo (`owner/repo`, default current) and remote (default auto-detected).
-3. Branch order (bottom→top) or PR numbers, as the operation requires.
-4. Trunk override (`--base`), if not the default branch.
-5. Draft vs ready-for-review intent for new PRs (default draft).
+   | Tier | Evidence | Available path |
+   | --- | --- | --- |
+   | T1 | `gh-stack` extension and Stacks feature | Native CLI operations |
+   | T2 | Stacks feature only | REST-supported operations; use `/pr restack` for rebasing |
+   | T3 | Stacks feature unavailable | Use `/pr restack` or `/git rebase` |
 
-## Capability Tiers
+   On T1, use noninteractive commands with explicit arguments. Never run TUI commands such as `gh stack modify`; to restructure, run `gh stack unstack --local`, `gh stack init <new-order...>`, then `gh stack submit --auto --draft` (use `--open` only when ready was requested). A failed command is not success: handle exit 6 as a branch shared by stacks, 7 as a rebase already in progress, and 8 as a stack lock; do not retry blindly. Probe failures are normalized by the script, but operational `gh stack` commands are direct CLI calls and their failures must be handled from their exit status and stderr.
+2. Choose the operation:
 
-Probe before the first operation, cache the result for the session:
+   | Operation | Steps |
+   | --- | --- |
+   | Create/adopt | T1: `gh stack init <branch>...` (explicit branches), then publish as drafts unless ready was requested. |
+   | Add layer | T1: `gh stack top`, then `gh stack add <branch>`. Put each change on its owning layer. |
+   | Publish | T1: `gh stack submit --auto --draft`. |
+   | Sync/rebase | T1: `gh stack sync`, or `gh stack rebase` then `--continue`/`--abort`; resolve conflicts through `/git conflicts`. T2/T3: `/pr restack`. |
+   | Mid-stack fix | Check out the layer with `gh stack down` or `gh stack checkout <branch>`, commit the fix on that layer, run `gh stack rebase --upstack`, then return with `gh stack top`. |
+   | Link | After confirming PR bases form a bottom-to-top chain, run `pr stack link --run <id> --repo <owner/repo> <bottom-pr> <next-pr> ...`. |
+   | Inspect | T1: `gh stack view --json`; T2: `pr snapshot` per PR. Report each branch and PR state. |
+   | Collapse | Run `pr stack collapse-check <lower-head> ... <survivor-head>` before collapse. Only proceed when allowed; dissolve stack, retarget the top PR to trunk, close lower PRs with fold-in comments, and refresh the survivor description via `pr body`. Post fold-in comments with `pr disclosure --kind fold`.
+   | Dissolve | Only when explicitly requested: `gh stack unstack <stack-number>`. Report PRs that remain stacked. |
+3. Before rewriting or pushing any existing PR head, follow [draft-before-changes](policy.md#draft-before-changes) and the [mutation guard](policy.md#mutation-guard). For force-pushes, follow [force-push](policy.md#force-push). Never auto-resolve divergence or delete branches unless requested.
+4. After a mutation, inspect the result and run `/pr push` post-push steps for every updated PR head.
 
-1. Extension: `gh extension list` contains `github/gh-stack`.
-2. Feature: `gh api repos/{owner}/{repo}/stacks` — HTTP 404 means Stacked PRs are not enabled for the repo (CLI equivalent: exit code 9).
+## Merge semantics
 
-A custom SSH remote host alias (e.g. `github.com-work`) breaks `gh stack`/`gh` repo auto-detection: the derived `owner/repo` will be wrong or empty. When the remote uses a host alias, drive the REST API path with explicit `--repo <owner>/<repo>` (or `gh api` with an explicit owner/repo) rather than relying on auto-detection.
+Merging a stacked PR merges that PR and every unmerged PR below it atomically. Merging a middle PR leaves PRs above it open; merging the bottom merges only that PR. Only contiguous groups from the lowest unmerged PR can land. GitHub retargets remaining PRs after a partial merge. A fully merged stack cannot be extended. Merging stacked PRs is web-UI only: give the user the PR URL, and state that the requested PR merges every unmerged PR below it.
 
-| Tier | Condition | Capability |
-| --- | --- | --- |
-| T1 | extension + feature | Full `gh stack` CLI |
-| T2 | feature only | Read/link/extend/dissolve via `gh api`; rebasing via `/pr restack` |
-| T3 | no feature | Report probe evidence; fall back to `/pr restack` / `/git rebase` |
+## Safety rules
 
-## Workflow
+- Never act before `pr stack probe` or fake native-stack behavior at T3.
+- Never use interactive TUI commands, plain `--force`, or unrequested pruning, unstacking, or collapse.
+- Never collapse until `pr stack collapse-check` confirms every lower head is an ancestor of the survivor and the tree is clean.
+- Never create a linked stack until PR bases form the required chain.
+- Never rewrite a dirty tree, resolve conflicts inline, or silently resolve stack divergence.
 
-1. Probe tiers; report the active tier and evidence. At T1, run the prompt-avoidance preflight once: `git config rerere.enabled true`; on multi-remote repos also `git config remote.pushDefault origin` (see [`stack-cli.md`](stack-cli.md)).
-2. Before any operation that rewrites or pushes an existing PR head (Sync, `gh stack rebase`, mid-stack fixes, Restructure, `gh stack push`), apply the draft-before-changes rule in [`gates.md`](gates.md) to every affected open non-draft PR, and stop blocked on any PR that fails a guard. Then map the requested operation to the tier:
-   - **Create (T1)**: `gh stack init [--base <trunk>] <branches...>` — always pass explicit branch names; adopts existing branches, creates missing ones.
-   - **Add layer (T1)**: from the top branch, `gh stack add <name>` (optionally `-Am "<msg>"` / `-um "<msg>"` to commit first).
-   - **Publish (T1)**: `gh stack submit --auto` (drafts) or `--auto --open` (ready). Never open the interactive submit editor.
-   - **Sync (T1)**: `gh stack sync` (add `--prune` only when the invocation requests pruning). On cascade conflict: `gh stack rebase`, delegate resolution to `/git conflicts`, then `gh stack rebase --continue`. `--abort` only when the invocation requests it.
-   - **Restructure (T1)**: `gh stack modify` is TUI-only; never run it. Instead run `gh stack unstack --local` + `gh stack init <new-order...>` + `gh stack submit`.
-   - **Link (T1/T2)**: T1 `gh stack link [--base <trunk>] <branches-or-prs...>`; T2 requires properly chained PRs first (each PR's base = previous PR's head) — if not already chained, update bases via `gh api .../pulls/{n} -X PATCH -f base=<parent-branch>` bottom-up, then `POST /repos/{o}/{r}/stacks` with ordered PR numbers bottom→top (min 2). Extend with `POST .../stacks/{n}/add`.
-   - **Inspect (T1/T2)**: T1 `gh stack view --json` — never bare or `--short` (both are TUIs); T2 `GET .../stacks` or per-PR `gh api .../pulls/{n} --jq '.stack'`.
-   - **Checkout (T1)**: `gh stack checkout <number|url|branch>` with an explicit argument; if local and remote stack compositions differ this prompts unbypassably — `gh stack unstack` first. Navigation via `gh stack up|down|top|bottom|trunk`.
-   - **Collapse (T1/T2)**: fold the whole stack into a single PR. Run only when the invocation names collapsing, using the defaults in the 5-step recipe below (survivor = top PR, leave lower branches intact, preserve commits) unless the invocation overrides them. **T1**: prefer `gh stack unstack <n>` to dissolve, then re-point the survivor base and close lower PRs via CLI/API. **T2 / host-alias fallback**: `POST /repos/{o}/{r}/stacks/{n}/unstack`, `PATCH /repos/{o}/{r}/pulls/{survivor}` with `base=<trunk>`, then per lower PR `PATCH /repos/{o}/{r}/pulls/{lower}` with `state=closed` plus a fold-in comment referencing the survivor. See [`stack-workflows.md`](stack-workflows.md) for the exact sequences.
-     Default collapse policy:
-     1. **Survivor = top PR** — it already contains every commit in the stack, so re-pointing it to trunk is lossless. Verify with `git merge-base --is-ancestor <lower-head> <survivor-head>` for each lower head before acting; stop as blocked if any lower branch is not an ancestor (diverged/non-linear stack).
-     2. **Preserve commits** — do not squash by default (keeps authored history); squash only on explicit request.
-     3. **Re-point** the survivor's base to trunk (`--base`, default the stack's trunk).
-     4. **Close lower PRs** with a fold-in comment referencing the survivor; leave their branches intact (non-destructive).
-     5. **Refresh** the survivor's title/body to describe the full changeset, since the top PR's title usually covers only its own layer.
-   - **Dissolve (T1/T2)**: run only when the invocation names dissolving, then `gh stack unstack [<n>] [--local]` or `POST .../stacks/{n}/unstack`. Report PRs left stacked (merged/merging/queued cannot be removed).
-   - **Any (T3)**: report why native stacks are unavailable; hand the task to `/pr restack` (stack) or `/git rebase` (single branch).
-3. For mid-stack fixes and review feedback, follow the recipes in [`stack-workflows.md`](stack-workflows.md): commit on the layer that owns the change, `gh stack rebase --upstack` (or full `rebase`), then `gh stack push` — never patch a lower-layer concern into a higher branch. After each stack push, run the `/pr push` post-push steps for every updated PR head.
-4. After mutating operations, verify with an inspect call and report per-branch/PR outcomes.
+## Output
 
-Stop as blocked when: local and remote stack compositions diverge; a branch belongs to multiple stacks (exit 6); the stack is locked (exit 8); a rebase is already in progress (exit 7); the working tree is dirty before rebase/restructure; or a fully merged stack would silently spawn a new one on submit.
-
-## Safety Rules
-
-- Never act before probing capability; never fake stack behaviour at T3.
-- Never drive interactive TUIs (`modify`, submit editor, checkout/switch pickers); use flags and explicit arguments, or stop as blocked.
-- Never use plain `--force`; stack pushes rely on `--force-with-lease` (built into `push`/`sync`).
-- Never dissolve or unstack on GitHub unless the invocation names it.
-- Collapse is destructive (dissolves the stack + closes PRs) — apply the defaults or the invocation's overrides; verify the survivor is a descendant of every lower head (`git merge-base --is-ancestor`) before re-pointing.
-- Never auto-resolve stack divergence; stop as blocked and report the options.
-- Never rebase or restructure over a dirty working tree; stop as blocked and report the dirty files.
-- Never resolve conflicts inline; delegate to `/git conflicts`.
-- Never delete local branches (`--prune`) unless the invocation requests pruning.
-- Never create a T2 stack without verifying/fixing PR bases first; each PR's base must be the previous PR's head, not trunk.
-- Never merge a stacked PR without stating in the output that it atomically merges every unmerged PR below it; the PR named in the invocation is the intended merge point. Merging stacked PRs is web-UI only — hand the user the PR URL rather than attempting `gh pr merge`.
-
-## Output Style
-
-Report active tier with probe evidence, operation performed, per-branch/PR outcome (created/pushed/linked/rebased/skipped), stack number and URL when known, conflict handling status, any fallback taken, and open follow-ups.
+Report tier and probe evidence, operation, per-branch/PR outcomes, stack number and URL when known, conflict or fallback status, merge impact, and follow-ups.

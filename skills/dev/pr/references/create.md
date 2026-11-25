@@ -1,40 +1,20 @@
-# PR Create
+# PR create
 
-## Core Contract
+Create one draft PR for the current branch.
 
-Create exactly one PR for the current branch against the correct base.
-Default tool is `gh`. Default target branch is the repository default branch (`origin/HEAD`); PR opens as draft unless asked otherwise.
-Follow `CLAUDE.md` / `AGENTS.md` on conflict.
+## Inputs
 
-## Required Inputs
+- Current branch with commits ahead of base, optional base, and draft preference (default: draft).
 
-1. Current branch with at least one commit ahead of base.
-2. Base branch if non-default.
-3. Draft vs ready preference (default draft).
+## Steps
 
-## Workflow
+1. Run `pr snapshot`; stop if the branch already has a PR. Run `pr guard` before mutation.
+2. Choose the target explicitly, by repository convention, or the default branch. Review the diff and prepare an explicit title and placeholder body file.
+3. Publish the branch with `git push -u origin <branch>` when needed. Then check `gh repo view --json viewerPermission`; require `WRITE`, `MAINTAIN`, or `ADMIN` for the active `gh` identity. A successful SSH push does not prove that identity has PR write access.
+4. Create one draft PR with `gh pr create --draft --base <base> --title <title> --body-file <path>`. Do not use `--fill`. Never use `gh auth switch`; never print, log, or store tokens. If the active identity lacks access, stop blocked unless a stored account is the repository owner or matches the SSH push identity and has write access. If using that account, scope its token only to the individual command without displaying it.
+5. Run `/pr description` to write the full body. Route body changes through `pr body [target] --run <id> --file <path>`.
+6. Verify with `pr snapshot [target]`; require a draft PR with the completed description.
 
-1. Resolve PR state via `/pr info`; if a PR already exists, report it and stop.
-2. Confirm the branch is pushed; push with `git push -u origin <branch>` if needed.
-   Then check write access: `gh repo view --json viewerPermission` must report `WRITE`, `MAINTAIN`, or `ADMIN`. A push over SSH can succeed under a different identity than the active `gh` account, so a successful push does not prove it. If access is `READ` or `TRIAGE`, see the identity rule in Safety Rules.
-3. Determine the target branch (explicit input > repo convention > `origin/HEAD` default branch).
-4. Analyze the branch diff against the target (`git log <base>..HEAD`, `git diff --stat <base>...HEAD`, `git diff <base>...HEAD`) to draft a title and a placeholder body.
-5. Create the PR with `gh pr create --draft --base <base> --title ... --body ...`.
-6. Run `/pr description` to write the full body from the diff.
-7. Verify by re-reading the PR: the body must be the `/pr description` output (structured sections, not the placeholder) and the PR must be a draft. Report the URL.
+## Output
 
-Stop as blocked if the branch has no commits ahead of base or push fails.
-
-## Safety Rules
-
-- Never create a second PR when one already exists for the branch.
-- When the active `gh` account lacks write access, use another stored account only if it is the repo owner or matches the SSH push identity (`ssh -T git@github.com`) and `gh repo view --json viewerPermission` shows write access for it. Scope its token to each command (`GH_TOKEN="$(gh auth token --user <account>)" gh ...`). Never run `gh auth switch`, `login`, or `logout`, and never print, log, or store the token. Otherwise stop as blocked and name the account that needs access.
-- Never force-push or rewrite history; pushing the branch is the only allowed git mutation.
-- Never skip step 6: a PR whose body is a commit message or placeholder is not created correctly. Do not use `gh pr create --fill`.
-- Never write the final body inline; delegate it to `/pr description`.
-- Never mark the PR ready-for-review unless explicitly asked.
-- If unexpected working tree changes appear while you are working, stop as blocked and report the unexpected changes.
-
-## Output Style
-
-Report PR number/URL, base used, draft state, push performed or not, and any blocker.
+Report PR number/URL, base, draft state, publication, and any blocker.

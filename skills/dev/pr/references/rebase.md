@@ -1,25 +1,22 @@
+# PR rebase
 
-# PR rebase (base-aware)
+Pin rebase intent to the PR base; delegate mechanics to `/git rebase`.
 
-PR-aware wrapper around `/git rebase`.
-Its job is to pin the base branch from PR metadata and carry PR intent into conflict resolution.
-Follow `CLAUDE.md` / `AGENTS.md` on conflict.
+## Inputs
+
+- PR target and optional explicit base when no PR exists.
+
+## Safety
+
+Never rebase `main` or `develop`; create or switch to a feature branch before committing there. Never force-push either branch.
 
 ## Steps
 
-1. Resolve PR with `/pr info` and capture `baseRefName`, title, body, and `stack`.
-2. If `stack` is non-null, the PR is a layer of a GitHub native stack: stop and use `/pr stack` (`gh stack rebase`/`sync`) instead — rebasing one layer in isolation desyncs the layers above.
-3. If no PR exists, use an explicit base from the invocation, else generic `/git rebase` base detection.
-4. If the PR is open, not draft, and the rebase will change its head, apply the draft-before-changes rule in [`gates.md`](gates.md). Then delegate to `/git rebase` with base pinned to PR base.
-5. Let `/git conflicts` handle pauses.
-6. Do not re-implement fetch/rebase/push logic here. After a successful push, run the `/pr push` post-push steps (head re-resolve, evidence invalidation, `/pr description`) for the new head.
+1. Resolve with `pr snapshot [target]`; capture base, title, body, and stack membership.
+2. For a native stack member, use `/pr stack` instead. If no PR exists, use the explicit base or `/git rebase` base detection.
+3. Before a head-changing rebase, apply [draft-before-changes](policy.md#draft-before-changes). Delegate to `/git rebase` with the PR base pinned.
+4. After push, run `/pr push` post-push steps for the new head.
 
-## Guards
+## Output
 
-- Do not run on `develop` or `main`; never force-push them. (`/git rebase` enforces this too.)
-- Prefer `--force-with-lease` over `--force` so a mismatched remote aborts.
-- If PR base metadata is missing or ambiguous, stop as blocked instead of guessing.
-
-## Output Style
-
-Report PR resolved, base used, whether delegation to `/git rebase` completed, conflict status, and push result.
+Report resolved PR/base, delegation, conflicts, and publication result.

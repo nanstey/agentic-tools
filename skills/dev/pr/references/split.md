@@ -1,47 +1,19 @@
-# PR Split
+# PR split
 
-## Core Contract
+Divide an oversized branch into coherent, reviewable PRs.
 
-Break one oversized branch/PR into a set of smaller, coherent, reviewable units.
-Discovery is delegated to `/git changes`; PR creation/restacking is delegated to `/pr create` and `/pr restack`.
-Prefer parallel (orthogonal) PRs; use a stacked series only when changes truly depend on each other.
-Always record the split structure before any history rewrite; invoking `/pr split` authorizes executing it unless the invocation says plan-only.
-Follow `CLAUDE.md` / `AGENTS.md` on conflict.
+## Inputs
 
-## Required Inputs
+- Source branch or PR, base, grouping constraints, and plan-only preference (default: execute).
 
-1. Current branch and its base (default base: repo convention, else the `origin/HEAD` default branch).
-2. Source scope: current branch, a named branch, or a PR/URL.
-3. Preferred PR tool (default `gh`) and whether the invocation is plan-only (default: execute).
-4. Any constraints on grouping (must-ship-together files, review-size target).
+## Steps
 
-## Workflow
+1. Load changes with `/git changes`; resolve PR facts with `pr snapshot [target]`.
+2. Map logical groups and dependencies. Plan parallel PRs for independent groups and a base-to-leaf series for dependent groups.
+3. Record units, files/hunks, order, PR type, and rationale. Never split dependent groups into parallel PRs. If a secret or credential surfaces, flag it without echoing its value. Stop after the plan when plan-only.
+4. Execute only after recording the plan. Create branches and commits per unit. Open PRs through `/pr create`; use `/pr stack` for native stacks, otherwise keep dependent PRs aligned through `/pr restack`.
+5. Verify every unit targets its intended base and accounts for each source change exactly once.
 
-1. Load the changeset with `/git changes` (which resolves the diff base via `/pr info`/`scope`) to get logical groups and flagged/out-of-place items.
-2. Read branch/PR intent (`git log --oneline <base>..<head>`, PR metadata) to name the units.
-3. Build a dependency map between groups: shared files, symbol/import edges, test-to-code links.
-4. Classify each group as **orthogonal** (no dependency) or **dependent** (builds on another).
-5. Draft the split proposal:
-   - Orthogonal groups → **parallel PRs**, each branched from base.
-   - Dependent groups → **stacked series** ordered base → leaf, each PR based on the prior.
-   - Note any group too small/large and suggest merges or further splits.
-6. Record the proposal (units, files/hunks, order, PR type, rationale) in the output; stop here if plan-only.
-7. Execute per unit: create branch from the correct base, move the relevant changes, and commit.
-   - Parallel PRs: open each via `/pr create`.
-   - Stacked series: if GitHub native Stacked PRs are available (probe per `/pr stack`), build and publish the stack with `/pr stack` (`init`/`submit`, or `link` for existing branches); otherwise open PRs via `/pr create` and keep the stack aligned with `/pr restack`.
-8. Verify each unit builds on the intended base and report the resulting PR set.
+## Output
 
-Stop as blocked if dependencies are ambiguous, a group cannot be cleanly separated, or the split would rewrite already-reviewed history.
-
-## Safety Rules
-
-- Never rewrite history, create branches, or move commits before the proposal is recorded.
-- Never split a dependent group into parallel PRs; broken intermediate states are not acceptable.
-- Never delegate away the dependency analysis — grouping order is this skill's responsibility.
-- Never drop or duplicate changes across units; every hunk from the source lands in exactly one unit.
-- Never open PRs against the wrong base; verify each stacked PR targets its parent, not the trunk.
-- If a secret or credential surfaces while partitioning, flag it and do not echo its value.
-
-## Output Style
-
-Report source scope and base, the proposed units (name, files/hunks, PR type, base, order), the dependency rationale, plan-only or executed, and—if executed—the created branches/PRs with bases.
+Report source/base, units and dependency rationale, plan-only or executed status, and resulting branches/PRs with bases.
