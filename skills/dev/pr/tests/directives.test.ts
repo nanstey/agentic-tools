@@ -52,7 +52,17 @@ test("A3 each owned directive is defined once in its designated owner", () => {
   assert.deepEqual(violations(skillDir), []);
 });
 
-test("A3 directive ownership check detects violations in baseline acbe758", () => {
+function hasBaseline(): boolean {
+  try {
+    execFileSync("git", ["cat-file", "-e", "acbe758^{commit}"], { cwd: repoRoot, stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Before-change proof for the refactor; shallow clones (CI) lack the baseline commit.
+test("A3 directive ownership check detects violations in baseline acbe758", { skip: !hasBaseline() && "baseline commit acbe758 not available" }, () => {
   const temp = mkdtempSync(join(tmpdir(), "pr-directives-baseline-"));
   try {
     const archive = execFileSync("git", ["archive", "--format=tar", "acbe758", "skills/dev/pr"], { cwd: repoRoot });
