@@ -1,6 +1,6 @@
 # PR ready
 
-Convert a draft PR to ready only after current gates pass. See [lifecycle](lifecycle.md) and [policy](policy.md#required-checks).
+Convert a draft PR to ready only after current gates pass. See [lifecycle](00-lifecycle.md) and [policy](_policy.md#required-checks).
 
 ## Inputs
 
@@ -10,7 +10,7 @@ Convert a draft PR to ready only after current gates pass. See [lifecycle](lifec
 
 1. Resolve with `pr snapshot [target]` and verify one open PR.
 2. Check evidence identity against the current base, head, and policy. Run any missing phase now within the active run's budget.
-3. Confirm outcome, expected checks, quality/security coverage, requests, and threads. Use `pr checks inventory` and `pr threads` for evidence. Apply [force policy](policy.md#force) when requested.
+3. Confirm outcome, expected checks, quality/security coverage, requests, and threads. Use `pr checks inventory` and `pr threads` for evidence. Apply [force policy](_policy.md#force) when requested.
 4. Run `gh pr ready <number>`, then re-read with `pr snapshot [target]`; require ready state and unchanged base/head.
 
 ## Output

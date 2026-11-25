@@ -1,7 +1,7 @@
 # PR description
 
 ## Purpose
-Sync the PR title and body with its current changes. Apply [policy](policy.md#pr-body).
+Sync the PR title and body with its current changes. Apply [policy](_policy.md#pr-body).
 
 ## Inputs
 - PR target; otherwise resolve with `pr snapshot`.
@@ -15,7 +15,7 @@ Sync the PR title and body with its current changes. Apply [policy](policy.md#pr
    - Use `## Summary` (what changed), `## Changes` (cohesive groups), and `## Testing` (specific evidence). Optional sections: `## Notes` for risks and `## Screenshots` for UI evidence.
    - Lead with the result. Describe groups rather than files or chronology. Keep sentences and bullets near 25 words; omit rationale unless needed to understand the change.
    - Refresh UI evidence first with `/pr screenshots` and preserve its attachments. Retain `## Evidence` written by verification.
-4. Update a drifted title and apply the body with `pr body --run <id> --file <path> --preserve-evidence`. Re-read with `pr snapshot` and confirm title/body. Follow [body policy](policy.md#pr-body).
+4. Update a drifted title and apply the body with `pr body --run <id> --file <path> --preserve-evidence`. Re-read with `pr snapshot` and confirm title/body. Follow [body policy](_policy.md#pr-body).
 
 ## Output
 Report PR, comparison base, guidance/template, title change or unchanged status, body drift, and sections updated, preserved, checked, or removed.

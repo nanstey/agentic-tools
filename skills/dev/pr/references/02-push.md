@@ -1,6 +1,6 @@
 # PR push
 
-Publish one validated change batch to its existing PR. See [policy](policy.md#draft-before-changes) and [policy](policy.md#force-push).
+Publish one validated change batch to its existing PR. See [policy](_policy.md#draft-before-changes) and [policy](_policy.md#force-push).
 
 ## Inputs
 

@@ -32,7 +32,7 @@ Use this reference to operate on GitHub native stacked PRs. Native stacks are li
    | Inspect | T1: `gh stack view --json`; T2: `pr snapshot` per PR. Report each branch and PR state. |
    | Collapse | Run `pr stack collapse-check <lower-head> ... <survivor-head>` before collapse. Only proceed when allowed; dissolve stack, retarget the top PR to trunk, close lower PRs with fold-in comments, and refresh the survivor description via `pr body`. Post fold-in comments with `pr disclosure --kind fold`.
    | Dissolve | Only when explicitly requested: `gh stack unstack <stack-number>`. Report PRs that remain stacked. |
-3. Before rewriting or pushing any existing PR head, follow [draft-before-changes](policy.md#draft-before-changes) and the [mutation guard](policy.md#mutation-guard). For force-pushes, follow [force-push](policy.md#force-push). Never auto-resolve divergence or delete branches unless requested.
+3. Before rewriting or pushing any existing PR head, follow [draft-before-changes](_policy.md#draft-before-changes) and the [mutation guard](_policy.md#mutation-guard). For force-pushes, follow [force-push](_policy.md#force-push). Never auto-resolve divergence or delete branches unless requested.
 4. After a mutation, inspect the result and run `/pr push` post-push steps for every updated PR head.
 
 ## Merge semantics

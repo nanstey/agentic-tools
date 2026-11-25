@@ -1,6 +1,6 @@
 # PR merge
 
-Merge one open PR by squash. See [policy](policy.md#required-checks) for check rules and [policy](policy.md#squash-subject) for the subject.
+Merge one open PR by squash. See [policy](_policy.md#required-checks) for check rules and [policy](_policy.md#squash-subject) for the subject.
 
 ## Inputs
 
@@ -10,7 +10,7 @@ Merge one open PR by squash. See [policy](policy.md#required-checks) for check r
 ## Steps
 
 1. Resolve with `pr snapshot [target]`. If it is a native stack member, return `blocked` with its PR URL; merge it in GitHub's web UI.
-2. Run missing phases within the active run budget. Review and thread work uses `/pr review fix` and `/pr comments`. See the [lifecycle](lifecycle.md).
+2. Run missing phases within the active run budget. Review and thread work uses `/pr review fix` and `/pr comments`. See the [lifecycle](00-lifecycle.md).
 3. Discover expected checks with `pr checks inventory` and select the complete required list from trusted policy. Zero observed checks never pass; skipped/neutral checks need policy proof. Wait with `pr checks wait --run <id> --required <check...> --timeout 30m`; without force, pending checks return `pending` and do not merge. With force, take one snapshot and record pending checks as overridden.
 4. Run `pr threads` and confirm review, approval, queue, and release gates against trusted policy. Re-snapshot with `pr snapshot [target]`; require unchanged base and head.
 5. Merge with `pr merge [target] --run <id> --required <check...> [--force]`, passing the complete policy-selected required-check list. If trusted policy proves no checks are required, use `pr merge [target] --run <id> --no-required-checks --policy-proof <text> [--force]`; the reason is required and recorded in the run. The merge uses an empty commit body. Use `--force` only under the force policy. Under force, the merge script retries with `--admin` only when GitHub rejects for branch protection and the viewer has admin permission. A queued result is not a merge and does not run cleanup.

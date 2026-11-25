@@ -1,7 +1,7 @@
 # PR screenshots
 
 ## Purpose
-Judge whether UI changes need current visual evidence and attach it safely. Apply [body policy](policy.md#pr-body).
+Judge whether UI changes need current visual evidence and attach it safely. Apply [body policy](_policy.md#pr-body).
 
 ## Inputs
 - PR target, or current branch.

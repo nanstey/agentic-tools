@@ -1,7 +1,7 @@
 # PR verification
 
 ## Purpose
-Verify PR claims and audit whether the body cites current evidence. Apply [policy](policy.md).
+Verify PR claims and audit whether the body cites current evidence. Apply [policy](_policy.md).
 
 ## Inputs
 - PR target; otherwise use `pr snapshot` for the current branch.

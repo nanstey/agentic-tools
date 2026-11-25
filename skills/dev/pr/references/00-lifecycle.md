@@ -20,14 +20,14 @@
 
 ## Transitions
 
-Start with `pr run start --pr <target> --action <action> [--mode <mode>] [--force]`. Reserve each fix round with `pr run update --pr <target> --run <id> --round <n>`, then end the run with `pr run end --pr <target> --run <id> --completion <complete|pending|forced|blocked>`. After a merge, merge records completion; do not run `run end` afterward, and run cleanup last. Use `pr next --judged <name>=pass|fail` with exact names `description-staleness`, `ui-evidence`, `required-check-policy`, and `claims-verification-evidence`. Run phases in order and continue after each action. A head or base change requires a fresh snapshot and re-evaluation. After phase 9, reconcile the head once; if it changed, rerun review and affected later phases once. Continued churn is `blocked`. Bare `/pr` ends before phase 10; `automerge` includes it. Never end a `changes_required` result without attempting the fix within the [round limit](policy.md#round-limit). Ready and merge actions run any missing phase within this run's remaining round budget.
+Start with `pr run start --pr <target> --action <action> [--mode <mode>] [--force]`. Reserve each fix round with `pr run update --pr <target> --run <id> --round <n>`, then end the run with `pr run end --pr <target> --run <id> --completion <complete|pending|forced|blocked>`. After a merge, merge records completion; do not run `run end` afterward, and run cleanup last. Use `pr next --judged <name>=pass|fail` with exact names `description-staleness`, `ui-evidence`, `required-check-policy`, and `claims-verification-evidence`. Run phases in order and continue after each action. A head or base change requires a fresh snapshot and re-evaluation. After phase 9, reconcile the head once; if it changed, rerun review and affected later phases once. Continued churn is `blocked`. Bare `/pr` ends before phase 10; `automerge` includes it. Never end a `changes_required` result without attempting the fix within the [round limit](_policy.md#round-limit). Ready and merge actions run any missing phase within this run's remaining round budget.
 
 ## Completion
 
 - `complete`: final head has complete clean review (or clean docs-only evidence), no unresolved requests or threads, and all required checks passed.
 - `pending`: review and threads are current; required CI is still running. Do not merge; report the pending checks for a later scheduled run.
 - `forced`: force overrode one or more gates; list each with evidence. Never describe forced as clean.
-- `blocked`: required work is impossible, unsafe, or exceeds the run budget; use the blocked form in `policy.md`.
+- `blocked`: required work is impossible, unsafe, or exceeds the run budget; use the blocked form in `_policy.md`.
 
 ## Run ownership
 

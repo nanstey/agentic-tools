@@ -10,27 +10,27 @@ Route each action to its reference. Bare `/pr` runs the lifecycle; `/pr automerg
 
 ### Actions
 
-Each action runs one lifecycle phase (see `lifecycle.md`), or stands alone where the phase is `—`.
+Each action runs one lifecycle phase (see `00-lifecycle.md`), or stands alone where the phase is `—`.
 
 | Phase | Action | Reference | Purpose |
 | --- | --- | --- | --- |
-| 0–9 | bare `/pr` | `lifecycle.md` | Run the lifecycle |
-| 0–10 | `automerge` | `lifecycle.md`, `merge.md` | Run the lifecycle, then merge |
+| 0–9 | bare `/pr` | `00-lifecycle.md` | Run the lifecycle |
+| 0–10 | `automerge` | `00-lifecycle.md`, `10-merge.md` | Run the lifecycle, then merge |
 | — | `info` | `info.md` | Resolve PR facts |
-| 1 Create | `create` | `create.md` | Open a PR |
-| 2 Publish | `push` | `push.md` | Commit and publish |
-| 3 Describe | `description` | `description.md` | Update PR body |
-| 3 Describe | `screenshots` | `screenshots.md` | Add visual evidence |
-| 4 Sync | `rebase` | `rebase.md` | Sync a branch |
-| 4 Sync | `restack` | `restack.md` | Sync a dependent stack |
-| 4 Sync | `stack` | `stack.md` | Manage a native stack |
+| 1 Create | `create` | `01-create.md` | Open a PR |
+| 2 Publish | `push` | `02-push.md` | Commit and publish |
+| 3 Describe | `description` | `03-description.md` | Update PR body |
+| 3 Describe | `screenshots` | `03-screenshots.md` | Add visual evidence |
+| 4 Sync | `rebase` | `04-rebase.md` | Sync a branch |
+| 4 Sync | `restack` | `04-restack.md` | Sync a dependent stack |
+| 4 Sync | `stack` | `04-stack.md` | Manage a native stack |
 | — | `split` | `split.md` | Split a PR |
-| 5 CI | `ci` | `ci.md` | Fix or rerun checks |
-| 6 Review | `review` | `review.md` | Review and publish findings |
-| 7 Threads | `comments` | `comments.md` | Address review threads |
-| 8 Verify | `verification` | `verification.md` | Verify PR claims |
-| 9 Ready | `ready` | `ready.md` | Mark ready |
-| 10 Merge | `merge` | `merge.md` | Merge |
+| 5 CI | `ci` | `05-ci.md` | Fix or rerun checks |
+| 6 Review | `review` | `06-review.md` | Review and publish findings |
+| 7 Threads | `comments` | `07-comments.md` | Address review threads |
+| 8 Verify | `verification` | `08-verification.md` | Verify PR claims |
+| 9 Ready | `ready` | `09-ready.md` | Mark ready |
+| 10 Merge | `merge` | `10-merge.md` | Merge |
 
 ### Shared rules and state
 
@@ -38,9 +38,9 @@ These references are not actions; actions cite them for shared rules.
 
 | Reference | Purpose |
 | --- | --- |
-| `lifecycle.md` | Phase order, entry tests, transitions, and completion states |
-| `policy.md` | Mutation guards, force, round limit, review depth, required checks, blocked form, and disclosure |
-| `state.md` | Stored run state, packet identity, and invalidation |
+| `00-lifecycle.md` | Phase order, entry tests, transitions, and completion states |
+| `_policy.md` | Mutation guards, force, round limit, review depth, required checks, blocked form, and disclosure |
+| `_state.md` | Stored run state, packet identity, and invalidation |
 
 Reject an unknown action, more than one action word, an unsupported mode, extra mode words, or legacy `--` action flags. The only lifecycle skip word is `review`: it reuses an exact-matching packet and skips redundant self-review, never missing coverage. A target omitted by the invocation resolves from the current branch. Follow `CLAUDE.md`/`AGENTS.md` on conflict. The default tool is `gh`.
 
@@ -144,7 +144,7 @@ Never ask the user a question or wait for approval. Choose explicit input, repos
 4. Reversible judgment that moves the PR toward merge. Record the choice.
 5. Stop as `blocked` only when no workaround exists or the action is destructive or hard to reverse and the invocation did not name it.
 
-An unmet gate is work to do. Run its phase instead of reporting and waiting. Destructive extras, including branch pruning, stack dissolution, and operation aborts, run only when named by the invocation. References that say stop mean report `blocked`, never ask. Follow the force and gate policy in `policy.md`.
+An unmet gate is work to do. Run its phase instead of reporting and waiting. Destructive extras, including branch pruning, stack dissolution, and operation aborts, run only when named by the invocation. References that say stop mean report `blocked`, never ask. Follow the force and gate policy in `_policy.md`.
 
 ## Scripts and output
 `pr` means `node <skill-dir>/scripts/pr.ts`. Run `pr <subcommand> [args]`. Begin each top-level invocation with `run start --pr <PR-URL-or-number> --action <action> [--mode <mode>] [--force]`. It returns a run id; pass `--run <id>` to the phases and delegates. Do not start a nested run. `run get`, `run update`, and `run end` inspect or update that run.
