@@ -1,4 +1,4 @@
-import { run as systemRun } from "../../../../lib/runtime.ts";
+import { run as systemRun } from "../../../../../lib/runtime.ts";
 
 export interface CommandResult { ok: boolean; stdout: string; stderr: string; exitCode?: number }
 export type CommandRunner = (command: string, args: string[], env?: NodeJS.ProcessEnv, cwd?: string, timeoutMs?: number) => Promise<CommandResult>;

@@ -1,7 +1,10 @@
-import { invoke, blocked, type Clock, type CommandRunner } from "./runner.ts";
-import { refresh, targetRoot, type Snapshot } from "./resolve.ts";
-import { finishRun } from "./run.ts";
-import { waitChecks } from "./checks.ts";
+import { invoke, blocked, type Clock, type CommandRunner } from "../core/runner.ts";
+import { refresh, targetRoot, type Snapshot } from "../core/resolve.ts";
+import { finishRun } from "../core/run.ts";
+import { waitChecks } from "./05-checks.ts";
+import { option, boolean, list } from "../cli/args.ts";
+import { changeRun, getRun } from "../core/run.ts";
+import type { MutationContext } from "../core/commands.ts";
 export function squashSubject(title: string, number: number): string { const suffix = ` (#${number})`; return title.endsWith(suffix) ? title : `${title}${suffix}`; }
 async function viewerIsAdmin(pr: Snapshot, runner: CommandRunner): Promise<boolean> {
   const result = await invoke(runner, "gh", ["repo", "view", pr.repo, "--json", "viewerPermission"]);
@@ -16,7 +19,7 @@ async function checkMergeGates(pr: Snapshot, required: string[], force: boolean,
   if (!required.length) return blocked("required checks", "no required checks supplied", "agent-provided required check list or verified policy proof");
   return waitChecks(pr, required, 30 * 60_000, force, runner, clock);
 }
-async function mergeCommand(pr: Snapshot, subject: string, force: boolean, runner: CommandRunner): Promise<void> {
+async function runGhMerge(pr: Snapshot, subject: string, force: boolean, runner: CommandRunner): Promise<void> {
   const args = ["pr", "merge", String(pr.number), "--repo", pr.repo, "--squash", "--subject", subject, "--body", "", "--match-head-commit", pr.headRefOid];
   try { await invoke(runner, "gh", args, { write: "merge" }); }
   catch (error) {
@@ -29,7 +32,7 @@ export async function merge(pr: Snapshot, runId: string, force: boolean, require
   const checks = await checkMergeGates(pr, required, force, noRequiredChecks, policyProof, runner, clock);
   if (["pending", "failed", "needs_policy_proof"].includes(checks.status)) return { status: checks.status, ...(checks.checks ? { checks: checks.checks } : {}), ...(checks.needs_policy_proof ? { needs_policy_proof: checks.needs_policy_proof } : {}) };
   const subject = squashSubject(pr.title, pr.number);
-  await mergeCommand(pr, subject, force, runner);
+  await runGhMerge(pr, subject, force, runner);
   const final = await refresh(pr, runner);
   if (final.state !== "MERGED") return { status: "queued", subject, url: pr.url };
   finishRun(pr, runId, "merged");
@@ -66,4 +69,24 @@ export async function cleanup(pr: Snapshot, runner: CommandRunner): Promise<{ cl
   const worktree = parseCurrentWorktree(current.stdout);
   if (typeof worktree !== "string") return { cleanup: `cleanup failed: ${worktree.error}` };
   return removeCapturedWorktree(executable, worktree, runner);
+}
+
+export async function mergeCommand({ args, pr, runId, runner, clock }: MutationContext): Promise<unknown> {
+      const noRequiredChecks = boolean(args, "--no-required-checks"); const proof = option(args, "--policy-proof");
+      if (noRequiredChecks && !proof?.trim()) return blocked("required checks", "--no-required-checks requires --policy-proof <text>", "an explicit trusted-policy reason");
+      if (noRequiredChecks) changeRun(pr, runId!, (run) => { run.policyProof = proof!.trim(); });
+      return merge(pr, runId!, boolean(args, "--force"), list(args, "--required"), runner, clock, noRequiredChecks, proof);
+}
+export async function cleanupCommand({ pr, runId, runner }: MutationContext): Promise<unknown> {
+  const id = runId!;
+  if (pr.owner !== "own" || pr.fork) return blocked("post-merge cleanup", `owner=${pr.owner}, fork=${pr.fork}`, "an own, non-fork PR");
+  const run = getRun(pr, id);
+  if (!["merge", "automerge", "lifecycle"].includes(run.action)) return blocked("post-merge cleanup", `action=${run.action}`, "a merge, automerge, or lifecycle run");
+  const root = await targetRoot(runner);
+  const branch = await invoke(runner, "git", ["branch", "--show-current"], { cwd: root });
+  const head = await invoke(runner, "git", ["rev-parse", "HEAD"], { cwd: root });
+  const status = await invoke(runner, "git", ["status", "--porcelain"], { cwd: root });
+  if (status) return blocked("post-merge cleanup", `working tree is dirty: ${status}`, "a clean working tree before cleanup");
+  if (pr.state.toUpperCase() !== "MERGED" || branch !== pr.headRefName || head !== pr.headRefOid) return blocked("post-merge cleanup", `state=${pr.state}, branch=${branch}, HEAD=${head}`, "merged PR and current branch HEAD matching the PR head");
+  return cleanup(pr, runner);
 }

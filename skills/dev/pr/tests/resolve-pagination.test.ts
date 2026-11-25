@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mergePrPage } from "../scripts/resolve.ts";
+import { mergePrPage } from "../scripts/core/resolve.ts";
 
 const page = (nodes: string[], hasNextPage: boolean, endCursor: string | null) => ({ nodes, pageInfo: { hasNextPage, endCursor } });
 function pullRequest(commentPage: ReturnType<typeof page>, reviewPage: ReturnType<typeof page>) {

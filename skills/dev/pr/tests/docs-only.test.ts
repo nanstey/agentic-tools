@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { docsOnly } from "../scripts/docs-only.ts";
-import type { CommandRunner } from "../scripts/runner.ts";
+import { docsOnly } from "../scripts/phases/06-docs-only.ts";
+import type { CommandRunner } from "../scripts/core/runner.ts";
 
 const stateHome = mkdtempSync(join(tmpdir(), "pr-docs-only-state-"));
 const oldStateHome = process.env.XDG_STATE_HOME;

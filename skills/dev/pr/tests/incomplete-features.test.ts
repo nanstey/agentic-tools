@@ -1,9 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { docsOnly } from "../scripts/docs-only.ts";
-import { threads } from "../scripts/threads.ts";
-import { probe } from "../scripts/stack.ts";
-import type { CommandRunner } from "../scripts/runner.ts";
+import { docsOnly } from "../scripts/phases/06-docs-only.ts";
+import { threads } from "../scripts/phases/07-threads.ts";
+import { probe } from "../scripts/phases/04-stack.ts";
+import type { CommandRunner } from "../scripts/core/runner.ts";
 
 const pr = { repo: "acme/repo", number: 7 } as Parameters<typeof threads>[0];
 test("thread snapshot reads every GraphQL page and fails on later page errors", async () => {

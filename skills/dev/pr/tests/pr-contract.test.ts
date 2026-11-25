@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { authorize, AUTHORIZATION_TABLE, renderAuthorizationTable } from "../scripts/authorize.ts";
-import { squashSubject } from "../scripts/merge.ts";
-import { parseTimeout } from "../scripts/checks.ts";
+import { authorize, AUTHORIZATION_TABLE, renderAuthorizationTable } from "../scripts/core/authorize.ts";
+import { squashSubject } from "../scripts/phases/10-merge.ts";
+import { parseTimeout } from "../scripts/phases/05-checks.ts";
 
 test("authorization table includes every public action and renders stable markdown", () => {
   assert.ok(AUTHORIZATION_TABLE.lifecycle);

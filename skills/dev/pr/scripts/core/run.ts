@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { prStatePath, readPrStore, updatePrStore, type PrIdentity, type PrRun } from "../../../../lib/pr/store.ts";
+import { prStatePath, readPrStore, updatePrStore, type PrIdentity, type PrRun } from "../../../../../lib/pr/store.ts";
 import type { Clock } from "./runner.ts";
 import { blocked } from "./runner.ts";
 import type { Snapshot } from "./resolve.ts";

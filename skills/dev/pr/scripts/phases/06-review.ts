@@ -2,8 +2,16 @@ import { createHash } from "node:crypto";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { invoke, isRecord, blocked, type CommandRunner } from "./runner.ts";
-import { refresh, policyHash, type Snapshot } from "./resolve.ts";
+import { invoke, isRecord, blocked, type CommandRunner } from "../core/runner.ts";
+import { refresh, policyHash, type Snapshot } from "../core/resolve.ts";
+import { readFileSync } from "node:fs";
+import { readPrStore, putPrPacket, findPrPacket } from "../../../../../lib/pr/store.ts";
+import { option, firstTarget, list } from "../cli/args.ts";
+import { snapshot } from "../core/resolve.ts";
+import { requireRun } from "../core/runner.ts";
+import { getRun, identityOf, statePath } from "../core/run.ts";
+import { localHeadUnavailable } from "../core/facts.ts";
+import { assertAuthorized, snapshotTarget, type PrSnapshot } from "../core/commands.ts";
 export function disclosure(kind: "review" | "comment" | "fold", user: string): { header: string } {
   if (kind === "fold") return { header: `> [!NOTE]\n> 🤖 Folded by ${user}'s Agent` };
   return { header: `> [!NOTE]\n> 🤖 Written by ${user}'s Agent` };
@@ -126,4 +134,62 @@ export async function disclosureHeader(kind: string, runner: CommandRunner): Pro
   if (!user) return blocked("GitHub identity", "viewer login missing", "authenticated GitHub user");
   if (kind !== "review" && kind !== "comment" && kind !== "fold") return blocked("disclosure kind", kind, "review, comment, or fold");
   return disclosure(kind, user);
+}
+
+const FULL_OID = /^[a-f\d]{40}$/;
+async function packetPolicy(pr: PrSnapshot, runner: CommandRunner, head = pr.headRefOid): Promise<string> {
+  try { return await policyHash(head, runner); }
+  catch (error) {
+    if (localHeadUnavailable(error)) return blocked("policy hash", `head ${head} is unavailable locally`, `fetch pull/${pr.number}/head first`);
+    throw error;
+  }
+}
+async function packetGet(args: string[], pr: PrSnapshot, runner: CommandRunner): Promise<unknown> {
+  const base = option(args, "--base"); const head = option(args, "--head");
+  if (!base || !head) return blocked("packet arguments", "base and head are required", "pr packet get <pr> --base <oid> --head <oid>");
+  if (!FULL_OID.test(head)) return blocked("packet arguments", `invalid head ${head}`, "a lowercase full head OID");
+  const policy = option(args, "--policy") ?? await packetPolicy(pr, runner, head);
+  return { packet: findPrPacket(readPrStore(statePath(pr), identityOf(pr)), base, head, policy) };
+}
+function parsePacketRows(values: string[], sep: string, field: string): [string, string][] {
+  return values.map((value) => { const at = value.indexOf(sep); if (at < 1 || at === value.length - 1) return blocked("packet arguments", value, `valid ${field} entries`); return [value.slice(0, at), value.slice(at + 1)]; });
+}
+async function packetPut(args: string[], pr: PrSnapshot, runner: CommandRunner): Promise<unknown> {
+  const required = ["--run", "--base", "--head", "--depth", "--reason", "--verdict"];
+  if (required.some((key) => !option(args, key))) return blocked("packet arguments", "required packet field missing", "run, base, head, depth, reason, verdict");
+  const packetHead = option(args, "--head")!;
+  if (!FULL_OID.test(packetHead)) return blocked("packet arguments", `invalid head ${packetHead}`, "a lowercase full head OID");
+  const policy = option(args, "--policy") ?? await packetPolicy(pr, runner, packetHead);
+  const run = getRun(pr, option(args, "--run")!); if (run.round > run.limit) return blocked("round limit", `round ${run.round} exceeds limit ${run.limit}`, "a valid active run");
+  const verdict = option(args, "--verdict")!;
+  if (!["clean", "changes_required", "incomplete"].includes(verdict)) return blocked("packet verdict", verdict, "clean, changes_required, or incomplete");
+  const findings = parsePacketRows(list(args, "--finding"), ":", "finding").map(([id, category]) => ({ id, category }));
+  const coverage = parsePacketRows(list(args, "--coverage"), "=", "coverage").map(([path, status]) => ({ path, status }));
+  const packet = { base: option(args, "--base")!, head: packetHead, policy, depth: option(args, "--depth")!, reason: option(args, "--reason")!, verdict, findings, coverage, storedAt: new Date().toISOString() };
+  putPrPacket(statePath(pr), identityOf(pr), packet); return { packet };
+}
+export async function packetCommand(args: string[], runner: CommandRunner): Promise<unknown> {
+  const pr = await snapshot(args[1], runner);
+  if (args[0] === "get") return packetGet(args, pr, runner);
+  if (args[0] === "put") return packetPut(args, pr, runner);
+  return blocked("usage", "expected packet put or get", "pr packet put|get");
+}
+export async function reactCommand(args: string[], runner: CommandRunner): Promise<unknown> {
+  const operation = args[0];
+  const pr = await snapshot(firstTarget(args.slice(1)), runner); const run = getRun(pr, requireRun(option(args, "--run"))); assertAuthorized(run, pr.owner, "react");
+  return react(pr, operation!, runner);
+}
+export async function reviewCommand(args: string[], runner: CommandRunner): Promise<unknown> {
+  if (args[0] !== "post") return blocked("usage", "expected review post", "pr review post <pr>");
+  const pr = await snapshot(args[1], runner); const run = getRun(pr, requireRun(option(args, "--run"))); assertAuthorized(run, pr.owner, "post-review");
+  const event = option(args, "--event"); const bodyFile = option(args, "--body-file");
+  if (!event || !bodyFile) return blocked("review arguments", "event and body file are required", "--event <E> --body-file <f>");
+  let comments: unknown[] = [];
+  const commentsFile = option(args, "--comments-file"); if (commentsFile) { const parsed: unknown = JSON.parse(readFileSync(commentsFile, "utf8")); if (!Array.isArray(parsed)) return blocked("review comments", "comments file must be an array", "JSON array of inline comments"); comments = parsed; }
+  return postReview(pr, event, readFileSync(bodyFile, "utf8"), comments, runner);
+}
+export async function markerCommand(args: string[], runner: CommandRunner): Promise<unknown> {
+  const pr = await snapshotTarget(args, runner); const head = option(args, "--head"); const verdict = option(args, "--verdict");
+  if (!head || !verdict) return blocked("marker arguments", "--head and --verdict are required", "full head oid and verdict");
+  return marker(pr, head, verdict, list(args, "--finding"), runner);
 }

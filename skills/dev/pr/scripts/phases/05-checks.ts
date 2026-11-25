@@ -1,9 +1,12 @@
-import { summarizeChecks } from "../../../../lib/pr/facts.ts";
-import { checkState } from "../../../../lib/pr-state.ts";
-import { updatePrStore, readPrStore } from "../../../../lib/pr/store.ts";
-import { invoke, parseJson, isRecord, blocked, type CommandRunner, type Clock } from "./runner.ts";
-import { refresh, type Snapshot } from "./resolve.ts";
-import { identityOf, statePath } from "./run.ts";
+import { summarizeChecks } from "../../../../../lib/pr/facts.ts";
+import { checkState } from "../../../../../lib/pr-state.ts";
+import { updatePrStore, readPrStore } from "../../../../../lib/pr/store.ts";
+import { invoke, parseJson, isRecord, blocked, type CommandRunner, type Clock } from "../core/runner.ts";
+import { refresh, type Snapshot } from "../core/resolve.ts";
+import { identityOf, statePath } from "../core/run.ts";
+import { option, list, boolean } from "../cli/args.ts";
+import { requireRun } from "../core/runner.ts";
+import type { MutationContext } from "../core/commands.ts";
 function requiredState(pr: Snapshot, name: string): "passed" | "failed" | "pending" | "needs_policy_proof" {
   const check = pr.checks.find((item) => item.name === name);
   if (!check) return "pending";
@@ -82,4 +85,16 @@ export function parseTimeout(value: string | undefined): number {
   const match = /^(\d+)(m|h)$/.exec(value);
   if (!match) return blocked("check timeout", value, "a timeout such as 30m");
   return Number(match[1]) * (match[2] === "h" ? 60 : 1) * 60_000;
+}
+
+export async function checksCommand({ args, pr, runner, clock, runId }: MutationContext): Promise<unknown> {
+  const [operation] = args;
+  if (operation === "inventory") return inventory(pr, runner);
+  if (operation === "rerun-cancelled") return rerunCancelled(pr, requireRun(runId), runner);
+  if (operation === "wait") {
+    const required = list(args, "--required");
+    if (!required.length) return blocked("check arguments", "--required needs at least one check name", "required check names");
+    return waitChecks(pr, required, parseTimeout(option(args, "--timeout")), boolean(args, "--force"), runner, clock);
+  }
+  return blocked("usage", "unknown checks operation", "inventory, rerun-cancelled, or wait");
 }

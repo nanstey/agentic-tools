@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { authorize, renderAuthorizationTable } from "../scripts/authorize.ts";
+import { authorize, renderAuthorizationTable } from "../scripts/core/authorize.ts";
 
 test("A7 SKILL.md authorization table matches the executable authorization table", () => {
   const skill = readFileSync(resolve(process.cwd(), "SKILL.md"), "utf8");

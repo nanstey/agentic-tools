@@ -21,7 +21,7 @@ const rules: Rule[] = [
   { name: "required-check discovery", owner: "references/_policy.md", pattern: /The agent discovers expected required jobs from trusted repository policy, branch protection\/rulesets, and workflows/ },
   { name: "disclosure scope", owner: "references/_policy.md", pattern: /For comments, review bodies, inline comments, and thread replies posted as the user, begin exactly/ },
   { name: "squash subject", owner: "references/_policy.md", pattern: /`pr merge` uses the PR title with ` \(#<number>\)` appended exactly once/ },
-  { name: "thread snapshot query", owner: "scripts/threads.ts", pattern: /reviewThreads\(first:100,after:\$c\)\{nodes\{id isResolved isOutdated/ },
+  { name: "thread snapshot query", owner: "scripts/phases/07-threads.ts", pattern: /reviewThreads\(first:100,after:\$c\)\{nodes\{id isResolved isOutdated/ },
   { name: "run-state schema", owner: "references/_state.md", pattern: /Runs are keyed by run id and contain `id`, `action`, nullable `mode`, `force`, `startedAt`, `round`, `limit`/ },
 ];
 

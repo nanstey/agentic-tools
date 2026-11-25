@@ -1,10 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { guard } from "../scripts/guard.ts";
-import { targetRoot } from "../scripts/resolve.ts";
-import { cleanup } from "../scripts/merge.ts";
-import type { Snapshot } from "../scripts/resolve.ts";
-import type { CommandRunner } from "../scripts/runner.ts";
+import { guard } from "../scripts/core/guard.ts";
+import { targetRoot } from "../scripts/core/resolve.ts";
+import { cleanup } from "../scripts/phases/10-merge.ts";
+import type { Snapshot } from "../scripts/core/resolve.ts";
+import type { CommandRunner } from "../scripts/core/runner.ts";
 
 const root = "/cwd/repository";
 const pr = { owner: "own", fork: false, headRefName: "topic", headRefOid: "head", state: "MERGED", url: "https://github.com/acme/repo/pull/1" } as Snapshot;

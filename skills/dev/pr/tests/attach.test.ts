@@ -3,9 +3,9 @@ import assert from "node:assert/strict";
 import { chmodSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { attach, checkUntracked } from "../scripts/body.ts";
-import type { Snapshot } from "../scripts/resolve.ts";
-import type { CommandRunner } from "../scripts/runner.ts";
+import { attach, checkUntracked } from "../scripts/phases/03-body.ts";
+import type { Snapshot } from "../scripts/core/resolve.ts";
+import type { CommandRunner } from "../scripts/core/runner.ts";
 
 const stateHome = mkdtempSync(join(tmpdir(), "pr-attach-state-"));
 const oldStateHome = process.env.XDG_STATE_HOME;

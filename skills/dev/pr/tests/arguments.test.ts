@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseArguments } from "../scripts/pr.ts";
+import { parseArguments } from "../scripts/cli/args.ts";
 
 test("merge options without a target keep proof text in flags", () => {
   const parsed = parseArguments(["--run", "X", "--no-required-checks", "--policy-proof", "T"]);

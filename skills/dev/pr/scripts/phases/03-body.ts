@@ -1,8 +1,12 @@
 import { lstatSync, realpathSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { invoke, blocked, GITHUB_WRITE_ALLOWLIST, type CommandRunner } from "./runner.ts";
-import { targetRoot, type Snapshot } from "./resolve.ts";
+import { invoke, blocked, GITHUB_WRITE_ALLOWLIST, type CommandRunner } from "../core/runner.ts";
+import { targetRoot, type Snapshot } from "../core/resolve.ts";
+import { option, boolean } from "../cli/args.ts";
+import { updatePrStore } from "../../../../../lib/pr/store.ts";
+import { identityOf, statePath } from "../core/run.ts";
+import type { MutationContext } from "../core/commands.ts";
 
 export async function updateBody(pr: Snapshot, file: string, preserveEvidence: boolean, runner: CommandRunner): Promise<{ updated: true; body: string }> {
   let body = await readFile(resolve(file), "utf8");
@@ -154,4 +158,11 @@ export async function checkUntracked(asset: string, runner: CommandRunner): Prom
 function isGhVersionSupported(output: string): boolean {
   const match = /gh version (\d+)\.(\d+)/.exec(output); if (!match) return false;
   return Number(match[1]) > 2 || (Number(match[1]) === 2 && Number(match[2]) >= 99);
+}
+
+export async function bodyCommand({ args, pr, runner }: MutationContext): Promise<unknown> {
+  const file = option(args, "--file"); if (!file) return blocked("body arguments", "--file is required", "PR body file");
+  const result = await updateBody(pr, file, boolean(args, "--preserve-evidence"), runner);
+  updatePrStore(statePath(pr), identityOf(pr), (store) => { if (!store.describedHeads.includes(pr.headRefOid)) store.describedHeads.push(pr.headRefOid); });
+  return result;
 }

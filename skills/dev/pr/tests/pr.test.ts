@@ -3,9 +3,10 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { execute, isPlaceholderDescription, nextPhase, type CommandRunner, type Clock } from "../scripts/pr.ts";
+import { execute, nextPhase, type CommandRunner, type Clock } from "../scripts/pr.ts";
+import { isPlaceholderDescription } from "../scripts/core/facts.ts";
 import { prStatePath, readPrStore } from "../../../../lib/pr/store.ts";
-import { refresh, type Snapshot } from "../scripts/resolve.ts";
+import { refresh, type Snapshot } from "../scripts/core/resolve.ts";
 
 const stateHome = mkdtempSync(join(tmpdir(), "pr-test-state-"));
 const oldStateHome = process.env.XDG_STATE_HOME;

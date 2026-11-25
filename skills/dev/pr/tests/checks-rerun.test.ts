@@ -3,11 +3,11 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { rerunCancelled } from "../scripts/checks.ts";
-import { identityOf, statePath } from "../scripts/run.ts";
+import { rerunCancelled } from "../scripts/phases/05-checks.ts";
+import { identityOf, statePath } from "../scripts/core/run.ts";
 import { readPrStore } from "../../../../lib/pr/store.ts";
-import type { Snapshot } from "../scripts/resolve.ts";
-import type { CommandRunner } from "../scripts/runner.ts";
+import type { Snapshot } from "../scripts/core/resolve.ts";
+import type { CommandRunner } from "../scripts/core/runner.ts";
 
 const stateHome = mkdtempSync(join(tmpdir(), "pr-check-rerun-state-"));
 const oldStateHome = process.env.XDG_STATE_HOME;

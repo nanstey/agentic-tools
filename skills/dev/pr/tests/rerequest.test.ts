@@ -3,9 +3,9 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { rerequest } from "../scripts/threads.ts";
-import type { Snapshot } from "../scripts/resolve.ts";
-import type { CommandRunner } from "../scripts/runner.ts";
+import { rerequest } from "../scripts/phases/07-threads.ts";
+import type { Snapshot } from "../scripts/core/resolve.ts";
+import type { CommandRunner } from "../scripts/core/runner.ts";
 
 const stateHome = mkdtempSync(join(tmpdir(), "pr-rerequest-state-"));
 const oldStateHome = process.env.XDG_STATE_HOME;

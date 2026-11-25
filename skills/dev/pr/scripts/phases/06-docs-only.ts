@@ -1,6 +1,11 @@
 import { posix, relative, resolve, sep } from "node:path";
-import { invoke, type CommandRunner } from "./runner.ts";
-import { targetRoot } from "./resolve.ts";
+import { invoke, type CommandRunner } from "../core/runner.ts";
+import { targetRoot } from "../core/resolve.ts";
+import { updatePrStore } from "../../../../../lib/pr/store.ts";
+import { option } from "../cli/args.ts";
+import { blocked } from "../core/runner.ts";
+import { snapshot } from "../core/resolve.ts";
+import { getRun, identityOf, statePath } from "../core/run.ts";
 
 type RawChange = { oldMode: string; newMode: string; oldOid: string; newOid: string; status: string; paths: string[] };
 type FileResult = { path: string; class: "prose" | "instruction" | "uncertain"; ok: boolean; reason: string };
@@ -157,4 +162,20 @@ export async function docsOnly(base: string, head: string, runner: CommandRunner
   const files = await Promise.all(changes.map((change) => fileCheck(change, base, head, runner, root, skillDir)));
   if (!changes.length) files.push({ path: "", class: "uncertain", ok: false, reason: "diff is empty" });
   return { clean: files.length > 0 && files.every((file) => file.ok), files };
+}
+
+export async function docsOnlyCommand(args: string[], runner: CommandRunner): Promise<unknown> {
+  const base = args[0] && !args[0].startsWith("--") ? args[0] : undefined;
+  const head = args[1] && !args[1].startsWith("--") ? args[1] : undefined;
+  if (!base || !head) return blocked("usage", "base and head are required", "pr docs-only <base> <head>");
+  const result = await docsOnly(base, head, runner, option(args, "--skill-dir"));
+  await recordDocsOnlyResult(args, base, head, result.clean, runner);
+  return result;
+}
+async function recordDocsOnlyResult(args: string[], base: string, head: string, clean: boolean, runner: CommandRunner): Promise<void> {
+  const runId = option(args, "--run"); if (!runId) return;
+  const target = option(args, "--pr"); if (!target) return blocked("docs-only arguments", "--pr is required when recording a run result", "pr docs-only <base> <head> --run <id> --pr <pr>");
+  const pr = await snapshot(target, runner); getRun(pr, runId);
+  if (base !== pr.baseRefOid || head !== pr.headRefOid) return blocked("docs-only identity", "base/head do not match the PR snapshot", "the exact PR base and head OIDs");
+  const key = `${pr.baseRefOid}..${pr.headRefOid}`; updatePrStore(statePath(pr), identityOf(pr), (store) => { store.docsOnlyResults[key] = clean; });
 }

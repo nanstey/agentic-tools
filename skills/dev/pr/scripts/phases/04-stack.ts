@@ -1,5 +1,10 @@
-import { invoke, blocked, isRecord, type CommandRunner, type CommandResult } from "./runner.ts";
-import { targetRoot } from "./resolve.ts";
+import { invoke, blocked, isRecord, type CommandRunner, type CommandResult } from "../core/runner.ts";
+import { targetRoot } from "../core/resolve.ts";
+import { option } from "../cli/args.ts";
+import { requireRun } from "../core/runner.ts";
+import { snapshot } from "../core/resolve.ts";
+import { getRun } from "../core/run.ts";
+import { assertAuthorized, type PrSnapshot } from "../core/commands.ts";
 
 const STACK_RECOVERY: Record<number, [string, string]> = {
   1: ["generic gh-stack error", "inspect the reported error and retry"],
@@ -110,4 +115,34 @@ export async function collapseCheck(heads: string[], runner: CommandRunner): Pro
   if (rebase.ok) return blocked("stack collapse", "a rebase is in progress", "finish or abort the rebase first");
   if (!/Needed a single revision|unknown revision|fatal: Needed/i.test(rebase.stderr)) return blocked("stack collapse", rebase.stderr || "cannot determine rebase state", "verified no rebase in progress");
   return { collapseAllowed: true, heads };
+}
+
+async function stackPrs(repo: string, numbers: string[], runner: CommandRunner): Promise<PrSnapshot[]> {
+  const prs = [];
+  for (const number of numbers) {
+    const pr = await snapshot(`https://github.com/${repo}/pull/${number}`, runner);
+    if (pr.owner !== "own" || pr.fork) return blocked("stack link", `PR #${number} owner=${pr.owner}, fork=${pr.fork}`, "own, non-fork PRs only");
+    prs.push(pr);
+  }
+  return prs;
+}
+function authorizeStackRun(prs: PrSnapshot[], runId: string): void {
+  for (const pr of prs) {
+    try { assertAuthorized(getRun(pr, runId), pr.owner, "stack-link"); return; }
+    catch (error) { if (!(error instanceof Error) || !/run.*not found|unknown run/i.test(error.message)) throw error; }
+  }
+  blocked("stack link", `run ${runId} does not belong to a listed PR`, "a stack-link run on one listed PR");
+}
+async function stackLinkCommand(args: string[], runner: CommandRunner): Promise<unknown> {
+  const runId = requireRun(option(args, "--run")); const repo = option(args, "--repo"); const numbers = args.filter((value) => /^\d+$/.test(value));
+  if (!repo || !numbers.length) return blocked("stack link", "--repo and PR numbers are required", "explicit owner/repository and PR numbers");
+  authorizeStackRun(await stackPrs(repo, numbers, runner), runId);
+  return link(repo, numbers, runner);
+}
+export async function stackCommand(args: string[], runner: CommandRunner): Promise<unknown> {
+  const [operation, ...rest] = args;
+  if (operation === "probe") return probe(runner, option(rest, "--repo"));
+  if (operation === "link") return stackLinkCommand(rest, runner);
+  if (operation === "collapse-check") return collapseCheck(rest.filter((value) => /^[a-f\d]{7,40}$/i.test(value)), runner);
+  return blocked("usage", "unknown stack operation", "probe, link, or collapse-check");
 }

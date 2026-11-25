@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import { PR_QUERY, parsePr } from "../../../../lib/pr/index.ts";
-import type { PrSnapshot } from "../../../../lib/pr/types.ts";
+import { PR_QUERY, parsePr } from "../../../../../lib/pr/index.ts";
+import type { PrSnapshot } from "../../../../../lib/pr/types.ts";
 import { invoke, parseJson, isRecord, blocked, type CommandRunner } from "./runner.ts";
 
 export async function targetRoot(runner: CommandRunner): Promise<string> {

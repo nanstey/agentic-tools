@@ -1,5 +1,10 @@
-import { invoke, parseJson, isRecord, blocked, type CommandRunner } from "./runner.ts";
-import { snapshot, type Snapshot } from "./resolve.ts";
+import { invoke, parseJson, isRecord, blocked, type CommandRunner } from "../core/runner.ts";
+import { snapshot, type Snapshot } from "../core/resolve.ts";
+import { readFileSync } from "node:fs";
+import { option, firstTarget } from "../cli/args.ts";
+import { requireRun } from "../core/runner.ts";
+import { getRun } from "../core/run.ts";
+import { assertAuthorized } from "../core/commands.ts";
 interface ThreadComment { login: string; type: string; at: string }
 interface ReviewThread { resolved: boolean; comments: ThreadComment[] }
 interface ThreadPage { unresolved: string[]; outdated: string[]; threads: ReviewThread[]; total: number; cursor: string | null }
@@ -111,4 +116,13 @@ export async function rerequest(pr: Snapshot, runner: CommandRunner, dryRun: boo
   if (dryRun || !pending.length) return { requested: pending, skipped };
   await requestReviewers(pr, pending, runner);
   return { requested: pending, skipped: {} };
+}
+
+export async function threadCommand(args: string[], runner: CommandRunner): Promise<unknown> {
+  const pr = await snapshot(firstTarget(args.slice(1)), runner); const run = getRun(pr, requireRun(option(args, "--run"))); assertAuthorized(run, pr.owner, args[0] === "reply" ? "post-comment" : "resolve-threads");
+  const id = option(args, "--thread"); if (!id) return blocked("thread arguments", "thread id is required", "--thread <id>");
+  if (!pr.threads.some((thread) => thread.id === id)) return blocked("thread target", id, "a thread belonging to the target PR");
+  if (args[0] === "reply") { const file = option(args, "--body-file"); if (!file) return blocked("thread arguments", "body file is required", "--body-file <f>"); return replyThread(pr, id, readFileSync(file, "utf8"), runner); }
+  if (args[0] === "resolve") return resolveThread(pr, id, runner);
+  return blocked("usage", "expected thread reply or resolve", "pr thread reply|resolve");
 }

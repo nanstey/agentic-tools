@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { collapseCheck, link, probe } from "../scripts/stack.ts";
-import type { CommandRunner } from "../scripts/runner.ts";
+import { collapseCheck, link, probe } from "../scripts/phases/04-stack.ts";
+import type { CommandRunner } from "../scripts/core/runner.ts";
 
 const stateHome = mkdtempSync(join(tmpdir(), "pr-stack-state-"));
 process.env.XDG_STATE_HOME = stateHome;

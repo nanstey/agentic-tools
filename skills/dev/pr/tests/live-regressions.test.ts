@@ -4,17 +4,18 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { guard } from "../scripts/guard.ts";
-import type { Snapshot } from "../scripts/resolve.ts";
-import type { CommandRunner } from "../scripts/runner.ts";
+import { guard } from "../scripts/core/guard.ts";
+import type { Snapshot } from "../scripts/core/resolve.ts";
+import type { CommandRunner } from "../scripts/core/runner.ts";
 
 const scripts = resolve(dirname(fileURLToPath(import.meta.url)), "../scripts");
 const ok = (stdout = "") => ({ ok: true, stdout, stderr: "" });
 const pr = { owner: "own", fork: false, headRefName: "feat/x", headRefOid: "aaa", url: "https://github.com/o/r/pull/1", repo: "o/r", number: 1 } as unknown as Snapshot;
 
 test("gh repo view never receives a --repo flag (gh rejects it)", () => {
-  for (const file of readdirSync(scripts).filter((name) => name.endsWith(".ts"))) {
-    const source = readFileSync(join(scripts, file), "utf8");
+  const scan = (directory: string): string[] => readdirSync(directory, { withFileTypes: true }).flatMap((entry) => entry.isDirectory() ? scan(join(directory, entry.name)) : entry.name.endsWith(".ts") ? [join(directory, entry.name)] : []);
+  for (const file of scan(scripts)) {
+    const source = readFileSync(file, "utf8");
     assert.doesNotMatch(source, /"repo",\s*"view",\s*"--repo"/, file);
   }
 });
@@ -47,14 +48,14 @@ test("force-with-lease guard permits rewritten history but keeps other guard che
 });
 
 test("a fresh head with a null statusCheckRollup reads as zero observed checks", async () => {
-  const { pageAt } = await import("../scripts/resolve.ts");
+  const { pageAt } = await import("../scripts/core/resolve.ts");
   const pr = { commits: { nodes: [{ commit: { statusCheckRollup: null } }] } };
   assert.deepEqual(pageAt(pr, ["commits", "nodes", "0", "commit", "statusCheckRollup", "contexts"]).nodes, []);
   assert.throws(() => pageAt({ reviews: null }, ["reviews"]), /blocked: PR pagination/);
 });
 
 test("checks wait --required stops at the next flag, so --timeout is not a check name", async () => {
-  const { list } = await import("../scripts/pr.ts");
+  const { list } = await import("../scripts/cli/args.ts");
   const args = ["wait", "208", "--required", "installer", "pi package patches", "--timeout", "15m"];
   assert.deepEqual(list(args, "--required"), ["installer", "pi package patches"]);
 });
