@@ -26,9 +26,12 @@ function targetParts(url: string): { repo: string; number: number } {
   return { repo: `${parts[0]}/${parts[1]}`, number };
 }
 type CursorPage = { nodes: unknown[]; pageInfo: { hasNextPage: boolean; endCursor: string | null } };
-function pageAt(value: unknown, path: string[]): CursorPage {
+const EMPTY_PAGE: CursorPage = { nodes: [], pageInfo: { hasNextPage: false, endCursor: null } };
+export function pageAt(value: unknown, path: string[]): CursorPage {
   let current = value;
   for (const key of path) {
+    // A fresh head has statusCheckRollup null until checks register: zero observed checks.
+    if (current === null && key === "contexts") return EMPTY_PAGE;
     if (Array.isArray(current) && /^\d+$/.test(key)) current = current[Number(key)];
     else if (isRecord(current)) current = current[key];
     else return blocked("PR pagination", path.join("."), "complete page data");

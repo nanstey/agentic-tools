@@ -40,3 +40,10 @@ test("guard allowing ahead still refuses a HEAD that does not contain the PR hea
 test("strict guard refuses local commits ahead of the PR head", async () => {
   await assert.rejects(guard(pr, gitRunner("bbb", true)), /blocked: working tree guard/);
 });
+
+test("a fresh head with a null statusCheckRollup reads as zero observed checks", async () => {
+  const { pageAt } = await import("../scripts/resolve.ts");
+  const pr = { commits: { nodes: [{ commit: { statusCheckRollup: null } }] } };
+  assert.deepEqual(pageAt(pr, ["commits", "nodes", "0", "commit", "statusCheckRollup", "contexts"]).nodes, []);
+  assert.throws(() => pageAt({ reviews: null }, ["reviews"]), /blocked: PR pagination/);
+});
