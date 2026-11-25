@@ -6,7 +6,7 @@ type ModePermissions = Record<Mode, Permissions>;
 const none: Permissions = { own: [], other: [], fork: [] };
 const perms = (own: string[] = [], other: string[] = [], fork: string[] = []): Permissions => ({ own, other, fork });
 const modes = (base: Permissions, fix = none, comment = none, report = none, force = none): ModePermissions => ({ none: base, fix, comment, report, force });
-const lifecycleOwn = ["create-pr", "convert-draft", "convert-ready", "rerun-check", "rerequest", "attach", "edit-body", "push", "resolve-threads", "react"];
+const lifecycleOwn = ["create-pr", "convert-draft", "convert-ready", "rerun-check", "rerequest", "attach", "edit-body", "push", "resolve-threads", "post-comment", "react"];
 const reviewPublication = perms([], ["post-review", "react"], ["post-review", "react"]);
 export const AUTHORIZATION_TABLE: Record<Action, ModePermissions> = {
   lifecycle: modes(perms(lifecycleOwn, ["react"], ["react"]), none, none, none, perms(lifecycleOwn, ["react"], ["react"])),
@@ -15,13 +15,13 @@ export const AUTHORIZATION_TABLE: Record<Action, ModePermissions> = {
   push: modes(perms(["push", "edit-body", "convert-draft"])),
   description: modes(perms(["edit-body", "convert-draft"])),
   screenshots: modes(perms(["edit-body", "attach", "convert-draft"])),
-  rebase: modes(perms(["push", "convert-draft"])),
-  restack: modes(perms(["push", "convert-draft"])),
-  split: modes(perms(["push", "create-pr", "convert-draft"])),
-  stack: modes(perms(["push", "edit-body", "create-pr", "convert-draft"])),
-  ci: modes(perms(["push", "rerun-check", "convert-draft"])),
+  rebase: modes(perms(["push", "edit-body", "convert-draft"])),
+  restack: modes(perms(["push", "edit-body", "convert-draft"])),
+  split: modes(perms(["push", "edit-body", "create-pr", "convert-draft"])),
+  stack: modes(perms(["push", "edit-body", "create-pr", "stack-link", "convert-draft"])),
+  ci: modes(perms(["push", "edit-body", "rerun-check", "convert-draft"])),
   review: modes(reviewPublication, perms(["push", "edit-body", "convert-draft"]), reviewPublication),
-  comments: modes(perms(["push", "resolve-threads", "rerequest", "convert-draft"])),
+  comments: modes(perms(["push", "post-comment", "resolve-threads", "rerequest", "edit-body", "convert-draft"])),
   verification: modes(none, perms(["edit-body", "push", "convert-draft"]), perms([], ["post-comment"], ["post-comment"])),
   ready: modes(perms(["convert-ready"]), none, none, none, perms(["convert-ready"])),
   merge: modes(perms(["merge"]), none, none, none, perms(["merge"])),

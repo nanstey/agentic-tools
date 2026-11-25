@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { dispatchCli, execute, type CommandRunner, type Clock } from "../scripts/pr.ts";
 import { cleanup, merge, squashSubject } from "../scripts/merge.ts";
-import { startRun, identityOf, statePath } from "../scripts/run.ts";
+import { startRun, changeRun, identityOf, statePath } from "../scripts/run.ts";
 import { readPrStore } from "../../../../lib/pr/store.ts";
 import { inventory, rerunCancelled, waitChecks } from "../scripts/checks.ts";
 import { updateBody } from "../scripts/body.ts";
@@ -84,6 +84,15 @@ test("no-required-checks needs a policy reason and records the proof on the run"
   assert.equal(readPrStore(statePath(pr()), identityOf(pr())).runs[run.id]?.policyProof, "trusted policy has no required jobs");
 });
 
+test("merge parses run and policy flags without mistaking them for a target", async () => {
+  const { runner, calls } = fixture();
+  const started = await execute(["run", "start", "--pr", "7", "--action", "merge"], runner) as { run: { id: string } };
+  const result = await dispatchCli(["merge", "--run", started.run.id, "--no-required-checks", "--policy-proof", "T"], runner, clock);
+  assert.equal(result.exitCode, 0, result.stderr);
+  assert.equal(readPrStore(statePath(pr()), identityOf(pr())).runs[started.run.id]?.policyProof, "T");
+  assert.ok(calls.some((args) => args.some((arg) => arg.endsWith("/pulls/7"))));
+  assert.ok(!calls.some((args) => args[0] === "gh" && args[1] === "pr" && args.includes("T")));
+});
 test("A10 pending checks time out after 30 minutes without merge; force snapshots once and merges", async () => {
   const pending = fixture({ pending: true }); let now = 0, snapshots = 0;
   const fakeClock: Clock = { now: () => now, sleep: async (ms) => { now += ms; } };
@@ -102,11 +111,13 @@ test("A10 pending checks time out after 30 minutes without merge; force snapshot
   assert.ok(mergeArgs.includes("--match-head-commit") && mergeArgs.includes(head));
 });
 
-test("check inventory accepts unprotected branches and paginates workflows; cancelled reruns use --failed", async () => {
+test("check inventory accepts unprotected branches and reruns cancelled Actions jobs by job id", async () => {
   const calls: string[][] = [];
-  const runner: CommandRunner = async (_command, args) => {
+  const runner: CommandRunner = async (command, args) => {
     calls.push(args);
+    if (command === "git" && args[0] === "rev-parse" && args[1] === "--show-toplevel") return { ok: true, stdout: process.cwd(), stderr: "" };
     if (args[1]?.includes("/branches/")) return { ok: false, stdout: "", stderr: "HTTP 404 Not Found" };
+    if (args[1]?.includes("/actions/runs/99/jobs")) return { ok: true, stdout: JSON.stringify({ jobs: [{ id: 123, name: "ci" }] }), stderr: "" };
     if (args[1]?.includes("/rulesets")) return { ok: true, stdout: "[]", stderr: "" };
     if (args[1]?.includes("/workflows")) return { ok: true, stdout: "[]", stderr: "" };
     return { ok: true, stdout: "", stderr: "" };
@@ -115,7 +126,25 @@ test("check inventory accepts unprotected branches and paginates workflows; canc
   assert.ok(calls.some((args) => args[1]?.includes("/workflows") && args.includes("--paginate")));
   const cancelled = { ...pr(), checks: [{ name: "ci", typename: "CheckRun", status: "COMPLETED", conclusion: "CANCELLED", isRequired: true, url: "https://github.com/acme/repo/actions/runs/99" }] } as unknown as Snapshot;
   await rerunCancelled(cancelled, "run-id", runner);
-  assert.ok(calls.some((args) => args[0] === "run" && args[1] === "rerun" && args.includes("--failed")));
+  const rerun = calls.find((args) => args[0] === "run" && args[1] === "rerun") ?? [];
+  assert.ok(rerun.includes("--job") && rerun[rerun.indexOf("--job") + 1] === "123");
+  assert.ok(!rerun.includes("--failed"));
+});
+
+test("a cancelled required check fails immediately without polling", async () => {
+  const baseRunner = fixture().runner; let sleeps = 0;
+  const runner: CommandRunner = async (command, args, env, cwd, timeout) => {
+    const result = await baseRunner(command, args, env, cwd, timeout);
+    if (command === "gh" && args[0] === "api" && args[1] === "graphql" && result.ok) {
+      const data = JSON.parse(result.stdout) as any;
+      data.data.repository.pullRequest.commits.nodes[0]!.commit.statusCheckRollup.contexts.nodes[0] = { __typename: "CheckRun", status: "COMPLETED", conclusion: "CANCELLED", name: "ci" };
+      return { ...result, stdout: JSON.stringify(data) };
+    }
+    return result;
+  };
+  const result = await waitChecks(pr(), ["ci"], 30 * 60_000, false, runner, { now: () => 0, sleep: async () => { sleeps++; } });
+  assert.deepEqual(result, { status: "failed", checks: ["ci"] });
+  assert.equal(sleeps, 0);
 });
 
 test("checks wait preserves the PR target before a multi-name required list", async () => {
@@ -174,6 +203,44 @@ test("A12 cleanup returns all five outcomes and only removes captured id selecto
   assert.deepEqual(mainConflict, { cleanup: "cleanup failed: invalid Orca current worktree response" });
   const calls: string[][] = []; const removed = await cleanup(pr(), mk("ok", calls)); assert.deepEqual(removed, { cleanup: "remove:captured-42" }); assert.ok(calls.some((c) => c.join(" ").includes("--worktree id:captured-42")));
   assert.deepEqual(await cleanup(pr(), mk("remove-fail", [])), { cleanup: "cleanup failed: conflict" });
+});
+
+test("force-with-lease allows rewritten HEAD through push guards but not unrelated safety checks", async () => {
+  const { runner: baseRunner, calls } = fixture();
+  const run = startRun(pr(), "review", null, false, clock);
+  changeRun(pr(), run.id, (current) => { current.drafted_for_changes = true; });
+  const runner: CommandRunner = async (command, args, env, cwd) => {
+    if (command === "git" && args[0] === "branch" && args[1] === "--show-current") return { ok: true, stdout: "topic", stderr: "" };
+    if (command === "git" && args[0] === "rev-parse" && args[1] === "HEAD") return { ok: true, stdout: "rewritten", stderr: "" };
+    if (command === "git" && args[0] === "status") return { ok: true, stdout: "", stderr: "" };
+    if (command === "git" && args[0] === "push") { calls.push(args); return { ok: true, stdout: "pushed", stderr: "" }; }
+    return baseRunner(command, args, env, cwd);
+  };
+  await assert.rejects(() => push(pr(), run.id, ["--force-with-lease", "origin", "topic"], runner), /push verification/);
+  assert.ok(calls.some((args) => args[0] === "push"));
+});
+
+test("plain push allows local commits ahead of the PR head and blocks a rewritten HEAD", async () => {
+  const make = (ancestor: boolean) => {
+    const { runner: baseRunner, calls } = fixture();
+    const runner: CommandRunner = async (command, args, env, cwd) => {
+      if (command === "git" && args[0] === "branch" && args[1] === "--show-current") return { ok: true, stdout: "topic", stderr: "" };
+      if (command === "git" && args[0] === "rev-parse" && args[1] === "HEAD") return { ok: true, stdout: "ahead", stderr: "" };
+      if (command === "git" && args[0] === "status") return { ok: true, stdout: "", stderr: "" };
+      if (command === "git" && args[0] === "merge-base") return { ok: ancestor, stdout: "", stderr: "" };
+      if (command === "git" && args[0] === "push") { calls.push(args); return { ok: true, stdout: "pushed", stderr: "" }; }
+      return baseRunner(command, args, env, cwd);
+    };
+    return { runner, calls };
+  };
+  const run = startRun(pr(), "push", null, false, clock);
+  changeRun(pr(), run.id, (current) => { current.drafted_for_changes = true; });
+  const ahead = make(true);
+  await assert.rejects(() => push(pr(), run.id, ["origin", "topic"], ahead.runner), /push verification/);
+  assert.ok(ahead.calls.some((args) => args[0] === "push"));
+  const rewritten = make(false);
+  await assert.rejects(() => push(pr(), run.id, ["origin", "topic"], rewritten.runner), /working tree guard/);
+  assert.ok(!rewritten.calls.some((args) => args[0] === "push"));
 });
 
 test("push blocks non-own PRs, force syntax, and protected branch targets", async () => {

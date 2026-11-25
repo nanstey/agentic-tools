@@ -41,6 +41,11 @@ test("strict guard refuses local commits ahead of the PR head", async () => {
   await assert.rejects(guard(pr, gitRunner("bbb", true)), /blocked: working tree guard/);
 });
 
+test("force-with-lease guard permits rewritten history but keeps other guard checks", async () => {
+  assert.deepEqual(await guard(pr, gitRunner("rewritten", false), false, false), { guard: "passed", pr: pr.url });
+  await assert.rejects(guard({ ...pr, owner: "other" }, gitRunner("rewritten", false), false, false), /blocked: working tree guard/);
+});
+
 test("a fresh head with a null statusCheckRollup reads as zero observed checks", async () => {
   const { pageAt } = await import("../scripts/resolve.ts");
   const pr = { commits: { nodes: [{ commit: { statusCheckRollup: null } }] } };

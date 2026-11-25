@@ -4,7 +4,7 @@ export interface LifecycleFacts {
   behind?: boolean; conflicting?: boolean; stackOutOfOrder?: boolean; checksObserved?: boolean;
   requiredCheckFailedOrMissing?: boolean | null; packetComplete?: boolean; docsOnlyClean?: boolean;
   unresolvedThreads?: number; addressedReviewers?: boolean; claimsUnverified?: boolean;
-  isDraft?: boolean; requiredPending?: boolean; requiredCheckPolicyKnown?: boolean; judgment?: string;
+  isDraft?: boolean; requiredCheckPolicyKnown?: boolean; judgment?: string;
 }
 export interface RunState { phase0Complete?: boolean; reviewReportComplete?: boolean; automerge?: boolean; owner?: "own" | "other" | "fork" }
 export const PHASE_NAMES = ["Resolve", "Create", "Publish", "Describe", "Sync", "CI", "Review", "Threads", "Verify", "Ready", "Merge"] as const;

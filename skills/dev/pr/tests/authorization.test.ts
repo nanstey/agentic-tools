@@ -13,7 +13,7 @@ test("A7 SKILL.md authorization table matches the executable authorization table
 });
 
 test("lifecycle is own-PR only and never includes merge", () => {
-  const expected = ["create-pr", "convert-draft", "convert-ready", "rerun-check", "rerequest", "attach", "edit-body", "push", "resolve-threads", "react"];
+  const expected = ["create-pr", "convert-draft", "convert-ready", "rerun-check", "rerequest", "attach", "edit-body", "push", "resolve-threads", "post-comment", "react"];
   assert.deepEqual(authorize("lifecycle", "none", "own"), expected);
   assert.deepEqual(authorize("lifecycle", "force", "own"), expected);
   assert.deepEqual(authorize("lifecycle", "none", "other"), ["react"]);

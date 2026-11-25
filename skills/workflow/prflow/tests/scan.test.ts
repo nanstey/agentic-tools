@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { putPrPacket, putPrRun } from "../../../../lib/pr/store.ts";
@@ -206,6 +206,21 @@ describe("scan", () => {
       const withoutState = await scan(deps, config(DEFAULT_CONFIG.accounts, false));
       assert.deepEqual(plan(result).map((item) => [item.kind, item.nextAction]), plan(withoutState).map((item) => [item.kind, item.nextAction]));
     } finally { rmSync(stateDir, { recursive: true, force: true }); }
+  });
+
+  it("warns and continues when an optional PR state file is corrupt", async () => {
+    const stateDir = mkdtempSync(join(tmpdir(), "prflow-scan-corrupt-"));
+    const warnings: string[] = [];
+    const priorWarn = console.warn;
+    try {
+      writeFileSync(join(stateDir, "Acme-x-1.json"), "{broken");
+      const { deps } = fakeDeps({ own: [hit("Acme/x", 1)], prs: { "Acme/x#1": okJson(prResponse({ head: "head" })) } });
+      console.warn = (message?: unknown) => warnings.push(String(message));
+      const result = await scan({ ...deps, prStateDir: stateDir }, config(DEFAULT_CONFIG.accounts, false));
+      assert.deepEqual(result.errors, []);
+      assert.equal(result.prs[0]?.runState, undefined);
+      assert.match(warnings[0] ?? "", /cannot read optional PR state/);
+    } finally { console.warn = priorWarn; rmSync(stateDir, { recursive: true, force: true }); }
   });
 
   it("survives an Orca failure", async () => {

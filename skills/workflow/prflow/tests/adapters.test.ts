@@ -59,6 +59,12 @@ describe("gh parsing", () => {
     assert.equal(parsePr('{"data":{"repository":null}}', "A/b", 1, "author", "octocat"), null);
   });
 
+  it("maps a null GitHub author to the deleted-account ghost representation", () => {
+    const raw = prResponse({ comments: [{ createdAt: "2026-01-01", author: null }] });
+    const parsed = parsePr(JSON.stringify(raw), "A/b", 1, "author", "octocat");
+    assert.equal(parsed?.comments[0]?.author, null);
+  });
+
   it("returns null for a PR with no commits ", () => {
     const raw = prResponse() as { data: { repository: { pullRequest: { commits: { nodes: unknown[] } } } } };
     raw.data.repository.pullRequest.commits.nodes = [];
@@ -67,8 +73,9 @@ describe("gh parsing", () => {
 
   it("builds the per-PR query args and requests every field the rules use", () => {
     assert.deepEqual(prArgs("A/b", 7).slice(4), ["-F", "o=A", "-F", "r=b", "-F", "n=7"]);
-    for (const f of ["isDraft", "headRefOid", "mergeStateStatus", "reviewDecision", "commits(last:100)", "committedDate", "comments(last:50)", "reviews(last:50)", "reviewThreads(first:100)", "contexts(first:100)"])
+    for (const f of ["isDraft", "headRefOid", "mergeStateStatus", "reviewDecision", "commits(last:100)", "committedDate", "comments(last:50,after:$commentsCursor)", "reviews(last:50,after:$reviewsCursor)", "reviewThreads(first:100,after:$threadsCursor)", "contexts(first:100,after:$checksCursor)"])
       assert.ok(PR_QUERY.includes(f), f);
+    assert.doesNotMatch(PR_QUERY, /Legacy page-size markers/);
   });
 
   it("parses pr view and pr list output", () => {

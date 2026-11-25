@@ -15,4 +15,9 @@ export function startRun(pr: Snapshot, action: string, mode: string | null, forc
   const run: PrRun = { id: randomUUID(), action, mode, force, startedAt: new Date(clock.now()).toISOString(), round: 0, limit: 5, drafted_for_changes: false, completion: null };
   updatePrStore(statePath(pr), identityOf(pr), (store) => { store.runs[run.id] = run; }); return run;
 }
-export function finishRun(pr: Snapshot, id: string, completion: string): PrRun { const run = changeRun(pr, id, (item) => { item.completion = completion; }); updatePrStore(statePath(pr), identityOf(pr), (store) => { store.lastCompletion = completion; }); return run; }
+export function finishRun(pr: Snapshot, id: string, completion: string): PrRun {
+  return updatePrStore(statePath(pr), identityOf(pr), (store) => {
+    const run = store.runs[id]; if (!run) blocked("run id", id, "an active PR run");
+    run.completion = completion; store.lastCompletion = completion;
+  }).runs[id]!;
+}

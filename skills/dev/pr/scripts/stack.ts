@@ -1,4 +1,5 @@
 import { invoke, blocked, isRecord, type CommandRunner, type CommandResult } from "./runner.ts";
+import { targetRoot } from "./resolve.ts";
 
 const STACK_RECOVERY: Record<number, [string, string]> = {
   1: ["generic gh-stack error", "inspect the reported error and retry"],
@@ -36,15 +37,17 @@ async function stackRepository(runner: CommandRunner, explicit?: string): Promis
   return blocked("stack capability", "repository nameWithOwner missing or invalid", "valid owner/repo context");
 }
 async function setIfUnset(runner: CommandRunner, key: string, value: string): Promise<void> {
-  const current = await runner("git", ["config", "--get", key], process.env);
+  const root = await targetRoot(runner);
+  const current = await runner("git", ["config", "--get", key], process.env, root);
   if (current.ok) return;
   if (current.exitCode !== 1) return blocked("stack preflight", current.stderr || `cannot read ${key}`, `verified ${key} configuration`);
-  const set = await runner("git", ["config", key, value], process.env);
+  const set = await runner("git", ["config", key, value], process.env, root);
   if (!set.ok) blocked("stack preflight", set.stderr || `cannot set ${key}`, `set ${key} to ${value}`);
 }
 async function preflight(runner: CommandRunner): Promise<void> {
+  const root = await targetRoot(runner);
   await setIfUnset(runner, "rerere.enabled", "true");
-  const remotes = await runner("git", ["remote"], process.env);
+  const remotes = await runner("git", ["remote"], process.env, root);
   if (!remotes.ok) return blocked("stack preflight", remotes.stderr || "cannot list remotes", "available git remote configuration");
   if (remotes.stdout.trim().split(/\s+/).filter(Boolean).length > 1) await setIfUnset(runner, "remote.pushDefault", "origin");
 }
@@ -94,15 +97,16 @@ export async function link(repo: string, numbers: string[], runner: CommandRunne
   return JSON.parse(await invoke(runner, "gh", args, { write: "stack-link" }));
 }
 export async function collapseCheck(heads: string[], runner: CommandRunner): Promise<{ collapseAllowed: true; heads: string[] }> {
+  const root = await targetRoot(runner);
   if (heads.length < 2) return blocked("stack collapse", "at least two stack heads are required", "a linear stack with a survivor");
   const survivor = heads.at(-1)!;
   for (const head of heads.slice(0, -1)) {
-    const result = await runner("git", ["merge-base", "--is-ancestor", head, survivor], process.env);
+    const result = await runner("git", ["merge-base", "--is-ancestor", head, survivor], process.env, root);
     if (!result.ok) return blocked("stack ancestry", `${head} is not an ancestor of ${survivor}`, "survivor containing every lower head");
   }
-  const status = await runner("git", ["status", "--porcelain"], process.env);
+  const status = await runner("git", ["status", "--porcelain"], process.env, root);
   if (!status.ok || status.stdout.trim()) return blocked("stack collapse", status.stderr || "working tree is dirty or unavailable", "clean working tree");
-  const rebase = await runner("git", ["rev-parse", "--verify", "REBASE_HEAD"], process.env);
+  const rebase = await runner("git", ["rev-parse", "--verify", "REBASE_HEAD"], process.env, root);
   if (rebase.ok) return blocked("stack collapse", "a rebase is in progress", "finish or abort the rebase first");
   if (!/Needed a single revision|unknown revision|fatal: Needed/i.test(rebase.stderr)) return blocked("stack collapse", rebase.stderr || "cannot determine rebase state", "verified no rebase in progress");
   return { collapseAllowed: true, heads };

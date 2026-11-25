@@ -61,6 +61,7 @@ export interface Review {
 }
 
 export interface Thread {
+  id: string;
   isResolved: boolean;
   comments: Comment[];
 }

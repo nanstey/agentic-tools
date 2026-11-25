@@ -30,6 +30,7 @@ function setup() {
     if (command === "bash") return { ok: true, stdout: cap, stderr: "" };
     if (command === "file") return { ok: true, stdout: "image/png\n", stderr: "" };
     if (command === "wc") return { ok: true, stdout: "8\n", stderr: "" };
+    if (command === "git" && args[0] === "rev-parse" && args[1] === "--show-toplevel") return { ok: true, stdout: process.cwd(), stderr: "" };
     if (command === "git") return { ok: false, stdout: "", stderr: "error: pathspec did not match any files" };
     if (command === "gh" && args[0] === "--version") return { ok: true, stdout: "gh version 2.99.0\n", stderr: "" };
     if (command === "gh" && args[0] === "auth") return { ok: true, stdout: "Logged in", stderr: "" };

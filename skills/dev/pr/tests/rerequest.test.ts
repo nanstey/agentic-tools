@@ -29,6 +29,7 @@ function fixture(options: { reviews?: unknown[]; users?: string[]; threads?: unk
   const writes: string[][] = [];
   const requested = new Set(options.users ?? []);
   const runner: CommandRunner = async (_command, args) => {
+    if (args[0] === "rev-parse" && args[1] === "--show-toplevel") return { ok: true, stdout: process.cwd(), stderr: "" };
     const joined = args.join(" ");
     if (options.fail && joined.includes(options.fail)) return { ok: false, stdout: "", stderr: "API unavailable" };
     if (joined.includes("pulls/7/reviews?per_page=100")) return { ok: true, stdout: JSON.stringify([options.reviews ?? [review("reviewer")]]), stderr: "" };

@@ -14,7 +14,9 @@ function parseThreadNodes(nodes: unknown[]): { unresolved: string[]; outdated: s
   return { unresolved: parsed.filter((thread) => !thread.resolved).map((thread) => thread.id), outdated: parsed.filter((thread) => thread.outdated).map((thread) => thread.id), threads: parsed.map(({ resolved, comments }) => ({ resolved, comments })) };
 }
 function parseThreadComment(value: unknown): ThreadComment {
-  if (!isRecord(value) || typeof value.createdAt !== "string" || !isRecord(value.author) || typeof value.author.login !== "string" || typeof value.author.__typename !== "string") return blocked("thread snapshot", "thread comment malformed", "complete comment author and timestamp data");
+  if (!isRecord(value) || typeof value.createdAt !== "string") return blocked("thread snapshot", "thread comment malformed", "complete comment timestamp data");
+  if (value.author === null) return { login: "ghost", type: "Ghost", at: value.createdAt };
+  if (!isRecord(value.author) || typeof value.author.login !== "string" || typeof value.author.__typename !== "string") return blocked("thread snapshot", "thread comment author malformed", "complete comment author data");
   return { login: value.author.login, type: value.author.__typename, at: value.createdAt };
 }
 function threadConnection(value: unknown): { nodes: unknown[]; pageInfo: Record<string, unknown> } {
@@ -33,7 +35,7 @@ function parseThreadPage(value: unknown): ThreadPage {
 export async function replyThread(pr: Snapshot, thread: string, body: string, runner: CommandRunner): Promise<unknown> {
   if (!body.trim()) return blocked("thread reply", "reply body is empty", "non-empty disclosed reply text");
   const query = "mutation($id:ID!,$body:String!){addPullRequestReviewThreadReply(input:{pullRequestReviewThreadId:$id,body:$body}){comment{id body}}}";
-  const result = await invoke(runner, "gh", ["api", "graphql", "-f", `query=${query}`, "-F", `id=${thread}`, "-F", `body=${body}`], { write: "thread-reply" });
+  const result = await invoke(runner, "gh", ["api", "graphql", "-f", `query=${query}`, "-F", `id=${thread}`, "-f", `body=${body}`], { write: "thread-reply" });
   return parseJson(result, isRecord, "thread reply");
 }
 export async function resolveThread(pr: Snapshot, thread: string, runner: CommandRunner): Promise<unknown> {
@@ -96,7 +98,7 @@ async function loadEligibility(pr: Snapshot, runner: CommandRunner): Promise<{ p
   return { pending, skipped };
 }
 async function requestReviewers(pr: Snapshot, pending: string[], runner: CommandRunner): Promise<void> {
-  const current = await snapshot(String(pr.number), runner);
+  const current = await snapshot(pr.url, runner);
   if (current.headRefOid !== pr.headRefOid || current.baseRefOid !== pr.baseRefOid) return blocked("review snapshot changed", "base or head changed", "unchanged authoritative base and head");
   for (const login of pending) {
     await invoke(runner, "gh", ["api", "-X", "POST", `repos/${pr.repo}/pulls/${pr.number}/requested_reviewers/rerequest`, "-f", `reviewers[]=${login}`], { write: "rerequest" });

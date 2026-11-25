@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { invoke, isRecord, blocked, type CommandRunner } from "./runner.ts";
-import { snapshot, policyHash, type Snapshot } from "./resolve.ts";
+import { refresh, policyHash, type Snapshot } from "./resolve.ts";
 export function disclosure(kind: "review" | "comment" | "fold", user: string): { header: string } {
   if (kind === "fold") return { header: `> [!NOTE]\n> 🤖 Folded by ${user}'s Agent` };
   return { header: `> [!NOTE]\n> 🤖 Written by ${user}'s Agent` };
@@ -94,7 +94,7 @@ export async function postReview(pr: Snapshot, event: string, body: string, comm
   const initialPolicy = await policyHash(pr.headRefOid, runner);
   await assertReviewSnapshot(pr, initialPolicy, runner);
   const response = await postWithRetry(pr, event, body, comments, initialPolicy, runner);
-  const after = await snapshot(String(pr.number), runner);
+  const after = await refresh(pr, runner);
   const stale = await snapshotChanged(pr, after, initialPolicy, runner);
   return { review: JSON.parse(response), stale, commit_id: pr.headRefOid };
 }
@@ -102,7 +102,7 @@ async function snapshotChanged(pr: Snapshot, actual: Snapshot, policy: string, r
   return actual.headRefOid !== pr.headRefOid || actual.baseRefOid !== pr.baseRefOid || await policyHash(actual.headRefOid, runner) !== policy;
 }
 async function assertReviewSnapshot(pr: Snapshot, policy: string, runner: CommandRunner): Promise<void> {
-  const actual = await snapshot(String(pr.number), runner);
+  const actual = await refresh(pr, runner);
   if (await snapshotChanged(pr, actual, policy, runner)) blocked("review snapshot changed", "base, head, or policy changed before POST", "unchanged authoritative snapshot and policy");
 }
 async function postWithRetry(pr: Snapshot, event: string, body: string, comments: unknown[], policy: string, runner: CommandRunner): Promise<string> {

@@ -1,5 +1,5 @@
 import { invoke, blocked, type Clock, type CommandRunner } from "./runner.ts";
-import { snapshot, repositoryRoot, type Snapshot } from "./resolve.ts";
+import { refresh, targetRoot, type Snapshot } from "./resolve.ts";
 import { finishRun } from "./run.ts";
 import { waitChecks } from "./checks.ts";
 export function squashSubject(title: string, number: number): string { const suffix = ` (#${number})`; return title.endsWith(suffix) ? title : `${title}${suffix}`; }
@@ -30,7 +30,7 @@ export async function merge(pr: Snapshot, runId: string, force: boolean, require
   if (["pending", "failed", "needs_policy_proof"].includes(checks.status)) return { status: checks.status, ...(checks.checks ? { checks: checks.checks } : {}), ...(checks.needs_policy_proof ? { needs_policy_proof: checks.needs_policy_proof } : {}) };
   const subject = squashSubject(pr.title, pr.number);
   await mergeCommand(pr, subject, force, runner);
-  const final = await snapshot(String(pr.number), runner);
+  const final = await refresh(pr, runner);
   if (final.state !== "MERGED") return { status: "queued", subject, url: pr.url };
   finishRun(pr, runId, "merged");
   return { status: "merged", subject, overridden: checks.overridden ?? [] };
@@ -47,17 +47,18 @@ function parseCurrentWorktree(stdout: string): string | { error: string } {
   return worktree.id;
 }
 async function removeCapturedWorktree(executable: string, id: string, runner: CommandRunner): Promise<{ cleanup: string }> {
-  const selector = `id:${id}`;
-  const removed = await runner(executable, ["worktree", "rm", "--worktree", selector, "--force", "--json"], process.env, repositoryRoot);
+  const selector = `id:${id}`; const root = await targetRoot(runner);
+  const removed = await runner(executable, ["worktree", "rm", "--worktree", selector, "--force", "--json"], process.env, root);
   return removed.ok ? { cleanup: `remove:${id}` } : { cleanup: `cleanup failed: ${removed.stderr || removed.stdout || "Orca remove failed"}` };
 }
 export async function cleanup(pr: Snapshot, runner: CommandRunner): Promise<{ cleanup: string }> {
-  const gitDir = await invoke(runner, "git", ["rev-parse", "--path-format=absolute", "--git-dir"], { cwd: repositoryRoot });
-  const commonDir = await invoke(runner, "git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd: repositoryRoot });
+  const root = await targetRoot(runner);
+  const gitDir = await invoke(runner, "git", ["rev-parse", "--path-format=absolute", "--git-dir"], { cwd: root });
+  const commonDir = await invoke(runner, "git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd: root });
   if (gitDir === commonDir) return { cleanup: "primary" };
   const executable = orcaExecutable();
-  if (!(await runner(executable, ["--version"], process.env, repositoryRoot)).ok) return { cleanup: "skipped (Orca unavailable)" };
-  const current = await runner(executable, ["worktree", "current", "--json"], process.env, repositoryRoot);
+  if (!(await runner(executable, ["--version"], process.env, root)).ok) return { cleanup: "skipped (Orca unavailable)" };
+  const current = await runner(executable, ["worktree", "current", "--json"], process.env, root);
   if (!current.ok) return /selector_not_found/.test(current.stdout) ? { cleanup: "skipped (outside Orca)" } : { cleanup: `cleanup failed: ${current.stderr || current.stdout || "Orca current failed"}` };
   const worktree = parseCurrentWorktree(current.stdout);
   if (typeof worktree !== "string") return { cleanup: `cleanup failed: ${worktree.error}` };

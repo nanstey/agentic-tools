@@ -1,6 +1,7 @@
 import { classify, classifyWorktree } from "./core/classify.ts";
 import { readPrStore, summarizePrStore, type PrStateSummary } from "../../../../lib/pr/store.ts";
 import { join } from "node:path";
+import { existsSync } from "node:fs";
 import { accountFor, type Account, type Config } from "./core/config.ts";
 import type { Classification, PrSnapshot, Role, WorktreeItem } from "../../../../lib/pr/types.ts";
 import { parsePr, parsePrRefs, parseSearch, prArgs, type SearchHit } from "./adapters/gh.ts";
@@ -157,9 +158,10 @@ export async function scan(deps: Deps, cfg: Config): Promise<ScanResult> {
   if (deps.prStateDir) for (const pr of prs) {
     const [owner, repo] = pr.repo.split("/");
     try {
-      const path = join(deps.prStateDir, `${owner}-${repo}-${pr.number}.json`);
-      pr.runState = summarizePrStore(readPrStore(path, { owner: owner!, repo: repo!, number: pr.number }), pr.headSha);
-    } catch (e) { errors.push(`${pr.repo}#${pr.number}: cannot read PR state: ${(e as Error).message}`); }
+      const identity = { owner: owner!, repo: repo!, number: pr.number };
+      const path = join(deps.prStateDir, `${identity.owner}-${identity.repo}-${identity.number}.json`);
+      if (existsSync(path)) pr.runState = summarizePrStore(readPrStore(path, identity), pr.headSha);
+    } catch (e) { console.warn(`${pr.repo}#${pr.number}: cannot read optional PR state: ${(e as Error).message}`); }
   }
   return { prs, worktrees, errors };
 }

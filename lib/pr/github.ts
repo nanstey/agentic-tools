@@ -1,8 +1,8 @@
 import type { Actor, Check, PrSnapshot, Review, Role } from "./types.ts";
+import { actor, type RawActor } from "./actors.ts";
 
 /** Per-PR GraphQL query used by prflow and PR lifecycle scripts. */
 export const PR_QUERY = `query($o:String!,$r:String!,$n:Int!,$commentsCursor:String,$reviewsCursor:String,$threadsCursor:String,$checksCursor:String){
-# Legacy page-size markers: comments(last:50), reviews(last:50), reviewThreads(first:100), contexts(first:100)
 repository(owner:$o,name:$r){
  pullRequest(number:$n){
   title url state isDraft headRefOid headRefName mergeStateStatus reviewDecision mergeable
@@ -18,13 +18,12 @@ repository(owner:$o,name:$r){
   }}}}
   comments(last:50,after:$commentsCursor){nodes{createdAt author{login __typename}} pageInfo{hasNextPage endCursor}}
   reviews(last:50,after:$reviewsCursor){nodes{submittedAt state body commit{oid} author{login __typename}} pageInfo{hasNextPage endCursor}}
-  reviewThreads(first:100,after:$threadsCursor){nodes{isResolved comments(last:50){nodes{createdAt author{login __typename}}}} pageInfo{hasNextPage endCursor}}
+  reviewThreads(first:100,after:$threadsCursor){nodes{id isResolved comments(last:50){nodes{createdAt author{login __typename}}}} pageInfo{hasNextPage endCursor}}
   reviewRequests(first:50){nodes{requestedReviewer{__typename ... on User{login} ... on Team{slug}}}}
  }
 }
 }`;
 
-type RawActor = { login: string; __typename: string } | null;
 type RawContext =
   | { __typename: "CheckRun"; name: string; status: string; conclusion: string | null; detailsUrl: string | null; isRequired?: boolean }
   | { __typename: "StatusContext"; context: string; state: string; targetUrl: string | null; isRequired?: boolean };
@@ -42,11 +41,9 @@ interface RawPr {
   recentCommits: { nodes: { commit: { oid: string } }[] };
   comments: { nodes: { createdAt: string; author: RawActor }[] };
   reviews: { nodes: { submittedAt: string | null; state: string; body: string | null; commit: { oid: string } | null; author: RawActor }[] };
-  reviewThreads: { nodes: { isResolved: boolean; comments: { nodes: { createdAt: string; author: RawActor }[] } }[] };
+  reviewThreads: { nodes: { id: string; isResolved: boolean; comments: { nodes: { createdAt: string; author: RawActor }[] } }[] };
   reviewRequests?: { nodes: { requestedReviewer: { __typename: string; login?: string; slug?: string } | null }[] };
 }
-
-const actor = (a: RawActor): Actor => (a ? { login: a.login, typename: a.__typename } : null);
 
 function check(c: RawContext): Check {
   return c.__typename === "CheckRun"
@@ -87,6 +84,7 @@ export function parsePr(json: string, repo: string, number: number, role: Role, 
     comments: pr.comments.nodes.map((c) => ({ at: c.createdAt, author: actor(c.author) })),
     reviews,
     threads: pr.reviewThreads.nodes.map((t) => ({
+      id: t.id,
       isResolved: t.isResolved,
       comments: t.comments.nodes.map((c) => ({ at: c.createdAt, author: actor(c.author) })),
     })),

@@ -17,7 +17,7 @@ const prData = {
   recentCommits: { nodes: [{ commit: { oid: head } }] },
   comments: { nodes: [], pageInfo: { hasNextPage: false, endCursor: null } },
   reviews: { nodes: [], pageInfo: { hasNextPage: false, endCursor: null } },
-  reviewThreads: { nodes: [], pageInfo: { hasNextPage: false, endCursor: null } },
+  reviewThreads: { nodes: [{ id: "THREAD", isResolved: false, comments: { nodes: [], pageInfo: { hasNextPage: false, endCursor: null } } }], pageInfo: { hasNextPage: false, endCursor: null } },
   reviewRequests: { nodes: [] },
 };
 
@@ -33,28 +33,31 @@ const rows: Row[] = [
   { name: "marker", success: ["marker", "7", "--head", head, "--verdict", "COMMENT"], blocked: ["marker", "7", "--head", "bad", "--verdict", "COMMENT"], failure: ["marker", "7", "--head", head, "--verdict", "COMMENT"], apiFailure: true },
   { name: "packet put", success: ["packet", "put", "7", "--run", "RUN", "--base", base, "--head", head, "--policy", "p", "--depth", "deep", "--reason", "test", "--verdict", "clean"], blocked: ["packet", "put", "7"], failure: ["packet", "put", "7", "--run", "RUN", "--base", base, "--head", head, "--policy", "p", "--depth", "deep", "--reason", "test", "--verdict", "clean"], apiFailure: true, run: true },
   { name: "packet get", success: ["packet", "get", "7", "--base", base, "--head", head, "--policy", "p"], blocked: ["packet", "get", "7"], failure: ["packet", "get", "7"], apiFailure: true },
-  { name: "react add", success: ["react", "7", "--run", "RUN", "add"], blocked: ["react", "7", "add"], failure: ["react", "7", "--run", "RUN", "add"], apiFailure: true, run: true },
-  { name: "react remove", success: ["react", "7", "--run", "RUN", "remove"], blocked: ["react", "7", "remove"], failure: ["react", "7", "--run", "RUN", "remove"], apiFailure: true, run: true },
+  { name: "react add", success: ["react", "add", "7", "--run", "RUN"], blocked: ["react", "add", "7"], failure: ["react", "add", "7", "--run", "RUN"], apiFailure: true, run: true },
+  { name: "react remove", success: ["react", "remove", "7", "--run", "RUN"], blocked: ["react", "remove", "7"], failure: ["react", "remove", "7", "--run", "RUN"], apiFailure: true, run: true },
   { name: "review post", success: ["review", "post", "7", "--run", "RUN", "--event", "COMMENT", "--body-file", "BODY"], blocked: ["review", "post", "7", "--event", "COMMENT", "--body-file", "BODY"], failure: ["review", "post", "7", "--run", "RUN", "--event", "COMMENT", "--body-file", "BODY"], apiFailure: true, run: true },
   { name: "thread reply", success: ["thread", "reply", "7", "--run", "RUN", "--thread", "THREAD", "--body-file", "BODY"], blocked: ["thread", "reply", "7", "--thread", "THREAD", "--body-file", "BODY"], failure: ["thread", "reply", "7", "--run", "RUN", "--thread", "THREAD", "--body-file", "BODY"], apiFailure: true, run: true },
   { name: "thread resolve", success: ["thread", "resolve", "7", "--run", "RUN", "--thread", "THREAD"], blocked: ["thread", "resolve", "7", "--thread", "THREAD"], failure: ["thread", "resolve", "7", "--run", "RUN", "--thread", "THREAD"], apiFailure: true, run: true },
   { name: "disclosure", success: ["disclosure"], blocked: ["disclosure", "--kind", "invalid"], failure: ["disclosure", "--kind", "invalid"], apiFailure: true },
   { name: "docs-only", success: ["docs-only", "BASE", "HEAD"], blocked: ["docs-only"], failure: ["docs-only"], localOnly: true },
-  { name: "docs-only recorded", success: ["docs-only", "BASE", "HEAD", "--run", "RUN", "--pr", "7"], blocked: ["docs-only", "BASE", "HEAD", "--run", "RUN"], failure: ["docs-only"], localOnly: true, run: true },
+  { name: "docs-only recorded", success: ["docs-only", base, head, "--run", "RUN", "--pr", "7"], blocked: ["docs-only", base, head, "--run", "RUN"], failure: ["docs-only"], localOnly: true, run: true },
   { name: "stack probe", success: ["stack", "probe"], blocked: ["stack", "unknown"], failure: ["stack", "probe"], apiFailure: true },
   { name: "stack link", success: ["stack", "link", "--repo", "acme/repo", "7", "8", "--run", "RUN"], blocked: ["stack", "link", "--repo", "acme/repo", "7", "--run", "RUN"], failure: ["stack", "link", "--repo", "acme/repo", "7", "8", "--run", "RUN"], apiFailure: true, run: true },
   { name: "stack collapse-check", success: ["stack", "collapse-check", head, base], blocked: ["stack", "collapse-check", head], failure: ["stack", "collapse-check"], localOnly: true },
 ];
 
-function runner(options: { apiFailure?: boolean; body?: string; attachDeferred?: boolean; otherOwner?: boolean } = {}): CommandRunner {
+function runner(options: { apiFailure?: boolean; body?: string; attachDeferred?: boolean; otherOwner?: boolean; merged?: boolean } = {}): CommandRunner {
   let body = options.body ?? "";
   const ok = (stdout = "") => ({ ok: true, stdout, stderr: "" });
   return async (command, args) => {
     if (command === "gh" && options.apiFailure) return { ok: false, stdout: "", stderr: "HTTP 403 rate limit exceeded" };
     if (command === "git") {
       if (args[0] === "rev-parse" && args.includes("--verify")) return { ok: false, stdout: "", stderr: "fatal: Needed a single revision" };
+      if (args[0] === "rev-parse" && args[1] === "--show-toplevel") return ok(process.cwd());
+      if (args[0] === "rev-parse" && args[1] === "HEAD") return ok(head);
       if (args[0] === "rev-parse") return ok("/repo/.git\n");
       if (args[0] === "rev-list") return ok("0\n");
+      if (args[0] === "branch" && args[1] === "--show-current") return ok("topic\n");
       if (args[0] === "status") return ok("");
       if (args[0] === "diff") return ok("");
       if (args[0] === "merge-base") return ok("");
@@ -67,7 +70,7 @@ function runner(options: { apiFailure?: boolean; body?: string; attachDeferred?:
     if (args[0] === "repo") return ok(JSON.stringify({ nameWithOwner: "acme/repo", viewerPermission: "WRITE", url: "https://github.com/acme/repo" }));
     if (args[0] === "pr" && args[1] === "view" && args.at(-1) === "number,url") return ok(JSON.stringify({ number: 7, url: prData.url }));
     if (args[0] === "pr" && args[1] === "view" && args.at(-1) === "body") return ok(JSON.stringify({ body }));
-    if (args[0] === "pr" && args[1] === "view") return ok(JSON.stringify({ ...prData, author: { login: options.otherOwner ? "author" : "me" }, body }));
+    if (args[0] === "pr" && args[1] === "view") return ok(JSON.stringify({ ...prData, state: options.merged ? "MERGED" : prData.state, author: { login: options.otherOwner ? "author" : "me" }, body }));
     if (args[0] === "pr" && args[1] === "edit") { const file = args[args.indexOf("--body-file") + 1]!; body = await import("node:fs/promises").then(({ readFile }) => readFile(file, "utf8")); return ok(); }
     if (args[0] === "pr" && args[1] === "merge") return ok();
     if (args[0] === "api" && args[1] === "user") return ok("me");
@@ -98,15 +101,14 @@ for (const row of rows) {
       const cap = join(temp, "capture", "a", "b"); await import("node:fs/promises").then(({ mkdir }) => mkdir(cap, { recursive: true, mode: 0o700 }));
       const replace = (args: string[]) => args.map((arg) => arg === "RUN" ? runId : arg === "BODY" ? bodyFile : arg === "CAP" ? cap : arg);
       const otherOwner = row.name === "review post" || row.name === "thread reply";
-      const action = row.name === "checks rerun-cancelled" ? "ci" : row.name === "body" ? "description" : row.name === "attach" ? "screenshots" : row.name === "merge" || row.name === "cleanup" ? "merge" : row.name === "thread resolve" ? "comments" : row.name.startsWith("react ") ? "lifecycle" : row.name === "review post" ? "review" : row.name === "thread reply" ? "verification" : "review";
+      const action = row.name === "checks rerun-cancelled" ? "ci" : row.name === "body" ? "description" : row.name === "attach" ? "screenshots" : row.name === "merge" || row.name === "cleanup" ? "merge" : row.name === "thread resolve" ? "comments" : row.name === "stack link" ? "stack" : row.name.startsWith("react ") ? "lifecycle" : row.name === "review post" ? "review" : row.name === "thread reply" ? "verification" : "review";
       const mode = row.name === "review post" || row.name === "thread reply" ? "comment" : "none";
-      const okRunner = runner({ attachDeferred: row.name === "attach", otherOwner });
+      const okRunner = runner({ attachDeferred: row.name === "attach", otherOwner, merged: row.name === "cleanup" });
       let runId = "";
       if (row.run) {
         const started = await dispatchCli(["run", "start", "--pr", "7", "--action", action, "--mode", mode], okRunner);
         assert.equal(started.exitCode, 0, started.stderr);
         runId = JSON.parse(started.stdout).run.id;
-        if (row.name === "cleanup") await dispatchCli(["run", "end", "--pr", "7", "--run", runId, "--completion", "merged"], okRunner);
       }
       const ok = await dispatchCli(replace(row.success), okRunner, { now: () => 0, sleep: async () => {} });
       assert.equal(ok.exitCode, 0, ok.stderr);
@@ -115,7 +117,7 @@ for (const row of rows) {
       assert.equal(typeof JSON.parse(ok.stdout), "object");
       if (row.name === "body") assert.deepEqual(readPrStore(prStatePath({ owner: "acme", repo: "repo", number: 7 }), { owner: "acme", repo: "repo", number: 7 }).describedHeads, [head]);
       if (row.name === "review post") assert.deepEqual(postedReview, { commit_id: head, event: "COMMENT", body: "Updated body\n", comments: [] });
-      if (row.name === "docs-only recorded") assert.deepEqual(readPrStore(prStatePath({ owner: "acme", repo: "repo", number: 7 }), { owner: "acme", repo: "repo", number: 7 }).docsOnlyResults, { "BASE..HEAD": false });
+      if (row.name === "docs-only recorded") assert.deepEqual(readPrStore(prStatePath({ owner: "acme", repo: "repo", number: 7 }), { owner: "acme", repo: "repo", number: 7 }).docsOnlyResults, { [`${base}..${head}`]: false });
 
       const blocked = await dispatchCli(replace(row.blocked), row.name === "checks inventory" ? runner({ apiFailure: true }) : okRunner);
       assert.notEqual(blocked.exitCode, 0);

@@ -2,7 +2,7 @@
 
 ## Mutation guard
 
-Before any mutation, run `pr guard` and require ownership, branch, current `HEAD`, and clean-tree checks to pass. An unmet gate is work to do, not a refusal. Stop `blocked` only when work cannot proceed or the decision ladder in `SKILL.md` requires it.
+Before any mutation, run `pr guard` and require ownership, branch, current `HEAD`, and clean-tree checks to pass, except `pr push`, which runs the guard itself. An unmet gate is work to do, not a refusal. Stop `blocked` only when work cannot proceed or the decision ladder in `SKILL.md` requires it.
 
 ## Draft before changes
 

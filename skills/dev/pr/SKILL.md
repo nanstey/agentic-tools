@@ -32,13 +32,15 @@ Route each action to its reference. Bare `/pr` runs the lifecycle; `/pr automerg
 Reject an unknown action, more than one action word, an unsupported mode, extra mode words, or legacy `--` action flags. The only lifecycle skip word is `review`: it reuses an exact-matching packet and skips redundant self-review, never missing coverage. A target omitted by the invocation resolves from the current branch. Follow `CLAUDE.md`/`AGENTS.md` on conflict. The default tool is `gh`.
 
 ## Authorization
+Delegated phases authorize against the lifecycle row, or the automerge row for an automerge run.
+
 | Action | Mode | Own | Other | Fork |
 | --- | --- | --- | --- | --- |
-| lifecycle | none | create-pr, convert-draft, convert-ready, rerun-check, rerequest, attach, edit-body, push, resolve-threads, react | react | react |
+| lifecycle | none | create-pr, convert-draft, convert-ready, rerun-check, rerequest, attach, edit-body, push, resolve-threads, post-comment, react | react | react |
 | lifecycle | fix | — | — | — |
 | lifecycle | comment | — | — | — |
 | lifecycle | report | — | — | — |
-| lifecycle | force | create-pr, convert-draft, convert-ready, rerun-check, rerequest, attach, edit-body, push, resolve-threads, react | react | react |
+| lifecycle | force | create-pr, convert-draft, convert-ready, rerun-check, rerequest, attach, edit-body, push, resolve-threads, post-comment, react | react | react |
 | info | none | — | — | — |
 | info | fix | — | — | — |
 | info | comment | — | — | — |
@@ -64,27 +66,27 @@ Reject an unknown action, more than one action word, an unsupported mode, extra 
 | screenshots | comment | — | — | — |
 | screenshots | report | — | — | — |
 | screenshots | force | — | — | — |
-| rebase | none | push, convert-draft | — | — |
+| rebase | none | push, edit-body, convert-draft | — | — |
 | rebase | fix | — | — | — |
 | rebase | comment | — | — | — |
 | rebase | report | — | — | — |
 | rebase | force | — | — | — |
-| restack | none | push, convert-draft | — | — |
+| restack | none | push, edit-body, convert-draft | — | — |
 | restack | fix | — | — | — |
 | restack | comment | — | — | — |
 | restack | report | — | — | — |
 | restack | force | — | — | — |
-| split | none | push, create-pr, convert-draft | — | — |
+| split | none | push, edit-body, create-pr, convert-draft | — | — |
 | split | fix | — | — | — |
 | split | comment | — | — | — |
 | split | report | — | — | — |
 | split | force | — | — | — |
-| stack | none | push, edit-body, create-pr, convert-draft | — | — |
+| stack | none | push, edit-body, create-pr, stack-link, convert-draft | — | — |
 | stack | fix | — | — | — |
 | stack | comment | — | — | — |
 | stack | report | — | — | — |
 | stack | force | — | — | — |
-| ci | none | push, rerun-check, convert-draft | — | — |
+| ci | none | push, edit-body, rerun-check, convert-draft | — | — |
 | ci | fix | — | — | — |
 | ci | comment | — | — | — |
 | ci | report | — | — | — |
@@ -94,7 +96,7 @@ Reject an unknown action, more than one action word, an unsupported mode, extra 
 | review | comment | — | post-review, react | post-review, react |
 | review | report | — | — | — |
 | review | force | — | — | — |
-| comments | none | push, resolve-threads, rerequest, convert-draft | — | — |
+| comments | none | push, post-comment, resolve-threads, rerequest, edit-body, convert-draft | — | — |
 | comments | fix | — | — | — |
 | comments | comment | — | — | — |
 | comments | report | — | — | — |
@@ -114,11 +116,11 @@ Reject an unknown action, more than one action word, an unsupported mode, extra 
 | merge | comment | — | — | — |
 | merge | report | — | — | — |
 | merge | force | merge | — | — |
-| automerge | none | create-pr, convert-draft, convert-ready, rerun-check, rerequest, attach, edit-body, push, resolve-threads, react, merge | — | — |
+| automerge | none | create-pr, convert-draft, convert-ready, rerun-check, rerequest, attach, edit-body, push, resolve-threads, post-comment, react, merge | — | — |
 | automerge | fix | — | — | — |
 | automerge | comment | — | — | — |
 | automerge | report | — | — | — |
-| automerge | force | create-pr, convert-draft, convert-ready, rerun-check, rerequest, attach, edit-body, push, resolve-threads, react, merge | — | — |
+| automerge | force | create-pr, convert-draft, convert-ready, rerun-check, rerequest, attach, edit-body, push, resolve-threads, post-comment, react, merge | — | — |
 
 ## Decision ladder
 Never ask the user a question or wait for approval. Choose explicit input, repository policy, documented default, then judgment:
@@ -132,8 +134,8 @@ Never ask the user a question or wait for approval. Choose explicit input, repos
 An unmet gate is work to do. Run its phase instead of reporting and waiting. Destructive extras, including branch pruning, stack dissolution, and operation aborts, run only when named by the invocation. References that say stop mean report `blocked`, never ask. Follow the force and gate policy in `policy.md`.
 
 ## Scripts and output
-Run `node <skill-dir>/scripts/pr.ts <subcommand> [args]`. Begin each top-level invocation with `run start --pr <PR-URL-or-number> --action <action> [--mode <mode>] [--force]`. It returns a run id; pass `--run <id>` to the phases and delegates. Do not start a nested run. `run get`, `run update`, and `run end` inspect or update that run.
+`pr` means `node <skill-dir>/scripts/pr.ts`. Run `pr <subcommand> [args]`. Begin each top-level invocation with `run start --pr <PR-URL-or-number> --action <action> [--mode <mode>] [--force]`. It returns a run id; pass `--run <id>` to the phases and delegates. Do not start a nested run. `run get`, `run update`, and `run end` inspect or update that run.
 
-Other subcommands include `snapshot [target]`, `next --run <id> [--judged <test>=pass|fail]`, `authorize <action> [mode]`, `packet put|get`, `react add|remove`, `review post`, `thread reply|resolve`, `checks inventory|rerun-cancelled|wait`, `stack probe --repo <owner/repo>|link|collapse-check`, `guard`, `draft`, `push`, `threads`, `rerequest`, `body`, `attach`, `merge [target] --run <id> --required <check...> [--force]`, `cleanup`, `marker`, `disclosure`, and `docs-only <base> <head> --run <id> --pr <target> --skill-dir <path>`. See the relevant reference for exact arguments.
+Other subcommands include `snapshot [target]`, `next [target] [--run <id>] [--judged <test>=pass|fail]` (without a PR, selects phase 1 Create), `authorize <action> [mode]`, `packet put|get`, `react add|remove <target> --run <id>`, `review post`, `thread reply <target> --thread <id> --body-file <file> --run <id>`, `thread resolve <target> --thread <id> --run <id>`, `checks inventory|rerun-cancelled|wait`, `stack probe --repo <owner/repo>|link|collapse-check`, `guard`, `draft`, `push`, `threads`, `rerequest`, `body`, `attach`, `merge [target] --run <id> --required <check...> [--no-required-checks --policy-proof <text>] [--force]`, `cleanup`, `marker`, `disclosure`, and `docs-only <base> <head> --run <id> --pr <target> --skill-dir <path>`. See the relevant reference for exact arguments.
 
 Scripts return one JSON object, or a nonzero error with the blocked form. Mutations require the run id. Report the action, target, phases run, run id, outcome, remaining work, and overrides. Bare `/pr` and `automerge` also report the review verdict and head, plus required-CI state.

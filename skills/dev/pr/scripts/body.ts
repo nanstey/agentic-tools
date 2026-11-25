@@ -2,7 +2,7 @@ import { lstatSync, realpathSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { invoke, blocked, GITHUB_WRITE_ALLOWLIST, type CommandRunner } from "./runner.ts";
-import { repositoryRoot, type Snapshot } from "./resolve.ts";
+import { targetRoot, type Snapshot } from "./resolve.ts";
 
 export async function updateBody(pr: Snapshot, file: string, preserveEvidence: boolean, runner: CommandRunner): Promise<{ updated: true; body: string }> {
   let body = await readFile(resolve(file), "utf8");
@@ -27,18 +27,18 @@ async function retainEvidence(pr: Snapshot, body: string, runner: CommandRunner)
 
 export async function attach(pr: Snapshot, runId: string, args: string[], runner: CommandRunner): Promise<unknown> {
   if (!runId || valueAfter(args, "--run") !== runId) return blocked("run id", "attach requires --run <id>", "an active PR run id");
-  const { bodyPath, capturePath, safeAssets } = await readAttachInputs(args);
+  const { bodyPath, capturePath, safeAssets } = await readAttachInputs(args, runner);
   const pending = await attachmentPreflight(pr, safeAssets, runner);
   if (pending) return handoff(safeAssets, pending);
   const expectedCap = await currentCaptureDir(args, runner);
   if (expectedCap === null) return handoff(safeAssets, "visual-capture helper location is unavailable");
   if (expectedCap !== capturePath) return blocked("unsafe attachment path", `CAP changed to ${expectedCap}`, "the exact current capture directory");
-  validateAssets(safeAssets, capturePath);
+  await validateAssets(safeAssets, capturePath, runner);
   const revalidated = await attachmentPreflight(pr, safeAssets, runner);
   if (revalidated) return handoff(safeAssets, revalidated);
   if (!GITHUB_WRITE_ALLOWLIST.has("attach")) return blocked("write allowlist", "attach is not allowlisted", "authorized attachment mutation");
   const editArgs = ["pr", "edit", String(pr.number), "--repo", pr.repo, "--body-file", bodyPath, ...safeAssets.flatMap((asset) => ["--attach", asset])];
-  const result = await runner("gh", editArgs, process.env, repositoryRoot);
+  const result = await runner("gh", editArgs, process.env, await targetRoot(runner));
   if (!result.ok && /projectCards/i.test(`${result.stderr}\n${result.stdout}`)) return recoverProjectCards(pr, bodyPath, safeAssets, runner);
   return verifyAttachmentAttempt(pr, safeAssets, result, runner);
 }
@@ -55,13 +55,13 @@ async function verifyRestFailure(pr: Snapshot, assets: string[], error: unknown,
   const remaining = assets.filter((asset) => reread.includes(asset));
   return blocked("body REST fallback", `${String(error)}; remaining attachment references: ${remaining.join(", ") || "none"}`, "successful REST body update and verified re-read");
 }
-async function readAttachInputs(args: string[]): Promise<{ bodyPath: string; capturePath: string; safeAssets: string[] }> {
+async function readAttachInputs(args: string[], runner: CommandRunner): Promise<{ bodyPath: string; capturePath: string; safeAssets: string[] }> {
   const file = valueAfter(args, "--file"); const cap = valueAfter(args, "--cap");
   if (!file || !cap) return blocked("attach arguments", "--file and --cap are required", "validated screenshot body and capture directory");
   const bodyPath = resolve(file); const capturePath = resolve(cap); const body = await readFile(bodyPath, "utf8");
   const assets = localAssetReferences(body);
   if (new Set(assets).size !== assets.length || assets.length > 50) return blocked("attachment count", "duplicate or more than 50 local references", "unique inventory of at most 50 assets");
-  return { bodyPath, capturePath, safeAssets: validateAssets(assets, capturePath) };
+  return { bodyPath, capturePath, safeAssets: await validateAssets(assets, capturePath, runner) };
 }
 function localAssetReferences(body: string): string[] {
   return [...body.matchAll(/!?\[[^\]]*\]\(([^)]+)\)/g)].map((match) => match[1]!).filter((path) => path.startsWith("/") && /\.(?:png|jpe?g|gif|webp|svg|mp4|mov|webm)$/i.test(path));
@@ -72,7 +72,7 @@ function handoff(paths: string[], reason: string): unknown {
 async function currentCaptureDir(args: string[], runner: CommandRunner): Promise<string | null> {
   const skillDir = valueAfter(args, "--capture-skill-dir") ?? process.env.VISUAL_CAPTURE_SKILL_DIR;
   if (!skillDir) return null;
-  return invoke(runner, "bash", [resolve(skillDir, "scripts/capture-dir.sh")], { cwd: repositoryRoot });
+  return invoke(runner, "bash", [resolve(skillDir, "scripts/capture-dir.sh")], { cwd: await targetRoot(runner) });
 }
 async function editBodyThroughRest(pr: Snapshot, bodyPath: string, runner: CommandRunner): Promise<void> {
   await invoke(runner, "gh", ["api", `repos/${pr.repo}/pulls/${pr.number}`, "-X", "PATCH", "-F", `body=@${bodyPath}`], { write: "edit-body" });
@@ -90,8 +90,8 @@ async function verifyAttachmentAttempt(pr: Snapshot, assets: string[], result: {
   return { attached: assets, body: reread };
 }
 function valueAfter(args: string[], flag: string): string | undefined { const index = args.indexOf(flag); return index < 0 ? undefined : args[index + 1]; }
-function validateAssets(assets: string[], cap: string): string[] {
-  const root = realpathSync(repositoryRoot); const canonicalCap = realpathSync(cap);
+async function validateAssets(assets: string[], cap: string, runner: CommandRunner): Promise<string[]> {
+  const root = realpathSync(await targetRoot(runner)); const canonicalCap = realpathSync(cap);
   validateCaptureDirectories(cap);
   for (const asset of assets) validateOneAsset(asset, cap, canonicalCap, root);
   return assets;
@@ -147,7 +147,7 @@ function supportedMime(mime: string): boolean {
   return ["image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml", "video/mp4", "video/quicktime", "video/webm"].includes(mime);
 }
 async function checkUntracked(asset: string, runner: CommandRunner): Promise<string | null> {
-  const tracked = await runner("git", ["ls-files", "--error-unmatch", "--", asset], process.env, repositoryRoot);
+  const tracked = await runner("git", ["ls-files", "--error-unmatch", "--", asset], process.env, await targetRoot(runner));
   if (tracked.ok) return blocked("unsafe attachment path", `${asset} is tracked`, "untracked capture artifact");
   return /pathspec|did not match/i.test(tracked.stderr) ? null : "git tracking state is unavailable";
 }

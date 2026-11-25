@@ -4,50 +4,58 @@ import { readPrStore, putPrPacket, findPrPacket, updatePrStore } from "../../../
 import { realpathSync } from "node:fs";
 import { authorize, AUTHORIZATION_TABLE, renderAuthorizationTable, type Action, type Mode, type PrOwner } from "./authorize.ts";
 import { nextPhase, type LifecycleFacts } from "./lifecycle.ts";
-import { snapshot, policyHash, repositoryRoot } from "./resolve.ts";
+import { snapshot, policyHash, targetRoot } from "./resolve.ts";
 import { summarizeChecks } from "../../../../lib/pr/facts.ts";
-import { systemClock, systemRunner, requireRun, blocked, type Clock, type CommandRunner } from "./runner.ts";
-import { changeRun, getRun, identityOf, startRun, statePath } from "./run.ts";
+import { systemClock, systemRunner, requireRun, blocked, invoke, isRecord, type Clock, type CommandRunner } from "./runner.ts";
+import { changeRun, finishRun, getRun, identityOf, startRun, statePath } from "./run.ts";
 import { guard, draft, push } from "./guard.ts";
 import { inventory, parseTimeout, rerunCancelled, waitChecks } from "./checks.ts";
 import { attach, updateBody } from "./body.ts";
-import { threads, rerequest } from "./threads.ts";
+import { threads, rerequest, replyThread, resolveThread } from "./threads.ts";
 import { cleanup, merge } from "./merge.ts";
 import { disclosureHeader, marker, postReview, react } from "./review.ts";
-import { replyThread, resolveThread } from "./threads.ts";
 import { readFileSync } from "node:fs";
 import { docsOnly } from "./docs-only.ts";
 import { collapseCheck, link, probe } from "./stack.ts";
 
 export { AUTHORIZATION_TABLE, renderAuthorizationTable, nextPhase };
 export type { CommandRunner, Clock };
-function option(args: string[], name: string): string | undefined { const index = args.indexOf(name); return index < 0 ? undefined : args[index + 1]; }
-function skipPositionalOption(args: string[], index: number): number {
-  const flag = args[index]!;
-  if (["--force", "--dry-run", "--preserve-evidence"].includes(flag)) return index;
-  if (flag === "--required") { while (args[index + 1] && !args[index + 1]!.startsWith("--")) index++; return index; }
-  return index + 1;
+function option(args: string[], name: string): string | undefined { return parseArguments(args).flags.get(name)?.[0]; }
+function firstTarget(args: string[]): string | undefined { return parseArguments(args).positionals[0]; }
+const parsedArguments = new WeakMap<string[], { positionals: string[]; flags: Map<string, string[]> }>();
+const BOOLEAN_FLAGS = new Set(["--force", "--dry-run", "--preserve-evidence", "--no-required-checks", "--force-with-lease", "--drafted-for-changes"]);
+const MULTI_FLAGS = new Set(["--required", "--finding", "--coverage", "--judged"]);
+function parseFlag(args: string[], index: number, flags: Map<string, string[]>): number {
+  const token = args[index]!; const values = flags.get(token) ?? []; flags.set(token, values);
+  if (BOOLEAN_FLAGS.has(token)) { values.push("true"); return index; }
+  if (MULTI_FLAGS.has(token)) return parseMultiValues(args, index, values);
+  if (args[index + 1] && !args[index + 1]!.startsWith("--")) { values.push(args[index + 1]!); return index + 1; }
+  return index;
+}
+function parseMultiValues(args: string[], index: number, values: string[]): number {
+  while (args[index + 1] && !args[index + 1]!.startsWith("--")) values.push(args[++index]!);
+  return index;
+}
+export function parseArguments(args: string[]): { positionals: string[]; flags: Map<string, string[]> } {
+  const cached = parsedArguments.get(args); if (cached) return cached;
+  const positionals: string[] = []; const flags = new Map<string, string[]>();
+  for (let i = 0; i < args.length; i++) {
+    if (args[i]!.startsWith("--")) i = parseFlag(args, i, flags);
+    else positionals.push(args[i]!);
+  }
+  const result = { positionals, flags }; parsedArguments.set(args, result); return result;
 }
 function positional(args: string[]): string | undefined {
-  const values: string[] = [];
-  for (let index = 0; index < args.length; index++) {
-    const value = args[index]!;
-    if (value.startsWith("--")) { index = skipPositionalOption(args, index); continue; }
-    if (!["force", "inventory", "rerun-cancelled", "wait"].includes(value)) values.push(value);
-  }
-  return values[0];
+  return parseArguments(args).positionals.find((value) => !["force", "inventory", "rerun-cancelled", "wait"].includes(value));
 }
-function boolean(args: string[], name: string): boolean { return args.includes(name); }
-export function list(args: string[], name: string): string[] {
-  const values: string[] = [];
-  for (let i = 0; i < args.length; i++) if (args[i] === name && args[i + 1]) {
-    if (name === "--required") { while (args[i + 1] && !args[i + 1]!.startsWith("--") && args[i + 1] !== "force") values.push(args[++i]!); }
-    else values.push(args[++i]!);
-  }
-  return values;
-}
+function boolean(args: string[], name: string): boolean { return parseArguments(args).flags.has(name); }
+export function list(args: string[], name: string): string[] { return parseArguments(args).flags.get(name) ?? []; }
 function modeValue(value: string | undefined): Mode { return value === "fix" || value === "comment" || value === "report" || value === "force" ? value : "none"; }
 function actionValue(value: string | undefined): Action { if (value && value in AUTHORIZATION_TABLE) return value as Action; return blocked("authorization action", value ?? "missing action", "a declared /pr action"); }
+function localHeadUnavailable(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  return /^blocked: git repository root/.test(error.message) || /^blocked: git API — .*(?:not a tree object|not a valid object name|bad object|could not get object info)/i.test(error.message);
+}
 function ownerValue(value: string | undefined): PrOwner { return value === "other" || value === "fork" ? value : "own"; }
 const JUDGMENT_NAMES = new Set(["description-staleness", "ui-evidence", "required-check-policy", "claims-verification-evidence"]);
 function judgmentInputs(args: string[]): Map<string, boolean> {
@@ -61,10 +69,12 @@ function judgmentInputs(args: string[]): Map<string, boolean> {
 }
 function assertAuthorized(run: ReturnType<typeof getRun>, owner: PrOwner, mutation: string): void {
   const mode = run.force ? "force" : modeValue(run.mode ?? undefined);
-  if (!authorize(actionValue(run.action), mode, owner).includes(mutation)) blocked("authorization", `${mutation} is not allowed for ${run.action}/${mode}/${owner}`, "an authorized action, mode, and PR owner");
+  const action = ["ready", "merge"].includes(run.action) && !["convert-ready", "merge"].includes(mutation) ? "lifecycle" : run.action;
+  if (!authorize(actionValue(action), mode, owner).includes(mutation)) blocked("authorization", `${mutation} is not allowed for ${action}/${mode}/${owner}`, "an authorized action, mode, and PR owner");
 }
 async function localCommitFacts(runner: CommandRunner): Promise<{ unpushed: boolean; dirty: boolean }> {
-  const git = async (args: string[]) => runner("git", args, process.env, repositoryRoot);
+  const root = await targetRoot(runner);
+  const git = async (args: string[]) => runner("git", args, process.env, root);
   const upstream = await git(["rev-list", "--count", "@{u}..HEAD"]);
   if (!upstream.ok && !/no upstream|unknown revision|ambiguous argument/i.test(upstream.stderr)) return blocked("local commit facts", upstream.stderr || "git query failed", "complete local/upstream commit state");
   const localStatus = await git(["status", "--porcelain"]);
@@ -85,8 +95,13 @@ async function lifecycleFacts(pr: Awaited<ReturnType<typeof snapshot>>, args: st
   const local = await localCommitFacts(runner);
   const checks = summarizeChecks(pr.checks);
   const store = readPrStore(statePath(pr), identityOf(pr));
-  const policy = await policyHash(pr.headRefOid, runner);
-  const packet = findPrPacket(store, pr.baseRefOid, pr.headRefOid, policy);
+  let packet = null;
+  try {
+    const policy = await policyHash(pr.headRefOid, runner);
+    packet = findPrPacket(store, pr.baseRefOid, pr.headRefOid, policy);
+  } catch (error) {
+    if (!localHeadUnavailable(error)) throw error;
+  }
   const described = store.describedHeads.includes(pr.headRefOid);
   const reviewerState = await rerequest(pr, runner, true) as { requested?: string[] };
   return { resolved: true, exists: pr.state.toUpperCase() !== "NOT_FOUND", unpushed: local.unpushed, dirtyValidated: local.dirty,
@@ -94,13 +109,14 @@ async function lifecycleFacts(pr: Awaited<ReturnType<typeof snapshot>>, args: st
     behind: pr.mergeStateStatus === "BEHIND", conflicting: ["DIRTY", "CONFLICTING"].includes(pr.mergeStateStatus),
     stackOutOfOrder: pr.stack !== null && pr.mergeStateStatus === "BEHIND", checksObserved: checks.total > 0,
     requiredCheckFailedOrMissing: judged.has("required-check-policy") ? (checks.failed.length > 0 && !judged.get("required-check-policy")) : checks.failed.length ? true : null,
-    packetComplete: packet?.verdict === "clean", docsOnlyClean: Object.entries(store.docsOnlyResults).some(([key, clean]) => key.endsWith(`..${pr.headRefOid}`) && clean),
+    packetComplete: packet?.verdict === "clean", docsOnlyClean: store.docsOnlyResults[`${pr.baseRefOid}..${pr.headRefOid}`] === true,
     unresolvedThreads: pr.threads.filter((thread) => !thread.isResolved).length,
     addressedReviewers: Boolean(reviewerState.requested?.length), isDraft: pr.isDraft, requiredCheckPolicyKnown: judged.has("required-check-policy") };
 }
 export async function execute(args: string[], runner: CommandRunner = systemRunner, clock: Clock = systemClock): Promise<unknown> {
   const [command, ...rest] = args;
   if (!command) return blocked("usage", "missing subcommand", "pr <subcommand>");
+  parseArguments(rest);
   const routes: Record<string, (values: string[]) => Promise<unknown>> = {
     snapshot: (values) => snapshotCommand(values, runner),
     next: (values) => nextCommand(values, runner),
@@ -130,10 +146,38 @@ export async function execute(args: string[], runner: CommandRunner = systemRunn
   return handler(rest);
 }
 function snapshotTarget(args: string[], runner: CommandRunner) { return snapshot(positional(args), runner); }
-async function snapshotCommand(args: string[], runner: CommandRunner): Promise<unknown> { return { snapshot: await snapshotTarget(args, runner) }; }
+async function snapshotCommand(args: string[], runner: CommandRunner): Promise<unknown> {
+  const target = positional(args);
+  if (!target) {
+    const result = await runner("gh", ["pr", "view", "--json", "number,url"], process.env);
+    if (!result.ok && /no pull requests found|no pull request found/i.test(result.stderr)) {
+      const root = await targetRoot(runner);
+      const [repo, branch, head] = await Promise.all([
+        invoke(runner, "gh", ["repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"]),
+        invoke(runner, "git", ["branch", "--show-current"], { cwd: root }),
+        invoke(runner, "git", ["rev-parse", "HEAD"], { cwd: root }),
+      ]);
+      return { exists: false, repo, branch, head };
+    }
+  }
+  const pr = await snapshotTarget(args, runner);
+  let policy: string | null;
+  try { policy = await policyHash(pr.headRefOid, runner); }
+  catch (error) {
+    if (!localHeadUnavailable(error)) throw error;
+    policy = null;
+  }
+  return { snapshot: pr, policy };
+}
 async function nextCommand(args: string[], runner: CommandRunner): Promise<unknown> {
-  const id = requireRun(option(args, "--run")); const pr = await snapshotTarget(args, runner); const run = readPrStore(statePath(pr), identityOf(pr)).runs[id];
-  return nextPhase(await lifecycleFacts(pr, args, runner), { phase0Complete: true, owner: pr.owner, automerge: run?.action === "automerge", reviewReportComplete: run?.completion === "review_report_complete" });
+  const idValue = option(args, "--run");
+  if (!idValue) {
+    const result = await snapshotCommand(args, runner);
+    if (isRecord(result) && result.exists === false) return nextPhase({ resolved: true, exists: false });
+    requireRun(undefined);
+  }
+  const id = requireRun(idValue); const pr = await snapshotTarget(args, runner); const run = readPrStore(statePath(pr), identityOf(pr)).runs[id];
+  return nextPhase(await lifecycleFacts(pr, args, runner), { phase0Complete: true, owner: pr.owner, automerge: run?.action === "automerge", reviewReportComplete: Object.values(readPrStore(statePath(pr), identityOf(pr)).packets).some((packet) => packet.head === pr.headRefOid && ["clean", "changes_required"].includes(packet.verdict)) });
 }
 async function authorizeCommand(args: string[], runner: CommandRunner): Promise<unknown> {
   const action = actionValue(args[0]); const mode = modeValue(args[1] ?? (boolean(args, "--force") ? "force" : undefined)); const target = option(args, "--pr");
@@ -145,36 +189,47 @@ async function docsOnlyCommand(args: string[], runner: CommandRunner): Promise<u
   const head = args[1] && !args[1].startsWith("--") ? args[1] : undefined;
   if (!base || !head) return blocked("usage", "base and head are required", "pr docs-only <base> <head>");
   const result = await docsOnly(base, head, runner, option(args, "--skill-dir"));
-  const runId = option(args, "--run");
-  if (runId) {
-    const target = option(args, "--pr"); if (!target) return blocked("docs-only arguments", "--pr is required when recording a run result", "pr docs-only <base> <head> --run <id> --pr <pr>");
-    const pr = await snapshot(target, runner); getRun(pr, runId);
-    const key = `${base}..${head}`; updatePrStore(statePath(pr), identityOf(pr), (store) => { store.docsOnlyResults[key] = result.clean; });
-  }
+  await recordDocsOnlyResult(args, base, head, result.clean, runner);
   return result;
+}
+async function recordDocsOnlyResult(args: string[], base: string, head: string, clean: boolean, runner: CommandRunner): Promise<void> {
+  const runId = option(args, "--run"); if (!runId) return;
+  const target = option(args, "--pr"); if (!target) return blocked("docs-only arguments", "--pr is required when recording a run result", "pr docs-only <base> <head> --run <id> --pr <pr>");
+  const pr = await snapshot(target, runner); getRun(pr, runId);
+  if (base !== pr.baseRefOid || head !== pr.headRefOid) return blocked("docs-only identity", "base/head do not match the PR snapshot", "the exact PR base and head OIDs");
+  const key = `${pr.baseRefOid}..${pr.headRefOid}`; updatePrStore(statePath(pr), identityOf(pr), (store) => { store.docsOnlyResults[key] = clean; });
+}
+async function packetPolicy(pr: Awaited<ReturnType<typeof snapshot>>, runner: CommandRunner): Promise<string> {
+  try { return await policyHash(pr.headRefOid, runner); }
+  catch (error) {
+    if (localHeadUnavailable(error)) return blocked("policy hash", `head ${pr.headRefOid} is unavailable locally`, `fetch pull/${pr.number}/head first`);
+    throw error;
+  }
 }
 async function packetCommand(args: string[], runner: CommandRunner): Promise<unknown> {
   const pr = await snapshot(args[1], runner); const identity = identityOf(pr); const path = statePath(pr);
   if (args[0] === "get") {
-    const base = option(args, "--base"); const head = option(args, "--head"); const policy = option(args, "--policy");
-    if (!base || !head || !policy) return blocked("packet arguments", "base, head, and policy are required", "pr packet get <pr> --base <oid> --head <oid> --policy <hash>");
+    const base = option(args, "--base"); const head = option(args, "--head"); const policy = option(args, "--policy") ?? await packetPolicy(pr, runner);
+    if (!base || !head) return blocked("packet arguments", "base and head are required", "pr packet get <pr> --base <oid> --head <oid>");
     return { packet: findPrPacket(readPrStore(path, identity), base, head, policy) };
   }
   if (args[0] !== "put") return blocked("usage", "expected packet put or get", "pr packet put|get");
-  const required = ["--run", "--base", "--head", "--policy", "--depth", "--reason", "--verdict"];
-  if (required.some((key) => !option(args, key))) return blocked("packet arguments", "required packet field missing", "run, base, head, policy, depth, reason, verdict");
+  const policy = option(args, "--policy") ?? await packetPolicy(pr, runner);
+  const required = ["--run", "--base", "--head", "--depth", "--reason", "--verdict"];
+  if (required.some((key) => !option(args, key))) return blocked("packet arguments", "required packet field missing", "run, base, head, depth, reason, verdict");
   const run = getRun(pr, option(args, "--run")!); if (run.round > run.limit) return blocked("round limit", `round ${run.round} exceeds limit ${run.limit}`, "a valid active run");
   const verdict = option(args, "--verdict")!;
   if (!["clean", "changes_required", "incomplete"].includes(verdict)) return blocked("packet verdict", verdict, "clean, changes_required, or incomplete");
   const parseRows = (values: string[], sep: string, field: string) => values.map((value) => { const at = value.indexOf(sep); if (at < 1 || at === value.length - 1) return blocked("packet arguments", value, `valid ${field} entries`); return [value.slice(0, at), value.slice(at + 1)]; });
   const findings = parseRows(list(args, "--finding"), ":", "finding").map(([id, category]) => ({ id: id!, category: category! }));
   const coverage = parseRows(list(args, "--coverage"), "=", "coverage").map(([path, status]) => ({ path: path!, status: status! }));
-  const packet = { base: option(args, "--base")!, head: option(args, "--head")!, policy: option(args, "--policy")!, depth: option(args, "--depth")!, reason: option(args, "--reason")!, verdict, findings, coverage, storedAt: new Date().toISOString() };
+  const packet = { base: option(args, "--base")!, head: option(args, "--head")!, policy, depth: option(args, "--depth")!, reason: option(args, "--reason")!, verdict, findings, coverage, storedAt: new Date().toISOString() };
   putPrPacket(path, identity, packet); return { packet };
 }
 async function reactCommand(args: string[], runner: CommandRunner): Promise<unknown> {
-  const pr = await snapshotTarget(args, runner); const run = getRun(pr, requireRun(option(args, "--run"))); assertAuthorized(run, pr.owner, "react");
-  return react(pr, args.at(-1)!, runner);
+  const operation = args[0];
+  const pr = await snapshot(firstTarget(args.slice(1)), runner); const run = getRun(pr, requireRun(option(args, "--run"))); assertAuthorized(run, pr.owner, "react");
+  return react(pr, operation!, runner);
 }
 async function reviewCommand(args: string[], runner: CommandRunner): Promise<unknown> {
   if (args[0] !== "post") return blocked("usage", "expected review post", "pr review post <pr>");
@@ -186,8 +241,9 @@ async function reviewCommand(args: string[], runner: CommandRunner): Promise<unk
   return postReview(pr, event, readFileSync(bodyFile, "utf8"), comments, runner);
 }
 async function threadCommand(args: string[], runner: CommandRunner): Promise<unknown> {
-  const pr = await snapshot(args[1], runner); const run = getRun(pr, requireRun(option(args, "--run"))); assertAuthorized(run, pr.owner, args[0] === "reply" ? "post-comment" : "resolve-threads");
+  const pr = await snapshot(firstTarget(args.slice(1)), runner); const run = getRun(pr, requireRun(option(args, "--run"))); assertAuthorized(run, pr.owner, args[0] === "reply" ? "post-comment" : "resolve-threads");
   const id = option(args, "--thread"); if (!id) return blocked("thread arguments", "thread id is required", "--thread <id>");
+  if (!pr.threads.some((thread) => thread.id === id)) return blocked("thread target", id, "a thread belonging to the target PR");
   if (args[0] === "reply") { const file = option(args, "--body-file"); if (!file) return blocked("thread arguments", "body file is required", "--body-file <f>"); return replyThread(pr, id, readFileSync(file, "utf8"), runner); }
   if (args[0] === "resolve") return resolveThread(pr, id, runner);
   return blocked("usage", "expected thread reply or resolve", "pr thread reply|resolve");
@@ -228,7 +284,12 @@ async function runMutation(command: string, args: string[], pr: Awaited<ReturnTy
   return handlers[command]!();
 }
 async function cleanupCommand(pr: Awaited<ReturnType<typeof snapshot>>, runId: string, runner: CommandRunner): Promise<unknown> {
-  if (getRun(pr, runId).completion !== "merged") return blocked("post-merge cleanup", "run has no confirmed merged completion", "successful merge recorded for this PR run");
+  const run = getRun(pr, runId);
+  if (!["merge", "automerge", "lifecycle"].includes(run.action)) return blocked("post-merge cleanup", `action=${run.action}`, "a merge, automerge, or lifecycle run");
+  const root = await targetRoot(runner);
+  const branch = await invoke(runner, "git", ["branch", "--show-current"], { cwd: root });
+  const head = await invoke(runner, "git", ["rev-parse", "HEAD"], { cwd: root });
+  if (pr.state.toUpperCase() !== "MERGED" || branch !== pr.headRefName || head !== pr.headRefOid) return blocked("post-merge cleanup", `state=${pr.state}, branch=${branch}, HEAD=${head}`, "merged PR and current branch HEAD matching the PR head");
   return cleanup(pr, runner);
 }
 async function runCommand(args: string[], runner: CommandRunner, clock: Clock): Promise<unknown> {
@@ -247,7 +308,8 @@ async function runCommand(args: string[], runner: CommandRunner, clock: Clock): 
   }
   if (operation === "end") {
     const completion = option(rest, "--completion") ?? "complete";
-    return { run: changeRun(pr, id, (run) => { run.completion = completion; }) };
+    if (!["complete", "pending", "forced", "blocked"].includes(completion)) return blocked("completion", completion, "complete, pending, forced, or blocked");
+    return { run: finishRun(pr, id, completion) };
   }
   return blocked("usage", "unknown run operation", "start, get, update, or end");
 }
@@ -266,8 +328,15 @@ async function stackCommand(args: string[], runner: CommandRunner): Promise<unkn
   const [operation, ...rest] = args;
   if (operation === "probe") return probe(runner, option(rest, "--repo"));
   if (operation === "link") {
-    requireRun(option(rest, "--run")); const repo = option(rest, "--repo"); const numbers = rest.filter((value) => /^\d+$/.test(value));
-    if (!repo) return blocked("stack link", "--repo is required", "explicit owner/repository"); return link(repo, numbers, runner);
+    const runId = requireRun(option(rest, "--run")); const repo = option(rest, "--repo"); const numbers = rest.filter((value) => /^\d+$/.test(value));
+    if (!repo || !numbers.length) return blocked("stack link", "--repo and PR numbers are required", "explicit owner/repository and PR numbers");
+    let run: ReturnType<typeof getRun> | undefined;
+    for (const number of numbers) {
+      const pr = await snapshot(`https://github.com/${repo}/pull/${number}`, runner);
+      if (pr.owner !== "own") return blocked("stack link", `PR #${number} owner=${pr.owner}`, "own PRs only");
+      if (!run) { run = getRun(pr, runId); assertAuthorized(run, pr.owner, "stack-link"); }
+    }
+    return link(repo, numbers, runner);
   }
   if (operation === "collapse-check") return collapseCheck(rest.filter((value) => /^[a-f\d]{7,40}$/i.test(value)), runner);
   return blocked("usage", "unknown stack operation", "probe, link, or collapse-check");

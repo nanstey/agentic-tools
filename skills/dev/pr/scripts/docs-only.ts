@@ -1,6 +1,6 @@
 import { posix, relative, resolve, sep } from "node:path";
 import { invoke, type CommandRunner } from "./runner.ts";
-import { repositoryRoot } from "./resolve.ts";
+import { targetRoot } from "./resolve.ts";
 
 type RawChange = { oldMode: string; newMode: string; oldOid: string; newOid: string; status: string; paths: string[] };
 type FileResult = { path: string; class: "prose" | "instruction" | "uncertain"; ok: boolean; reason: string };
@@ -18,14 +18,14 @@ function parseRawDiff(raw: string): RawChange[] {
   }
   return changes;
 }
-function instructionSurface(path: string, skillDir?: string): boolean {
-  const skillPath = skillDir ? `${relative(repositoryRoot, resolve(repositoryRoot, skillDir)).split(sep).join("/").replace(/\/$/, "")}/` : "";
-  return /(^|\/)(AGENTS|CLAUDE|SKILL)\.md$/i.test(path) || path.startsWith("skills/") || path.startsWith("agents/") || path.startsWith("harness/") || path.startsWith(".agents/") || Boolean(skillPath && path.startsWith(skillPath));
+function instructionSurface(path: string, skillDir: string | undefined, root: string): boolean {
+  const skillPath = skillDir ? `${relative(root, resolve(root, skillDir)).split(sep).join("/").replace(/\/$/, "")}/` : "";
+  return /(^|\/)(AGENTS|CLAUDE|SKILL)\.md$/i.test(path) || path.startsWith("skills/") || path.startsWith("agents/") || path.startsWith("harness/") || [".agents/", ".claude/", ".cursor/", ".codex/", ".pi/"].some((surface) => path.startsWith(surface)) || Boolean(skillPath && path.startsWith(skillPath));
 }
 function prohibitedSurface(path: string): boolean {
   return path.startsWith(".github/") || path.startsWith("install/") || /(^|\/)(GEMINI\.md|CODEOWNERS|OWNERS|\.gitlab-ci\.yml)$/i.test(path);
 }
-function classify(path: string, skillDir?: string): FileResult["class"] { return instructionSurface(path, skillDir) || prohibitedSurface(path) ? "instruction" : "prose"; }
+function classify(path: string, skillDir: string | undefined, root: string): FileResult["class"] { return instructionSurface(path, skillDir, root) || prohibitedSurface(path) ? "instruction" : "prose"; }
 function pathReason(change: RawChange, path: string): string | undefined {
   if (change.status !== "M" || change.paths.length !== 1) return "added, deleted, renamed, or copied path is uncertain";
   if (!(change.oldMode === "100644" || change.oldMode === "100755") || change.newMode !== change.oldMode) return "mode change or non-regular file is uncertain";
@@ -100,13 +100,34 @@ function compareContent(before: string, after: string, path: string, kind: FileR
   return compareRemainder(a.rest, b.rest, path, kind);
 }
 function compareRemainder(before: string, after: string, path: string, kind: FileResult["class"]): string | undefined {
+  const linksReason = compareLinks(before, after, path, kind);
+  if (linksReason) return linksReason;
+  return compareProse(before, after, kind);
+}
+function compareLinks(before: string, after: string, path: string, kind: FileResult["class"]): string | undefined {
   if (JSON.stringify(unsupportedMarkup(before)) !== JSON.stringify(unsupportedMarkup(after))) return "unsupported, external, image, or reference link changed";
   const oldLinks = links(before, path); const newLinks = links(after, path);
   if (!oldLinks || !newLinks || !sameLinkLabels(oldLinks.keys, newLinks.keys)) return "unsupported or changed link text";
   if (JSON.stringify(oldLinks.keys) !== JSON.stringify(newLinks.keys)) return "changed link does not resolve to the same repository file and anchor";
   if (kind === "instruction" && oldLinks.normalized !== newLinks.normalized) return "instruction prose or structure changed";
-  if (kind === "prose" && !sameWordsOrSingleCorrection(normalizeLinksForText(before), normalizeLinksForText(after))) return "word tokens changed beyond one spelling correction";
   return undefined;
+}
+function compareProse(before: string, after: string, kind: FileResult["class"]): string | undefined {
+  if (kind !== "prose") return undefined;
+  if (introducedFormatControls(before, after)) return "format-control or tag characters are forbidden";
+  if (JSON.stringify(exactMarkup(before)) !== JSON.stringify(exactMarkup(after))) return "bare URLs or inline code changed";
+  if (!sameWordsOrSingleCorrection(normalizeLinksForText(before), normalizeLinksForText(after))) return "word tokens changed beyond one spelling correction";
+  return undefined;
+}
+function introducedFormatControls(before: string, after: string): boolean {
+  const counts = (text: string) => {
+    const result = new Map<string, number>();
+    for (const character of text.match(/\p{Cf}|[\u{E0000}-\u{E007F}]/gu) ?? []) result.set(character, (result.get(character) ?? 0) + 1);
+    return result;
+  };
+  const oldCounts = counts(before);
+  for (const [character, count] of counts(after)) if (count > (oldCounts.get(character) ?? 0)) return true;
+  return false;
 }
 function unsupportedMarkup(text: string): string[] {
   return text.match(/!\[[^\]]*\]\([^)]*\)|\[[^\]]+\]:[^\n]*|\[[^\]]+\]\((?:[a-z][a-z\d+.-]*:|\/\/)[^)]+\)|<https?:\/\/[^>]+>|<[^>]+>/gi) ?? [];
@@ -115,23 +136,25 @@ function sameLinkLabels(before: string[], after: string[]): boolean {
   return JSON.stringify(before.map((key) => key.split("\0")[0])) === JSON.stringify(after.map((key) => key.split("\0")[0]));
 }
 function normalizeLinksForText(text: string): string { return text.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1"); }
+function exactMarkup(text: string): string[] { return [...text.matchAll(/`+[^`]*`+|https?:\/\/[^\s)>]+/g)].map(([match]) => match); }
 function sameWordsOrSingleCorrection(before: string, after: string): boolean {
   const left = wordTokens(before); const right = wordTokens(after);
   return left.join("\0") === right.join("\0") || oneSpellingCorrection(left, right);
 }
-async function fileCheck(change: RawChange, base: string, head: string, runner: CommandRunner, skillDir?: string): Promise<FileResult> {
-  const path = change.paths.at(-1)!; const kind = classify(path, skillDir); const reason = pathReason(change, path);
+async function fileCheck(change: RawChange, base: string, head: string, runner: CommandRunner, root: string, skillDir?: string): Promise<FileResult> {
+  const path = change.paths.at(-1)!; const kind = classify(path, skillDir, root); const reason = pathReason(change, path);
   if (reason) return { path, class: "uncertain", ok: false, reason };
   if (change.oldOid === ZERO || change.newOid === ZERO) return { path, class: "uncertain", ok: false, reason: "missing blob is uncertain" };
-  const before = await invoke(runner, "git", ["cat-file", "blob", change.oldOid], { cwd: repositoryRoot });
-  const after = await invoke(runner, "git", ["cat-file", "blob", change.newOid], { cwd: repositoryRoot });
+  const before = await invoke(runner, "git", ["cat-file", "blob", change.oldOid], { cwd: root });
+  const after = await invoke(runner, "git", ["cat-file", "blob", change.newOid], { cwd: root });
   const contentReason = compareContent(before, after, path, kind);
   return { path, class: kind, ok: !contentReason, reason: contentReason ?? "only permitted documentation changes" };
 }
 export async function docsOnly(base: string, head: string, runner: CommandRunner, skillDir?: string): Promise<{ clean: boolean; files: FileResult[] }> {
-  const raw = await invoke(runner, "git", ["diff", "--raw", "-z", "--find-renames", "--find-copies", base, head], { cwd: repositoryRoot });
+  const root = await targetRoot(runner);
+  const raw = await invoke(runner, "git", ["diff", "--raw", "-z", "--find-renames", "--find-copies", base, head], { cwd: root });
   const changes = parseRawDiff(raw);
-  const files = await Promise.all(changes.map((change) => fileCheck(change, base, head, runner, skillDir)));
+  const files = await Promise.all(changes.map((change) => fileCheck(change, base, head, runner, root, skillDir)));
   if (!changes.length) files.push({ path: "", class: "uncertain", ok: false, reason: "diff is empty" });
   return { clean: files.length > 0 && files.every((file) => file.ok), files };
 }

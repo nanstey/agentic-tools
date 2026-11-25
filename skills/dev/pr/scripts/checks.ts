@@ -1,16 +1,18 @@
 import { summarizeChecks } from "../../../../lib/pr/facts.ts";
+import { checkState } from "../../../../lib/pr-state.ts";
 import { updatePrStore, readPrStore } from "../../../../lib/pr/store.ts";
 import { invoke, parseJson, isRecord, blocked, type CommandRunner, type Clock } from "./runner.ts";
-import { repositoryRoot, snapshot, type Snapshot } from "./resolve.ts";
+import { refresh, type Snapshot } from "./resolve.ts";
 import { identityOf, statePath } from "./run.ts";
 function requiredState(pr: Snapshot, name: string): "passed" | "failed" | "pending" | "needs_policy_proof" {
   const check = pr.checks.find((item) => item.name === name);
   if (!check) return "pending";
-  const state = check.typename === "CheckRun" ? check.conclusion ?? check.status : check.state;
-  if (/^(SUCCESS|SUCCESSFUL)$/i.test(state)) return "passed";
-  if (/^(NEUTRAL|SKIPPED)$/i.test(state)) return "needs_policy_proof";
-  if (/^(FAILURE|FAILED|ERROR|TIMED_OUT|ACTION_REQUIRED)$/i.test(state)) return "failed";
-  return "pending";
+  const raw = check.typename === "CheckRun" ? check.conclusion ?? check.status : check.state;
+  if (/^(NEUTRAL|SKIPPED)$/i.test(raw)) return "needs_policy_proof";
+  const state = checkState(check.typename === "CheckRun"
+    ? { __typename: "CheckRun", status: check.status, conclusion: check.conclusion }
+    : { __typename: "StatusContext", state: check.state });
+  return state === "pass" ? "passed" : state === "pending" ? "pending" : "failed";
 }
 export async function inventory(pr: Snapshot, runner: CommandRunner): Promise<unknown> {
   const [protection, rulesets, workflows] = await Promise.all([
@@ -21,18 +23,35 @@ export async function inventory(pr: Snapshot, runner: CommandRunner): Promise<un
   return { protection, rulesets, workflows, checks: pr.checks };
 }
 async function branchProtection(pr: Snapshot, runner: CommandRunner): Promise<unknown | null> {
-  const result = await runner("gh", ["api", `repos/${pr.repo}/branches/${encodeURIComponent(pr.baseRefName)}/protection`], process.env, repositoryRoot);
+  const result = await runner("gh", ["api", `repos/${pr.repo}/branches/${encodeURIComponent(pr.baseRefName)}/protection`], process.env);
   if (!result.ok && /404|not found/i.test(result.stderr)) return null;
   if (!result.ok) return blocked("gh API", result.stderr || "branch protection query failed", "complete branch protection data");
   return result.stdout ? JSON.parse(result.stdout) as unknown : null;
 }
-export async function rerunCancelled(pr: Snapshot, runId: string, runner: CommandRunner): Promise<{ rerun: string[]; head: string }> {
+export async function rerunCancelled(pr: Snapshot, runId: string, runner: CommandRunner): Promise<{ rerun: string[]; skipped: string[]; head: string }> {
   const identity = identityOf(pr); const path = statePath(pr);
   const store = readPrStore(path, identity); const prior = store.cancelledCheckReruns[pr.headRefOid] ?? [];
   const cancelled = summarizeChecks(pr.checks).cancelled.filter((id) => !prior.includes(id));
-  for (const id of cancelled) await invoke(runner, "gh", ["run", "rerun", id, "--failed", "--repo", pr.repo], { write: "rerun-check" });
-  updatePrStore(path, identity, (current) => { current.cancelledCheckReruns[pr.headRefOid] = [...prior, ...cancelled]; });
-  return { rerun: cancelled, head: pr.headRefOid };
+  const rerun: string[] = []; const skipped: string[] = [];
+  for (const id of cancelled) {
+    const check = pr.checks.find((item) => (item.url ?? "").split("/").at(-1) === id || item.name === id);
+    const jobId = await actionsJobId(pr, check, runner);
+    if (!jobId) { skipped.push(id); continue; }
+    await invoke(runner, "gh", ["run", "rerun", "--job", jobId, "--repo", pr.repo], { write: "rerun-check" }); rerun.push(id);
+  }
+  updatePrStore(path, identity, (current) => { current.cancelledCheckReruns[pr.headRefOid] = [...prior, ...rerun]; });
+  return { rerun, skipped, head: pr.headRefOid };
+}
+async function actionsJobId(pr: Snapshot, check: Snapshot["checks"][number] | undefined, runner: CommandRunner): Promise<string | null> {
+  const url = check?.url ?? "";
+  const direct = /\/runs\/\d+\/job\/(\d+)/.exec(url);
+  if (direct) return direct[1]!;
+  const run = /\/actions\/runs\/(\d+)/.exec(url);
+  if (!run || !check) return null;
+  const response = parseJson(await invoke(runner, "gh", ["api", `repos/${pr.repo}/actions/runs/${run[1]}/jobs?per_page=100`]), isRecord, "Actions jobs API");
+  if (!Array.isArray(response.jobs)) return blocked("Actions jobs", `run ${run[1]} returned no jobs`, "complete Actions job data");
+  const job = response.jobs.find((value) => isRecord(value) && value.name === check.name && Number.isSafeInteger(value.id));
+  return isRecord(job) ? String(job.id) : null;
 }
 type CheckOutcome = { status: "passed" | "failed" | "pending" | "needs_policy_proof" | "overridden"; checks?: string[]; needs_policy_proof?: string[]; overridden?: string[] };
 function outcomeFor(states: { name: string; state: ReturnType<typeof requiredState> }[], names: string[], force: boolean): CheckOutcome | null {
@@ -48,7 +67,7 @@ function outcomeFor(states: { name: string; state: ReturnType<typeof requiredSta
 export async function waitChecks(pr: Snapshot, names: string[], timeoutMs: number, force: boolean, runner: CommandRunner, clock: Clock): Promise<CheckOutcome> {
   const start = clock.now();
   while (true) {
-    const current = await snapshot(String(pr.number), runner);
+    const current = await refresh(pr, runner);
     if (current.headRefOid !== pr.headRefOid || current.baseRefOid !== pr.baseRefOid) blocked("check snapshot changed", "base or head changed while waiting", "stable authoritative PR snapshot");
     const outcome = outcomeFor(names.map((name) => ({ name, state: requiredState(current, name) })), names, force);
     if (outcome) return outcome;

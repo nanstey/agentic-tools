@@ -14,6 +14,7 @@ const md = "notes.md";
 function fixture(before: string, after: string, opts: { path?: string; status?: string; oldMode?: string; newMode?: string; fail?: boolean } = {}): CommandRunner {
   const path = opts.path ?? md;
   return async (_command, args) => {
+    if (args[0] === "rev-parse" && args[1] === "--show-toplevel") return { ok: true, stdout: process.cwd(), stderr: "" };
     if (args[0] === "diff" && args.includes("--raw")) {
       if (opts.fail) return { ok: false, stdout: "", stderr: "git API unavailable" };
       const status = opts.status ?? "M";
@@ -37,6 +38,13 @@ test("docs-only treats mode changes as uncertain", async () => assert.equal((awa
 test("docs-only treats symlinks as uncertain", async () => assert.equal((await check(fixture("Note", "Note", { oldMode: "120000", newMode: "120000" }))).clean, false));
 test("docs-only treats non-Markdown changes as uncertain", async () => assert.equal((await check(fixture("Note", "Note", { path: "notes.txt" }))).clean, false));
 test("docs-only instruction surfaces allow unchanged prose only", async () => assert.equal((await check(fixture("Run safely.\n", "Run this safely.\n", { path: "skills/example/SKILL.md" }))).clean, false));
+test("docs-only treats all agent instruction directories as policy surfaces", async () => {
+  for (const path of [".claude/agents.md", ".cursor/rules.md", ".codex/instructions.md", ".pi/settings.md"]) {
+    const result = await check(fixture("Run safely.\n", "Run this safely.\n", { path }));
+    assert.equal(result.files[0]?.class, "instruction", path);
+    assert.equal(result.clean, false, path);
+  }
+});
 test("docs-only treats the invoking skill directory as a policy surface", async () => {
   const result = await docsOnly("base", "head", fixture("Run safely.\n", "Run this safely.\n", { path: "custom/skill/SKILL.md" }), "custom/skill");
   assert.equal(result.clean, false);
@@ -47,6 +55,16 @@ test("docs-only rejects instruction-surface prose changes even if punctuation-on
 test("docs-only rejects raw HTML and comments", async () => {
   assert.equal((await check(fixture("A note.\n", "A <b>note</b>.\n"))).clean, false);
   assert.equal((await check(fixture("A note.\n", "A note. <!-- hidden -->\n"))).clean, false);
+});
+test("docs-only allows pre-existing format controls when no new occurrence is added", async () => {
+  assert.equal((await check(fixture("A\u200D short note.\n", "A\u200D short note!\n"))).clean, true);
+  assert.equal((await check(fixture("\uFEFFA short note.\n", "\uFEFFA short note!\n"))).clean, true);
+});
+test("docs-only rejects hidden format controls, tag characters, bare URL changes, and inline code changes", async () => {
+  assert.equal((await check(fixture("A note.\n", "A no\u200Bte.\n"))).clean, false);
+  assert.equal((await check(fixture("A note.\n", "A note.\u{E0001}\n"))).clean, false);
+  assert.equal((await check(fixture("See https://example.com/a.\n", "See https://example.com/b.\n"))).clean, false);
+  assert.equal((await check(fixture("Run `tool --safe`.\n", "Run `tool --unsafe`.\n"))).clean, false);
 });
 test("docs-only permits one spelling correction and rejects prose edits", async () => {
   assert.equal((await check(fixture("A separate note.\n", "A seperate note.\n"))).clean, true);
@@ -65,7 +83,7 @@ test("docs-only refuses prohibited policy and instruction-loaded surfaces", asyn
   for (const path of ["skills/dev/pr/references/gates.md", ".github/workflows/check.md", "install/README.md"]) assert.equal((await check(fixture("A note.\n", "A note!\n", { path }))).clean, false);
 });
 test("docs-only reports empty diff as uncertain", async () => {
-  const runner: CommandRunner = async () => ({ ok: true, stdout: "", stderr: "" });
+  const runner: CommandRunner = async (_command, args) => args[0] === "rev-parse" && args[1] === "--show-toplevel" ? ({ ok: true, stdout: process.cwd(), stderr: "" }) : ({ ok: true, stdout: "", stderr: "" });
   assert.deepEqual(await check(runner), { clean: false, files: [{ path: "", class: "uncertain", ok: false, reason: "diff is empty" }] });
 });
 test("docs-only blocks when git diff API fails", async () => {

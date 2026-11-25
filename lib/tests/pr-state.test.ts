@@ -20,7 +20,7 @@ const rows: { name: string; task: Partial<Pr>; flow: Partial<PrSnapshot>; want: 
   { name: "CLEAN with no review required", task: { reviewDecision: "", mergeStateStatus: "CLEAN" }, flow: { reviewDecision: "", mergeStateStatus: "CLEAN" }, want: "done" },
   { name: "HAS_HOOKS and approved", task: { mergeStateStatus: "HAS_HOOKS" }, flow: { mergeStateStatus: "HAS_HOOKS" }, want: "done" },
   { name: "cancelled check", task: { checks: ["cancelled"] }, flow: { checks: [{ typename: "CheckRun", name: "ci", status: "COMPLETED", conclusion: "CANCELLED", url: null, isRequired: false }] }, want: "in-review" },
-  { name: "unanswered feedback", task: { feedback: true }, flow: { role: "author", threads: [{ isResolved: false, comments: [{ at: "2026-01-01T00:00:00Z", author: { login: "reviewer", typename: "User" } }] }] }, want: "needs-attention" },
+  { name: "unanswered feedback", task: { feedback: true }, flow: { role: "author", threads: [{ id: "thread", isResolved: false, comments: [{ at: "2026-01-01T00:00:00Z", author: { login: "reviewer", typename: "User" } }] }] }, want: "needs-attention" },
   { name: "failing check", task: { checks: ["fail"] }, flow: { checks: [{ typename: "CheckRun", name: "ci", status: "COMPLETED", conclusion: "FAILURE", url: null, isRequired: false }] }, want: "needs-attention" },
   { name: "DIRTY", task: { mergeStateStatus: "DIRTY" }, flow: { mergeStateStatus: "DIRTY" }, want: "needs-attention" },
   { name: "CHANGES_REQUESTED", task: { reviewDecision: "CHANGES_REQUESTED" }, flow: { reviewDecision: "CHANGES_REQUESTED" }, want: "needs-attention" },

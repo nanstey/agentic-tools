@@ -20,7 +20,7 @@
 
 ## Transitions
 
-Start with `pr run start --pr <target> --action <action> [--mode <mode>] [--force]`. Reserve each fix round with `pr run update --pr <target> --run <id> --round <n>`, then end the run with `pr run end --pr <target> --run <id> --completion <complete|pending|forced|blocked>`. Use `pr next --judged <name>=pass|fail` with exact names `description-staleness`, `ui-evidence`, `required-check-policy`, and `claims-verification-evidence`. Run phases in order and continue after each action. A head or base change requires a fresh snapshot and re-evaluation. After phase 9, reconcile the head once; if it changed, rerun review and affected later phases once. Continued churn is `blocked`. Bare `/pr` ends before phase 10; `automerge` includes it. Never end a `changes_required` result without attempting the fix within the [round limit](policy.md#round-limit). Ready and merge actions run any missing phase within this run's remaining round budget.
+Start with `pr run start --pr <target> --action <action> [--mode <mode>] [--force]`. Reserve each fix round with `pr run update --pr <target> --run <id> --round <n>`, then end the run with `pr run end --pr <target> --run <id> --completion <complete|pending|forced|blocked>`. After a merge, merge records completion; do not run `run end` afterward, and run cleanup last. Use `pr next --judged <name>=pass|fail` with exact names `description-staleness`, `ui-evidence`, `required-check-policy`, and `claims-verification-evidence`. Run phases in order and continue after each action. A head or base change requires a fresh snapshot and re-evaluation. After phase 9, reconcile the head once; if it changed, rerun review and affected later phases once. Continued churn is `blocked`. Bare `/pr` ends before phase 10; `automerge` includes it. Never end a `changes_required` result without attempting the fix within the [round limit](policy.md#round-limit). Ready and merge actions run any missing phase within this run's remaining round budget.
 
 ## Completion
 
@@ -35,4 +35,4 @@ Each top-level invocation starts `pr run start` and owns one five-round budget. 
 
 ## Other authors' PRs
 
-Bare `/pr` resolves the PR (phase 0), runs a report-only review, then stops. Phases 1–5 and 7–10 do not apply. Publishing a review requires an explicit mode-less `/pr review` invocation.
+Bare `/pr` resolves the PR (phase 0), runs a report-only review, then stops. A stored `clean` or `changes_required` review packet for the current head marks that report complete; an `incomplete` packet does not. Phases 1–5 and 7–10 do not apply. Publishing a review requires an explicit mode-less `/pr review` invocation.

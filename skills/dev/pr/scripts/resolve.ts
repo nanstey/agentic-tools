@@ -1,12 +1,14 @@
-import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
-import { dirname, resolve } from "node:path";
 import { PR_QUERY, parsePr } from "../../../../lib/pr/index.ts";
 import type { PrSnapshot } from "../../../../lib/pr/types.ts";
 import { invoke, parseJson, isRecord, blocked, type CommandRunner } from "./runner.ts";
 
-export const scriptDirectory = dirname(fileURLToPath(import.meta.url));
-export const repositoryRoot = resolve(scriptDirectory, "../../../..");
+export async function targetRoot(runner: CommandRunner): Promise<string> {
+  const args = ["rev-parse", "--show-toplevel"];
+  const current = await runner("git", args, process.env, process.cwd());
+  if (current.ok && current.stdout.trim()) return current.stdout.trim();
+  return blocked("git repository root", current.stderr || "repository root unavailable", "invoke inside a git checkout");
+}
 export interface Snapshot extends PrSnapshot {
   owner: "own" | "other" | "fork";
   fork: boolean;
@@ -100,10 +102,12 @@ function isPolicySurface(path: string): boolean {
 }
 /** Policy identity is SHA-256 over sorted policy-surface paths and their blob OIDs at the PR head. */
 export async function policyHash(head: string, runner: CommandRunner): Promise<string> {
-  const output = await invoke(runner, "git", ["ls-tree", "-r", head], { cwd: repositoryRoot });
-  const entries = output.split("\n").filter(Boolean).flatMap((line) => {
-    const match = line.match(/^[0-7]{6} blob ([a-f\d]{40})\t(.+)$/);
-    return match && isPolicySurface(match[2]!) ? [[match[2]!, match[1]!]] : [];
+  const root = await targetRoot(runner);
+  const output = await invoke(runner, "git", ["ls-tree", "-r", "-z", head], { cwd: root });
+  const entries = output.split("\0").filter(Boolean).flatMap((entry) => {
+    const tab = entry.indexOf("\t"); const metadata = entry.slice(0, tab); const path = entry.slice(tab + 1);
+    const match = metadata.match(/^[0-7]{6} blob ([a-f\d]{40})$/);
+    return match && isPolicySurface(path) ? [[path, match[1]!]] : [];
   }).sort(([a], [b]) => a!.localeCompare(b!));
   if (!entries.length) return createHash("sha256").update("").digest("hex");
   return createHash("sha256").update(entries.map(([path, oid]) => `${path}\0${oid}`).join("\n")).digest("hex");
@@ -118,7 +122,7 @@ async function initialPr(target: string | undefined, runner: CommandRunner): Pro
   return { ...identity, login };
 }
 async function stackMetadata(repo: string, number: number, runner: CommandRunner): Promise<unknown | null> {
-  const raw = await runner("gh", ["api", `repos/${repo}/pulls/${number}`], process.env, repositoryRoot);
+  const raw = await runner("gh", ["api", `repos/${repo}/pulls/${number}`], process.env);
   if (!raw.ok) {
     if (/404|not found/i.test(raw.stderr)) return null;
     return blocked("stack snapshot", raw.stderr || "API request failed", "accessible PR metadata");
@@ -139,8 +143,9 @@ export async function snapshot(target: string | undefined, runner: CommandRunner
   validateBranchIdentity(detail);
   const owner = snapshotOwner(detail, identity.login);
   const stack = await stackMetadata(identity.repo, identity.number, runner);
-  return { ...basic, role: owner === "own" ? "author" : "reviewer", owner, fork: owner === "fork", author, headRefName: detail.headRefName as string, headRefOid: detail.headRefOid as string, baseRefName: detail.baseRefName as string, baseRefOid: detail.baseRefOid as string, stack, body: typeof detail.body === "string" ? detail.body : "" };
+  return { ...basic, state: typeof detail.state === "string" ? detail.state : basic.state, role: owner === "own" ? "author" : "reviewer", owner, fork: owner === "fork", author, headRefName: detail.headRefName as string, headRefOid: detail.headRefOid as string, baseRefName: detail.baseRefName as string, baseRefOid: detail.baseRefOid as string, stack, body: typeof detail.body === "string" ? detail.body : "" };
 }
+export async function refresh(pr: Snapshot, runner: CommandRunner): Promise<Snapshot> { return snapshot(pr.url, runner); }
 function validateBranchIdentity(detail: Record<string, unknown>): void {
   for (const field of ["headRefName", "headRefOid", "baseRefName", "baseRefOid"] as const) if (typeof detail[field] !== "string") blocked("PR snapshot", `${field} missing`, "complete branch and object identity");
 }

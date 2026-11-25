@@ -18,6 +18,7 @@ test("stack probe identifies T1, configures unset preflight only, and avoids TUI
   const configured = new Set(["rerere.enabled"]);
   const runner: CommandRunner = async (command, args) => {
     calls.push([command, ...args]);
+    if (command === "git" && args[0] === "rev-parse" && args[1] === "--show-toplevel") return ok(process.cwd());
     if (command === "gh" && args[0] === "extension") return ok("github/gh-stack\n");
     if (command === "gh" && args[0] === "repo") return ok('{"nameWithOwner":"acme/repo"}');
     if (command === "gh" && args[0] === "api") return ok("[]");
@@ -63,10 +64,10 @@ test("stack link blocks invalid input and surfaces API failures", async () => {
 });
 
 test("stack collapse-check allows linear clean stacks, blocks unmet preconditions, and fails closed on git errors", async () => {
-  const runner: CommandRunner = async (_command, args) => args[0] === "merge-base" ? ok() : args[0] === "status" ? ok("") : fail("fatal: Needed a single revision");
+  const runner: CommandRunner = async (_command, args) => args[0] === "rev-parse" && args[1] === "--show-toplevel" ? ok(process.cwd()) : args[0] === "merge-base" ? ok() : args[0] === "status" ? ok("") : fail("fatal: Needed a single revision");
   assert.deepEqual(await collapseCheck(["aaaaaaa", "bbbbbbb"], runner), { collapseAllowed: true, heads: ["aaaaaaa", "bbbbbbb"] });
   await assert.rejects(collapseCheck(["aaaaaaa"], runner), /blocked: stack collapse/);
-  await assert.rejects(collapseCheck(["aaaaaaa", "bbbbbbb"], async (_command, args) => args[0] === "merge-base" ? fail("git unavailable") : ok()), /blocked: stack ancestry/);
-  const apiFailure = async (_command: string, args: string[]) => args[0] === "merge-base" ? ok() : fail("git API failure");
+  await assert.rejects(collapseCheck(["aaaaaaa", "bbbbbbb"], async (_command, args) => args[0] === "rev-parse" && args[1] === "--show-toplevel" ? ok(process.cwd()) : args[0] === "merge-base" ? fail("git unavailable") : ok()), /blocked: stack ancestry/);
+  const apiFailure = async (_command: string, args: string[]) => args[0] === "rev-parse" && args[1] === "--show-toplevel" ? ok(process.cwd()) : args[0] === "merge-base" ? ok() : fail("git API failure");
   await assert.rejects(collapseCheck(["aaaaaaa", "bbbbbbb"], apiFailure), /blocked: stack collapse/);
 });

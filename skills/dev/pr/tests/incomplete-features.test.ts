@@ -19,6 +19,7 @@ test("thread snapshot reads every GraphQL page and fails on later page errors", 
 });
 test("docs-only compares raw modified Markdown without treating a renamed file as prose-only", async () => {
   const runner: CommandRunner = async (_command, args) => {
+    if (args[0] === "rev-parse" && args[1] === "--show-toplevel") return { ok: true, stdout: process.cwd(), stderr: "" };
     if (args[0] === "diff" && args.includes("--raw")) return { ok: true, stdout: ":100644 100644 abc def M\0notes.md\0", stderr: "" };
     if (args[0] === "cat-file") return { ok: true, stdout: "Plain text\n", stderr: "" };
     if (args[0] === "diff") return { ok: true, stdout: "diff --git a/notes.md b/notes.md\n+Plain text\n", stderr: "" };
@@ -26,7 +27,9 @@ test("docs-only compares raw modified Markdown without treating a renamed file a
   };
   const clean = await docsOnly("base", "head", runner);
   assert.equal(clean.clean, true);
-  const renamed: CommandRunner = async (_command, args) => args[0] === "diff" && args.includes("--raw")
+  const renamed: CommandRunner = async (_command, args) => args[0] === "rev-parse" && args[1] === "--show-toplevel"
+    ? { ok: true, stdout: process.cwd(), stderr: "" }
+    : args[0] === "diff" && args.includes("--raw")
     ? { ok: true, stdout: ":100644 100644 abc def R100\0old.md\0new.md\0", stderr: "" }
     : { ok: true, stdout: "", stderr: "" };
   assert.equal((await docsOnly("base", "head", renamed)).clean, false);

@@ -6,7 +6,7 @@
 
 ## Packet identity
 
-A reusable packet matches the exact base OID, head OID, and policy hash. The policy hash is SHA-256 over sorted policy-surface file paths and blob OIDs at the PR head, as computed by `scripts/resolve.ts` via `policyHash`.
+A reusable packet matches the exact base OID, head OID, and policy hash. The policy hash is SHA-256 over sorted policy-surface file paths and blob OIDs at the PR head, as computed by `scripts/resolve.ts` via `policyHash`. `pr snapshot` returns this hash as `policy`; `pr packet put` and `pr packet get` default `--policy` to the current snapshot hash unless explicitly supplied.
 
 ## Invalidation and reuse
 
