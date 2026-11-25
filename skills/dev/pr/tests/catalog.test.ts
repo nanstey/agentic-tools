@@ -9,7 +9,7 @@ const repoRoot = resolve(skillDir, "../../..");
 
 test("SKILL.md description matches the README catalog row", () => {
   const skill = readFileSync(resolve(skillDir, "SKILL.md"), "utf8");
-  const description = /^description: (.+)$/m.exec(skill)?.[1];
+  const description = /^description: "?(.+?)"?$/m.exec(skill)?.[1];
   assert.ok(description, "SKILL.md has a description");
   assert.match(description, /Use when /);
   const readme = readFileSync(resolve(repoRoot, "README.md"), "utf8");
