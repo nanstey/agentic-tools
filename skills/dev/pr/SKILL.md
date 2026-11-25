@@ -1,6 +1,6 @@
 ---
 name: pr
-description: Acts on one pull request from its branch or worktree: creates, publishes, describes, rebases or restacks, fixes and reruns CI, handles review threads, reviews and publishes reviews, marks ready, merges, and manages stacks. Use when working on a specific PR or when asked to run a `/pr` command.
+description: "Acts on one pull request from its branch or worktree: creates, publishes, describes, rebases or restacks, fixes and reruns CI, handles review threads, reviews and publishes reviews, marks ready, merges, and manages stacks. Use when working on a specific PR or when asked to run a `/pr` command."
 argument-hint: "[info|create|push|description|screenshots|rebase|restack|split|stack|ci|review|comments|verification|ready|merge|automerge] [PR-URL-or-number] [fix|comment|report] [force]"
 user-invocable: true
 disable-model-invocation: false

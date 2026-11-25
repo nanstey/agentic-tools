@@ -1,6 +1,6 @@
 ---
 name: prflow
-description: Watches open PRs, review requests, and leftover worktrees across accounts: classifies each, keeps a ledger behind safety rails, keeps worktree board columns in step with their PRs, unblocks Blocked cards, archives unused merged worktrees, and hands PR work and review drafting to Pi sessions that run the `pr` skill. Use when asking which PRs need attention, running or scheduling a tick, managing dispatches and pauses, or listing and showing review drafts.
+description: "Watches open PRs, review requests, and leftover worktrees across accounts: classifies each, keeps a ledger behind safety rails, keeps worktree board columns in step with their PRs, unblocks Blocked cards, archives unused merged worktrees, and hands PR work and review drafting to Pi sessions that run the `pr` skill. Use when asking which PRs need attention, running or scheduling a tick, managing dispatches and pauses, or listing and showing review drafts."
 argument-hint: "[scan|plan|watch|tick|status|pause|resume|recover <id>|review list|review show <draft-id>|import-legacy|config] [--config <path>] [--user <login>] [--owner <login>] [--repo <owner/repo>] [--format text|json] [--no-worktrees] [--item <owner/repo#N>] [--all] [--dry-run]"
 user-invocable: true
 disable-model-invocation: false
