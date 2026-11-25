@@ -5,8 +5,13 @@ export async function guard(pr: Snapshot, runner: CommandRunner, allowAhead = fa
   const branch = await invoke(runner, "git", ["branch", "--show-current"], { cwd: repositoryRoot });
   const head = await invoke(runner, "git", ["rev-parse", "HEAD"], { cwd: repositoryRoot });
   const status = await invoke(runner, "git", ["status", "--porcelain"], { cwd: repositoryRoot });
-  if (pr.owner !== "own" || pr.fork || branch !== pr.headRefName || (!allowAhead && head !== pr.headRefOid) || status) blocked("working tree guard", `owner=${pr.owner}, branch=${branch}, HEAD=${head}, dirty=${Boolean(status)}`, "own PR head on a clean matching checkout");
+  const headMatches = head === pr.headRefOid || (allowAhead && await containsPrHead(pr, runner));
+  if (pr.owner !== "own" || pr.fork || branch !== pr.headRefName || !headMatches || status) blocked("working tree guard", `owner=${pr.owner}, branch=${branch}, HEAD=${head}, dirty=${Boolean(status)}`, "own PR head on a clean matching checkout");
   return { guard: "passed", pr: pr.url };
+}
+async function containsPrHead(pr: Snapshot, runner: CommandRunner): Promise<boolean> {
+  const result = await runner("git", ["merge-base", "--is-ancestor", pr.headRefOid, "HEAD"], process.env, repositoryRoot);
+  return result.ok;
 }
 export async function draft(pr: Snapshot, runId: string, runner: CommandRunner): Promise<{ drafted: true; head: string }> {
   requireRun(runId); getRun(pr, runId);
@@ -27,7 +32,7 @@ async function protectPushTarget(pr: Snapshot | null, target: string | undefined
   const branch = target ?? await invoke(runner, "git", ["branch", "--show-current"], { cwd: repositoryRoot });
   if (["main", "develop", pr?.baseRefName].includes(branch)) blocked("protected branch", branch, "a non-default feature branch");
   if (!pr) return;
-  const defaultBranch = await invoke(runner, "gh", ["repo", "view", "--repo", pr.repo, "--json", "defaultBranchRef", "--jq", ".defaultBranchRef.name"]);
+  const defaultBranch = await invoke(runner, "gh", ["repo", "view", pr.repo, "--json", "defaultBranchRef", "--jq", ".defaultBranchRef.name"]);
   if (branch === defaultBranch) blocked("protected branch", branch, "a non-default feature branch");
 }
 async function validatePushOwnerAndDraft(pr: Snapshot, runId: string, runner: CommandRunner): Promise<void> {

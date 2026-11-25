@@ -124,7 +124,7 @@ async function checkRepositoryAccess(pr: Snapshot, runner: CommandRunner): Promi
   if (!version.ok || !isGhVersionSupported(version.stdout)) return "gh >= 2.99.0 required";
   const auth = await runner("gh", ["auth", "status"], process.env);
   if (!auth.ok) return "GitHub authentication unavailable";
-  const repo = await runner("gh", ["repo", "view", "--repo", pr.repo, "--json", "viewerPermission,url"], process.env);
+  const repo = await runner("gh", ["repo", "view", pr.repo, "--json", "viewerPermission,url"], process.env);
   if (!repo.ok) return "repository access check failed";
   return repositoryAccessFailure(repo.stdout);
 }

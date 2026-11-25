@@ -4,7 +4,7 @@ import { finishRun } from "./run.ts";
 import { waitChecks } from "./checks.ts";
 export function squashSubject(title: string, number: number): string { const suffix = ` (#${number})`; return title.endsWith(suffix) ? title : `${title}${suffix}`; }
 async function viewerIsAdmin(pr: Snapshot, runner: CommandRunner): Promise<boolean> {
-  const result = await invoke(runner, "gh", ["repo", "view", "--repo", pr.repo, "--json", "viewerPermission"]);
+  const result = await invoke(runner, "gh", ["repo", "view", pr.repo, "--json", "viewerPermission"]);
   try { return (JSON.parse(result) as { viewerPermission?: string }).viewerPermission === "ADMIN"; }
   catch { return blocked("repository permission", "invalid viewer permission response", "verified ADMIN permission"); }
 }
