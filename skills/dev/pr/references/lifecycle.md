@@ -35,4 +35,4 @@ Each top-level invocation starts `pr run start` and owns one five-round budget. 
 
 ## Other authors' PRs
 
-Bare `/pr` resolves the PR (phase 0), runs a report-only review, then stops. A stored `clean` or `changes_required` review packet for the current head marks that report complete; an `incomplete` packet does not. Phases 1–5 and 7–10 do not apply. Publishing a review requires an explicit mode-less `/pr review` invocation.
+Bare `/pr` resolves the PR (phase 0), runs a report-only review, then stops. A stored `clean` or `changes_required` review packet matching the exact current base and head OIDs and the current non-null policy hash marks that report complete; an `incomplete` packet or a packet with stale policy does not. Phases 1–5 and 7–10 do not apply. Publishing a review requires an explicit mode-less `/pr review` invocation.

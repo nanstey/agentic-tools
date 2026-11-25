@@ -189,13 +189,13 @@ test("A11 squash subject is unique and queued merge remains unmerged so cleanup 
 });
 
 test("A12 cleanup returns all five outcomes and only removes captured id selector", async () => {
-  const run = async (responses: Record<string, { ok: boolean; stdout: string; stderr: string }>, calls: string[][]) => cleanup(pr(), async (command, args) => { calls.push([command, ...args]); const key = args.join(" "); return responses[key] ?? { ok: true, stdout: command === "git" && args[1] === "--git-dir" ? "/repo/.git\n" : command === "git" ? "/common/.git\n" : "", stderr: "" }; });
-  const primary = await cleanup(pr(), async (_c, a) => ({ ok: true, stdout: a[1] === "--git-dir" ? "/same" : "/same", stderr: "" })); assert.deepEqual(primary, { cleanup: "primary" });
-  const mk = (mode: string, calls: string[][]) => async (command: string, args: string[]) => { calls.push([command, ...args]); if (command === "git") return { ok: true, stdout: args.at(-1) === "--git-dir" ? "/repo/.git" : "/common/.git", stderr: "" }; if (args[0] === "--version") return mode === "unavailable" ? { ok: false, stdout: "", stderr: "missing" } : { ok: true, stdout: "orca", stderr: "" }; if (args[0] === "worktree" && args[1] === "current") return mode === "outside" ? { ok: false, stdout: "selector_not_found", stderr: "" } : { ok: true, stdout: JSON.stringify({ result: { worktree: { id: "captured-42", isMainWorktree: false } } }), stderr: "" }; return mode === "remove-fail" ? { ok: false, stdout: "", stderr: "conflict" } : { ok: true, stdout: "{}", stderr: "" }; };
+  const run = async (responses: Record<string, { ok: boolean; stdout: string; stderr: string }>, calls: string[][]) => cleanup(pr(), async (command, args) => { calls.push([command, ...args]); const key = args.join(" "); return responses[key] ?? { ok: true, stdout: command === "git" && args[0] === "status" ? "" : command === "git" && args[1] === "--git-dir" ? "/repo/.git\n" : command === "git" ? "/common/.git\n" : "", stderr: "" }; });
+  const primary = await cleanup(pr(), async (_c, a) => ({ ok: true, stdout: a[0] === "status" ? "" : "/same", stderr: "" })); assert.deepEqual(primary, { cleanup: "primary" });
+  const mk = (mode: string, calls: string[][]) => async (command: string, args: string[]) => { calls.push([command, ...args]); if (command === "git") return { ok: true, stdout: args[0] === "status" ? "" : args.at(-1) === "--git-dir" ? "/repo/.git" : "/common/.git", stderr: "" }; if (args[0] === "--version") return mode === "unavailable" ? { ok: false, stdout: "", stderr: "missing" } : { ok: true, stdout: "orca", stderr: "" }; if (args[0] === "worktree" && args[1] === "current") return mode === "outside" ? { ok: false, stdout: "selector_not_found", stderr: "" } : { ok: true, stdout: JSON.stringify({ result: { worktree: { id: "captured-42", isMainWorktree: false } } }), stderr: "" }; return mode === "remove-fail" ? { ok: false, stdout: "", stderr: "conflict" } : { ok: true, stdout: "{}", stderr: "" }; };
   const unavailable = await cleanup(pr(), mk("unavailable", [])); assert.deepEqual(unavailable, { cleanup: "skipped (Orca unavailable)" });
   const outside = await cleanup(pr(), mk("outside", [])); assert.deepEqual(outside, { cleanup: "skipped (outside Orca)" });
   const mainConflict = await cleanup(pr(), async (command, args) => {
-    if (command === "git") return { ok: true, stdout: args.at(-1) === "--git-dir" ? "/repo/.git" : "/common/.git", stderr: "" };
+    if (command === "git") return { ok: true, stdout: args[0] === "status" ? "" : args.at(-1) === "--git-dir" ? "/repo/.git" : "/common/.git", stderr: "" };
     if (args[0] === "--version") return { ok: true, stdout: "orca", stderr: "" };
     if (args[0] === "worktree" && args[1] === "current") return { ok: true, stdout: JSON.stringify({ result: { worktree: { id: "main", isMainWorktree: true } } }), stderr: "" };
     throw new Error(`unexpected ${args.join(" ")}`);
@@ -213,13 +213,29 @@ test("force-with-lease allows rewritten HEAD through push guards but not unrelat
     if (command === "git" && args[0] === "branch" && args[1] === "--show-current") return { ok: true, stdout: "topic", stderr: "" };
     if (command === "git" && args[0] === "rev-parse" && args[1] === "HEAD") return { ok: true, stdout: "rewritten", stderr: "" };
     if (command === "git" && args[0] === "status") return { ok: true, stdout: "", stderr: "" };
+    if (command === "git" && args[0] === "merge-base") { calls.push(args); return { ok: true, stdout: "shared", stderr: "" }; }
     if (command === "git" && args[0] === "push") { calls.push(args); return { ok: true, stdout: "pushed", stderr: "" }; }
     return baseRunner(command, args, env, cwd);
   };
-  await assert.rejects(() => push(pr(), run.id, ["--force-with-lease", "origin", "topic"], runner), /push verification/);
+  await assert.rejects(() => push(pr(), run.id, ["--force-with-lease=refs/heads/topic:expected", "origin", "topic"], runner), /push verification/);
+  assert.ok(calls.some((args) => args[0] === "merge-base" && args.includes(pr().headRefOid)));
   assert.ok(calls.some((args) => args[0] === "push"));
 });
 
+test("force-with-lease blocks when the PR head is unavailable or history is unrelated", async () => {
+  const { runner: baseRunner, calls } = fixture();
+  const run = startRun(pr(), "push", null, false, clock);
+  changeRun(pr(), run.id, (current) => { current.drafted_for_changes = true; });
+  const runner: CommandRunner = async (command, args, env, cwd) => {
+    if (command === "git" && args[0] === "branch" && args[1] === "--show-current") return { ok: true, stdout: "topic", stderr: "" };
+    if (command === "git" && args[0] === "rev-parse" && args[1] === "HEAD") return { ok: true, stdout: "rewritten", stderr: "" };
+    if (command === "git" && args[0] === "status") return { ok: true, stdout: "", stderr: "" };
+    if (command === "git" && args[0] === "merge-base") return { ok: false, stdout: "", stderr: "fatal: Not a valid object name" };
+    return baseRunner(command, args, env, cwd);
+  };
+  await assert.rejects(() => push(pr(), run.id, ["--force-with-lease", "origin", "topic"], runner), /PR head .*missing or shares no history/);
+  assert.ok(!calls.some((args) => args[0] === "push"));
+});
 test("plain push allows local commits ahead of the PR head and blocks a rewritten HEAD", async () => {
   const make = (ancestor: boolean) => {
     const { runner: baseRunner, calls } = fixture();

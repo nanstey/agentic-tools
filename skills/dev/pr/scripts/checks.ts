@@ -38,8 +38,8 @@ export async function rerunCancelled(pr: Snapshot, runId: string, runner: Comman
     const jobId = await actionsJobId(pr, check, runner);
     if (!jobId) { skipped.push(id); continue; }
     await invoke(runner, "gh", ["run", "rerun", "--job", jobId, "--repo", pr.repo], { write: "rerun-check" }); rerun.push(id);
+    updatePrStore(path, identity, (current) => { current.cancelledCheckReruns[pr.headRefOid] = [...(current.cancelledCheckReruns[pr.headRefOid] ?? []), id]; });
   }
-  updatePrStore(path, identity, (current) => { current.cancelledCheckReruns[pr.headRefOid] = [...prior, ...rerun]; });
   return { rerun, skipped, head: pr.headRefOid };
 }
 async function actionsJobId(pr: Snapshot, check: Snapshot["checks"][number] | undefined, runner: CommandRunner): Promise<string | null> {

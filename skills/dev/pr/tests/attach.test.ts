@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { chmodSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { attach } from "../scripts/body.ts";
+import { attach, checkUntracked } from "../scripts/body.ts";
 import type { Snapshot } from "../scripts/resolve.ts";
 import type { CommandRunner } from "../scripts/runner.ts";
 
@@ -11,6 +11,10 @@ const stateHome = mkdtempSync(join(tmpdir(), "pr-attach-state-"));
 const oldStateHome = process.env.XDG_STATE_HOME;
 process.env.XDG_STATE_HOME = stateHome;
 after(() => { if (oldStateHome === undefined) delete process.env.XDG_STATE_HOME; else process.env.XDG_STATE_HOME = oldStateHome; rmSync(stateHome, { recursive: true, force: true }); });
+test("attachment tracking treats paths outside the repository as untracked", async () => {
+  const result = await checkUntracked("/tmp/capture.png", async (_command, args) => args[0] === "rev-parse" ? ({ ok: true, stdout: process.cwd(), stderr: "" }) : ({ ok: false, stdout: "", stderr: "fatal: /tmp/capture.png is outside repository" }));
+  assert.equal(result, null);
+});
 const pr = { repo: "acme/repo", number: 7 } as Snapshot;
 const runId = "run-7";
 function setup() {

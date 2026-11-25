@@ -45,7 +45,13 @@ async function protectPushTarget(pr: Snapshot | null, target: string | undefined
 }
 async function validatePushOwnerAndDraft(pr: Snapshot, runId: string, args: string[], runner: CommandRunner): Promise<void> {
   if (pr.owner !== "own" || pr.fork) blocked("push ownership", `owner=${pr.owner}`, "an own PR");
-  await guard(pr, runner, true, !args.includes("--force-with-lease"));
+  const lease = args.some((arg) => arg === "--force-with-lease" || arg.startsWith("--force-with-lease="));
+  await guard(pr, runner, true, !lease);
+  if (lease) {
+    const root = await targetRoot(runner);
+    const shared = await runner("git", ["merge-base", "HEAD", pr.headRefOid], process.env, root);
+    if (!shared.ok) blocked("force-with-lease push", `PR head ${pr.headRefOid} is missing or shares no history with HEAD: ${shared.stderr || "git merge-base failed"}`, "a locally available PR head with shared history");
+  }
   if (!pr.isDraft && !getRun(pr, runId).drafted_for_changes) blocked("draft before push", "run is not marked drafted_for_changes", "drafted PR or recorded conversion for this run");
 }
 export async function push(pr: Snapshot | null, runId: string, args: string[], runner: CommandRunner): Promise<{ pushed: string }> {

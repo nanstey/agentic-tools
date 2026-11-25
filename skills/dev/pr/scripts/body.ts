@@ -146,10 +146,10 @@ async function checkAssetUploadability(asset: string, runner: CommandRunner): Pr
 function supportedMime(mime: string): boolean {
   return ["image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml", "video/mp4", "video/quicktime", "video/webm"].includes(mime);
 }
-async function checkUntracked(asset: string, runner: CommandRunner): Promise<string | null> {
+export async function checkUntracked(asset: string, runner: CommandRunner): Promise<string | null> {
   const tracked = await runner("git", ["ls-files", "--error-unmatch", "--", asset], process.env, await targetRoot(runner));
   if (tracked.ok) return blocked("unsafe attachment path", `${asset} is tracked`, "untracked capture artifact");
-  return /pathspec|did not match/i.test(tracked.stderr) ? null : "git tracking state is unavailable";
+  return /pathspec|did not match|is outside repository/i.test(tracked.stderr) ? null : "git tracking state is unavailable";
 }
 function isGhVersionSupported(output: string): boolean {
   const match = /gh version (\d+)\.(\d+)/.exec(output); if (!match) return false;

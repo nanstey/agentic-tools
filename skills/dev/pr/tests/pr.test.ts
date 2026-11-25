@@ -120,9 +120,12 @@ test("next treats a stored review packet for the current head as complete for an
     return result;
   };
   const started = await execute(["run", "start", "--pr", "7", "--action", "review", "--mode", "report"], otherRunner) as { run: { id: string } };
-  await execute(["packet", "put", "7", "--run", started.run.id, "--base", "b".repeat(40), "--head", "a".repeat(40), "--policy", "policy", "--depth", "standard", "--reason", "review", "--verdict", "incomplete"], otherRunner);
+  const policy = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+  await execute(["packet", "put", "7", "--run", started.run.id, "--base", "b".repeat(40), "--head", "a".repeat(40), "--policy", policy, "--depth", "standard", "--reason", "review", "--verdict", "incomplete"], otherRunner);
   assert.deepEqual(await execute(["next", "7", "--run", started.run.id], otherRunner), { phase: 6, name: "Review", reason: "run a report-only review for another author's PR" });
-  await execute(["packet", "put", "7", "--run", started.run.id, "--base", "b".repeat(40), "--head", "a".repeat(40), "--policy", "policy", "--depth", "standard", "--reason", "review", "--verdict", "clean"], otherRunner);
+  await execute(["packet", "put", "7", "--run", started.run.id, "--base", "c".repeat(40), "--head", "a".repeat(40), "--policy", policy, "--depth", "standard", "--reason", "review", "--verdict", "clean"], otherRunner);
+  assert.deepEqual(await execute(["next", "7", "--run", started.run.id], otherRunner), { phase: 6, name: "Review", reason: "run a report-only review for another author's PR" });
+  await execute(["packet", "put", "7", "--run", started.run.id, "--base", "b".repeat(40), "--head", "a".repeat(40), "--policy", policy, "--depth", "standard", "--reason", "review", "--verdict", "clean"], otherRunner);
   assert.deepEqual(await execute(["next", "7", "--run", started.run.id], otherRunner), { phase: null, status: "complete" });
 });
 
@@ -137,6 +140,18 @@ test("URL snapshots remain read-only when cwd is not a git checkout", async () =
   assert.equal(result.policy, null);
   assert.ok(calls.some((call) => call[0] === "gh" && call.includes("repos/acme/repo/pulls/7")));
 });
+test("packet put and get default policy hashes from the validated packet head", async () => {
+  const { runner: baseRunner, calls } = fixture();
+  const runner: CommandRunner = async (command, args, env, cwd) => {
+    if (command === "git" && args[0] === "ls-tree") { calls.push([command, ...args]); return { ok: true, stdout: "", stderr: "" }; }
+    return baseRunner(command, args, env, cwd);
+  };
+  const started = await execute(["run", "start", "--pr", "7", "--action", "review"], runner) as { run: { id: string } };
+  await execute(["packet", "put", "7", "--run", started.run.id, "--base", base, "--head", head, "--depth", "standard", "--reason", "review", "--verdict", "clean"], runner);
+  const result = await execute(["packet", "get", "7", "--base", base, "--head", head], runner) as { packet: { policy: string } };
+  assert.equal(result.packet.policy, "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
+  assert.ok(calls.some((call) => call[0] === "git" && call[1] === "ls-tree" && call.includes(head)));
+});
 test("snapshot and lifecycle tolerate a PR head unavailable in the local object database", async () => {
   const { runner: baseRunner, calls } = fixture();
   const runner: CommandRunner = async (command, args, env, cwd) => {
@@ -148,6 +163,48 @@ test("snapshot and lifecycle tolerate a PR head unavailable in the local object 
   assert.ok(calls.some((call) => call.join(" ").includes("ls-tree -r -z")));
   await execute(["next", "7", "--run", "fixture-run"], runner);
   await assert.rejects(() => execute(["packet", "get", "7", "--base", base, "--head", head], runner), /fetch pull\/7\/head first/);
+
+  for (const bad of ["HEAD:dir", "-x", head.toUpperCase()]) await assert.rejects(() => execute(["packet", "get", "7", "--base", base, "--head", bad], runner), /invalid head/);
+});
+test("next accepts a missing run and defaults automerge to false", async () => {
+  const { runner } = fixture();
+  assert.deepEqual(await execute(["next", "7"], runner), { needs_judgment: "description-staleness" });
+});
+test("next allows another author's PR without local git facts or a run", async () => {
+  const { runner: baseRunner, calls } = fixture();
+  const runner: CommandRunner = async (command, args, env, cwd) => {
+    if (command === "git") return { ok: false, stdout: "", stderr: "fatal: not a git repository" };
+    const result = await baseRunner(command, args, env, cwd);
+    if (command === "gh" && args[0] === "pr" && args[1] === "view" && !args.includes("number,url")) {
+      const value = JSON.parse(result.stdout) as Record<string, unknown>; value.author = { login: "someone-else" };
+      return { ...result, stdout: JSON.stringify(value) };
+    }
+    return result;
+  };
+  const result = await execute(["next", "7"], runner);
+  assert.deepEqual(result, { phase: 6, name: "Review", reason: "run a report-only review for another author's PR" });
+  assert.ok(!calls.some((call) => call[0] === "git" && call[1] === "rev-list"));
+  const forkRunner: CommandRunner = async (command, args, env, cwd) => {
+    const result = await runner(command, args, env, cwd);
+    if (command === "gh" && args[0] === "pr" && args[1] === "view" && !args.includes("number,url")) {
+      const value = JSON.parse(result.stdout) as Record<string, unknown>; value.isCrossRepository = true;
+      return { ...result, stdout: JSON.stringify(value) };
+    }
+    return result;
+  };
+  assert.deepEqual(await execute(["next", "7"], forkRunner), { phase: 6, name: "Review", reason: "run a report-only review for another author's PR" });
+});
+test("next ignores local commit facts when the current branch is not the PR head branch", async () => {
+  const { runner: baseRunner, calls } = fixture();
+  const runner: CommandRunner = async (command, args, env, cwd) => {
+    if (command === "git" && args[0] === "branch" && args[1] === "--show-current") return { ok: true, stdout: "different-branch", stderr: "" };
+    const result = await baseRunner(command, args, env, cwd);
+    if (command === "git") calls.push([command, ...args]);
+    return result;
+  };
+  const result = await execute(["next", "7", "--run", "fixture-run"], runner);
+  assert.deepEqual(result, { needs_judgment: "description-staleness" });
+  assert.ok(!calls.some((call) => call[1] === "rev-list"));
 });
 test("next blocks on incomplete local facts and API failure", async () => {
   const { runner: apiRunner } = fixture("graphql");
@@ -204,12 +261,68 @@ test("stack link resolves PR numbers within the explicit repository", async () =
   await execute(["stack", "link", "--repo", "fork/repo", "7", "8", "--run", started.run.id], runner);
   assert.ok(calls.some((call) => call[0] === "gh" && call.includes("https://github.com/fork/repo/pull/7")));
 });
+test("stack link requires a run on a listed PR and accepts one on the second listed PR", async () => {
+  const { runner: baseRunner } = fixture();
+  const runner: CommandRunner = async (command, args, env, cwd) => {
+    const result = await baseRunner(command, args, env, cwd);
+    if (command === "gh" && args[0] === "pr" && args[1] === "view" && args.includes("number,url")) {
+      const target = args.find((arg) => /pull\/\d+$/.test(arg)); const number = target?.split("/").at(-1) ?? "7";
+      return { ...result, stdout: JSON.stringify({ number: Number(number), url: `https://github.com/acme/repo/pull/${number}` }) };
+    }
+    if (command === "gh" && args[0] === "pr" && args[1] === "view" && !args.includes("number,url")) {
+      const target = args.find((arg) => /^\d+$/.test(arg)); const number = target ?? "7";
+      const value = JSON.parse(result.stdout) as Record<string, unknown>; value.url = `https://github.com/acme/repo/pull/${number}`;
+      return { ...result, stdout: JSON.stringify(value) };
+    }
+    if (command === "gh" && args[0] === "api" && args[1]?.includes("/pulls/7")) return { ok: true, stdout: JSON.stringify({ base: { sha: "b7" }, head: { sha: "h7" } }), stderr: "" };
+    if (command === "gh" && args[0] === "api" && args[1]?.includes("/pulls/8")) return { ok: true, stdout: JSON.stringify({ base: { sha: "h7" }, head: { sha: "h8" } }), stderr: "" };
+    if (command === "gh" && args[0] === "api" && args[1]?.includes("/pulls/9")) return { ok: true, stdout: JSON.stringify({ base: { sha: "b9" }, head: { sha: "h9" } }), stderr: "" };
+    if (command === "gh" && args[0] === "api" && args[1]?.includes("/stacks")) return { ok: true, stdout: "{}", stderr: "" };
+    return result;
+  };
+  const second = await execute(["run", "start", "--pr", "https://github.com/acme/repo/pull/8", "--action", "stack"], runner) as { run: { id: string } };
+  const elsewhere = await execute(["run", "start", "--pr", "https://github.com/acme/repo/pull/9", "--action", "stack"], runner) as { run: { id: string } };
+  await assert.rejects(() => execute(["stack", "link", "--repo", "acme/repo", "7", "8", "--run", elsewhere.run.id], runner), /does not belong to a listed PR/);
+  await execute(["stack", "link", "--repo", "acme/repo", "7", "8", "--run", second.run.id], runner);
+});
 test("delegated body edits in ready and merge runs authorize against lifecycle", async () => {
   const { runner } = fixture();
   for (const action of ["ready", "merge"]) {
     const started = await execute(["run", "start", "--pr", "7", "--action", action], runner) as { run: { id: string } };
     await assert.rejects(() => execute(["body", "7", "--run", started.run.id, "--file", "/missing/body.md"], runner), /ENOENT/);
   }
+});
+test("cleanup blocks foreign PRs and dirty worktrees", async () => {
+  const { runner: baseRunner } = fixture();
+  const mergeRun = await execute(["run", "start", "--pr", "7", "--action", "merge"], baseRunner) as { run: { id: string } };
+  const foreign: CommandRunner = async (command, args, env, cwd) => {
+    const result = await baseRunner(command, args, env, cwd);
+    if (command === "gh" && args[0] === "pr" && args[1] === "view" && !args.includes("number,url")) {
+      const value = JSON.parse(result.stdout) as Record<string, unknown>; value.author = { login: "foreign" };
+      return { ...result, stdout: JSON.stringify(value) };
+    }
+    return result;
+  };
+  await assert.rejects(() => execute(["cleanup", "7", "--run", mergeRun.run.id], foreign), /owner=other/);
+  const fork: CommandRunner = async (command, args, env, cwd) => {
+    const result = await baseRunner(command, args, env, cwd);
+    if (command === "gh" && args[0] === "pr" && args[1] === "view" && !args.includes("number,url")) {
+      const value = JSON.parse(result.stdout) as Record<string, unknown>; value.isCrossRepository = true;
+      return { ...result, stdout: JSON.stringify(value) };
+    }
+    return result;
+  };
+  await assert.rejects(() => execute(["cleanup", "7", "--run", mergeRun.run.id], fork), /owner=fork/);
+  const dirty: CommandRunner = async (command, args, env, cwd) => {
+    if (command === "git" && args[0] === "status" && args[1] === "--porcelain") return { ok: true, stdout: "?? lost.txt\\n", stderr: "" };
+    const result = await baseRunner(command, args, env, cwd);
+    if (command === "gh" && args[0] === "pr" && args[1] === "view" && !args.includes("number,url")) {
+      const value = JSON.parse(result.stdout) as Record<string, unknown>; value.state = "MERGED";
+      return { ...result, stdout: JSON.stringify(value) };
+    }
+    return result;
+  };
+  await assert.rejects(() => execute(["cleanup", "7", "--run", mergeRun.run.id], dirty), /working tree is dirty/);
 });
 test("cleanup blocks open PRs and runs for unrelated actions", async () => {
   const { runner } = fixture();

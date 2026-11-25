@@ -60,6 +60,11 @@ test("docs-only allows pre-existing format controls when no new occurrence is ad
   assert.equal((await check(fixture("A\u200D short note.\n", "A\u200D short note!\n"))).clean, true);
   assert.equal((await check(fixture("\uFEFFA short note.\n", "\uFEFFA short note!\n"))).clean, true);
 });
+test("docs-only rejects newly introduced variation selectors, combining grapheme joiner, braille blank, private-use, and surrogate characters", async () => {
+  for (const character of ["\uFE0F", "\u{E0100}", "\u034F", "\u2800", "\uE000", "\uD800"]) {
+    assert.equal((await check(fixture("A note.\n", `A note.${character}\n`))).clean, false, character);
+  }
+});
 test("docs-only rejects hidden format controls, tag characters, bare URL changes, and inline code changes", async () => {
   assert.equal((await check(fixture("A note.\n", "A no\u200Bte.\n"))).clean, false);
   assert.equal((await check(fixture("A note.\n", "A note.\u{E0001}\n"))).clean, false);

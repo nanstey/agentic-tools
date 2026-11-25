@@ -52,7 +52,10 @@ async function removeCapturedWorktree(executable: string, id: string, runner: Co
   return removed.ok ? { cleanup: `remove:${id}` } : { cleanup: `cleanup failed: ${removed.stderr || removed.stdout || "Orca remove failed"}` };
 }
 export async function cleanup(pr: Snapshot, runner: CommandRunner): Promise<{ cleanup: string }> {
+  if (pr.owner !== "own" || pr.fork) return blocked("post-merge cleanup", `owner=${pr.owner}, fork=${pr.fork}`, "an own, non-fork PR");
   const root = await targetRoot(runner);
+  const status = await invoke(runner, "git", ["status", "--porcelain"], { cwd: root });
+  if (status) return blocked("post-merge cleanup", `working tree is dirty: ${status}`, "a clean working tree before cleanup");
   const gitDir = await invoke(runner, "git", ["rev-parse", "--path-format=absolute", "--git-dir"], { cwd: root });
   const commonDir = await invoke(runner, "git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd: root });
   if (gitDir === commonDir) return { cleanup: "primary" };

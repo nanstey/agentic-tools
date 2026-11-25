@@ -77,9 +77,10 @@ function pagePullRequest(response: Record<string, unknown>): Record<string, unkn
   const pr = isRecord(data) && isRecord(data.repository) ? data.repository.pullRequest : undefined;
   return isRecord(pr) ? pr : null;
 }
-function mergePrPage(pr: Record<string, unknown>, merged: Record<string, unknown>, cursors: Record<string, string>, firstPage: boolean): boolean {
+export function mergePrPage(pr: Record<string, unknown>, merged: Record<string, unknown>, cursors: Record<string, string>, firstPage: boolean): boolean {
   let more = false;
   for (const [key, path] of Object.entries(COLLECTIONS)) {
+    if (!firstPage && !Object.hasOwn(cursors, `${key}Cursor`)) continue;
     const page = pageAt(pr, path);
     if (!firstPage) appendPage(merged, pr, path, page.nodes);
     if (page.pageInfo.hasNextPage) { cursors[`${key}Cursor`] = page.pageInfo.endCursor!; more = true; }

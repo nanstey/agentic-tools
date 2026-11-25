@@ -122,7 +122,7 @@ function compareProse(before: string, after: string, kind: FileResult["class"]):
 function introducedFormatControls(before: string, after: string): boolean {
   const counts = (text: string) => {
     const result = new Map<string, number>();
-    for (const character of text.match(/\p{Cf}|[\u{E0000}-\u{E007F}]/gu) ?? []) result.set(character, (result.get(character) ?? 0) + 1);
+    for (const character of text.match(/\p{Cf}|\p{Co}|\p{Cs}|[\u{E0000}-\u{E007F}\u{FE00}-\u{FE0F}\u{E0100}-\u{E01EF}\u{034F}\u{2800}]/gu) ?? []) result.set(character, (result.get(character) ?? 0) + 1);
     return result;
   };
   const oldCounts = counts(before);
