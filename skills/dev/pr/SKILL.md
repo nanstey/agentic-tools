@@ -8,26 +8,39 @@ disable-model-invocation: false
 # PR
 Route each action to its reference. Bare `/pr` runs the lifecycle; `/pr automerge [target]` also merges. Grammar: `/pr [action] [target] [mode] [force]`. Use one action, one target URL or number, an optional supported mode, and optional `force` where accepted.
 
-| Action | Reference | Purpose |
-| --- | --- | --- |
-| `info` | `info.md` | Resolve PR facts |
-| `create` | `create.md` | Open a PR |
-| `push` | `push.md` | Commit and publish |
-| `description` | `description.md` | Update PR body |
-| `screenshots` | `screenshots.md` | Add visual evidence |
-| `rebase` | `rebase.md` | Sync a branch |
-| `restack` | `restack.md` | Sync a dependent stack |
-| `split` | `split.md` | Split a PR |
-| `stack` | `stack.md` | Manage a native stack |
-| `ci` | `ci.md` | Fix or rerun checks |
-| `review` | `review.md` | Review and publish findings |
-| `comments` | `comments.md` | Address review threads |
-| `verification` | `verification.md` | Verify PR claims |
-| `ready` | `ready.md` | Mark ready |
-| `merge`, `automerge` | `merge.md` | Merge |
-| bare `/pr` | `lifecycle.md` | Run phases 0–9 |
-| shared rules | `policy.md` | Apply shared policy |
-| stored state | `state.md` | Read state identity and invalidation |
+### Actions
+
+Each action runs one lifecycle phase (see `lifecycle.md`), or stands alone where the phase is `—`.
+
+| Phase | Action | Reference | Purpose |
+| --- | --- | --- | --- |
+| 0–9 | bare `/pr` | `lifecycle.md` | Run the lifecycle |
+| 0–10 | `automerge` | `lifecycle.md`, `merge.md` | Run the lifecycle, then merge |
+| — | `info` | `info.md` | Resolve PR facts |
+| 1 Create | `create` | `create.md` | Open a PR |
+| 2 Publish | `push` | `push.md` | Commit and publish |
+| 3 Describe | `description` | `description.md` | Update PR body |
+| 3 Describe | `screenshots` | `screenshots.md` | Add visual evidence |
+| 4 Sync | `rebase` | `rebase.md` | Sync a branch |
+| 4 Sync | `restack` | `restack.md` | Sync a dependent stack |
+| 4 Sync | `stack` | `stack.md` | Manage a native stack |
+| — | `split` | `split.md` | Split a PR |
+| 5 CI | `ci` | `ci.md` | Fix or rerun checks |
+| 6 Review | `review` | `review.md` | Review and publish findings |
+| 7 Threads | `comments` | `comments.md` | Address review threads |
+| 8 Verify | `verification` | `verification.md` | Verify PR claims |
+| 9 Ready | `ready` | `ready.md` | Mark ready |
+| 10 Merge | `merge` | `merge.md` | Merge |
+
+### Shared rules and state
+
+These references are not actions; actions cite them for shared rules.
+
+| Reference | Purpose |
+| --- | --- |
+| `lifecycle.md` | Phase order, entry tests, transitions, and completion states |
+| `policy.md` | Mutation guards, force, round limit, review depth, required checks, blocked form, and disclosure |
+| `state.md` | Stored run state, packet identity, and invalidation |
 
 Reject an unknown action, more than one action word, an unsupported mode, extra mode words, or legacy `--` action flags. The only lifecycle skip word is `review`: it reuses an exact-matching packet and skips redundant self-review, never missing coverage. A target omitted by the invocation resolves from the current branch. Follow `CLAUDE.md`/`AGENTS.md` on conflict. The default tool is `gh`.
 
