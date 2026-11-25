@@ -5,58 +5,150 @@ argument-hint: "[info|create|push|description|screenshots|rebase|restack|split|s
 user-invocable: true
 disable-model-invocation: false
 ---
-
 # PR
+Route each action to its reference. Bare `/pr` runs the lifecycle; `/pr automerge [target]` also merges. Grammar: `/pr [action] [target] [mode] [force]`. Use one action, one target URL or number, an optional supported mode, and optional `force` where accepted.
 
-Every `/pr` run pushes the PR as far toward merge as it can. Bias to action: do the missing work, don't warn about it or refuse.
+### Actions
 
-## Lifecycle
+Each action runs one lifecycle phase (see `00-lifecycle.md`), or stands alone where the phase is `—`.
 
-Subcommands follow the order a PR moves through. Bare `/pr` detects the first unmet phase, runs it, re-snapshots, and continues through later phases. It skips satisfied phases and stops at merge-ready (see [`lifecycle.md`](references/lifecycle.md)).
+| Phase | Action | Reference | Purpose |
+| --- | --- | --- | --- |
+| 0–9 | bare `/pr` | `00-lifecycle.md` | Run the lifecycle |
+| 0–10 | `automerge` | `00-lifecycle.md`, `10-merge.md` | Run the lifecycle, then merge |
+| — | `info` | `info.md` | Resolve PR facts |
+| 1 Create | `create` | `01-create.md` | Open a PR |
+| 2 Publish | `push` | `02-push.md` | Commit and publish |
+| 3 Describe | `description` | `03-description.md` | Update PR body |
+| 3 Describe | `screenshots` | `03-screenshots.md` | Add visual evidence |
+| 4 Sync | `rebase` | `04-rebase.md` | Sync a branch |
+| 4 Sync | `restack` | `04-restack.md` | Sync a dependent stack |
+| 4 Sync | `stack` | `04-stack.md` | Manage a native stack |
+| — | `split` | `split.md` | Split a PR |
+| 5 CI | `ci` | `05-ci.md` | Fix or rerun checks |
+| 6 Review | `review` | `06-review.md` | Review and publish findings |
+| 7 Threads | `comments` | `07-comments.md` | Address review threads |
+| 8 Verify | `verification` | `08-verification.md` | Verify PR claims |
+| 9 Ready | `ready` | `09-ready.md` | Mark ready |
+| 10 Merge | `merge` | `10-merge.md` | Merge |
 
-| # | Phase | Goal | Subcommand | Reference |
+### Shared rules and state
+
+These references are not actions; actions cite them for shared rules.
+
+| Reference | Purpose |
+| --- | --- |
+| `00-lifecycle.md` | Phase order, entry tests, transitions, and completion states |
+| `_policy.md` | Mutation guards, force, round limit, review depth, required checks, blocked form, and disclosure |
+| `_state.md` | Stored run state, packet identity, and invalidation |
+
+Reject an unknown action, more than one action word, an unsupported mode, extra mode words, or legacy `--` action flags. The only lifecycle skip word is `review`: it reuses an exact-matching packet and skips redundant self-review, never missing coverage. A target omitted by the invocation resolves from the current branch. Follow `CLAUDE.md`/`AGENTS.md` on conflict. The default tool is `gh`.
+
+## Authorization
+Delegated phases authorize against the lifecycle row, or the automerge row for an automerge run.
+
+| Action | Mode | Own | Other | Fork |
 | --- | --- | --- | --- | --- |
-| 0 | Resolve | Find the PR, branch, and state | `/pr info [target]` | [`info.md`](references/info.md) |
-| 1 | Create | Open a draft PR with a real description | `/pr create [target]` | [`create.md`](references/create.md) |
-| 2 | Publish | Commit and push changes to the PR branch | `/pr push [target]` | [`push.md`](references/push.md) |
-| 3 | Describe | Body and screenshots match the head | `/pr description [target]`, `/pr screenshots [target]` | [`description.md`](references/description.md), [`screenshots.md`](references/screenshots.md) |
-| 4 | Sync | Current with base; stack in order | `/pr rebase [target]`, `/pr restack [target]`, `/pr stack [target-or-operation]`, `/pr split [target]` | [`rebase.md`](references/rebase.md), [`restack.md`](references/restack.md), [`stack.md`](references/stack.md), [`split.md`](references/split.md) |
-| 5 | CI | No required check failing or missing | `/pr ci [target]` | [`ci.md`](references/ci.md) |
-| 6 | Review | Quality and security review, depth scaled to the change | `/pr review [target] [fix\|comment\|report]` | [`review.md`](references/review.md) → `review-code` |
-| 7 | Threads | Review comments addressed | `/pr comments [target]` | [`comments.md`](references/comments.md) |
-| 8 | Verify | Claims have cited evidence | `/pr verification [target] [report\|fix\|comment]` | [`verification.md`](references/verification.md) |
-| 9 | Ready | Draft becomes ready for review | `/pr ready [target]` | [`ready.md`](references/ready.md) |
-| 10 | Merge | Squash-merge | `/pr merge [target] [force]` | [`merge.md`](references/merge.md) |
+| lifecycle | none | create-pr, convert-draft, convert-ready, rerun-check, rerequest, attach, edit-body, push, resolve-threads, post-comment, react | react | react |
+| lifecycle | fix | — | — | — |
+| lifecycle | comment | — | — | — |
+| lifecycle | report | — | — | — |
+| lifecycle | force | create-pr, convert-draft, convert-ready, rerun-check, rerequest, attach, edit-body, push, resolve-threads, post-comment, react | react | react |
+| info | none | — | — | — |
+| info | fix | — | — | — |
+| info | comment | — | — | — |
+| info | report | — | — | — |
+| info | force | — | — | — |
+| create | none | create-pr, edit-body | — | — |
+| create | fix | — | — | — |
+| create | comment | — | — | — |
+| create | report | — | — | — |
+| create | force | — | — | — |
+| push | none | push, edit-body, convert-draft | — | — |
+| push | fix | — | — | — |
+| push | comment | — | — | — |
+| push | report | — | — | — |
+| push | force | — | — | — |
+| description | none | edit-body, convert-draft | — | — |
+| description | fix | — | — | — |
+| description | comment | — | — | — |
+| description | report | — | — | — |
+| description | force | — | — | — |
+| screenshots | none | edit-body, attach, convert-draft | — | — |
+| screenshots | fix | — | — | — |
+| screenshots | comment | — | — | — |
+| screenshots | report | — | — | — |
+| screenshots | force | — | — | — |
+| rebase | none | push, edit-body, convert-draft | — | — |
+| rebase | fix | — | — | — |
+| rebase | comment | — | — | — |
+| rebase | report | — | — | — |
+| rebase | force | — | — | — |
+| restack | none | push, edit-body, convert-draft | — | — |
+| restack | fix | — | — | — |
+| restack | comment | — | — | — |
+| restack | report | — | — | — |
+| restack | force | — | — | — |
+| split | none | push, edit-body, create-pr, convert-draft | — | — |
+| split | fix | — | — | — |
+| split | comment | — | — | — |
+| split | report | — | — | — |
+| split | force | — | — | — |
+| stack | none | push, edit-body, create-pr, stack-link, convert-draft | — | — |
+| stack | fix | — | — | — |
+| stack | comment | — | — | — |
+| stack | report | — | — | — |
+| stack | force | — | — | — |
+| ci | none | push, edit-body, rerun-check, convert-draft | — | — |
+| ci | fix | — | — | — |
+| ci | comment | — | — | — |
+| ci | report | — | — | — |
+| ci | force | — | — | — |
+| review | none | — | post-review, react | post-review, react |
+| review | fix | push, edit-body, convert-draft | — | — |
+| review | comment | — | post-review, react | post-review, react |
+| review | report | — | — | — |
+| review | force | — | — | — |
+| comments | none | push, post-comment, resolve-threads, rerequest, edit-body, convert-draft | — | — |
+| comments | fix | — | — | — |
+| comments | comment | — | — | — |
+| comments | report | — | — | — |
+| comments | force | — | — | — |
+| verification | none | — | — | — |
+| verification | fix | edit-body, push, convert-draft | — | — |
+| verification | comment | — | post-comment | post-comment |
+| verification | report | — | — | — |
+| verification | force | — | — | — |
+| ready | none | convert-ready | — | — |
+| ready | fix | — | — | — |
+| ready | comment | — | — | — |
+| ready | report | — | — | — |
+| ready | force | convert-ready | — | — |
+| merge | none | merge | — | — |
+| merge | fix | — | — | — |
+| merge | comment | — | — | — |
+| merge | report | — | — | — |
+| merge | force | merge | — | — |
+| automerge | none | create-pr, convert-draft, convert-ready, rerun-check, rerequest, attach, edit-body, push, resolve-threads, post-comment, react, merge | — | — |
+| automerge | fix | — | — | — |
+| automerge | comment | — | — | — |
+| automerge | report | — | — | — |
+| automerge | force | create-pr, convert-draft, convert-ready, rerun-check, rerequest, attach, edit-body, push, resolve-threads, post-comment, react, merge | — | — |
 
-`/pr` runs phases 0–9 and stops at merge-ready. `/pr automerge [target]` (the expected command to run the full lifecycle and merge when ready) runs the same lifecycle, then phase 10. After a confirmed merge, `/pr automerge` and `/pr merge` automatically remove the current Orca-managed linked worktree, ending this session by design; report `skipped (Orca unavailable)` or `skipped (outside Orca)` before ending when applicable, and report every other cleanup failure, as specified in [`merge.md`](references/merge.md). Both load [`lifecycle.md`](references/lifecycle.md). Every other action loads exactly its mapped reference.
+## Decision ladder
+Never ask the user a question or wait for approval. Choose explicit input, repository policy, documented default, then judgment:
 
-Reject an unknown action, more than one action word, or legacy `--` action flags. A supplied PR URL or number is the target; otherwise references resolve the current branch. Follow `CLAUDE.md` / `AGENTS.md` on conflict. Default GitHub tool is `gh`.
+1. Explicit invocation or user input.
+2. Repository instructions, PR templates, and `CONTRIBUTING*` guidance.
+3. The dispatched reference's documented default.
+4. Reversible judgment that moves the PR toward merge. Record the choice.
+5. Stop as `blocked` only when no workaround exists or the action is destructive or hard to reverse and the invocation did not name it.
 
-## Act, Don't Refuse
+An unmet gate is work to do. Run its phase instead of reporting and waiting. Destructive extras, including branch pruning, stack dissolution, and operation aborts, run only when named by the invocation. References that say stop mean report `blocked`, never ask. Follow the force and gate policy in `_policy.md`.
 
-- An unmet gate is work to do. Run the phase that satisfies it (missing review: review; failing CI: fix; behind base: rebase; draft: ready). Do not report it and wait.
-- Stop only when no workaround exists: no PR, no auth or access, a product decision the evidence cannot settle, or a destructive action the invocation did not name. Report what is left, in the `gates.md` blocked form.
-- The user can always push forward. `force` (accepted by bare `/pr`, `automerge`, `ready`, and `merge`; other actions ignore it) overrides every soft gate in [`gates.md`](references/gates.md): run the action with the gaps recorded, not fixed. `/pr merge force` merges even when CI, review, threads, or approvals are incomplete.
-- `force` never invents evidence. Record each overridden gate in the output so the result stays honest.
+## Scripts and output
+`pr` means `node <skill-dir>/scripts/pr.ts`. Run `pr <subcommand> [args]`. Begin each top-level invocation with `run start --pr <PR-URL-or-number> --action <action> [--mode <mode>] [--force]`. It returns a run id; pass `--run <id>` to the phases and delegates. Do not start a nested run. `run get`, `run update`, and `run end` inspect or update that run.
 
-## Shared Rules
+Other subcommands include `snapshot [target]`, `next [target] [--run <id>] [--judged <test>=pass|fail]` (without a PR, selects phase 1 Create), `authorize <action> [mode]`, `packet put|get`, `react add|remove <target> --run <id>`, `review post`, `thread reply <target> --thread <id> --body-file <file> --run <id>`, `thread resolve <target> --thread <id> --run <id>`, `checks inventory|rerun-cancelled|wait`, `stack probe --repo <owner/repo>|link|collapse-check`, `guard`, `draft`, `push`, `threads`, `rerequest`, `body`, `attach`, `merge [target] --run <id> --required <check...> [--no-required-checks --policy-proof <text>] [--force]`, `cleanup`, `marker`, `disclosure`, and `docs-only <base> <head> --run <id> --pr <target> --skill-dir <path>`. See the relevant reference for exact arguments.
 
-Load every referenced workflow before acting. [`gates.md`](references/gates.md) owns evidence, review depth scaling, finding categories, the force override, and the per-invocation five-round fix limit. Delegates inside an invocation share that limit; separate invocations do not carry it. Never reset it mid-invocation or start nested review loops.
-
-`/pr review` delegates code review to `review-code` and keeps PR actions and round-state ownership. It is report-only for the viewer's own PR; for another author's PR, invocation authorizes source-verified review publication under [`review.md`](references/review.md). `/pr verification` defaults to report and audits the description and screenshots without starting review loops. PR bodies never contain the agent author disclosure; apply it only to comments, review bodies, inline comments, and thread replies under [`disclosure.md`](references/disclosure.md).
-
-## Non-Interactive Policy
-
-Never ask the user a question or wait for approval. Resolve every decision in this order:
-
-1. An explicit input in the invocation or the user's request.
-2. Repository instructions (`CLAUDE.md` / `AGENTS.md`, PR templates, `CONTRIBUTING*`).
-3. The documented default in the dispatched reference.
-4. Best judgment: the option that moves the PR toward merge and is reversible. Record it.
-5. Stop as `blocked` only when the action would be destructive or hard to reverse and the invocation did not name it, or no workaround exists.
-
-Invoking an action authorizes the mutations it declares. Destructive extras (pruning branches, dissolving a stack, aborting an operation) run only when the invocation names them. References that say "stop" mean a `blocked` report, never a question.
-
-## Output Behavior
-
-Report the action, resolved target, phases run, outcome, what remains to reach merge, and any overridden gates. Bare `/pr` and `automerge` also report the review verdict/head and required-CI state.
+Scripts return one JSON object, or a nonzero error with the blocked form. Mutations require the run id. Report the action, target, phases run, run id, outcome, remaining work, and overrides. Bare `/pr` and `automerge` also report the review verdict and head, plus required-CI state.

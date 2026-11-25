@@ -50,7 +50,7 @@ Every review prflow asks for is a full `review-code` review. A self-review is no
 
 - You are the `review-code` coordinator. Dispatch each row the chosen depth requires (at `standard`: `risk-review`, `refactor`, `security`, `bugs`, and `context-engineering` when it applies), then the candidate verifier, each as its own foreground `Agent` child, as `review-code` and `/pr review` describe. Also dispatch the validator; it is advisory and reuses existing CI evidence.
 - Never do a row's work yourself instead of dispatching it, and never skip rows to save time or cost. Your own reading of the diff is input for the children, not coverage.
-- Pick the depth from the `pr` skill's `references/gates.md`, but never `skip`: use at least `standard`, except `light` for a later head whose delta since an earlier draft with `Coverage: complete` is trivial. The depth sets which rows are required.
+- Pick the depth from the `pr` skill's `references/_policy.md`, but never `skip`: use at least `standard`, except `light` for a later head whose delta since an earlier draft with `Coverage: complete` is trivial. The depth sets which rows are required.
 - Follow your system prompt's model routing for each `Agent` call. If a call is refused or a child fails, correct the call and retry it once.
 - If a required row or the candidate verifier still cannot run, or you have no `Agent` tool, this is a failure: do not fill the gap yourself. Finish the packet as `incomplete`, write `Coverage: incomplete (...)` naming each missing row and the error, use Verdict `comment`, and say so first in your reply.
 

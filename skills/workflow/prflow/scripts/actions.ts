@@ -17,7 +17,7 @@ import { deleteBranchArgs, safeBranch } from "./adapters/git.ts";
 import { archiveArgs, isBusy, isReviewBranch, parseAgents, parseTerminals, parseWorktrees, piSessions } from "./adapters/orca.ts";
 import { classifyWorktree } from "./core/classify.ts";
 import { leaseUntil } from "./core/rails.ts";
-import type { Classification, Kind, WorktreeItem } from "./core/types.ts";
+import type { Classification, Kind, WorktreeItem } from "../../../../lib/pr/types.ts";
 import { beginDispatch, finishDispatch, legacyHandled, type TickContext } from "./dispatch.ts";
 import type { ScanResult } from "./scan.ts";
 import type { Dispatch, Store } from "./store.ts";

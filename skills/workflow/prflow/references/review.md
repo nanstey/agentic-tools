@@ -33,7 +33,7 @@ packet `incomplete` and every publication a `COMMENT`.
 
 ## Posting
 
-prflow only stores and shows drafts. The reviewer runs `/pr review <pr_url> report` to produce the packet; publication happens by running `/pr review <pr_url>` as the draft's account and passing the draft's `## Packet` section as the matching packet. The `pr` skill owns freshness checks, event selection, disclosure, deduplication, and the GitHub write. See the `pr` skill's `references/review.md`.
+prflow only stores and shows drafts. The reviewer runs `/pr review <pr_url> report` to produce the packet; publication happens by running `/pr review <pr_url>` as the draft's account and passing the draft's `## Packet` section as the matching packet. The `pr` skill owns freshness checks, event selection, disclosure, deduplication, and the GitHub write. See the `pr` skill's `references/06-review.md`.
 
 Draft status is read from the PR's existing review snapshot: a draft is posted when its account has a submitted, non-pending review at the reviewed commit, or at a later current PR head in a review submitted since the draft was created. `review list` and `review show` perform read-only GitHub reads to report this status. If one PR cannot be read, `review list` reports `posted: unknown (<short error>)` for that row and continues. `review show` reports a read error rather than guessing.
 

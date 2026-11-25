@@ -1,0 +1,7 @@
+{
+  "name": "pr",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22.18.0" },
+  "scripts": { "test": "tsc --noEmit -p . && node --test tests/*.test.ts" }
+}

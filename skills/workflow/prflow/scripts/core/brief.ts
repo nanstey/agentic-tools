@@ -5,7 +5,7 @@
 import type { BriefFacts, FeedbackNote } from "../adapters/gh.ts";
 import { informationalApproval } from "./classify.ts";
 import type { ProjectContext } from "./config.ts";
-import type { Actor } from "./types.ts";
+import type { Actor } from "../../../../../lib/pr/types.ts";
 
 export type BriefKind = "ci" | "comments" | "behind" | "nudge" | "restart" | "review" | "review-nudge";
 export const BRIEF_KINDS: readonly BriefKind[] = ["ci", "comments", "behind", "nudge", "restart", "review", "review-nudge"];

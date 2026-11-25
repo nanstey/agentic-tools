@@ -53,7 +53,7 @@ import { summarizeChecks } from "./core/classify.ts";
 import { checkState } from "../../../../lib/pr-state.ts";
 import { projectFor, type Config } from "./core/config.ts";
 import { leaseExpired, leaseUntil, MINUTE_MS } from "./core/rails.ts";
-import type { Classification, Kind, PrSnapshot } from "./core/types.ts";
+import type { Classification, Kind, PrSnapshot } from "../../../../lib/pr/types.ts";
 import { beginDispatch, finishDispatch, type TickContext } from "./dispatch.ts";
 import type { ScanResult } from "./scan.ts";
 import type { Dispatch, Store } from "./store.ts";

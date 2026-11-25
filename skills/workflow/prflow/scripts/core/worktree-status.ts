@@ -7,7 +7,7 @@
  */
 import { checkState, prColumn } from "../../../../../lib/pr-state.ts";
 import { unansweredFeedback } from "./classify.ts";
-import type { PrSnapshot } from "./types.ts";
+import type { PrSnapshot } from "../../../../../lib/pr/types.ts";
 
 export type Column = "in-progress" | "needs-attention" | "in-review" | "done";
 

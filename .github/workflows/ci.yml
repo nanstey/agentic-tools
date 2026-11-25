@@ -34,6 +34,8 @@ jobs:
             run: bash harness/pi/tests/package-patches.test.sh
           - name: pi-improve
             run: bash harness/pi/tests/pi-improve.test.sh
+          - name: pr
+            run: npm ci && npm test --workspace=skills/dev/pr
           - name: prflow
             run: npm ci && npm test --workspace=skills/workflow/prflow
           - name: repo-sync

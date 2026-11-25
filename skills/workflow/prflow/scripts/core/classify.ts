@@ -1,76 +1,20 @@
 import { createHash } from "node:crypto";
-import { checkState } from "../../../../../lib/pr-state.ts";
+import { informationalApproval, summarizeChecks, unansweredFeedback } from "../../../../../lib/pr/facts.ts";
+export { jobId, summarizeChecks, unansweredFeedback } from "../../../../../lib/pr/facts.ts";
 import {
   KIND_PRIORITY,
   type Actor,
-  type Check,
   type Classification,
   type Kind,
   type PrSnapshot,
   type Review,
   type Trigger,
   type WorktreeItem,
-} from "./types.ts";
+} from "../../../../../lib/pr/types.ts";
 
-export interface CheckSummary {
-  pending: boolean;
-  /** Failed job ids. */
-  failed: string[];
-  cancelled: string[];
-  total: number;
-  requiredPending: number;
-}
-
-/** Job id: last URL path segment, else the check name. */
-export function jobId(url: string | null, name: string): string {
-  return (url ?? "").replace(/.*\//, "") || name;
-}
-
-/**
- * Summarize checks. Every check counts the same; repo-specific caveats belong in
- * each repo's docs.
- */
-export function summarizeChecks(checks: Check[]): CheckSummary {
-  const s: CheckSummary = {
-    pending: false,
-    failed: [],
-    cancelled: [],
-    total: checks.length,
-    requiredPending: 0,
-  };
-  for (const c of checks) {
-    const state = c.typename === "CheckRun"
-      ? checkState({ __typename: "CheckRun", status: c.status, conclusion: c.conclusion })
-      : checkState({ __typename: "StatusContext", state: c.state });
-    if (state === "pending") {
-      s.pending = true;
-      if (c.isRequired) s.requiredPending++;
-      continue;
-    }
-    const id = jobId(c.url, c.name);
-    if (state === "fail") s.failed.push(id);
-    else if (state === "cancelled") s.cancelled.push(id);
-  }
-  return s;
-}
-
-const human = (a: Actor, me: string): boolean =>
-  a !== null && a.typename !== "Bot" && a.login !== me;
+const human = (a: Actor, me: string): boolean => a !== null && a.typename !== "Bot" && a.login !== me;
 const mine = (a: Actor, me: string): boolean => a !== null && a.login === me;
-
-const maxOf = (xs: string[]): string => xs.reduce((m, x) => (x > m ? x : m));
-
-/** Words in a review body that ask for changes, even under an approval. */
-const CHANGES_ASKED = /\bchanges?\s+(?:needed|requested|required)\b|\brequest(?:ed|ing)?\s+changes\b|\bplease\s+(?:fix|change|address)\b/i;
-
-/**
- * An approval whose body asks for no changes is informational: it never
- * triggers `comments`. Its body is shown on the report row instead
- * (`approvalNotes`). Unresolved threads still trigger on their own.
- */
-export function informationalApproval(r: Review): boolean {
-  return r.state === "APPROVED" && !CHANGES_ASKED.test(r.body);
-}
+export { informationalApproval } from "../../../../../lib/pr/facts.ts";
 
 /** Review body as one line: no HTML comments, no GitHub alert blocks (`> [!NOTE]`), collapsed whitespace. */
 export function cleanBody(body: string): string {
@@ -108,34 +52,6 @@ export function approvalNotes(pr: PrSnapshot, me: string): string[] {
     if (informationalApproval(r) && text) notes.push(`approved by ${login} ${(r.at ?? "").slice(0, 16).replace("T", " ")}Z: ${clip(text, 400)}`);
   }
   return notes.sort();
-}
-
-/**
- * Latest unanswered human feedback newer than the head commit, or `null`.
- * Timestamps compare as ISO strings. Pending reviews (null timestamp) are ignored.
- */
-export function unansweredFeedback(pr: PrSnapshot, me: string): string | null {
-  const ours: string[] = [];
-  const theirs: string[] = [];
-  for (const c of pr.comments) {
-    if (human(c.author, me)) theirs.push(c.at);
-    else if (mine(c.author, me)) ours.push(c.at);
-  }
-  for (const r of pr.reviews) {
-    if (r.at === null) continue;
-    if (human(r.author, me) && !informationalApproval(r) && (r.body !== "" || r.state === "CHANGES_REQUESTED"))
-      theirs.push(r.at);
-    else if (mine(r.author, me)) ours.push(r.at);
-  }
-  for (const t of pr.threads) {
-    const last = t.comments.at(-1);
-    if (!t.isResolved && last && human(last.author, me)) theirs.push(last.at);
-  }
-  const newer = theirs.filter((t) => t > pr.headCommittedDate);
-  if (newer.length === 0) return null;
-  const latest = maxOf(newer);
-  if (ours.length > 0 && maxOf(ours) > latest) return null;
-  return latest;
 }
 
 /** Every trigger that fires for an own PR, in a fixed order. */

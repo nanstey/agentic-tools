@@ -1,0 +1,92 @@
+import { invoke, blocked, type Clock, type CommandRunner } from "../core/runner.ts";
+import { refresh, targetRoot, type Snapshot } from "../core/resolve.ts";
+import { finishRun } from "../core/run.ts";
+import { waitChecks } from "./05-checks.ts";
+import { option, boolean, list } from "../cli/args.ts";
+import { changeRun, getRun } from "../core/run.ts";
+import type { MutationContext } from "../core/commands.ts";
+export function squashSubject(title: string, number: number): string { const suffix = ` (#${number})`; return title.endsWith(suffix) ? title : `${title}${suffix}`; }
+async function viewerIsAdmin(pr: Snapshot, runner: CommandRunner): Promise<boolean> {
+  const result = await invoke(runner, "gh", ["repo", "view", pr.repo, "--json", "viewerPermission"]);
+  try { return (JSON.parse(result) as { viewerPermission?: string }).viewerPermission === "ADMIN"; }
+  catch { return blocked("repository permission", "invalid viewer permission response", "verified ADMIN permission"); }
+}
+async function checkMergeGates(pr: Snapshot, required: string[], force: boolean, noRequiredChecks: boolean, policyProof: string | undefined, runner: CommandRunner, clock: Clock): ReturnType<typeof waitChecks> {
+  if (noRequiredChecks) {
+    if (required.length || !policyProof?.trim()) return blocked("required checks", "--no-required-checks requires --policy-proof <text> and no --required entries", "an explicit trusted-policy reason that proves no checks are required");
+    return Promise.resolve({ status: "passed" as const, checks: [] });
+  }
+  if (!required.length) return blocked("required checks", "no required checks supplied", "agent-provided required check list or verified policy proof");
+  return waitChecks(pr, required, 30 * 60_000, force, runner, clock);
+}
+async function runGhMerge(pr: Snapshot, subject: string, force: boolean, runner: CommandRunner): Promise<void> {
+  const args = ["pr", "merge", String(pr.number), "--repo", pr.repo, "--squash", "--subject", subject, "--body", "", "--match-head-commit", pr.headRefOid];
+  try { await invoke(runner, "gh", args, { write: "merge" }); }
+  catch (error) {
+    if (!force || !/branch protection|protected branch/i.test(String(error)) || !(await viewerIsAdmin(pr, runner))) throw error;
+    await invoke(runner, "gh", [...args, "--admin"], { write: "merge" });
+  }
+}
+export async function merge(pr: Snapshot, runId: string, force: boolean, required: string[], runner: CommandRunner, clock: Clock, noRequiredChecks = false, policyProof?: string): Promise<unknown> {
+  if (pr.stack) return blocked("native stack", "stack members merge only in the GitHub web UI", pr.url);
+  const checks = await checkMergeGates(pr, required, force, noRequiredChecks, policyProof, runner, clock);
+  if (["pending", "failed", "needs_policy_proof"].includes(checks.status)) return { status: checks.status, ...(checks.checks ? { checks: checks.checks } : {}), ...(checks.needs_policy_proof ? { needs_policy_proof: checks.needs_policy_proof } : {}) };
+  const subject = squashSubject(pr.title, pr.number);
+  await runGhMerge(pr, subject, force, runner);
+  const final = await refresh(pr, runner);
+  if (final.state !== "MERGED") return { status: "queued", subject, url: pr.url };
+  finishRun(pr, runId, "merged");
+  return { status: "merged", subject, overridden: checks.overridden ?? [] };
+}
+function orcaExecutable(): string {
+  return process.env.ORCA_CLI_COMMAND ?? (process.env.ORCA_DEV_REPO_ROOT ? "orca-dev" : process.platform === "linux" ? "orca-ide" : "orca");
+}
+function parseCurrentWorktree(stdout: string): string | { error: string } {
+  let value: unknown;
+  try { value = JSON.parse(stdout) as unknown; } catch { return { error: "invalid Orca response" }; }
+  if (!value || typeof value !== "object") return { error: "invalid Orca response" };
+  const worktree = (value as { result?: { worktree?: { id?: unknown; isMainWorktree?: unknown } } }).result?.worktree;
+  if (worktree?.isMainWorktree !== false || typeof worktree.id !== "string") return { error: "invalid Orca current worktree response" };
+  return worktree.id;
+}
+async function removeCapturedWorktree(executable: string, id: string, runner: CommandRunner): Promise<{ cleanup: string }> {
+  const selector = `id:${id}`; const root = await targetRoot(runner);
+  const removed = await runner(executable, ["worktree", "rm", "--worktree", selector, "--force", "--json"], process.env, root);
+  return removed.ok ? { cleanup: `remove:${id}` } : { cleanup: `cleanup failed: ${removed.stderr || removed.stdout || "Orca remove failed"}` };
+}
+export async function cleanup(pr: Snapshot, runner: CommandRunner): Promise<{ cleanup: string }> {
+  if (pr.owner !== "own" || pr.fork) return blocked("post-merge cleanup", `owner=${pr.owner}, fork=${pr.fork}`, "an own, non-fork PR");
+  const root = await targetRoot(runner);
+  const status = await invoke(runner, "git", ["status", "--porcelain"], { cwd: root });
+  if (status) return blocked("post-merge cleanup", `working tree is dirty: ${status}`, "a clean working tree before cleanup");
+  const gitDir = await invoke(runner, "git", ["rev-parse", "--path-format=absolute", "--git-dir"], { cwd: root });
+  const commonDir = await invoke(runner, "git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd: root });
+  if (gitDir === commonDir) return { cleanup: "primary" };
+  const executable = orcaExecutable();
+  if (!(await runner(executable, ["--version"], process.env, root)).ok) return { cleanup: "skipped (Orca unavailable)" };
+  const current = await runner(executable, ["worktree", "current", "--json"], process.env, root);
+  if (!current.ok) return /selector_not_found/.test(current.stdout) ? { cleanup: "skipped (outside Orca)" } : { cleanup: `cleanup failed: ${current.stderr || current.stdout || "Orca current failed"}` };
+  const worktree = parseCurrentWorktree(current.stdout);
+  if (typeof worktree !== "string") return { cleanup: `cleanup failed: ${worktree.error}` };
+  return removeCapturedWorktree(executable, worktree, runner);
+}
+
+export async function mergeCommand({ args, pr, runId, runner, clock }: MutationContext): Promise<unknown> {
+      const noRequiredChecks = boolean(args, "--no-required-checks"); const proof = option(args, "--policy-proof");
+      if (noRequiredChecks && !proof?.trim()) return blocked("required checks", "--no-required-checks requires --policy-proof <text>", "an explicit trusted-policy reason");
+      if (noRequiredChecks) changeRun(pr, runId!, (run) => { run.policyProof = proof!.trim(); });
+      return merge(pr, runId!, boolean(args, "--force"), list(args, "--required"), runner, clock, noRequiredChecks, proof);
+}
+export async function cleanupCommand({ pr, runId, runner }: MutationContext): Promise<unknown> {
+  const id = runId!;
+  if (pr.owner !== "own" || pr.fork) return blocked("post-merge cleanup", `owner=${pr.owner}, fork=${pr.fork}`, "an own, non-fork PR");
+  const run = getRun(pr, id);
+  if (!["merge", "automerge", "lifecycle"].includes(run.action)) return blocked("post-merge cleanup", `action=${run.action}`, "a merge, automerge, or lifecycle run");
+  const root = await targetRoot(runner);
+  const branch = await invoke(runner, "git", ["branch", "--show-current"], { cwd: root });
+  const head = await invoke(runner, "git", ["rev-parse", "HEAD"], { cwd: root });
+  const status = await invoke(runner, "git", ["status", "--porcelain"], { cwd: root });
+  if (status) return blocked("post-merge cleanup", `working tree is dirty: ${status}`, "a clean working tree before cleanup");
+  if (pr.state.toUpperCase() !== "MERGED" || branch !== pr.headRefName || head !== pr.headRefOid) return blocked("post-merge cleanup", `state=${pr.state}, branch=${branch}, HEAD=${head}`, "merged PR and current branch HEAD matching the PR head");
+  return cleanup(pr, runner);
+}

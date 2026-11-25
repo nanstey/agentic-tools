@@ -1,6 +1,9 @@
 import { classify, classifyWorktree } from "./core/classify.ts";
+import { readPrStore, summarizePrStore, type PrStateSummary } from "../../../../lib/pr/store.ts";
+import { join } from "node:path";
+import { existsSync } from "node:fs";
 import { accountFor, type Account, type Config } from "./core/config.ts";
-import type { Classification, PrSnapshot, Role, WorktreeItem } from "./core/types.ts";
+import type { Classification, PrSnapshot, Role, WorktreeItem } from "../../../../lib/pr/types.ts";
 import { parsePr, parsePrRefs, parseSearch, prArgs, type SearchHit } from "./adapters/gh.ts";
 import { isReviewBranch, parseWorktrees, repoFromPrUrl } from "./adapters/orca.ts";
 
@@ -15,10 +18,14 @@ export interface Deps {
   orcaWorktrees(): Promise<string>;
   /** Uncommitted file count in a worktree, `null` when unknown. */
   gitDirty(path: string): Promise<number | null>;
+  /** Optional shared PR state directory. Omit to keep isolated fixture scans state-free. */
+  prStateDir?: string;
 }
 
+export interface ScannedPr extends PrSnapshot { runState?: PrStateSummary }
+
 export interface ScanResult {
-  prs: PrSnapshot[];
+  prs: ScannedPr[];
   worktrees: WorktreeItem[];
   errors: string[];
 }
@@ -146,12 +153,21 @@ export async function scan(deps: Deps, cfg: Config): Promise<ScanResult> {
     seen.add(k);
     return true;
   });
-  const prs = await Promise.all(jobs.map((j) => fetchPr(deps, j, errors)));
-  return { prs: prs.filter((p): p is PrSnapshot => p !== null), worktrees, errors };
+  const fetched = await Promise.all(jobs.map((j) => fetchPr(deps, j, errors)));
+  const prs: ScannedPr[] = fetched.filter((p): p is PrSnapshot => p !== null);
+  if (deps.prStateDir) for (const pr of prs) {
+    const [owner, repo] = pr.repo.split("/");
+    try {
+      const identity = { owner: owner!, repo: repo!, number: pr.number };
+      const path = join(deps.prStateDir, `${identity.owner}-${identity.repo}-${identity.number}.json`);
+      if (existsSync(path)) pr.runState = summarizePrStore(readPrStore(path, identity), pr.headSha);
+    } catch (e) { console.warn(`${pr.repo}#${pr.number}: cannot read optional PR state: ${(e as Error).message}`); }
+  }
+  return { prs, worktrees, errors };
 }
 
 export function plan(result: ScanResult): Classification[] {
-  const items = result.prs.map((p) => classify(p, p.account));
+  const items = result.prs.map((p) => ({ ...classify(p, p.account), ...(p.runState ? { runState: p.runState } : {}) }));
   for (const w of result.worktrees) {
     const c = classifyWorktree(w);
     if (c) items.push(c);
