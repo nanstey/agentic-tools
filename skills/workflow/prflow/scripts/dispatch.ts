@@ -11,7 +11,7 @@ import type { Rails } from "./core/config.ts";
 import type { EventInput } from "./core/events.ts";
 import { legacyCovers } from "./core/legacy.ts";
 import { capWindow, checkStart, DAY_MS, HOUR_MS, isOpen, leaseExpired, type DispatchState } from "./core/rails.ts";
-import type { Kind } from "./core/types.ts";
+import type { Kind } from "../../../../lib/pr/types.ts";
 import type { Dispatch, Store } from "./store.ts";
 
 export interface TickContext {

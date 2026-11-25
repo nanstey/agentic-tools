@@ -1,5 +1,5 @@
 import { rank } from "./classify.ts";
-import type { Classification, Kind } from "./types.ts";
+import type { Classification, Kind } from "../../../../../lib/pr/types.ts";
 
 /** Report groups, most urgent first. Phase 1 has no sessions, so "In flight" is always empty. */
 export const GROUPS: readonly { title: string; kinds: readonly Kind[] }[] = [
@@ -24,7 +24,8 @@ export function row(c: Classification, showAccount = false, changed: string | nu
   const acct = showAccount ? ` | account: ${c.account}` : "";
   const notes = (c.notes ?? []).map((n) => ` | note: ${n}`).join("");
   const diff = changed ? ` | changed: ${changed}` : "";
-  return `- ${c.repo}#${c.number} ${JSON.stringify(c.title)} | ${c.kind}: ${c.status}${diff} | next: ${c.nextAction} | owner: ${c.owner}${acct}${notes}`;
+  const runState = c.runState ? ` | pr: packet=${c.runState.packetVerdict ?? "none"}@${c.runState.packetHead ?? "none"} rounds=${c.runState.roundsUsed} completion=${c.runState.lastCompletion ?? "none"}` : "";
+  return `- ${c.repo}#${c.number} ${JSON.stringify(c.title)} | ${c.kind}: ${c.status}${diff} | next: ${c.nextAction} | owner: ${c.owner}${acct}${notes}${runState}`;
 }
 
 /**

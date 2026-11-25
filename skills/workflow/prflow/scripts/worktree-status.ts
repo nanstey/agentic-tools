@@ -15,7 +15,7 @@ import { isReviewWorktree, parseAgents, parseWorktrees, type AgentRow, type Orca
 import { once } from "./actions.ts";
 import { accountFor, type Config } from "./core/config.ts";
 import { isIgnored, worktreeColumn, type Column } from "./core/worktree-status.ts";
-import type { PrSnapshot } from "./core/types.ts";
+import type { PrSnapshot } from "../../../../lib/pr/types.ts";
 import type { TickContext } from "./dispatch.ts";
 import type { ScanResult } from "./scan.ts";
 import type { Dispatch, Store } from "./store.ts";

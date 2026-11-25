@@ -2,7 +2,7 @@
  * `prflow watch`: change detection for any scheduler (cron, systemd timers, agent
  * schedulers). Pure; the CLI reads and writes the state file.
  */
-import type { Classification } from "./types.ts";
+import type { Classification } from "../../../../../lib/pr/types.ts";
 
 export interface WatchDecision {
   /** Text for stdout; empty means stay silent. */

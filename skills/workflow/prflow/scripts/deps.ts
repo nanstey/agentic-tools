@@ -1,4 +1,4 @@
-import { run as runProcess, withoutTokens } from "../../../../lib/runtime.ts";
+import { defaultStateDir, run as runProcess, withoutTokens } from "../../../../lib/runtime.ts";
 import { blockedStatePath, clearBlocked, readBlocked } from "../../../../lib/blocked.ts";
 import type { CmdResult } from "../../../../lib/runtime.ts";
 import { assertReadOnly } from "./adapters/gh.ts";
@@ -91,6 +91,7 @@ export function realDeps(): RealDeps {
       childTimeoutMs = ms;
     },
     gh,
+    prStateDir: defaultStateDir("agentic-tools/pr"),
     async orcaWorktrees() {
       const r = await orca(worktreeListArgs());
       if (!r.ok) throw new Error(r.stderr.trim());

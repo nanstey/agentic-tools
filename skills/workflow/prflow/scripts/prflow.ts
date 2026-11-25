@@ -7,7 +7,7 @@ import { readOrNull } from "../../../../lib/runtime.ts";
 import { summarizeChecks, version } from "./core/classify.ts";
 import { renderPlanJson, renderReport, sortItems } from "./core/report.ts";
 import { accountFor } from "./core/config.ts";
-import type { PrSnapshot } from "./core/types.ts";
+import type { ScannedPr } from "./scan.ts";
 import { parsePr, prArgs } from "./adapters/gh.ts";
 import { realDeps, type RealDeps } from "./deps.ts";
 import type { DraftMeta } from "./core/draft.ts";
@@ -118,11 +118,12 @@ Options:
                              them, even when the config enables them
   -h, --help                 Show this help`;
 
-function scanLine(p: PrSnapshot): string {
+function scanLine(p: ScannedPr): string {
   const s = summarizeChecks(p.checks);
   const unresolved = p.threads.filter((t) => !t.isResolved).length;
   const checks = `checks=${s.total}${s.pending ? " pending" : ""}${s.failed.length ? ` failed=${s.failed.length}` : ""}${s.cancelled.length ? ` cancelled=${s.cancelled.length}` : ""}`;
-  return `${p.repo}#${p.number} ${p.role} account=${p.account} v=${version(p)} draft=${p.isDraft} merge=${p.mergeStateStatus} review=${p.reviewDecision ?? "NONE"} ${checks} unresolved=${unresolved} ${JSON.stringify(p.title)}`;
+  const state = p.runState ? ` packet=${p.runState.packetVerdict ?? "none"}@${p.runState.packetHead ?? "none"} rounds=${p.runState.roundsUsed} completion=${p.runState.lastCompletion ?? "none"}` : "";
+  return `${p.repo}#${p.number} ${p.role} account=${p.account} v=${version(p)} draft=${p.isDraft} merge=${p.mergeStateStatus} review=${p.reviewDecision ?? "NONE"} ${checks} unresolved=${unresolved}${state} ${JSON.stringify(p.title)}`;
 }
 
 function renderScan(r: ScanResult): string {

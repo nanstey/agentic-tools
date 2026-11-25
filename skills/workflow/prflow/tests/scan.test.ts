@@ -1,4 +1,8 @@
 import assert from "node:assert/strict";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { putPrPacket, putPrRun } from "../../../../lib/pr/store.ts";
 import { describe, it } from "node:test";
 import { DEFAULT_LIMIT, DEFAULT_ACTIONS, DEFAULT_DISPATCH, DEFAULT_RAILS, DEFAULT_REVIEW, DEFAULT_WORKTREE_STATUS, type Account, type Config } from "../scripts/core/config.ts";
 import { plan, scan, scopes, type CmdResult, type Deps } from "../scripts/scan.ts";
@@ -187,6 +191,21 @@ describe("scan", () => {
     assert.ok(r.worktrees.some((w) => w.path === "/review" && w.pr.number === 5));
     assert.deepEqual(r.errors, [`${ME}: acme/x e: boom`]);
     assert.deepEqual(plan(r).map((c) => `${c.kind}:${c.owner}`), ["cleanup:you", "cleanup:you", "cleanup:you"]);
+  });
+
+  it("reads a real shared PR store file without changing classification or dispatch", async () => {
+    const stateDir = mkdtempSync(join(tmpdir(), "prflow-scan-store-"));
+    try {
+      const identity = { owner: "Acme", repo: "x", number: 1 };
+      const path = join(stateDir, "Acme-x-1.json");
+      putPrPacket(path, identity, { base: "base", head: "head", policy: "policy", depth: "standard", reason: "test", verdict: "clean", findings: [], coverage: [], storedAt: "2026-01-01T00:00:00Z" });
+      putPrRun(path, identity, { id: "run-1", action: "review", mode: null, force: false, startedAt: new Date().toISOString(), round: 3, drafted_for_changes: false, completion: "complete" });
+      const { deps } = fakeDeps({ own: [hit("Acme/x", 1)], prs: { "Acme/x#1": okJson(prResponse({ head: "head" })) } });
+      const result = await scan({ ...deps, prStateDir: stateDir }, config(DEFAULT_CONFIG.accounts, false));
+      assert.deepEqual(result.prs[0]?.runState, { packetVerdict: "clean", packetHead: "head", roundsUsed: 3, lastCompletion: "complete" });
+      const withoutState = await scan(deps, config(DEFAULT_CONFIG.accounts, false));
+      assert.deepEqual(plan(result).map((item) => [item.kind, item.nextAction]), plan(withoutState).map((item) => [item.kind, item.nextAction]));
+    } finally { rmSync(stateDir, { recursive: true, force: true }); }
   });
 
   it("survives an Orca failure", async () => {

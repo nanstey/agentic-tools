@@ -19,7 +19,7 @@ import { isReviewWorktree, parseWorktrees, type OrcaWorktree } from "./adapters/
 import { dryRunBlocked, dryRunSlot, once } from "./actions.ts";
 import { accountFor, type Config } from "./core/config.ts";
 import { leaseUntil } from "./core/rails.ts";
-import type { Check, PrSnapshot } from "./core/types.ts";
+import type { Check, PrSnapshot } from "../../../../lib/pr/types.ts";
 import { beginDispatch, finishDispatch, type TickContext } from "./dispatch.ts";
 import type { Store } from "./store.ts";
 import type { TickDeps, TickOptions } from "./tick.ts";

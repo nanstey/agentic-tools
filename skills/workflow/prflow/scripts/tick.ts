@@ -8,7 +8,7 @@ import type { Config } from "./core/config.ts";
 import { renderEvent } from "./core/events.ts";
 import { backoffMs } from "./core/rails.ts";
 import { changeNote, renderTickReport, snapshotOf, sortItems, tickFingerprint, type Snapshot } from "./core/report.ts";
-import type { Classification } from "./core/types.ts";
+import type { Classification } from "../../../../lib/pr/types.ts";
 import { reconcile, type TickContext } from "./dispatch.ts";
 import { plan, scan, type CmdResult, type Deps, type ScanResult } from "./scan.ts";
 import type { Dispatch, ItemRow, Store } from "./store.ts";

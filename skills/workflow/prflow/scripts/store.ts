@@ -17,7 +17,7 @@ import { defaultStateDir as sharedStateDir, pidAlive } from "../../../../lib/run
 import type { DatabaseSync } from "node:sqlite";
 import { makeEvent, parseEvents, type EventInput, type PrflowEvent } from "./core/events.ts";
 import { canTransition, OPEN_STATES, type DispatchState } from "./core/rails.ts";
-import type { Classification } from "./core/types.ts";
+import type { Classification } from "../../../../lib/pr/types.ts";
 
 /** Load `node:sqlite` without its one-time ExperimentalWarning on stderr. */
 function loadSqlite(): typeof import("node:sqlite") {

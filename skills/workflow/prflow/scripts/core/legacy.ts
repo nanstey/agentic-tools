@@ -5,7 +5,7 @@
  *   is ci, comments, behind, or merge (a legacy `rerun` line is reported as bad) and detail is the comment timestamp.
  * - `pr-watch/dispatched.txt`: `owner/repo#N@sha8`, one reviewer session per head.
  */
-import type { Kind } from "./types.ts";
+import type { Kind } from "../../../../../lib/pr/types.ts";
 
 export type LegacySource = "pr-comment-watch" | "pr-watch";
 

@@ -60,7 +60,7 @@ import { otherApprovals } from "./core/classify.ts";
 import { projectFor, type Config } from "./core/config.ts";
 import { coverageText, draftFolder, draftId, draftSummary, parseDraft, type Draft, type DraftMeta } from "./core/draft.ts";
 import { MINUTE_MS, OPEN_STATES } from "./core/rails.ts";
-import type { Classification, PrSnapshot } from "./core/types.ts";
+import type { Classification, PrSnapshot } from "../../../../lib/pr/types.ts";
 import { beginDispatch, finishDispatch } from "./dispatch.ts";
 import { draftRevision } from "./revisions.ts";
 import { fetchReviewPr, type ScanResult } from "./scan.ts";

@@ -2,7 +2,7 @@
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { coverageText, draftFolder, draftSummary, parseDraftId, type Coverage } from "./core/draft.ts";
-import type { PrSnapshot } from "./core/types.ts";
+import type { PrSnapshot } from "../../../../lib/pr/types.ts";
 import { loadDraft, type LoadedDraft } from "./review.ts";
 import { draftRevision, type Revision } from "./revisions.ts";
 import type { Store } from "./store.ts";
