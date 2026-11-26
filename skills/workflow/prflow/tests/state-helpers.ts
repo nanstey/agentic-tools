@@ -38,6 +38,7 @@ export const cfg = (rails: Partial<Rails> = {}, worktrees = false): Config => ({
   review: { ...DEFAULT_REVIEW },
   taskStatuses: {},
   worktreeStatus: { ...DEFAULT_WORKTREE_STATUS, ignore: [] },
+  reviewBots: [],
 });
 
 export const okJson = (v: unknown): CmdResult => ({ ok: true, stdout: JSON.stringify(v), stderr: "" });

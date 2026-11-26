@@ -28,6 +28,11 @@ export interface Config {
   taskStatuses: Partial<Record<State, string>>;
   /** Board column sync for development worktrees (`scripts/worktree-status.ts`). */
   worktreeStatus: WorktreeStatusConfig;
+  /**
+   * Bot logins (case-insensitive, `[bot]` suffix optional) whose inline review
+   * threads and change requests on own PRs count like a human's. Default `[]`.
+   */
+  reviewBots: string[];
 }
 
 export interface WorktreeStatusConfig {
@@ -295,11 +300,12 @@ export function parseConfig(text: string, source: string): Config {
   const o = toolSection(shared, "prflow", source);
   if (shared.accounts.length === 0) top("accounts must be a non-empty array");
   for (const k of Object.keys(o))
-    if (!["$comment", "limit", "worktrees", "rails", "actions", "dispatch", "review", "worktreeStatus"].includes(k)) fail(`unknown key "${k}"`);
+    if (!["$comment", "limit", "worktrees", "rails", "actions", "dispatch", "review", "worktreeStatus", "reviewBots"].includes(k)) fail(`unknown key "${k}"`);
   const accounts = shared.accounts;
   if (o.limit !== undefined && (typeof o.limit !== "number" || !Number.isInteger(o.limit) || o.limit < 1 || o.limit > 1000))
     fail("limit must be an integer from 1 to 1000");
   if (o.worktrees !== undefined && typeof o.worktrees !== "boolean") fail("worktrees must be a boolean");
+  if (o.reviewBots !== undefined && !nonEmptyStrings(o.reviewBots)) fail("reviewBots must be an array of non-empty strings");
   return {
     accounts,
     limit: (o.limit as number | undefined) ?? DEFAULT_LIMIT,
@@ -310,5 +316,6 @@ export function parseConfig(text: string, source: string): Config {
     review: parseReview(o.review, fail),
     taskStatuses: parseTaskStatuses(toolSection(shared, "taskStatus", source), (msg) => top(`taskStatus.${msg}`)),
     worktreeStatus: parseWorktreeStatus(o.worktreeStatus, toolSection(shared, "orchestrator", source).ignore, fail, top),
+    reviewBots: [...((o.reviewBots as string[] | undefined) ?? [])],
   };
 }

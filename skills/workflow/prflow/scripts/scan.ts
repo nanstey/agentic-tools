@@ -166,8 +166,9 @@ export async function scan(deps: Deps, cfg: Config): Promise<ScanResult> {
   return { prs, worktrees, errors };
 }
 
-export function plan(result: ScanResult): Classification[] {
-  const items = result.prs.map((p) => ({ ...classify(p, p.account), ...(p.runState ? { runState: p.runState } : {}) }));
+/** Classify every scanned PR and worktree. `reviewBots` is `prflow.reviewBots`. */
+export function plan(result: ScanResult, reviewBots: readonly string[] = []): Classification[] {
+  const items = result.prs.map((p) => ({ ...classify(p, p.account, reviewBots), ...(p.runState ? { runState: p.runState } : {}) }));
   for (const w of result.worktrees) {
     const c = classifyWorktree(w);
     if (c) items.push(c);

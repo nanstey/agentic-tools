@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { informationalApproval, summarizeChecks, unansweredFeedback } from "../../../../../lib/pr/facts.ts";
-export { jobId, summarizeChecks, unansweredFeedback } from "../../../../../lib/pr/facts.ts";
+export { jobId, reviewBot, summarizeChecks, unansweredFeedback } from "../../../../../lib/pr/facts.ts";
 import {
   KIND_PRIORITY,
   type Actor,
@@ -54,11 +54,14 @@ export function approvalNotes(pr: PrSnapshot, me: string): string[] {
   return notes.sort();
 }
 
-/** Every trigger that fires for an own PR, in a fixed order. */
-export function authorTriggers(pr: PrSnapshot, me: string): Trigger[] {
+/**
+ * Every trigger that fires for an own PR, in a fixed order. `reviewBots`
+ * (`prflow.reviewBots`) names bots whose feedback counts like a human's.
+ */
+export function authorTriggers(pr: PrSnapshot, me: string, reviewBots: readonly string[] = []): Trigger[] {
   if (pr.isDraft) return [];
   const out: Trigger[] = [];
-  const latest = unansweredFeedback(pr, me);
+  const latest = unansweredFeedback(pr, me, reviewBots);
   if (latest !== null) out.push({ kind: "comments", detail: latest });
   const s = summarizeChecks(pr.checks);
   if (!s.pending) {
@@ -143,8 +146,8 @@ function base(pr: PrSnapshot) {
 }
 
 /** Classify one of the account's own open PRs. */
-export function classifyAuthored(pr: PrSnapshot, me: string): Classification {
-  const triggers = authorTriggers(pr, me);
+export function classifyAuthored(pr: PrSnapshot, me: string, reviewBots: readonly string[] = []): Classification {
+  const triggers = authorTriggers(pr, me, reviewBots);
   const top = [...triggers].sort((a, b) => rank(TRIGGER_KIND[a.kind]) - rank(TRIGGER_KIND[b.kind]))[0];
   const kind: Kind = top ? TRIGGER_KIND[top.kind] : "waiting";
   const plan = authorPlan(kind, top);
@@ -227,6 +230,7 @@ export function classifyWorktree(w: WorktreeItem): Classification | null {
   };
 }
 
-export function classify(pr: PrSnapshot, me: string): Classification {
-  return pr.role === "author" ? classifyAuthored(pr, me) : classifyReviewRequest(pr, me);
+/** `reviewBots` applies to own PRs only; review requests ignore every bot. */
+export function classify(pr: PrSnapshot, me: string, reviewBots: readonly string[] = []): Classification {
+  return pr.role === "author" ? classifyAuthored(pr, me, reviewBots) : classifyReviewRequest(pr, me);
 }

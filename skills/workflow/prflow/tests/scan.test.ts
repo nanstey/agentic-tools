@@ -9,7 +9,7 @@ import { plan, scan, scopes, type CmdResult, type Deps } from "../scripts/scan.t
 import { ME, prResponse } from "./fixtures.ts";
 
 const account = (login: string, owners: string[] = [], repos: string[] = []): Account => ({ login, owners, repos });
-const config = (accounts: Account[], worktrees = true): Config => ({ accounts, limit: DEFAULT_LIMIT, worktrees, rails: DEFAULT_RAILS, actions: DEFAULT_ACTIONS, dispatch: DEFAULT_DISPATCH, review: DEFAULT_REVIEW, taskStatuses: {}, worktreeStatus: DEFAULT_WORKTREE_STATUS });
+const config = (accounts: Account[], worktrees = true): Config => ({ accounts, limit: DEFAULT_LIMIT, worktrees, rails: DEFAULT_RAILS, actions: DEFAULT_ACTIONS, dispatch: DEFAULT_DISPATCH, review: DEFAULT_REVIEW, taskStatuses: {}, worktreeStatus: DEFAULT_WORKTREE_STATUS, reviewBots: [] });
 const DEFAULT_CONFIG = config([account(ME, ["Acme"])]);
 
 const okJson = (v: unknown): CmdResult => ({ ok: true, stdout: JSON.stringify(v), stderr: "" });

@@ -264,7 +264,7 @@ async function buildBrief(c: Ctx, item: Classification, pr: PrSnapshot, wt: Orca
   if (!facts) throw new Error(`${item.key}: brief facts: PR not found`);
   let details: string;
   if (kind === "comments") {
-    const items = feedbackItems(facts, pr.headCommittedDate, item.account);
+    const items = feedbackItems(facts, pr.headCommittedDate, item.account, c.cfg.reviewBots);
     details = items.length ? items.join("\n\n") : "(prflow found no comment text; read the PR's conversation and review threads.)";
   } else if (kind === "ci") {
     const jobs = await failedJobs(c, item, pr);

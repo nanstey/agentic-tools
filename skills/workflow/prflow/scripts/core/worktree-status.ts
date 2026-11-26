@@ -22,10 +22,10 @@ export interface ClosedPr {
   state: string;
 }
 
-/** Column for an open PR (`null` for a draft, which waits on its author). */
-export function openPrColumn(pr: PrSnapshot): ColumnDecision | null {
+/** Column for an open PR (`null` for a draft, which waits on its author). `reviewBots` is `prflow.reviewBots`. */
+export function openPrColumn(pr: PrSnapshot, reviewBots: readonly string[] = []): ColumnDecision | null {
   if (pr.isDraft) return null;
-  const feedback = pr.role === "author" && unansweredFeedback(pr, pr.account) !== null;
+  const feedback = pr.role === "author" && unansweredFeedback(pr, pr.account, reviewBots) !== null;
   const checks = pr.checks.map((check) => check.typename === "CheckRun"
     ? checkState({ __typename: "CheckRun", status: check.status, conclusion: check.conclusion })
     : checkState({ __typename: "StatusContext", state: check.state }));
@@ -39,9 +39,9 @@ export function closedPrColumn(pr: ClosedPr): ColumnDecision | null {
 }
 
 /** The column for one worktree. `running` names the busy session or open dispatch, if any. */
-export function worktreeColumn(running: string | null, open: PrSnapshot | null, closed: ClosedPr | null): ColumnDecision | null {
+export function worktreeColumn(running: string | null, open: PrSnapshot | null, closed: ClosedPr | null, reviewBots: readonly string[] = []): ColumnDecision | null {
   if (running !== null) return { state: "in-progress", reason: running };
-  if (open) return openPrColumn(open);
+  if (open) return openPrColumn(open, reviewBots);
   if (closed) return closedPrColumn(closed);
   return null;
 }

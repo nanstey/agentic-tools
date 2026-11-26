@@ -8,7 +8,7 @@ import type { PrSnapshot } from "../scripts/core/types.ts";
 import type { Store } from "../scripts/store.ts";
 import { tick } from "../scripts/tick.ts";
 import { makeWorktreeStatus } from "../scripts/worktree-status.ts";
-import { AFTER, alice, ME, ok, prResponse, review, run, thread, comment, type PrSpec } from "./fixtures.ts";
+import { AFTER, alice, bot, ME, ok, prResponse, review, run, thread, comment, type PrSpec } from "./fixtures.ts";
 import { cfg, fakeTickDeps, MIN, okJson, tempStore, world, type World } from "./state-helpers.ts";
 
 const STATUSES = { ...DEFAULT_STATUSES, blocked: "status-6", paused: "status-6-2", "needs-attention": "status-7" };
@@ -105,6 +105,9 @@ describe("worktree column rules", () => {
     // An approval that asks for nothing is not feedback to answer.
     assert.equal(openPrColumn(snap({ reviews: [review(alice, "APPROVED", AFTER, "LGTM")] }))?.state, "done");
     assert.equal(openPrColumn(snap({ isDraft: true })), null);
+    const botThread = { threads: [thread(false, comment(bot("coderabbitai"), AFTER))] };
+    assert.equal(openPrColumn(snap(botThread))?.state, "done");
+    assert.equal(openPrColumn(snap(botThread), ["coderabbitai"])?.reason, "PR #1 has unanswered review comments");
   });
 
   it("maps closed PRs and lets a running session win", () => {
