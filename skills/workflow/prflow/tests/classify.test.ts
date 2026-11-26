@@ -56,46 +56,31 @@ describe("author classifier fixtures", () => {
   });
 });
 
-describe("review bots", () => {
+describe("bot feedback", () => {
   const rabbit = bot("coderabbitai");
-  const BOTS = ["CodeRabbitAI"];
-  const kinds = (spec: PrSpec, bots?: string[]) => authorTriggers(snap({ decision: "REVIEW_REQUIRED", ...spec }), ME, bots).map((t) => t.kind);
+  const kinds = (spec: PrSpec) => authorTriggers(snap({ decision: "REVIEW_REQUIRED", ...spec }), ME).map((t) => t.kind);
 
-  it("a listed bot's unresolved thread triggers comments", () => {
+  it("a bot's unresolved thread triggers comments", () => {
     const pr = snap({ decision: "REVIEW_REQUIRED", threads: [thread(false, comment(rabbit, AFTER))] });
-    assert.deepEqual(authorTriggers(pr, ME, BOTS), [{ kind: "comments", detail: AFTER }]);
-    assert.equal(classifyAuthored(pr, ME, BOTS).kind, "comments");
-    assert.equal(classify(pr, ME, BOTS).kind, "comments");
-    assert.deepEqual(kinds({ threads: [thread(false, comment(rabbit, AFTER))] }, ["coderabbitai[bot]"]), ["comments"]);
+    assert.deepEqual(authorTriggers(pr, ME), [{ kind: "comments", detail: AFTER }]);
+    assert.equal(classifyAuthored(pr, ME).kind, "comments");
+    assert.equal(classify(pr, ME).kind, "comments");
   });
 
-  it("a listed bot's change request triggers comments", () => {
-    assert.deepEqual(kinds({ reviews: [review(rabbit, "CHANGES_REQUESTED", AFTER, "fix")] }, BOTS), ["comments"]);
+  it("a bot's change request triggers comments", () => {
+    assert.deepEqual(kinds({ reviews: [review(rabbit, "CHANGES_REQUESTED", AFTER, "fix")] }), ["comments"]);
   });
 
-  it("a listed bot's issue comments, COMMENTED summaries, and answered or resolved threads do not trigger", () => {
-    assert.deepEqual(kinds({ comments: [comment(rabbit, AFTER)] }, BOTS), []);
-    assert.deepEqual(kinds({ reviews: [review(rabbit, "COMMENTED", AFTER, "Actionable comments posted: 2")] }, BOTS), []);
-    assert.deepEqual(kinds({ threads: [thread(false, comment(rabbit, AFTER), comment(me, LATER))] }, BOTS), []);
-    assert.deepEqual(kinds({ threads: [thread(true, comment(rabbit, AFTER))] }, BOTS), []);
-  });
-
-  it("a bot not in the list does not trigger", () => {
-    assert.deepEqual(kinds({ threads: [thread(false, comment(bot("other"), AFTER))], reviews: [review(bot("other"), "CHANGES_REQUESTED", AFTER, "x")] }, BOTS), []);
-    // A human with a listed login is still a human, and a bot named like a human is still a bot.
-    assert.deepEqual(kinds({ threads: [thread(false, comment(user("dependabot"), AFTER))] }, ["dependabot"]), ["comments"]);
-  });
-
-  it("an empty list keeps every bot ignored, as before", () => {
-    const spec: PrSpec = { threads: [thread(false, comment(rabbit, AFTER))], reviews: [review(rabbit, "CHANGES_REQUESTED", AFTER, "fix")] };
-    assert.deepEqual(kinds(spec), []);
-    assert.deepEqual(kinds(spec, []), []);
-    assert.equal(classify(snap({ decision: "REVIEW_REQUIRED", ...spec }), ME).kind, "waiting");
+  it("a bot's issue comments, COMMENTED summaries, and answered or resolved threads do not trigger", () => {
+    assert.deepEqual(kinds({ comments: [comment(rabbit, AFTER)] }), []);
+    assert.deepEqual(kinds({ reviews: [review(rabbit, "COMMENTED", AFTER, "Actionable comments posted: 2")] }), []);
+    assert.deepEqual(kinds({ threads: [thread(false, comment(rabbit, AFTER), comment(me, LATER))] }), []);
+    assert.deepEqual(kinds({ threads: [thread(true, comment(rabbit, AFTER))] }), []);
   });
 
   it("does not affect review requests", () => {
     const pr = snap({ decision: null, threads: [thread(false, comment(rabbit, AFTER))] }, "reviewer");
-    assert.deepEqual(classify(pr, ME, BOTS), classify(pr, ME));
+    assert.equal(classify(pr, ME).kind, classifyReviewRequest(snap({ decision: null }, "reviewer"), ME).kind);
   });
 });
 

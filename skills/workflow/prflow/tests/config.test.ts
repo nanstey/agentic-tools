@@ -5,7 +5,7 @@ import { describe, it } from "node:test";
 import { defaultPaths, loadConfig } from "../scripts/config.ts";
 import { accountFor, DEFAULT_ACTIONS, DEFAULT_DISPATCH, DEFAULT_RAILS, DEFAULT_REVIEW, DEFAULT_STATUSES, DEFAULT_WORKTREE_STATUS, parseConfig, projectFor } from "../scripts/core/config.ts";
 
-const prflowKeys = ["limit", "worktrees", "rails", "actions", "dispatch", "review", "worktreeStatus", "reviewBots"];
+const prflowKeys = ["limit", "worktrees", "rails", "actions", "dispatch", "review", "worktreeStatus"];
 const parse = (v: unknown) => {
   const value = v as Record<string, unknown>;
   const prflow = Object.fromEntries(Object.entries(value).filter(([key]) => prflowKeys.includes(key)));
@@ -19,13 +19,6 @@ describe("parseConfig", () => {
     assert.deepEqual(cfg.accounts.map((a) => a.login), ["work-login", "personal-login"]);
     assert.equal(cfg.limit, 50);
     assert.equal(cfg.worktrees, true);
-    assert.deepEqual(cfg.reviewBots, ["coderabbitai"]);
-  });
-
-  it("reads prflow.reviewBots", () => {
-    assert.deepEqual(parse({ accounts: [{ login: "a" }], reviewBots: ["CodeRabbitAI", "other[bot]"] }).reviewBots, ["CodeRabbitAI", "other[bot]"]);
-    assert.throws(() => parse({ accounts: [{ login: "a" }], reviewBots: "coderabbitai" }), /prflow\.reviewBots must be an array of non-empty strings/);
-    assert.throws(() => parse({ accounts: [{ login: "a" }], reviewBots: [""] }), /prflow\.reviewBots must be an array of non-empty strings/);
   });
 
   it("accepts a comment in the prflow section", () => {
@@ -65,7 +58,6 @@ describe("parseConfig", () => {
       review: DEFAULT_REVIEW,
       taskStatuses: DEFAULT_STATUSES,
       worktreeStatus: DEFAULT_WORKTREE_STATUS,
-      reviewBots: [],
     });
   });
 

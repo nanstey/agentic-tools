@@ -88,7 +88,7 @@ export function makeWorktreeStatus(deps: TickDeps, store: Store, cfg: Config) {
       const gone = result.worktrees.find((x) => x.path === w.path)?.pr ?? null;
       const item = pr ? `${pr.repo}#${pr.number}` : gone ? `${w.repo}#${gone.number}` : `${w.repo}@${w.branch}`;
       if (store.item(item)?.paused) continue;
-      const decision = worktreeColumn(runningIn(w, agents, open), pr, gone, cfg.reviewBots);
+      const decision = worktreeColumn(runningIn(w, agents, open), pr, gone);
       if (!decision) continue;
       const status = cfg.taskStatuses[decision.state];
       if (!status) {

@@ -121,7 +121,7 @@ describe("feedbackItems", () => {
     assert.match(items[2] ?? "", /^- \*\*dave\*\* requested changes/);
   });
 
-  it("lists a listed review bot's threads and change requests, but not its comments or summaries", () => {
+  it("lists a bot's threads and change requests, but not its comments or summaries", () => {
     const rabbit = { login: "coderabbitai", typename: "Bot" };
     const bots: BriefFacts = {
       ...facts,
@@ -132,11 +132,9 @@ describe("feedbackItems", () => {
       ],
       threads: [{ isResolved: false, path: "src/d.ts", line: 9, comments: [{ at: "2026-01-10T13:10:00Z", author: rabbit, url: "b4", body: "null check" }] }],
     };
-    const items = feedbackItems(bots, "2026-01-10T12:00:00Z", "me", ["coderabbitai"]);
+    const items = feedbackItems(bots, "2026-01-10T12:00:00Z", "me");
     assert.equal(items.length, 2);
     assert.match(items[0] ?? "", /^- \*\*coderabbitai\*\* requested changes .* b3/);
     assert.match(items[1] ?? "", /^- Unresolved thread on `src\/d\.ts:9`, last comment b4/);
-    assert.deepEqual(feedbackItems(bots, "2026-01-10T12:00:00Z", "me"), []);
-    assert.deepEqual(feedbackItems(bots, "2026-01-10T12:00:00Z", "me", ["other"]), []);
   });
 });

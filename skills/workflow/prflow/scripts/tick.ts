@@ -207,7 +207,7 @@ export async function tick(
     const result = await withBudget(scan(deps, cfg), cfg.rails.pollBudgetSeconds * 1000, "scan");
     if (result.errors.length) throw new Error(`scan incomplete:\n${result.errors.map((e) => `warn: ${e}`).join("\n")}`);
     const now = deps.now();
-    const items = plan(result, cfg.reviewBots);
+    const items = plan(result);
     store.upsertItems(items, now);
     store.setMeta(META.lastScanAt, String(now));
     const ctx: TickContext = { now, tickId: runId, rails: cfg.rails, starts: 0 };

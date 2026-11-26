@@ -51,7 +51,7 @@ instead of sending it half-filled.
 | Kind | Details filled in |
 | --- | --- |
 | `ci` | Each failed or cancelled check: name, log URL, and up to 20 error lines from `gh run view --job <id> --log-failed` (first 5 Actions jobs) |
-| `comments` | Human comments and reviews newer than the head commit and the author's last reply, and unresolved threads whose last comment is a human's: author, `file:line`, URL, text. Informational approvals are left out. A `prflow.reviewBots` bot's change requests and unresolved threads are listed too; its other comments and reviews are not |
+| `comments` | Human comments and reviews newer than the head commit and the author's last reply, and unresolved threads whose last comment is a human's: author, `file:line`, URL, text. Informational approvals are left out. A bot's change requests and unresolved threads are listed too; its other comments and reviews are not |
 | `behind` | BEHIND or DIRTY merge state; the brief runs `/pr <url>` |
 | `nudge` | Sent once to an idle session whose work is unfinished |
 | `restart` | Wraps a full brief for a session prflow restarts in place: why, then a request for an immediate update (what it was doing, what is done, what is left) before it starts again |

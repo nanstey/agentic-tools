@@ -106,8 +106,7 @@ describe("worktree column rules", () => {
     assert.equal(openPrColumn(snap({ reviews: [review(alice, "APPROVED", AFTER, "LGTM")] }))?.state, "done");
     assert.equal(openPrColumn(snap({ isDraft: true })), null);
     const botThread = { threads: [thread(false, comment(bot("coderabbitai"), AFTER))] };
-    assert.equal(openPrColumn(snap(botThread))?.state, "done");
-    assert.equal(openPrColumn(snap(botThread), ["coderabbitai"])?.reason, "PR #1 has unanswered review comments");
+    assert.equal(openPrColumn(snap(botThread))?.reason, "PR #1 has unanswered review comments");
   });
 
   it("maps closed PRs and lets a running session win", () => {

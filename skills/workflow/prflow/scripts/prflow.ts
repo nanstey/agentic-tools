@@ -134,14 +134,14 @@ function renderScan(r: ScanResult): string {
 }
 
 /** One watch run under a per-state-file lock. */
-async function watch(statePath: string, runScan: () => Promise<ScanResult>, reviewBots: readonly string[]): Promise<number> {
+async function watch(statePath: string, runScan: () => Promise<ScanResult>): Promise<number> {
   mkdirSync(dirname(statePath), { recursive: true });
   const lock = `${statePath}.lock`;
   // Another run of this job is still going and will report; stay silent.
   if (!tryLock(lock)) return 0;
   try {
     const result = await runScan();
-    const actionable = sortItems(plan(result, reviewBots)).filter((c) => c.kind !== "waiting");
+    const actionable = sortItems(plan(result)).filter((c) => c.kind !== "waiting");
     const report = actionable.length ? renderReport(actionable) : "";
     const d = decideWatch(readOrNull(statePath), fingerprint(actionable), report, result.errors);
     if (d.save !== null) writeAtomic(statePath, d.save);
@@ -280,7 +280,6 @@ async function main(argv: string[]): Promise<number> {
         const scope = [...a.owners.map((o) => `owner:${o}`), ...a.repos.map((r) => `repo:${r}`)];
         console.log(`account ${a.login}: ${scope.join(" ") || "every repo"}`);
       }
-      if (cfg.reviewBots.length) console.log(`review bots: ${cfg.reviewBots.join(" ")}`);
     }
     return 0;
   }
@@ -319,14 +318,14 @@ async function main(argv: string[]): Promise<number> {
       store.close();
     }
   }
-  if (cmd === "watch") return watch(values.state ?? watchStatePath(values.name), () => scan(deps, cfg), cfg.reviewBots);
+  if (cmd === "watch") return watch(values.state ?? watchStatePath(values.name), () => scan(deps, cfg));
   const result = await scan(deps, cfg);
   for (const e of result.errors) console.error(`warn: ${e}`);
   if (cmd === "scan") {
     console.log(format === "json" ? JSON.stringify(result, null, 2) : renderScan(result));
     return 0;
   }
-  const all = sortItems(plan(result, cfg.reviewBots));
+  const all = sortItems(plan(result));
   const items = values.actionable ? all.filter((c) => c.kind !== "waiting") : all;
   if (format === "json") console.log(renderPlanJson(items));
   else if (!values.actionable || items.length) console.log(renderReport(items));

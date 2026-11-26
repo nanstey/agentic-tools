@@ -46,7 +46,6 @@ export async function loadConfig(
       review: { ...DEFAULT_REVIEW },
       taskStatuses: { ...DEFAULT_STATUSES },
       worktreeStatus: { ...DEFAULT_WORKTREE_STATUS, ignore: [] },
-      reviewBots: [],
     },
     source,
   });

@@ -15,8 +15,6 @@
   "prflow": {
     "limit": 50,
     "worktrees": true,
-    "reviewBots": ["coderabbitai"],
-    "$comment": "prflow.reviewBots: bot logins (case-insensitive) whose unresolved inline review threads and change requests on your own PRs trigger a comments dispatch, like a human reviewer's. Their issue comments and COMMENTED review summaries never trigger. Other bots stay ignored. Default [].",
     "rails": {
       "$comment": "prflow.rails: optional tick limits. Missing keys keep their defaults (shown here).",
       "startsPerTick": 2,
