@@ -56,6 +56,34 @@ describe("author classifier fixtures", () => {
   });
 });
 
+describe("bot feedback", () => {
+  const rabbit = bot("coderabbitai");
+  const kinds = (spec: PrSpec) => authorTriggers(snap({ decision: "REVIEW_REQUIRED", ...spec }), ME).map((t) => t.kind);
+
+  it("a bot's unresolved thread triggers comments", () => {
+    const pr = snap({ decision: "REVIEW_REQUIRED", threads: [thread(false, comment(rabbit, AFTER))] });
+    assert.deepEqual(authorTriggers(pr, ME), [{ kind: "comments", detail: AFTER }]);
+    assert.equal(classifyAuthored(pr, ME).kind, "comments");
+    assert.equal(classify(pr, ME).kind, "comments");
+  });
+
+  it("a bot's change request triggers comments", () => {
+    assert.deepEqual(kinds({ reviews: [review(rabbit, "CHANGES_REQUESTED", AFTER, "fix")] }), ["comments"]);
+  });
+
+  it("a bot's issue comments, COMMENTED summaries, and answered or resolved threads do not trigger", () => {
+    assert.deepEqual(kinds({ comments: [comment(rabbit, AFTER)] }), []);
+    assert.deepEqual(kinds({ reviews: [review(rabbit, "COMMENTED", AFTER, "Actionable comments posted: 2")] }), []);
+    assert.deepEqual(kinds({ threads: [thread(false, comment(rabbit, AFTER), comment(me, LATER))] }), []);
+    assert.deepEqual(kinds({ threads: [thread(true, comment(rabbit, AFTER))] }), []);
+  });
+
+  it("does not affect review requests", () => {
+    const pr = snap({ decision: null, threads: [thread(false, comment(rabbit, AFTER))] }, "reviewer");
+    assert.equal(classify(pr, ME).kind, classifyReviewRequest(snap({ decision: null }, "reviewer"), ME).kind);
+  });
+});
+
 describe("version", () => {
   it("starts with head8 and changes with a new comment on the same head", () => {
     const a = version(snap({}));

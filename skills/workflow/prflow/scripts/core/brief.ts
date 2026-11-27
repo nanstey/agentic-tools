@@ -3,7 +3,7 @@
  * filled with PR facts. Pure; the caller reads the templates and the facts.
  */
 import type { BriefFacts, FeedbackNote } from "../adapters/gh.ts";
-import { informationalApproval } from "./classify.ts";
+import { reviewFeedback, threadFeedback } from "../../../../../lib/pr/facts.ts";
 import type { ProjectContext } from "./config.ts";
 import type { Actor } from "../../../../../lib/pr/types.ts";
 
@@ -50,7 +50,9 @@ const isHuman = (a: Actor, me: string) => a !== null && a.typename !== "Bot" && 
  * The feedback a comments brief lists: human comments and reviews newer than
  * the head commit and the author's own latest reply, and unresolved threads whose
  * last comment is a human's newer than the head. Approvals that ask for no
- * changes are left out, as in the classifier.
+ * changes are left out, as in the classifier. A bot's change requests and
+ * unresolved threads count, as in the classifier; its other comments and
+ * reviews are left out.
  */
 export function feedbackItems(f: BriefFacts, headCommittedDate: string, me: string): string[] {
   const mine = [...f.comments, ...f.reviews].filter((n) => n.author?.login === me).map((n) => n.at);
@@ -59,14 +61,13 @@ export function feedbackItems(f: BriefFacts, headCommittedDate: string, me: stri
   const out: { at: string; text: string }[] = [];
   for (const c of f.comments) if (isHuman(c.author, me) && c.at > cutoff) out.push({ at: c.at, text: item(c, "commented") });
   for (const r of f.reviews) {
-    if (!isHuman(r.author, me) || r.at <= cutoff) continue;
-    if (informationalApproval({ state: r.state, body: r.body, at: r.at, author: r.author, commitOid: null })) continue;
+    if (r.at <= cutoff || !reviewFeedback(r, me)) continue;
     if (r.body.trim() === "" && r.state !== "CHANGES_REQUESTED") continue;
     out.push({ at: r.at, text: item(r, r.state === "CHANGES_REQUESTED" ? "requested changes" : "reviewed") });
   }
   for (const t of f.threads) {
     const last = t.comments.at(-1);
-    if (t.isResolved || !last || !isHuman(last.author, me) || last.at <= headCommittedDate) continue;
+    if (t.isResolved || !last || !threadFeedback(last.author, me) || last.at <= headCommittedDate) continue;
     const where = t.path ? `\`${t.path}${t.line ? `:${t.line}` : ""}\`` : "a thread";
     const lines = t.comments.slice(-5).map((c) => `  - **${who(c.author)}** (${ts(c.at)}) ${c.url}\n${quote(c.body, 1000).replace(/^ {2}/gm, "    ")}`);
     out.push({ at: last.at, text: `- Unresolved thread on ${where}, last comment ${last.url}\n${lines.join("\n")}` });

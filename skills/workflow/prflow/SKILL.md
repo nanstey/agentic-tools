@@ -146,7 +146,7 @@ One kind per PR, in priority order:
 | --- | --- | --- | --- |
 | `mergeable` | GitHub reports APPROVED, checks green, and merge state CLEAN; this is not a PR readiness decision | Route to `/pr` for its lifecycle | you |
 | `ci` | Failed or cancelled checks, nothing pending; cancelled job names appear in details | `/pr` lifecycle brief | agent |
-| `comments` | Human comment, review body, changes request, or unresolved thread newer than the head commit, with no later reply from `me` | `/pr` lifecycle brief | agent |
+| `comments` | Human comment, review body, changes request, or unresolved thread newer than the head commit, with no later reply from `me`. A bot's change request or unresolved inline thread counts too. A bot's issue comments and COMMENTED review summaries never count | `/pr` lifecycle brief | agent |
 | `behind` | BEHIND or DIRTY, nothing pending | `/pr` lifecycle brief | agent |
 | `review-requested` | `me` is requested, not draft, required checks finished, head not yet reviewed by `me`. Low priority when another human already approved and no one requested changes | Reviewer session, draft only; then you decide on the draft | agent reviewer, then you |
 | `cleanup` | Orca worktree whose PR is merged or closed | Archive if clean, else you check | prflow or you |
